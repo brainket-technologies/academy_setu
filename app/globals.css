@@ -24,3 +24,26 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes streamA {
+  0% { transform: translateX(0) translateY(0); }
+  100% { transform: translateX(52px) translateY(52px); }
+}
+@keyframes streamB {
+  0% { transform: translateX(0) translateY(0); }
+  100% { transform: translateX(-68px) translateY(-68px); }
+}
+@keyframes orb-drift {
+  0%, 100% { transform: translate(0, 0); }
+  33% { transform: translate(30px, -40px); }
+  66% { transform: translate(-20px, 20px); }
+}
+@keyframes orb-drift-delayed {
+  0%, 100% { transform: translate(0, 0); }
+  33% { transform: translate(-40px, 30px); }
+  66% { transform: translate(20px, -30px); }
+}
+@keyframes orb-drift-slow {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, -30px); }
+}
