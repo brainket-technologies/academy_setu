@@ -6,20 +6,31 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:init": "node C:\\Users\\fammu\\.gemini\\antigravity-ide\\brain\\7d8fb253-0dc0-4e22-b926-6d93fd222209\\scratch\\init-db.js"
   },
   "dependencies": {
+    "@prisma/client": "^7.8.0",
+    "bcryptjs": "^3.0.3",
+    "jose": "^6.2.3",
+    "lucide-react": "^1.21.0",
     "next": "16.2.9",
+    "next-themes": "^0.4.6",
+    "pg": "^8.22.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "recharts": "^3.8.1",
+    "sonner": "^2.0.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
+    "prisma": "^7.8.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
