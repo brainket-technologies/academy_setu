@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { 
   LayoutDashboard, Users, FileText, Calendar, Tag, CreditCard, 
@@ -25,15 +25,11 @@ interface MenuItem {
 
 export function AdminSidebar() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   const menuItems: MenuItem[] = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/admin/dashboard' },
-    { 
-      icon: Users, label: 'Segment', href: '/admin/segment',
-      subItems: [
-        { label: 'All Segment', href: '/admin/segment' },
-      ]
-    },
+    { icon: Users, label: 'Segment', href: '/admin/segment' },
     { 
       icon: FileText, label: 'Application', href: '/admin/application',
       subItems: [
@@ -49,18 +45,46 @@ export function AdminSidebar() {
       ]
     },
     { icon: Tag, label: 'Promo Code', href: '/admin/promo-code' },
-    { icon: CreditCard, label: 'Billing', href: '#', subItems: [] },
-    { icon: MessageSquare, label: 'Request', href: '#', subItems: [] },
-    { icon: MessagesSquare, label: 'All Conversation', href: '#' },
-    { icon: HelpCircle, label: 'Help & Support', href: '#', subItems: [] },
-    { icon: UserCheck, label: 'CRM', href: '#', subItems: [] },
-    { icon: Share2, label: 'Referral Code', href: '#', subItems: [] },
-    { icon: HelpCircle, label: 'Queries', href: '#', subItems: [] },
-    { icon: Truck, label: 'Distributers', href: '#', subItems: [] },
-    { icon: DollarSign, label: 'Income & Expense', href: '#', subItems: [] },
-    { icon: UserCog, label: 'User Role', href: '#', subItems: [] },
-    { icon: Settings, label: 'Settings', href: '#', subItems: [] },
-    { icon: Edit, label: 'Edit Profile', href: '#' },
+    { icon: CreditCard, label: 'Billing', href: '/admin/billing' },
+    { icon: MessageSquare, label: 'Request', href: '/admin/request' },
+    { icon: MessagesSquare, label: 'All Conversation', href: '/admin/conversation' },
+    { 
+      icon: HelpCircle, label: 'Help & Support', href: '#',
+      subItems: [
+        { label: 'All Ticket', href: '/admin/ticket' },
+        { label: 'Ticket Category', href: '/admin/ticket-category' }
+      ]
+    },
+    { 
+      icon: UserCheck, label: 'CRM', href: '#',
+      subItems: [
+        { label: 'All Leads', href: '/admin/crm/leads' },
+        { label: 'Create Lead', href: '/admin/crm/leads/create' },
+        { label: 'Lead Status', href: '/admin/crm/status' }
+      ]
+    },
+    { icon: Share2, label: 'Referral Code', href: '/admin/referral-code' },
+    { icon: HelpCircle, label: 'Queries', href: '/admin/queries' },
+    {
+      icon: Truck, label: 'Distributers', href: '#',
+      subItems: [
+        { label: 'All Distributers', href: '/admin/distributors' },
+        { label: 'Create Distributers', href: '/admin/distributors/create' },
+        { label: 'Distributer Payment', href: '/admin/distributors/payment' }
+      ]
+    },
+    { 
+      icon: DollarSign, label: 'Income & Expense', href: '#',
+      subItems: [
+        { label: 'All Income', href: '/admin/income' },
+        { label: 'All Expenses', href: '/admin/expense' },
+        { label: 'Create Category', href: '/admin/income/category' },
+        { label: 'Create Parties', href: '/admin/income/parties' }
+      ]
+    },
+    { icon: UserCog, label: 'User Role', href: '/admin/user-role' },
+    { icon: Settings, label: 'Settings', href: '/admin/settings' },
+    { icon: Edit, label: 'Edit Profile', href: '/admin/edit-profile' },
   ]
 
   // Track which expandable menu is open by label
@@ -81,7 +105,11 @@ export function AdminSidebar() {
 
   const isParentActive = (item: MenuItem) => {
     if (item.subItems && item.subItems.length > 0) {
-      return item.subItems.some(sub => sub.href !== '#' && pathname.startsWith(sub.href))
+      return item.subItems.some(sub => {
+        if (sub.href === '#') return false
+        const pathOnly = sub.href.split('?')[0]
+        return pathname.startsWith(pathOnly)
+      })
     }
     return item.href !== '#' && pathname.startsWith(item.href)
   }
@@ -133,8 +161,22 @@ export function AdminSidebar() {
                 {isOpen && (
                   <div className="mt-0.5 ml-4 pl-5 border-l-2 border-teal-100 dark:border-teal-800 flex flex-col gap-0.5 py-1">
                     {item.subItems!.map((sub, j) => {
-                      const subActive = pathname === sub.href || (sub.href !== '#' && pathname.startsWith(sub.href) && sub.href !== '/admin/plan' && sub.href !== '/admin/application' && sub.href !== '/admin/segment') || pathname === sub.href
-                      const exactActive = pathname === sub.href
+                      const isSubActive = (subHref: string) => {
+                        if (subHref.includes('?')) {
+                          const [path, search] = subHref.split('?')
+                          if (pathname !== path) return false
+                          const subParams = new URLSearchParams(search)
+                          return Array.from(subParams.entries()).every(([key, val]) => searchParams.get(key) === val)
+                        }
+                        if (pathname === subHref) {
+                          if (pathname === '/admin/user-role') {
+                            return !searchParams.has('role')
+                          }
+                          return true
+                        }
+                        return false
+                      }
+                      const exactActive = isSubActive(sub.href)
                       return (
                         <Link
                           key={j}

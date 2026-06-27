@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Search, Edit3, Trash2, Filter, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
+import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
 const DISCOUNT_TYPES = ['Percentage', 'Fixed']
 const APPLICABLE_BY_OPTIONS = ['Website Purchase', 'Only Admin', 'BDM', 'Manager']
@@ -75,6 +76,11 @@ export default function AllPromoCodePage() {
   const [startDate, setStartDate] = useState('')
   const [hasExpiry, setHasExpiry] = useState(false)
   const [expiryDate, setExpiryDate] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+
+  // Delete modal states
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   const fetchItems = useCallback(async (page = 1, search = '') => {
     setLoading(true)
@@ -120,10 +126,15 @@ export default function AllPromoCodePage() {
     fetchItems(1, searchText)
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this promo code?')) return
+  const handleDelete = (id: string) => {
+    setDeleteTargetId(id)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTargetId) return
+    setDeleteLoading(true)
     try {
-      const res = await fetch(`/api/admin/promo-code/${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/admin/promo-code/${deleteTargetId}`, { method: 'DELETE' })
       const data = await res.json()
       if (data.success) {
         toast.success('Promo code deleted successfully')
@@ -133,18 +144,38 @@ export default function AllPromoCodePage() {
       }
     } catch {
       toast.error('Something went wrong')
+    } finally {
+      setDeleteLoading(false)
+      setDeleteTargetId(null)
     }
   }
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleStartEdit = (item: PromoCode) => {
+    setEditingId(item.id)
+    setCode(item.code || '')
+    setFormSegment(item.segment || '')
+    setApplicableBy(item.applicable_by || '')
+    setApplicableOne(!!item.applicable_one)
+    setDiscountName(item.discount_name || '')
+    setDiscountAmount(item.discount_type || 'Percentage')
+    setDiscountValue(item.discount_value !== undefined && item.discount_value !== null ? String(item.discount_value) : '')
+    setStartDate(item.start_date ? item.start_date.substring(0, 10) : '')
+    setHasExpiry(!!item.has_expiry)
+    setExpiryDate(item.expiry_date ? item.expiry_date.substring(0, 10) : '')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!code.trim()) { toast.error('Promo code is required'); return }
     if (!discountValue) { toast.error('Discount value is required'); return }
 
     setSubmitting(true)
     try {
-      const res = await fetch('/api/admin/promo-code', {
-        method: 'POST',
+      const url = editingId ? `/api/admin/promo-code/${editingId}` : '/api/admin/promo-code'
+      const method = editingId ? 'PUT' : 'POST'
+      const res = await fetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code: code.trim(),
@@ -163,7 +194,8 @@ export default function AllPromoCodePage() {
       })
       const data = await res.json()
       if (data.success) {
-        toast.success('Promo code created successfully!')
+        toast.success(editingId ? 'Promo code updated successfully!' : 'Promo code created successfully!')
+        setEditingId(null)
         setFormSegment('')
         setApplicableBy('')
         setApplicableOne(false)
@@ -174,9 +206,9 @@ export default function AllPromoCodePage() {
         setStartDate('')
         setHasExpiry(false)
         setExpiryDate('')
-        fetchItems(1, searchText)
+        fetchItems(currentPage, searchText)
       } else {
-        toast.error(data.error || 'Failed to create promo code')
+        toast.error(data.error || `Failed to ${editingId ? 'update' : 'create'} promo code`)
       }
     } catch {
       toast.error('Something went wrong')
@@ -202,7 +234,7 @@ export default function AllPromoCodePage() {
 
   return (
     <AdminLayout>
-      <div className="flex flex-col gap-6 max-w-6xl mx-auto w-full">
+      <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
 
         {/* Title Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm">
@@ -212,9 +244,11 @@ export default function AllPromoCodePage() {
         {/* Create Form Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm">
           <div className="border-b border-slate-100 dark:border-slate-700 pb-4 mb-7">
-            <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">Create Promo Code</h2>
+            <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">
+              {editingId ? 'Edit Promo Code' : 'Create Promo Code'}
+            </h2>
           </div>
-          <form onSubmit={handleCreate}>
+          <form onSubmit={handleSubmit}>
             <div className="flex flex-col gap-5">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="flex flex-col gap-1.5">
@@ -248,7 +282,7 @@ export default function AllPromoCodePage() {
                   <label className="flex items-center gap-3 mt-2.5 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={applicableOne}
+                      checked={!!applicableOne}
                       onChange={e => setApplicableOne(e.target.checked)}
                       className="w-5 h-5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
                     />
@@ -328,7 +362,7 @@ export default function AllPromoCodePage() {
                     <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer font-medium">
                       <input
                         type="checkbox"
-                        checked={hasExpiry}
+                        checked={!!hasExpiry}
                         onChange={e => setHasExpiry(e.target.checked)}
                         className="w-5 h-5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
                       />
@@ -346,14 +380,35 @@ export default function AllPromoCodePage() {
                 </div>
               </div>
             </div>
-            <div className="flex justify-end mt-6">
+            <div className="flex justify-end gap-3 mt-6">
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingId(null)
+                    setFormSegment('')
+                    setApplicableBy('')
+                    setApplicableOne(false)
+                    setDiscountName('')
+                    setCode('')
+                    setDiscountValue('')
+                    setDiscountAmount('Percentage')
+                    setStartDate('')
+                    setHasExpiry(false)
+                    setExpiryDate('')
+                  }}
+                  className="px-6 py-2.5 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm cursor-pointer"
+                >
+                  Cancel
+                </button>
+              )}
               <button
                 type="submit"
                 disabled={submitting}
                 className="px-8 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-teal-600/10 cursor-pointer flex items-center gap-2"
               >
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                Save
+                {editingId ? 'Update' : 'Save'}
               </button>
             </div>
           </form>
@@ -453,13 +508,13 @@ export default function AllPromoCodePage() {
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center justify-center gap-2">
-                            <Link
-                              href={`/admin/promo-code/${item.id}/edit`}
+                            <button
+                              onClick={() => handleStartEdit(item)}
                               className="w-7 h-7 flex items-center justify-center bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 rounded-lg transition-colors cursor-pointer"
                               title="Edit"
                             >
                               <Edit3 className="w-3.5 h-3.5" />
-                            </Link>
+                            </button>
                             <button
                               onClick={() => handleDelete(item.id)}
                               className="w-7 h-7 flex items-center justify-center bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 rounded-lg transition-colors cursor-pointer"
@@ -530,6 +585,15 @@ export default function AllPromoCodePage() {
           )}
         </div>
       </div>
+
+      <DeleteConfirmationModal
+        isOpen={deleteTargetId !== null}
+        onClose={() => setDeleteTargetId(null)}
+        onConfirm={handleConfirmDelete}
+        loading={deleteLoading}
+        title="Delete Promo Code"
+        description="Are you sure you want to delete this promo code? This action cannot be undone."
+      />
     </AdminLayout>
   )
 }

@@ -4,7 +4,7 @@ import { jwtVerify } from 'jose'
 const secretKey = process.env.SESSION_SECRET || 'academy-setu-secret-key-32chars!!'
 const encodedKey = new TextEncoder().encode(secretKey)
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Skip login page, API routes, and static assets

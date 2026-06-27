@@ -1,9 +1,9 @@
 'use client'
 
-import { useActionState, useState, useEffect } from 'react'
+import { useActionState, useState, useEffect, useRef } from 'react'
 import { loginAction } from './actions'
 import { useRouter } from 'next/navigation'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 
 const initialState = { error: '' }
 
@@ -12,12 +12,16 @@ export default function AdminLoginPage() {
   const [state, formAction, pending] = useActionState(loginAction, initialState)
   const [showPassword, setShowPassword] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const successToastShownRef = useRef(false)
 
   useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
     if (state?.success) {
-      toast.success('Login successful! Redirecting...')
+      if (!successToastShownRef.current) {
+        toast.success('Login successful! Redirecting...')
+        successToastShownRef.current = true
+      }
       const t = setTimeout(() => router.push('/admin/dashboard'), 600)
       return () => clearTimeout(t)
     }
@@ -86,16 +90,7 @@ export default function AdminLoginPage() {
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-sky-400/8 rounded-full blur-[180px] animate-orb-drift-slow" />
       </div>
 
-      {mounted && (
-        <Toaster
-          position="top-center"
-          richColors
-          closeButton
-          toastOptions={{
-            duration: 4000,
-          }}
-        />
-      )}
+
 
       {/* ====== Split layout: Left content + Right form ====== */}
       <div className="relative z-10 w-full max-w-6xl mx-auto flex flex-col lg:flex-row items-center gap-8 lg:gap-12 px-4">

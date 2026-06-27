@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Search, Filter, X, Edit, Trash2, ChevronDown, Check, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
 interface Segment {
   id: string
@@ -49,6 +50,10 @@ export default function SegmentPage() {
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 10
+
+  // Delete modal states
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   const serviceDropdownRef = useRef<HTMLDivElement>(null)
   const formRef = useRef<HTMLDivElement>(null)
@@ -164,11 +169,15 @@ export default function SegmentPage() {
   }
 
   // Delete Segment Action
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this segment?')) return
+  const handleDelete = (id: string) => {
+    setDeleteTargetId(id)
+  }
 
+  const handleConfirmDelete = async () => {
+    if (!deleteTargetId) return
+    setDeleteLoading(true)
     try {
-      const response = await fetch(`/api/admin/segment/${id}`, {
+      const response = await fetch(`/api/admin/segment/${deleteTargetId}`, {
         method: 'DELETE'
       })
       const resData = await response.json()
@@ -181,6 +190,9 @@ export default function SegmentPage() {
     } catch (error) {
       console.error('Delete error:', error)
       toast.error('Something went wrong deleting segment')
+    } finally {
+      setDeleteLoading(false)
+      setDeleteTargetId(null)
     }
   }
 
@@ -585,6 +597,15 @@ export default function SegmentPage() {
           </div>
         </div>
       )}
+
+      <DeleteConfirmationModal
+        isOpen={deleteTargetId !== null}
+        onClose={() => setDeleteTargetId(null)}
+        onConfirm={handleConfirmDelete}
+        loading={deleteLoading}
+        title="Delete Segment"
+        description="Are you sure you want to delete this segment? This action cannot be undone."
+      />
     </AdminLayout>
   )
 }

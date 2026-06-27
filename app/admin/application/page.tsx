@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Search, Plus, Eye, Edit3, RefreshCw, X, MoreVertical, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
 interface Application {
   id: string
@@ -51,6 +52,10 @@ export default function ApplicationPage() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 10
+
+  // Delete modal states
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -220,11 +225,15 @@ export default function ApplicationPage() {
   }
 
   // Delete Action
-  const handleDeleteApplication = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this application?')) return
+  const handleDeleteApplication = (id: string) => {
+    setDeleteTargetId(id)
+  }
 
+  const handleConfirmDelete = async () => {
+    if (!deleteTargetId) return
+    setDeleteLoading(true)
     try {
-      const response = await fetch(`/api/admin/application/${id}`, { method: 'DELETE' })
+      const response = await fetch(`/api/admin/application/${deleteTargetId}`, { method: 'DELETE' })
       const resData = await response.json()
       if (resData.success) {
         toast.success('Application deleted successfully')
@@ -235,6 +244,9 @@ export default function ApplicationPage() {
     } catch (error) {
       console.error('Delete error:', error)
       toast.error('Something went wrong deleting application')
+    } finally {
+      setDeleteLoading(false)
+      setDeleteTargetId(null)
     }
   }
 
@@ -701,7 +713,14 @@ export default function ApplicationPage() {
         </div>
       )}
 
-
+      <DeleteConfirmationModal
+        isOpen={deleteTargetId !== null}
+        onClose={() => setDeleteTargetId(null)}
+        onConfirm={handleConfirmDelete}
+        loading={deleteLoading}
+        title="Delete Application"
+        description="Are you sure you want to delete this application? This action cannot be undone."
+      />
     </AdminLayout>
   )
 }

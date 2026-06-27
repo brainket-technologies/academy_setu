@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Search, Plus, Edit3, Trash2, Filter, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
+import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
 interface Plan {
   id: string
@@ -35,6 +36,10 @@ export default function AllPlanPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 10
+
+  // Delete modal states
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   const fetchPlans = useCallback(async (page = 1, search = '') => {
     setLoading(true)
@@ -67,10 +72,15 @@ export default function AllPlanPage() {
     fetchPlans(1, searchText)
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this plan?')) return
+  const handleDelete = (id: string) => {
+    setDeleteTargetId(id)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTargetId) return
+    setDeleteLoading(true)
     try {
-      const res = await fetch(`/api/admin/plan/${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/admin/plan/${deleteTargetId}`, { method: 'DELETE' })
       const data = await res.json()
       if (data.success) {
         toast.success('Plan deleted successfully')
@@ -80,6 +90,9 @@ export default function AllPlanPage() {
       }
     } catch {
       toast.error('Something went wrong')
+    } finally {
+      setDeleteLoading(false)
+      setDeleteTargetId(null)
     }
   }
 
@@ -100,7 +113,7 @@ export default function AllPlanPage() {
 
   return (
     <AdminLayout>
-      <div className="flex flex-col gap-6 max-w-6xl mx-auto w-full">
+      <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
 
         {/* Title Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm">
@@ -259,6 +272,15 @@ export default function AllPlanPage() {
           )}
         </div>
       </div>
+
+      <DeleteConfirmationModal
+        isOpen={deleteTargetId !== null}
+        onClose={() => setDeleteTargetId(null)}
+        onConfirm={handleConfirmDelete}
+        loading={deleteLoading}
+        title="Delete Plan"
+        description="Are you sure you want to delete this plan? This action cannot be undone."
+      />
     </AdminLayout>
   )
 }
