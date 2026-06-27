@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { AdminLayout } from '@/components/layout/AdminLayout'
 import { 
   Loader2, Edit3, Trash2, RotateCcw, Calendar, Clock, 
-  ChevronLeft, ChevronRight, CheckSquare, Square
+  ChevronLeft, ChevronRight, CheckSquare, Square, Search
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
@@ -54,10 +54,27 @@ export default function TicketCategoryPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 10
 
+  // Search & Date filter states
+  const [searchText, setSearchText] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+
   const fetchCategories = useCallback(async (tabStatus = activeTab) => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/ticket-category?tab=${tabStatus === 'deleted' ? 'deleted' : 'all'}`)
+      const queryParams = new URLSearchParams()
+      queryParams.append('tab', tabStatus === 'deleted' ? 'deleted' : 'all')
+      if (searchText) {
+        queryParams.append('search', searchText)
+      }
+      if (startDate) {
+        queryParams.append('start_date', startDate)
+      }
+      if (endDate) {
+        queryParams.append('end_date', endDate)
+      }
+      const res = await fetch(`/api/admin/ticket-category?${queryParams.toString()}`)
       const data = await res.json()
       if (data.success) {
         setCategories(data.data)
@@ -72,7 +89,7 @@ export default function TicketCategoryPage() {
     } finally {
       setLoading(false)
     }
-  }, [activeTab])
+  }, [activeTab, searchText, startDate, endDate])
 
   useEffect(() => {
     fetchCategories(activeTab)
@@ -196,6 +213,12 @@ export default function TicketCategoryPage() {
     } catch {
       toast.error('Error occurred restoring category')
     }
+  }
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setSearchText(searchInput)
+    setCurrentPage(1)
   }
 
   // Format Date & Time for created_at column
@@ -395,7 +418,7 @@ export default function TicketCategoryPage() {
                   ? 'bg-white text-[#0B9688]' 
                   : 'bg-[#0B9688] text-white'
               }`}>
-                {String(counts.active).padStart(2, '0')}
+                {counts.active}
               </span>
             </button>
 
@@ -422,10 +445,46 @@ export default function TicketCategoryPage() {
                   ? 'bg-white text-[#0B9688]' 
                   : 'bg-[#0B9688] text-white'
               }`}>
-                {String(counts.deleted).padStart(2, '0')}
+                {counts.deleted}
               </span>
             </button>
           </div>
+
+          {/* Search & Date Filters */}
+          <form onSubmit={handleSearchSubmit} className="flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search by Name, Parent Category, Segment"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">From:</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value)
+                  setCurrentPage(1)
+                }}
+                className="px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+              />
+              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">To:</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value)
+                  setCurrentPage(1)
+                }}
+                className="px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+              />
+            </div>
+          </form>
 
           {/* Categories Log Table */}
           <div className="overflow-x-auto border border-slate-100 dark:border-slate-700 rounded-2xl">

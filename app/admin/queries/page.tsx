@@ -35,6 +35,11 @@ export default function AllQueriesPage() {
   const [totalCount, setTotalCount] = useState(0)
   const pageSize = 10
 
+  // Filters
+  const [statusFilter, setStatusFilter] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+
   // Response modal
   const [responseModal, setResponseModal] = useState<Query | null>(null)
   const [responseMessage, setResponseMessage] = useState('')
@@ -44,7 +49,7 @@ export default function AllQueriesPage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  const fetchQueries = useCallback(async (page = 1, search = '') => {
+  const fetchQueries = useCallback(async (page = 1, search = '', status = '', startDate = '', endDate = '') => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
@@ -52,6 +57,9 @@ export default function AllQueriesPage() {
         pageSize: String(pageSize)
       })
       if (search) params.append('search', search)
+      if (status) params.append('status', status)
+      if (startDate) params.append('start_date', startDate)
+      if (endDate) params.append('end_date', endDate)
 
       const res = await fetch(`/api/admin/queries?${params.toString()}`)
       const data = await res.json()
@@ -71,8 +79,8 @@ export default function AllQueriesPage() {
   }, [])
 
   useEffect(() => {
-    fetchQueries(currentPage, searchText)
-  }, [currentPage, searchText, fetchQueries])
+    fetchQueries(currentPage, searchText, statusFilter, startDate, endDate)
+  }, [currentPage, searchText, statusFilter, startDate, endDate, fetchQueries])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -112,7 +120,7 @@ export default function AllQueriesPage() {
       if (data.success) {
         toast.success('Response submitted successfully!')
         handleCloseResponse()
-        fetchQueries(currentPage, searchText)
+        fetchQueries(currentPage, searchText, statusFilter, startDate, endDate)
       } else {
         toast.error(data.error || 'Failed to submit response')
       }
@@ -133,7 +141,7 @@ export default function AllQueriesPage() {
       const data = await res.json()
       if (data.success) {
         toast.success('Query deleted successfully')
-        fetchQueries(currentPage, searchText)
+        fetchQueries(currentPage, searchText, statusFilter, startDate, endDate)
       } else {
         toast.error(data.error || 'Failed to delete query')
       }
@@ -183,6 +191,38 @@ export default function AllQueriesPage() {
                 className="pl-9 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm w-72 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
               />
             </form>
+          </div>
+
+          {/* Filters Row */}
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Status:</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1) }}
+                className="px-3 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+              >
+                <option value="">All</option>
+                <option value="Pending">Pending</option>
+                <option value="Responded">Responded</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">From:</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1) }}
+                className="px-3 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+              />
+              <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">To:</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1) }}
+                className="px-3 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+              />
+            </div>
           </div>
 
           {/* Data Table */}

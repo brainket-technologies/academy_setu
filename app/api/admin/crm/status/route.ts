@@ -3,8 +3,33 @@ import pool from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
-    const result = await pool.query('SELECT * FROM lead_statuses ORDER BY name ASC')
-    return NextResponse.json({ success: true, data: result.rows })
+    const { searchParams } = new URL(request.url)
+    const search = searchParams.get('search') || ''
+
+    let query = 'SELECT * FROM lead_statuses'
+    const conditions: string[] = []
+    const params: (string | number)[] = []
+
+    if (search) {
+      params.push(`%${search}%`)
+      conditions.push(`name ILIKE $${params.length}`)
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ')
+    }
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*)::int FROM (${query}) as count_table`,
+      params
+    )
+    const totalCount = countResult.rows[0].count
+
+    query += ' ORDER BY name ASC'
+
+    const result = await pool.query(query, params)
+
+    return NextResponse.json({ success: true, data: result.rows, meta: { totalCount } })
   } catch (error) {
     console.error('Lead status fetch error:', error)
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })

@@ -40,6 +40,10 @@ export default function PartiesPage() {
 
   // Filter State
   const [filterCategory, setFilterCategory] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [searchText, setSearchText] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1)
@@ -49,11 +53,14 @@ export default function PartiesPage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  const fetchParties = useCallback(async () => {
+  const fetchParties = useCallback(async (search = searchText, category = filterCategory, from = startDate, to = endDate) => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
-      if (filterCategory) params.append('party_category', filterCategory)
+      if (category) params.append('party_category', category)
+      if (search) params.append('search', search)
+      if (from) params.append('start_date', from)
+      if (to) params.append('end_date', to)
 
       const res = await fetch(`/api/admin/income/parties?${params.toString()}`)
       const data = await res.json()
@@ -68,11 +75,18 @@ export default function PartiesPage() {
     } finally {
       setLoading(false)
     }
-  }, [filterCategory])
+  }, [])
 
   useEffect(() => {
-    fetchParties()
-  }, [fetchParties])
+    const timer = setTimeout(() => {
+      setSearchText(searchInput)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
+  useEffect(() => {
+    fetchParties(searchText, filterCategory, startDate, endDate)
+  }, [fetchParties, searchText, filterCategory, startDate, endDate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -334,18 +348,50 @@ export default function PartiesPage() {
 
         {/* Bottom: List Table & Filtering */}
         <div className="flex flex-col gap-4">
-          {/* Party Category Filter Select */}
-          <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-2xl shadow-sm p-5 flex flex-col gap-2">
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-350 mb-0.5 font-medium">Party Category</label>
-            <select
-              value={filterCategory}
-              onChange={e => setFilterCategory(e.target.value)}
-              className="w-48 px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
-            >
-              <option value="">Select an Option</option>
-              <option value="Income">Income</option>
-              <option value="Expense">Expense</option>
-            </select>
+          {/* Filters: Search, Category, Date Range */}
+          <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-2xl shadow-sm p-5">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-350 mb-1.5">Search</label>
+                <input
+                  type="text"
+                  placeholder="Search name, contact, mobile..."
+                  value={searchInput}
+                  onChange={e => setSearchInput(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-350 mb-1.5">Party Category</label>
+                <select
+                  value={filterCategory}
+                  onChange={e => { setFilterCategory(e.target.value); setCurrentPage(1) }}
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                >
+                  <option value="">Select an Option</option>
+                  <option value="Income">Income</option>
+                  <option value="Expense">Expense</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-350 mb-1.5">From Date</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={e => setStartDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-350 mb-1.5">To Date</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                />
+              </div>
+            </div>
           </div>
 
           {/* List Table */}

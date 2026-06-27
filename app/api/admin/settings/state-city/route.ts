@@ -5,6 +5,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id') || ''
+    const search = searchParams.get('search') || ''
+    const filterStateId = searchParams.get('filterStateId') || ''
     
     if (id) {
       const res = await pool.query('SELECT * FROM states_districts WHERE id = $1 LIMIT 1', [id])
@@ -14,7 +16,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, data: res.rows[0] })
     }
 
-    const res = await pool.query('SELECT * FROM states_districts ORDER BY state_name ASC')
+    const params: any[] = []
+    let query = 'SELECT * FROM states_districts WHERE 1=1'
+
+    if (search) {
+      params.push(`%${search}%`)
+      query += ` AND (state_name ILIKE $${params.length} OR EXISTS (SELECT 1 FROM unnest(districts) AS d WHERE d ILIKE $${params.length}))`
+    }
+
+    if (filterStateId) {
+      params.push(filterStateId)
+      query += ` AND id = $${params.length}`
+    }
+
+    query += ' ORDER BY state_name ASC'
+
+    const res = await pool.query(query, params)
     return NextResponse.json({
       success: true,
       data: res.rows

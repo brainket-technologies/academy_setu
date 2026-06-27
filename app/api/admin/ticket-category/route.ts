@@ -5,6 +5,9 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const tab = searchParams.get('tab') || 'all'
+    const search = searchParams.get('search') || ''
+    const startDate = searchParams.get('start_date') || ''
+    const endDate = searchParams.get('end_date') || ''
 
     // Fetch counts
     const countsRes = await pool.query(`
@@ -18,14 +21,33 @@ export async function GET(request: NextRequest) {
       deleted: parseInt(countsRes.rows[0].deleted_count || '0')
     }
 
-    // Fetch categories based on tab status
+    // Fetch categories based on tab and filters
     const showDeleted = tab === 'deleted'
-    const result = await pool.query(
-      `SELECT * FROM ticket_categories 
-       WHERE is_deleted = $1 
-       ORDER BY created_at DESC`,
-      [showDeleted]
-    )
+    let query = `SELECT * FROM ticket_categories WHERE is_deleted = $1`
+    const params: any[] = [showDeleted]
+    let paramIdx = 2
+
+    if (search) {
+      query += ` AND (name ILIKE $${paramIdx} OR parent_category ILIKE $${paramIdx} OR segment ILIKE $${paramIdx})`
+      params.push(`%${search}%`)
+      paramIdx++
+    }
+
+    if (startDate) {
+      query += ` AND created_at >= $${paramIdx}`
+      params.push(startDate)
+      paramIdx++
+    }
+
+    if (endDate) {
+      query += ` AND created_at <= $${paramIdx}`
+      params.push(endDate)
+      paramIdx++
+    }
+
+    query += ` ORDER BY created_at DESC`
+
+    const result = await pool.query(query, params)
 
     return NextResponse.json({
       success: true,

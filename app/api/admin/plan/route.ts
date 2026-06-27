@@ -4,7 +4,15 @@ import pool from '@/lib/db'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+
+    // Return distinct segments list
+    if (searchParams.get('segments') === 'true') {
+      const result = await pool.query('SELECT DISTINCT segment FROM plans ORDER BY segment')
+      return NextResponse.json({ success: true, data: result.rows.map(r => r.segment) })
+    }
+
     const search = searchParams.get('search') || ''
+    const segment = searchParams.get('segment') || ''
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '10')
     const offset = (page - 1) * pageSize
@@ -16,6 +24,11 @@ export async function GET(request: NextRequest) {
     if (search) {
       params.push(`%${search}%`)
       conditions.push(`(plan_name ILIKE $${params.length} OR segment ILIKE $${params.length})`)
+    }
+
+    if (segment) {
+      params.push(segment)
+      conditions.push(`segment = $${params.length}`)
     }
 
     if (conditions.length > 0) {

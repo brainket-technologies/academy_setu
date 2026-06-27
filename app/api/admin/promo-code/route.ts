@@ -5,6 +5,10 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
+    const segment = searchParams.get('segment') || ''
+    const status = searchParams.get('status') || ''
+    const startDate = searchParams.get('start_date') || ''
+    const endDate = searchParams.get('end_date') || ''
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '10')
     const offset = (page - 1) * pageSize
@@ -16,6 +20,26 @@ export async function GET(request: NextRequest) {
     if (search) {
       params.push(`%${search}%`)
       conditions.push(`(code ILIKE $${params.length} OR description ILIKE $${params.length})`)
+    }
+
+    if (segment) {
+      params.push(segment)
+      conditions.push(`segment = $${params.length}`)
+    }
+
+    if (status) {
+      params.push(status)
+      conditions.push(`status = $${params.length}`)
+    }
+
+    if (startDate) {
+      params.push(startDate)
+      conditions.push(`start_date >= $${params.length}`)
+    }
+
+    if (endDate) {
+      params.push(endDate)
+      conditions.push(`start_date <= $${params.length}`)
     }
 
     if (conditions.length > 0) {

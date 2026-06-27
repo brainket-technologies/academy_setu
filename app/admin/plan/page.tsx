@@ -32,6 +32,8 @@ export default function AllPlanPage() {
   const [plans, setPlans] = useState<Plan[]>([])
   const [loading, setLoading] = useState(true)
   const [searchText, setSearchText] = useState('')
+  const [segmentFilter, setSegmentFilter] = useState('')
+  const [segments, setSegments] = useState<string[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
   const [currentPage, setCurrentPage] = useState(1)
@@ -41,11 +43,12 @@ export default function AllPlanPage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  const fetchPlans = useCallback(async (page = 1, search = '') => {
+  const fetchPlans = useCallback(async (page = 1, search = '', segment = '') => {
     setLoading(true)
     try {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
       if (search) params.append('search', search)
+      if (segment) params.append('segment', segment)
       const res = await fetch(`/api/admin/plan?${params.toString()}`)
       const data = await res.json()
       if (data.success) {
@@ -64,12 +67,22 @@ export default function AllPlanPage() {
   }, [])
 
   useEffect(() => {
-    fetchPlans(1, '')
+    fetchPlans(1, '', '')
   }, [fetchPlans])
+
+  // Fetch distinct segments on mount
+  useEffect(() => {
+    fetch('/api/admin/plan?segments=true')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setSegments(data.data)
+      })
+      .catch(() => {})
+  }, [])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    fetchPlans(1, searchText)
+    fetchPlans(1, searchText, segmentFilter)
   }
 
   const handleDelete = (id: string) => {
@@ -84,7 +97,7 @@ export default function AllPlanPage() {
       const data = await res.json()
       if (data.success) {
         toast.success('Plan deleted successfully')
-        fetchPlans(currentPage, searchText)
+        fetchPlans(currentPage, searchText, segmentFilter)
       } else {
         toast.error(data.error || 'Failed to delete plan')
       }
@@ -136,8 +149,21 @@ export default function AllPlanPage() {
                   className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
               </form>
+              <select
+                value={segmentFilter}
+                onChange={(e) => {
+                  setSegmentFilter(e.target.value)
+                  fetchPlans(1, searchText, e.target.value)
+                }}
+                className="px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
+              >
+                <option value="">All Segment</option>
+                {segments.map((seg) => (
+                  <option key={seg} value={seg}>{seg}</option>
+                ))}
+              </select>
               <button
-                onClick={() => fetchPlans(1, searchText)}
+                onClick={() => fetchPlans(1, searchText, segmentFilter)}
                 className="p-2.5 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 border border-slate-200 dark:border-slate-600 rounded-xl transition-colors cursor-pointer"
                 title="Filter"
               >
@@ -228,14 +254,14 @@ export default function AllPlanPage() {
               <div className="flex items-center gap-1.5">
                 <button
                   disabled={currentPage === 1}
-                  onClick={() => fetchPlans(1, searchText)}
+                  onClick={() => fetchPlans(1, searchText, segmentFilter)}
                   className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   {'<<'}
                 </button>
                 <button
                   disabled={currentPage === 1}
-                  onClick={() => fetchPlans(currentPage - 1, searchText)}
+                  onClick={() => fetchPlans(currentPage - 1, searchText, segmentFilter)}
                   className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -243,7 +269,7 @@ export default function AllPlanPage() {
                 {getPageNumbers().map((pg) => (
                   <button
                     key={pg}
-                    onClick={() => fetchPlans(pg, searchText)}
+                    onClick={() => fetchPlans(pg, searchText, segmentFilter)}
                     className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                       pg === currentPage
                         ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/25'
@@ -255,14 +281,14 @@ export default function AllPlanPage() {
                 ))}
                 <button
                   disabled={currentPage === totalPages}
-                  onClick={() => fetchPlans(currentPage + 1, searchText)}
+                  onClick={() => fetchPlans(currentPage + 1, searchText, segmentFilter)}
                   className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
                 <button
                   disabled={currentPage === totalPages}
-                  onClick={() => fetchPlans(totalPages, searchText)}
+                  onClick={() => fetchPlans(totalPages, searchText, segmentFilter)}
                   className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   {'>>'}

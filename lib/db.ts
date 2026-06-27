@@ -14,16 +14,25 @@ function createPool(): Pool {
 
   return new Pool({
     connectionString,
-    ssl: { rejectUnauthorized: false }, // required for Railway proxy
-    max: 10,
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 5_000,
+    ssl: { rejectUnauthorized: false },
+
+    // ─── Production-grade pool settings ────────────────────────────────────────
+    max: 50,                        // maximum simultaneous DB connections
+    min: 5,                         // keep 5 warm connections at all times
+    idleTimeoutMillis: 60_000,      // close idle connections after 60 s
+    connectionTimeoutMillis: 3_000, // fail-fast if DB is unreachable
+    maxUses: 7_500,                 // recycle connections after 7 500 queries to avoid memory drift
+    allowExitOnIdle: false,         // keep pool alive in serverless warm instances
   });
 }
 
-const pool: Pool =
-  process.env.NODE_ENV === "development"
-    ? (globalThis._pgPool ??= createPool())
-    : createPool();
+function getPool(): Pool {
+  if (process.env.NODE_ENV === "development") {
+    return (globalThis._pgPool ??= createPool());
+  }
+  return (globalThis._pgPool ??= createPool());
+}
+
+const pool: Pool = getPool();
 
 export default pool;

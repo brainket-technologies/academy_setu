@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
+import { withCache, apiCache } from '@/lib/api-cache'
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,51 +13,47 @@ export async function GET(request: NextRequest) {
     const pageSize = parseInt(searchParams.get('pageSize') || '10')
     const offset = (page - 1) * pageSize
 
-    let query = 'SELECT * FROM bills'
-    const conditions: string[] = []
-    const params: (string | number)[] = []
+    const cacheKey = `billing:${segment}:${schoolName}:${paymentMode}:${dateRange}:${page}:${pageSize}`
 
-    if (segment) {
-      params.push(segment)
-      conditions.push(`segment = $${params.length}`)
-    }
+    const data = await withCache(cacheKey, async () => {
+      const conditions: string[] = []
+      const params: (string | number)[] = []
 
-    if (schoolName) {
-      params.push(`%${schoolName}%`)
-      conditions.push(`school_name ILIKE $${params.length}`)
-    }
+      if (segment) { params.push(segment); conditions.push(`segment = $${params.length}`) }
+      if (schoolName) { params.push(`%${schoolName}%`); conditions.push(`school_name ILIKE $${params.length}`) }
+      if (paymentMode) { params.push(paymentMode); conditions.push(`payment_mode = $${params.length}`) }
+      if (dateRange === 'Last Week') conditions.push(`payment_date >= CURRENT_DATE - INTERVAL '7 days'`)
+      else if (dateRange === 'Last 15 Days') conditions.push(`payment_date >= CURRENT_DATE - INTERVAL '15 days'`)
 
-    if (paymentMode) {
-      params.push(paymentMode)
-      conditions.push(`payment_mode = $${params.length}`)
-    }
+      const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : ''
 
-    if (dateRange) {
-      if (dateRange === 'Last Week') {
-        conditions.push(`payment_date >= CURRENT_DATE - INTERVAL '7 days'`)
-      } else if (dateRange === 'Last 15 Days') {
-        conditions.push(`payment_date >= CURRENT_DATE - INTERVAL '15 days'`)
+      // Single query: COUNT(*) OVER() avoids a separate count round-trip
+      const query = `
+        SELECT *, COUNT(*) OVER()::int AS _total_count
+        FROM bills
+        ${where}
+        ORDER BY payment_date DESC, created_at DESC
+        LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+      `
+      params.push(pageSize, offset)
+      const result = await pool.query(query, params)
+      const totalCount = result.rows[0]?._total_count ?? 0
+      const rows = result.rows.map(({ _total_count, ...r }) => r)
+      return { rows, totalCount }
+    }, 20_000) // 20-second TTL
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: data.rows,
+        meta: { totalCount: data.totalCount, page, pageSize, totalPages: Math.ceil(data.totalCount / pageSize) }
+      },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=20, stale-while-revalidate=60',
+        }
       }
-    }
-
-    if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ')
-    }
-
-    const countQuery = query.replace('SELECT *', 'SELECT COUNT(*)')
-    const countResult = await pool.query(countQuery, params)
-    const totalCount = parseInt(countResult.rows[0].count)
-
-    query += ` ORDER BY payment_date DESC, created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`
-    params.push(pageSize, offset)
-
-    const result = await pool.query(query, params)
-
-    return NextResponse.json({
-      success: true,
-      data: result.rows,
-      meta: { totalCount, page, pageSize, totalPages: Math.ceil(totalCount / pageSize) }
-    })
+    )
   } catch (error) {
     console.error('Billing list error:', error)
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
@@ -87,6 +84,9 @@ export async function POST(request: NextRequest) {
         status || 'Paid'
       ]
     )
+
+    // Invalidate billing cache so next read is fresh
+    apiCache.invalidate('billing:')
 
     return NextResponse.json({ success: true, data: result.rows[0] })
   } catch (error) {

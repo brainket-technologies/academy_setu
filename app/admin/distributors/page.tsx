@@ -30,6 +30,9 @@ export default function AllDistributorsPage() {
   const [loading, setLoading] = useState(true)
   const [searchInput, setSearchInput] = useState('')
   const [searchText, setSearchText] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
@@ -38,11 +41,14 @@ export default function AllDistributorsPage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  const fetchDistributors = useCallback(async (page = 1, search = '') => {
+  const fetchDistributors = useCallback(async (page = 1, search = '', status = '', start = '', end = '') => {
     setLoading(true)
     try {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
       if (search) params.append('search', search)
+      if (status) params.append('status', status)
+      if (start) params.append('start_date', start)
+      if (end) params.append('end_date', end)
       const res = await fetch(`/api/admin/distributors?${params}`)
       const data = await res.json()
       if (data.success) {
@@ -61,8 +67,8 @@ export default function AllDistributorsPage() {
   }, [])
 
   useEffect(() => {
-    fetchDistributors(currentPage, searchText)
-  }, [currentPage, searchText, fetchDistributors])
+    fetchDistributors(currentPage, searchText, statusFilter, startDate, endDate)
+  }, [currentPage, searchText, statusFilter, startDate, endDate, fetchDistributors])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -78,7 +84,7 @@ export default function AllDistributorsPage() {
       const data = await res.json()
       if (data.success) {
         toast.success('Distributor deleted successfully')
-        fetchDistributors(currentPage, searchText)
+        fetchDistributors(currentPage, searchText, statusFilter, startDate, endDate)
       } else {
         toast.error(data.error || 'Failed to delete')
       }
@@ -133,6 +139,32 @@ export default function AllDistributorsPage() {
                 className="pl-9 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm w-72 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 placeholder:text-slate-400 text-slate-800 dark:text-slate-200"
               />
             </form>
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1) }}
+              className="px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200 cursor-pointer"
+            >
+              <option value="">All Status</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1) }}
+              className="px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+            />
+            <span className="text-xs text-slate-400 font-medium">to</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1) }}
+              className="px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+            />
           </div>
 
           <div className="overflow-x-auto border border-slate-100 dark:border-slate-700 rounded-2xl">

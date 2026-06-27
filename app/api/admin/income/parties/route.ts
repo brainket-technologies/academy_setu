@@ -5,17 +5,36 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const partyCategory = searchParams.get('party_category') || ''
+    const search = searchParams.get('search') || ''
+    const startDate = searchParams.get('start_date') || ''
+    const endDate = searchParams.get('end_date') || ''
 
-    let query = 'SELECT * FROM income_parties'
+    const conditions: string[] = []
     const params: any[] = []
 
     if (partyCategory) {
-      query += ' WHERE party_category = $1'
+      conditions.push(`party_category = $${params.length + 1}`)
       params.push(partyCategory)
     }
 
-    query += ' ORDER BY created_at DESC'
+    if (search) {
+      conditions.push(`(name ILIKE $${params.length + 1} OR contact_person ILIKE $${params.length + 1} OR mobile_no ILIKE $${params.length + 1} OR email ILIKE $${params.length + 1})`)
+      params.push(`%${search}%`)
+    }
 
+    if (startDate) {
+      conditions.push(`created_at >= $${params.length + 1}`)
+      params.push(startDate)
+    }
+
+    if (endDate) {
+      conditions.push(`created_at <= $${params.length + 1}`)
+      params.push(endDate + ' 23:59:59')
+    }
+
+    const whereClause = conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : ''
+
+    const query = `SELECT * FROM income_parties${whereClause} ORDER BY created_at DESC`
     const result = await pool.query(query, params)
     return NextResponse.json({
       success: true,

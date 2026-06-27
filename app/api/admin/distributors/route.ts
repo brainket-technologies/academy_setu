@@ -18,6 +18,24 @@ export async function GET(request: NextRequest) {
       conditions.push(`(name ILIKE $${params.length} OR mobile_no ILIKE $${params.length} OR dist_id ILIKE $${params.length})`)
     }
 
+    const status = searchParams.get('status')
+    if (status) {
+      params.push(status)
+      conditions.push(`status = $${params.length}`)
+    }
+
+    const startDate = searchParams.get('start_date')
+    if (startDate) {
+      params.push(startDate)
+      conditions.push(`created_at >= $${params.length}::timestamp`)
+    }
+
+    const endDate = searchParams.get('end_date')
+    if (endDate) {
+      params.push(endDate)
+      conditions.push(`created_at < $${params.length}::date + interval '1 day'`)
+    }
+
     if (conditions.length > 0) {
       query += ' WHERE ' + conditions.join(' AND ')
     }

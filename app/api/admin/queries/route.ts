@@ -5,6 +5,9 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
+    const status = searchParams.get('status') || ''
+    const startDate = searchParams.get('start_date') || ''
+    const endDate = searchParams.get('end_date') || ''
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '10')
     const offset = (page - 1) * pageSize
@@ -18,6 +21,21 @@ export async function GET(request: NextRequest) {
       conditions.push(
         `(name ILIKE $${params.length} OR mobile_no ILIKE $${params.length} OR email ILIKE $${params.length})`
       )
+    }
+
+    if (status) {
+      params.push(status)
+      conditions.push(`status = $${params.length}`)
+    }
+
+    if (startDate) {
+      params.push(startDate)
+      conditions.push(`created_at >= $${params.length}::timestamp`)
+    }
+
+    if (endDate) {
+      params.push(`${endDate} 23:59:59`)
+      conditions.push(`created_at <= $${params.length}::timestamp`)
     }
 
     if (conditions.length > 0) {

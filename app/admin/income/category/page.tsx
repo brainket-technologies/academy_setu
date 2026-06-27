@@ -27,26 +27,37 @@ export default function CategoryPage() {
 
   // Filter State
   const [filterType, setFilterType] = useState('')
+  const [searchText, setSearchText] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
   const pageSize = 10
 
   // Delete State
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  const fetchCategories = useCallback(async () => {
+  const fetchCategories = useCallback(async (page = 1) => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
       if (filterType) params.append('category_type', filterType)
+      if (searchText) params.append('search', searchText)
+      if (startDate) params.append('start_date', startDate)
+      if (endDate) params.append('end_date', endDate)
+      params.append('page', String(page))
+      params.append('pageSize', String(pageSize))
 
       const res = await fetch(`/api/admin/income/categories?${params.toString()}`)
       const data = await res.json()
       if (data.success) {
         setCategories(data.data)
-        setCurrentPage(1)
+        setTotalCount(data.totalCount)
+        setCurrentPage(page)
       } else {
         toast.error('Failed to load categories')
       }
@@ -55,10 +66,10 @@ export default function CategoryPage() {
     } finally {
       setLoading(false)
     }
-  }, [filterType])
+  }, [filterType, searchText, startDate, endDate, pageSize])
 
   useEffect(() => {
-    fetchCategories()
+    fetchCategories(1)
   }, [fetchCategories])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -160,10 +171,7 @@ export default function CategoryPage() {
     }
   }
 
-  // Pagination slice
-  const totalCount = categories.length
   const totalPages = Math.ceil(totalCount / pageSize)
-  const paginatedCategories = categories.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   return (
     <AdminLayout>
@@ -242,18 +250,63 @@ export default function CategoryPage() {
 
         {/* Bottom List Section */}
         <div className="flex flex-col gap-4">
-          {/* Table Category Type Filter */}
-          <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-2xl shadow-sm p-5 flex flex-col gap-2">
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-350 mb-0.5 font-medium">Category Type</label>
-            <select
-              value={filterType}
-              onChange={e => setFilterType(e.target.value)}
-              className="w-48 px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
-            >
-              <option value="">Select an Option</option>
-              <option value="Income">Income</option>
-              <option value="Expense">Expense</option>
-            </select>
+          {/* Filters */}
+          <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-2xl shadow-sm p-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Category Type */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-350">Category Type</label>
+                <select
+                  value={filterType}
+                  onChange={e => setFilterType(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                >
+                  <option value="">All</option>
+                  <option value="Income">Income</option>
+                  <option value="Expense">Expense</option>
+                </select>
+              </div>
+
+              {/* Search */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-350">Search</label>
+                <input
+                  type="text"
+                  placeholder="Search by name or description..."
+                  value={searchInput}
+                  onChange={e => setSearchInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      setSearchText(searchInput)
+                    }
+                  }}
+                  onBlur={() => setSearchText(searchInput)}
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                />
+              </div>
+
+              {/* From Date */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-350">From Date</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={e => setStartDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                />
+              </div>
+
+              {/* To Date */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-350">To Date</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                />
+              </div>
+            </div>
           </div>
 
           {/* List Table */}
@@ -280,14 +333,14 @@ export default function CategoryPage() {
                         </div>
                       </td>
                     </tr>
-                  ) : paginatedCategories.length === 0 ? (
+                  ) : categories.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-12 text-center text-slate-400 dark:text-slate-500 font-medium">
                         No categories found.
                       </td>
                     </tr>
                   ) : (
-                    paginatedCategories.map((row, idx) => {
+                    categories.map((row, idx) => {
                       const rowNum = (currentPage - 1) * pageSize + idx + 1
                       return (
                         <tr key={row.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
@@ -332,14 +385,14 @@ export default function CategoryPage() {
                 <div className="flex items-center gap-1">
                   <button
                     disabled={currentPage === 1 || loading}
-                    onClick={() => setCurrentPage(1)}
+                    onClick={() => fetchCategories(1)}
                     className="p-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-655 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <ChevronsLeft className="w-4 h-4" />
                   </button>
                   <button
                     disabled={currentPage === 1 || loading}
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    onClick={() => fetchCategories(Math.max(currentPage - 1, 1))}
                     className="p-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-655 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <ChevronLeft className="w-4 h-4" />
@@ -349,14 +402,14 @@ export default function CategoryPage() {
                   </span>
                   <button
                     disabled={currentPage === totalPages || loading}
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    onClick={() => fetchCategories(Math.min(currentPage + 1, totalPages))}
                     className="p-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-655 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
                   <button
                     disabled={currentPage === totalPages || loading}
-                    onClick={() => setCurrentPage(totalPages)}
+                    onClick={() => fetchCategories(totalPages)}
                     className="p-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-slate-655 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <ChevronsRight className="w-4 h-4" />

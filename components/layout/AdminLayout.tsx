@@ -1,16 +1,21 @@
+'use client'
+
+import { useState } from 'react'
 import { AdminSidebar } from './AdminSidebar'
 import { AdminHeader } from './AdminHeader'
 import { Suspense } from 'react'
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
   return (
-    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-900/50 flex">
-      <Suspense fallback={<div className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 h-screen fixed left-0 top-0" />}>
-        <AdminSidebar />
+    <div className="min-h-screen flex" style={{ background: 'transparent' }}>
+      <Suspense fallback={<div className="hidden lg:block w-64 h-screen shrink-0" />}>
+        <AdminSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       </Suspense>
-      <div className="flex-1 ml-64 flex flex-col min-w-0">
-        <AdminHeader />
-        <main className="flex-1 p-8 min-w-0">
+      <div className="flex-1 flex flex-col min-w-0">
+        <AdminHeader onMenuToggle={() => setSidebarOpen(prev => !prev)} />
+        <main className="flex-1 p-4 md:p-6 min-w-0">
           {children}
         </main>
       </div>

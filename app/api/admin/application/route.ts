@@ -4,7 +4,12 @@ import pool from '@/lib/db'
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const search = searchParams.get('search') || ''
-  const tab = searchParams.get('tab') || 'all' // 'all' or 'new'
+  const tab = searchParams.get('tab') || 'all'
+  const start_date = searchParams.get('start_date') || ''
+  const end_date = searchParams.get('end_date') || ''
+  const status = searchParams.get('status') || ''
+  const state = searchParams.get('state') || ''
+  const district = searchParams.get('district') || ''
 
   try {
     // 1. Fetch counts
@@ -20,6 +25,31 @@ export async function GET(request: Request) {
     let query = 'SELECT id, application_no, school_name, contact_person, state, district, status, created_at FROM applications'
     const values: string[] = []
     const conditions: string[] = []
+
+    if (status) {
+      conditions.push('status = $' + (values.length + 1))
+      values.push(status)
+    }
+
+    if (state) {
+      conditions.push('state ILIKE $' + (values.length + 1))
+      values.push(`%${state}%`)
+    }
+
+    if (district) {
+      conditions.push('district ILIKE $' + (values.length + 1))
+      values.push(`%${district}%`)
+    }
+
+    if (start_date) {
+      conditions.push('created_at::date >= $' + (values.length + 1))
+      values.push(start_date)
+    }
+
+    if (end_date) {
+      conditions.push('created_at::date <= $' + (values.length + 1))
+      values.push(end_date)
+    }
 
     if (search) {
       conditions.push('(school_name ILIKE $' + (values.length + 1) + 

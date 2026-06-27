@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { AdminLayout } from '@/components/layout/AdminLayout'
-import { Loader2, Edit3, Trash2, Calendar, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Loader2, Edit3, Trash2, Calendar, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
@@ -19,6 +19,10 @@ export default function LeadStatusPage() {
   const [statuses, setStatuses] = useState<LeadStatus[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Search
+  const [searchText, setSearchText] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+
   // Form states
   const [statusName, setStatusName] = useState('')
   const [textColor, setTextColor] = useState('#10B981')
@@ -33,15 +37,19 @@ export default function LeadStatusPage() {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
   const pageSize = 10
 
-  const fetchStatuses = useCallback(async () => {
+  const fetchStatuses = useCallback(async (search = '') => {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/crm/status')
+      const params = new URLSearchParams()
+      if (search) params.append('search', search)
+      const res = await fetch(`/api/admin/crm/status${params.toString() ? '?' + params.toString() : ''}`)
       const data = await res.json()
       if (data.success) {
         setStatuses(data.data)
+        setTotalCount(data.meta.totalCount)
       } else {
         toast.error('Failed to load statuses')
       }
@@ -53,8 +61,14 @@ export default function LeadStatusPage() {
   }, [])
 
   useEffect(() => {
-    fetchStatuses()
-  }, [fetchStatuses])
+    fetchStatuses(searchText)
+  }, [searchText, fetchStatuses])
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    setSearchText(searchInput)
+    setCurrentPage(1)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -151,7 +165,6 @@ export default function LeadStatusPage() {
   }
 
   // Pagination helpers
-  const totalCount = statuses.length
   const totalPages = Math.ceil(totalCount / pageSize) || 1
   const startEntry = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1
   const endEntry = Math.min(currentPage * pageSize, totalCount)
@@ -281,7 +294,19 @@ export default function LeadStatusPage() {
 
         {/* Bottom Card: Table & Navigation */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-6">
-          <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">All Status</h3>
+          <div className="flex items-center justify-between gap-4">
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">All Status</h3>
+            <form onSubmit={handleSearch} className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search by name..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="pl-9 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm w-72 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+              />
+            </form>
+          </div>
 
           {/* Statuses Log Table */}
           <div className="overflow-x-auto border border-slate-100 dark:border-slate-700 rounded-2xl">

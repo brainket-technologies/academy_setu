@@ -2,48 +2,309 @@
 
 @variant dark (&:where(.dark, .dark *));
 
+/* ──────────────────────────────────────────────────────────
+   Design Tokens
+────────────────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f0f4ff;
+  --foreground: #0f1629;
+
+  /* Brand */
+  --brand-primary: #4f46e5;
+  --brand-secondary: #06b6d4;
+
+  /* Glass surface */
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.45);
+  --glass-shadow: 0 8px 32px rgba(79, 70, 229, 0.08);
+
+  /* Sidebar */
+  --sidebar-bg: rgba(255,255,255,0.72);
+  --sidebar-border: rgba(209,213,219,0.5);
+}
+
+.dark {
+  --background: #060b1a;
+  --foreground: #e2e8f0;
+
+  --glass-bg: rgba(15, 23, 42, 0.70);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-shadow: 0 8px 32px rgba(0,0,0,0.45);
+
+  --sidebar-bg: rgba(8, 14, 32, 0.85);
+  --sidebar-border: rgba(255,255,255,0.06);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-plus-jakarta-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-.dark {
-  --background: #0f172a;
-  --foreground: #e2e8f0;
+/* ──────────────────────────────────────────────────────────
+   Base
+────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-plus-jakarta-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  /* Subtle mesh gradient background */
+  background-image:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(79,70,229,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 110%, rgba(6,182,212,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(139,92,246,0.04) 0%, transparent 70%);
+  background-attachment: fixed;
 }
 
-@keyframes streamA {
-  0% { transform: translateX(0) translateY(0); }
-  100% { transform: translateX(52px) translateY(52px); }
+.dark body,
+.dark {
+  background-image:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(79,70,229,0.18) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 110%, rgba(6,182,212,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(139,92,246,0.08) 0%, transparent 70%);
+  background-attachment: fixed;
 }
-@keyframes streamB {
-  0% { transform: translateX(0) translateY(0); }
-  100% { transform: translateX(-68px) translateY(-68px); }
+
+/* ──────────────────────────────────────────────────────────
+   Glass Utility
+────────────────────────────────────────────────────────── */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  box-shadow: 0 4px 24px rgba(79,70,229,0.06), inset 0 1px 0 rgba(255,255,255,0.5);
+  border-radius: 1rem;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(79,70,229,0.12), inset 0 1px 0 rgba(255,255,255,0.5);
+}
+
+.dark .glass-card {
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+.dark .glass-card:hover {
+  box-shadow: 0 8px 32px rgba(79,70,229,0.2), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+/* ──────────────────────────────────────────────────────────
+   Scrollbar
+────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(79,70,229,0.25); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(79,70,229,0.45); }
+
+/* ──────────────────────────────────────────────────────────
+   Animations
+────────────────────────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideDownFade {
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(79,70,229,0.4); }
+  50%       { box-shadow: 0 0 0 6px rgba(79,70,229,0); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 @keyframes orb-drift {
   0%, 100% { transform: translate(0, 0); }
-  33% { transform: translate(30px, -40px); }
-  66% { transform: translate(-20px, 20px); }
+  33%       { transform: translate(30px, -40px); }
+  66%       { transform: translate(-20px, 20px); }
 }
-@keyframes orb-drift-delayed {
-  0%, 100% { transform: translate(0, 0); }
-  33% { transform: translate(-40px, 30px); }
-  66% { transform: translate(20px, -30px); }
+@keyframes streamA {
+  0%   { transform: translateX(0) translateY(0); }
+  100% { transform: translateX(52px) translateY(52px); }
 }
-@keyframes orb-drift-slow {
-  0%, 100% { transform: translate(-50%, 0); }
-  50% { transform: translate(-50%, -30px); }
+@keyframes streamB {
+  0%   { transform: translateX(0) translateY(0); }
+  100% { transform: translateX(-68px) translateY(-68px); }
+}
+
+.animate-fade-in-up { animation: fadeInUp 0.35s ease-out both; }
+
+/* ──────────────────────────────────────────────────────────
+   Global Brand Color Overrides
+   Remaps legacy teal / green to indigo (#4f46e5) site-wide.
+   These rules have higher specificity than Tailwind utilities,
+   so they apply to every page without editing individual files.
+────────────────────────────────────────────────────────── */
+
+/* --- Primary Buttons (bg-teal-500, bg-teal-600, bg-green-600) --- */
+.bg-teal-500, .bg-teal-600,
+[class*="bg-teal-5"], [class*="bg-teal-6"] {
+  --tw-bg-opacity: 1 !important;
+  background-color: rgb(79 70 229 / var(--tw-bg-opacity)) !important;
+}
+[class*="hover\:bg-teal-5"]:hover,
+[class*="hover\:bg-teal-6"]:hover {
+  --tw-bg-opacity: 1 !important;
+  background-color: rgb(67 56 202 / var(--tw-bg-opacity)) !important;
+}
+
+/* --- Teal text → indigo --- */
+[class*="text-teal-5"], [class*="text-teal-6"] {
+  --tw-text-opacity: 1 !important;
+  color: rgb(79 70 229 / var(--tw-text-opacity)) !important;
+}
+[class*="hover\:text-teal-5"]:hover,
+[class*="hover\:text-teal-6"]:hover {
+  color: rgb(67 56 202) !important;
+}
+/* Lighter teal shades stay lighter indigo */
+[class*="text-teal-4"] {
+  color: rgb(99 102 241) !important;
+}
+[class*="dark\:text-teal-4"] {
+  color: rgb(129 140 248) !important;
+}
+
+/* --- Teal borders → indigo borders --- */
+[class*="border-teal-5"], [class*="border-teal-6"] {
+  --tw-border-opacity: 1 !important;
+  border-color: rgb(79 70 229 / var(--tw-border-opacity)) !important;
+}
+[class*="focus\:border-teal"] {
+  border-color: rgb(79 70 229) !important;
+}
+[class*="hover\:border-teal-5"]:hover,
+[class*="hover\:border-teal-6"]:hover {
+  border-color: rgb(79 70 229) !important;
+}
+
+/* --- Focus rings → indigo --- */
+[class*="focus\:ring-teal"],
+[class*="focus-within\:ring-teal"] {
+  --tw-ring-color: rgba(79, 70, 229, 0.25) !important;
+}
+[class*="focus-within\:border-teal"]:focus-within {
+  border-color: rgb(79 70 229) !important;
+}
+
+/* --- Teal bg light (hover bg, badges) → indigo light --- */
+[class*="bg-teal-5"]:not(button):not([type]),
+[class*="hover\:bg-teal-5"]:hover:not(button) {
+  /* already handled above, no conflict */
+}
+[class*="bg-teal-50"] {
+  background-color: rgb(238 242 255) !important; /* indigo-50 */
+}
+[class*="bg-teal-100"] {
+  background-color: rgb(224 231 255) !important; /* indigo-100 */
+}
+[class*="hover\:bg-teal-50"]:hover {
+  background-color: rgb(238 242 255) !important;
+}
+[class*="dark\:bg-teal-9"] {
+  background-color: rgba(49 46 129 / 0.35) !important; /* indigo-950/30 */
+}
+
+/* --- Shadow teal → indigo --- */
+[class*="shadow-teal"] {
+  --tw-shadow-color: rgba(79, 70, 229, 0.3) !important;
+}
+
+/* ──────────────────────────────────────────────────────────
+   Reusable Component Classes
+────────────────────────────────────────────────────────── */
+
+/* Primary filled button */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1.25rem;
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  border-radius: 0.75rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 4px 14px rgba(79,70,229,0.35);
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
+  box-shadow: 0 6px 20px rgba(79,70,229,0.45);
+  transform: translateY(-1px);
+}
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.55; pointer-events: none; }
+
+/* Outline / secondary button */
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1.25rem;
+  background: transparent;
+  color: #4f46e5;
+  font-size: 0.875rem;
+  font-weight: 700;
+  border-radius: 0.75rem;
+  border: 1.5px solid #4f46e5;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.btn-outline:hover {
+  background: rgba(79,70,229,0.08);
+  transform: translateY(-1px);
+}
+
+/* Form inputs — consistent focus style */
+.form-input {
+  width: 100%;
+  padding: 0.625rem 1rem;
+  border-radius: 0.75rem;
+  border: 1.5px solid rgba(209,213,219,0.7);
+  background: rgba(255,255,255,0.65);
+  backdrop-filter: blur(6px);
+  font-size: 0.875rem;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.form-input:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79,70,229,0.18);
+}
+.dark .form-input {
+  background: rgba(15,23,42,0.5);
+  border-color: rgba(255,255,255,0.1);
+  color: #e2e8f0;
+}
+.dark .form-input:focus {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(129,140,248,0.2);
 }

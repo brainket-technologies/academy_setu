@@ -5,6 +5,9 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') || ''
+    const search = searchParams.get('search') || ''
+    const startDate = searchParams.get('start_date') || ''
+    const endDate = searchParams.get('end_date') || ''
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '10')
     const offset = (page - 1) * pageSize
@@ -16,6 +19,22 @@ export async function GET(request: NextRequest) {
     if (status) {
       params.push(status)
       conditions.push(`status = $${params.length}`)
+    }
+
+    if (search) {
+      params.push(`%${search}%`)
+      const searchParam = `$${params.length}`
+      conditions.push(`(name ILIKE ${searchParam} OR mobile_no ILIKE ${searchParam} OR address ILIKE ${searchParam} OR referral_by ILIKE ${searchParam} OR referral_to ILIKE ${searchParam})`)
+    }
+
+    if (startDate) {
+      params.push(startDate)
+      conditions.push(`created_at >= $${params.length}`)
+    }
+
+    if (endDate) {
+      params.push(endDate)
+      conditions.push(`created_at <= $${params.length}::date + interval '1 day'`)
     }
 
     if (conditions.length > 0) {

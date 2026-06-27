@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
+import { withCache, apiCache } from '@/lib/api-cache'
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,70 +16,40 @@ export async function GET(request: NextRequest) {
     const pageSize = parseInt(searchParams.get('pageSize') || '10')
     const offset = (page - 1) * pageSize
 
-    let query = `SELECT * FROM expense_records`
-    const conditions: string[] = []
-    const params: any[] = []
+    const cacheKey = `expense:${search}:${category}:${paymentMode}:${paidBy}:${paidTo}:${startDate}:${endDate}:${page}:${pageSize}`
 
-    if (search) {
-      params.push(`%${search}%`)
-      conditions.push(
-        `(trans_id ILIKE $${params.length} OR paid_by ILIKE $${params.length} OR paid_to ILIKE $${params.length} OR expense_category ILIKE $${params.length})`
-      )
-    }
+    const data = await withCache(cacheKey, async () => {
+      const conditions: string[] = []
+      const params: any[] = []
 
-    if (category) {
-      params.push(category)
-      conditions.push(`expense_category = $${params.length}`)
-    }
+      if (search) { params.push(`%${search}%`); conditions.push(`(trans_id ILIKE $${params.length} OR paid_by ILIKE $${params.length} OR paid_to ILIKE $${params.length} OR expense_category ILIKE $${params.length})`) }
+      if (category) { params.push(category); conditions.push(`expense_category = $${params.length}`) }
+      if (paymentMode) { params.push(paymentMode); conditions.push(`payment_mode = $${params.length}`) }
+      if (paidBy) { params.push(paidBy); conditions.push(`paid_by = $${params.length}`) }
+      if (paidTo) { params.push(paidTo); conditions.push(`paid_to = $${params.length}`) }
+      if (startDate) { params.push(startDate); conditions.push(`expense_date >= $${params.length}`) }
+      if (endDate) { params.push(endDate); conditions.push(`expense_date <= $${params.length}`) }
 
-    if (paymentMode) {
-      params.push(paymentMode)
-      conditions.push(`payment_mode = $${params.length}`)
-    }
+      const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : ''
 
-    if (paidBy) {
-      params.push(paidBy)
-      conditions.push(`paid_by = $${params.length}`)
-    }
+      const query = `
+        SELECT *, COUNT(*) OVER()::int AS _total_count
+        FROM expense_records
+        ${where}
+        ORDER BY created_at DESC
+        LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+      `
+      params.push(pageSize, offset)
+      const result = await pool.query(query, params)
+      const totalCount = result.rows[0]?._total_count ?? 0
+      const rows = result.rows.map(({ _total_count, ...r }) => r)
+      return { rows, totalCount }
+    }, 20_000)
 
-    if (paidTo) {
-      params.push(paidTo)
-      conditions.push(`paid_to = $${params.length}`)
-    }
-
-    if (startDate) {
-      params.push(startDate)
-      conditions.push(`expense_date >= $${params.length}`)
-    }
-
-    if (endDate) {
-      params.push(endDate)
-      conditions.push(`expense_date <= $${params.length}`)
-    }
-
-    if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ')
-    }
-
-    const countQuery = `SELECT COUNT(*)::int FROM (${query}) as count_table`
-    const countResult = await pool.query(countQuery, params)
-    const totalCount = countResult.rows[0].count
-
-    query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`
-    params.push(pageSize, offset)
-
-    const result = await pool.query(query, params)
-
-    return NextResponse.json({
-      success: true,
-      data: result.rows,
-      meta: {
-        totalCount,
-        page,
-        pageSize,
-        totalPages: Math.ceil(totalCount / pageSize)
-      }
-    })
+    return NextResponse.json(
+      { success: true, data: data.rows, meta: { totalCount: data.totalCount, page, pageSize, totalPages: Math.ceil(data.totalCount / pageSize) } },
+      { headers: { 'Cache-Control': 'public, s-maxage=20, stale-while-revalidate=60' } }
+    )
   } catch (error) {
     console.error('Expense records fetch error:', error)
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })

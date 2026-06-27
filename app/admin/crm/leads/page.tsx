@@ -691,29 +691,28 @@ export default function AllLeadsPage() {
                   <Upload className="w-4 h-4" />
                 </button>
               </div>
-            </div>
-
-            {/* Leads Log Table */}
-            <div className="overflow-x-auto border border-slate-100 dark:border-slate-700 rounded-2xl">
+                    {/* Desktop Leads Log Table */}
+            <div className="hidden md:block overflow-x-auto border border-slate-100 dark:border-slate-700 rounded-2xl">
               <table className="w-full border-collapse text-left text-sm">
                 <thead className="bg-[#EBF6F6]/50 dark:bg-slate-700/50">
                   <tr>
                     <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 w-16">S. No.</th>
                     <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 w-44">Assigned To</th>
                     <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">School Name</th>
-                    <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Address</th>
+                    <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Name</th>
                     <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Mobile No.</th>
-                    <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Lead Source</th>
+                    <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Email</th>
                     <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 max-w-xs">Remarks</th>
                     <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Created At</th>
                     <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Updated At</th>
+                    <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Status</th>
                     <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 text-center w-28">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                   {loading ? (
                     <tr>
-                      <td colSpan={10} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">
+                      <td colSpan={11} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">
                         <div className="flex items-center justify-center gap-2">
                           <Loader2 className="w-5 h-5 animate-spin text-[#0E9485]" />
                           Loading leads log...
@@ -722,7 +721,7 @@ export default function AllLeadsPage() {
                     </tr>
                   ) : leads.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-medium">
+                      <td colSpan={11} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-medium">
                         No leads found matching filters.
                       </td>
                     </tr>
@@ -732,13 +731,13 @@ export default function AllLeadsPage() {
                       const { date: cDate, time: cTime } = formatDateTime(l.created_at)
                       const { date: uDate, time: uTime } = formatDateTime(l.updated_at)
                       return (
-                        <tr key={l.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                        <tr key={l.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-750/30 transition-colors">
                           <td className="px-5 py-4 font-medium text-slate-550 dark:text-slate-400">{sNo}.</td>
                           <td className="px-5 py-4">
                             <select
                               value={l.assigned_to || ''}
                               onChange={(e) => handleAssignStaff(l.id, e.target.value)}
-                              className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-750 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
+                              className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-755 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
                             >
                               <option value="">Assign Staff</option>
                               {STAFF_LIST.map(staff => (
@@ -747,11 +746,13 @@ export default function AllLeadsPage() {
                             </select>
                           </td>
                           <td className="px-5 py-4 text-slate-800 dark:text-slate-100 font-semibold">{l.school_name}</td>
-                          <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-xs font-bold leading-normal">
-                            {l.district ? `${l.district}, ` : ''}{l.state}
+                          <td className="px-5 py-4 text-slate-700 dark:text-slate-205 text-sm font-semibold">
+                            {l.contact_person}
                           </td>
                           <td className="px-5 py-4 text-slate-650 dark:text-slate-300 text-sm font-semibold">{l.mobile_no}</td>
-                          <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-xs font-bold">{l.lead_source}</td>
+                          <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-xs font-semibold">
+                            {l.email_id || '—'}
+                          </td>
                           <td className="px-5 py-4 text-slate-500 dark:text-slate-400 text-xs font-medium max-w-xs truncate leading-normal" title={l.latest_remarks}>
                             {l.latest_remarks || '—'}
                           </td>
@@ -774,6 +775,21 @@ export default function AllLeadsPage() {
                               <Clock className="w-3 h-3 text-slate-400 shrink-0" />
                               {uTime}
                             </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            {l.status === 'Active' ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-500 border border-emerald-200 uppercase tracking-wider">
+                                ● Active
+                              </span>
+                            ) : l.status === 'Created' ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-fuchsia-50 text-fuchsia-500 border border-fuchsia-200 uppercase tracking-wider">
+                                ● Created
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 uppercase tracking-wider">
+                                ● Pending
+                              </span>
+                            )}
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-center gap-2">
@@ -799,6 +815,109 @@ export default function AllLeadsPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card List View */}
+            <div className="md:hidden p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/10">
+              {loading ? (
+                <div className="py-12 text-center text-slate-400">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#0E9485]" />
+                  <span className="text-xs font-semibold mt-2 block">Loading leads...</span>
+                </div>
+              ) : leads.length === 0 ? (
+                <div className="py-8 text-center text-slate-500 text-xs">
+                  No leads found matching filters.
+                </div>
+              ) : (
+                leads.map((l, idx) => {
+                  const sNo = (currentPage - 1) * pageSize + idx + 1
+                  return (
+                    <div 
+                      key={l.id} 
+                      className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-xs space-y-3"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">#{sNo} Lead • {l.lead_source}</span>
+                          <h4 className="text-sm font-bold text-slate-850 dark:text-slate-200 mt-0.5">{l.school_name}</h4>
+                        </div>
+                        
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleStartEdit(l)}
+                            className="p-2 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-xl cursor-pointer"
+                            title="Edit Lead"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClick(l.id)}
+                            className="p-2 bg-red-50 dark:bg-red-950/30 text-red-550 dark:text-red-400 rounded-xl cursor-pointer"
+                            title="Delete Lead"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
+                        <div>
+                          <span className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Contact</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{l.contact_person}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Mobile</span>
+                          <span>{l.mobile_no}</span>
+                        </div>
+                        <div className="mt-1 col-span-2">
+                          <span className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Email</span>
+                          <span className="block truncate">{l.email_id || '—'}</span>
+                        </div>
+                        <div className="mt-1 col-span-2">
+                          <span className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Remarks</span>
+                          <p className="text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">{l.latest_remarks || '—'}</p>
+                        </div>
+                      </div>
+
+                      <div className="pt-2.5 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                        <div className="flex flex-col gap-1 w-full sm:w-auto">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Assign Staff:</span>
+                          <select
+                            value={l.assigned_to || ''}
+                            onChange={(e) => handleAssignStaff(l.id, e.target.value)}
+                            className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
+                          >
+                            <option value="">Assign Staff</option>
+                            {STAFF_LIST.map(staff => (
+                              <option key={staff} value={staff}>{staff}</option>
+                            ))}
+                          </select>
+                        </div>
+                        
+                        <div className="flex flex-col gap-1 items-end w-full sm:w-auto">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status:</span>
+                          <div className="mt-0.5">
+                            {l.status === 'Active' ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-500 border border-emerald-200 uppercase tracking-wider">
+                                ● Active
+                              </span>
+                            ) : l.status === 'Created' ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-fuchsia-50 text-fuchsia-500 border border-fuchsia-200 uppercase tracking-wider">
+                                ● Created
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 uppercase tracking-wider">
+                                ● Pending
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
             </div>
 
             {/* Pagination Controls */}

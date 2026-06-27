@@ -58,6 +58,10 @@ export default function AllPromoCodePage() {
   const [items, setItems] = useState<PromoCode[]>([])
   const [loading, setLoading] = useState(true)
   const [searchText, setSearchText] = useState('')
+  const [filterSegment, setFilterSegment] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
+  const [filterStartDate, setFilterStartDate] = useState('')
+  const [filterEndDate, setFilterEndDate] = useState('')
   const [totalCount, setTotalCount] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
   const [currentPage, setCurrentPage] = useState(1)
@@ -87,6 +91,10 @@ export default function AllPromoCodePage() {
     try {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
       if (search) params.append('search', search)
+      if (filterSegment) params.append('segment', filterSegment)
+      if (filterStatus) params.append('status', filterStatus)
+      if (filterStartDate) params.append('start_date', filterStartDate)
+      if (filterEndDate) params.append('end_date', filterEndDate)
       const res = await fetch(`/api/admin/promo-code?${params.toString()}`)
       const data = await res.json()
       if (data.success) {
@@ -102,7 +110,7 @@ export default function AllPromoCodePage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [filterSegment, filterStatus, filterStartDate, filterEndDate])
 
   const fetchSegments = useCallback(async () => {
     try {
@@ -431,13 +439,56 @@ export default function AllPromoCodePage() {
                 />
               </form>
               <button
-                onClick={() => fetchItems(1, searchText)}
+                onClick={() => {
+                  setFilterSegment('')
+                  setFilterStatus('')
+                  setFilterStartDate('')
+                  setFilterEndDate('')
+                }}
                 className="p-2.5 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 border border-slate-200 dark:border-slate-600 rounded-xl transition-colors cursor-pointer"
-                title="Filter"
+                title="Clear Filters"
               >
                 <Filter className="w-4 h-4" />
               </button>
             </div>
+          </div>
+
+          {/* Filter Bar */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <select
+              value={filterSegment}
+              onChange={(e) => setFilterSegment(e.target.value)}
+              className="px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+            >
+              <option value="">All Segments</option>
+              {segments.map(s => (
+                <option key={s.id} value={s.name}>{s.name}</option>
+              ))}
+            </select>
+
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+            >
+              <option value="">All Status</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+
+            <input
+              type="date"
+              value={filterStartDate}
+              onChange={(e) => setFilterStartDate(e.target.value)}
+              className="px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+            />
+
+            <input
+              type="date"
+              value={filterEndDate}
+              onChange={(e) => setFilterEndDate(e.target.value)}
+              className="px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+            />
           </div>
 
           {/* Table */}

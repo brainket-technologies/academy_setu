@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { AdminLayout } from '@/components/layout/AdminLayout'
-import { Loader2, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react'
+import { Search, Loader2, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Referral {
@@ -20,6 +20,10 @@ export default function ReferralCodePage() {
   const [referrals, setReferrals] = useState<Referral[]>([])
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState('')
+  const [searchText, setSearchText] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -30,7 +34,7 @@ export default function ReferralCodePage() {
   // Conversion loading states per row ID
   const [convertingId, setConvertingId] = useState<string | null>(null)
 
-  const fetchReferrals = useCallback(async (page = 1, status = '') => {
+  const fetchReferrals = useCallback(async (page = 1, status = '', search = '', sDate = '', eDate = '') => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
@@ -39,6 +43,15 @@ export default function ReferralCodePage() {
       })
       if (status) {
         params.append('status', status)
+      }
+      if (search) {
+        params.append('search', search)
+      }
+      if (sDate) {
+        params.append('start_date', sDate)
+      }
+      if (eDate) {
+        params.append('end_date', eDate)
       }
 
       const res = await fetch(`/api/admin/referral-code?${params.toString()}`)
@@ -59,8 +72,8 @@ export default function ReferralCodePage() {
   }, [])
 
   useEffect(() => {
-    fetchReferrals(currentPage, filterStatus)
-  }, [currentPage, filterStatus, fetchReferrals])
+    fetchReferrals(currentPage, filterStatus, searchText, startDate, endDate)
+  }, [currentPage, filterStatus, searchText, startDate, endDate, fetchReferrals])
 
   const handleConvertLead = async (id: string) => {
     setConvertingId(id)
@@ -72,7 +85,7 @@ export default function ReferralCodePage() {
       const data = await res.json()
       if (data.success) {
         toast.success('Successfully converted referral to CRM Lead!')
-        fetchReferrals(currentPage, filterStatus)
+        fetchReferrals(currentPage, filterStatus, searchText, startDate, endDate)
       } else {
         toast.error(data.error || 'Failed to convert referral')
       }
@@ -111,20 +124,70 @@ export default function ReferralCodePage() {
 
         {/* Filter and Table Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-6">
-          {/* Status Filter Dropdown */}
-          <div className="flex flex-col gap-1.5 shrink-0 w-48">
-            <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider">Status</label>
-            <select
-              value={filterStatus}
-              onChange={(e) => {
-                setFilterStatus(e.target.value)
-                setCurrentPage(1)
-              }}
-              className="px-3.5 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200 cursor-pointer font-semibold shadow-sm"
-            >
-              <option value="">All</option>
-              <option value="Onboarded">Onboarded</option>
-            </select>
+          {/* Search Input */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              setSearchText(searchInput)
+              setCurrentPage(1)
+            }}
+            className="relative max-w-xs"
+          >
+            <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by name, mobile, address..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+            />
+          </form>
+
+          {/* Filters Row */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Status Filter Dropdown */}
+            <div className="flex flex-col gap-1.5 shrink-0 w-44">
+              <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider">Status</label>
+              <select
+                value={filterStatus}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value)
+                  setCurrentPage(1)
+                }}
+                className="px-3.5 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200 cursor-pointer font-semibold shadow-sm"
+              >
+                <option value="">All</option>
+                <option value="Onboarded">Onboarded</option>
+              </select>
+            </div>
+
+            {/* From Date */}
+            <div className="flex flex-col gap-1.5 shrink-0 w-44">
+              <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider">From Date</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value)
+                  setCurrentPage(1)
+                }}
+                className="px-3.5 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+              />
+            </div>
+
+            {/* To Date */}
+            <div className="flex flex-col gap-1.5 shrink-0 w-44">
+              <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider">To Date</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value)
+                  setCurrentPage(1)
+                }}
+                className="px-3.5 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+              />
+            </div>
           </div>
 
           {/* Data Table */}

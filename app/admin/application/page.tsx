@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { AdminLayout } from '@/components/layout/AdminLayout'
-import { Search, Plus, Eye, Edit3, RefreshCw, X, MoreVertical, Loader2 } from 'lucide-react'
+import { Search, Plus, Eye, Edit3, RefreshCw, X, MoreVertical, Loader2, Filter, ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
@@ -31,6 +31,12 @@ export default function ApplicationPage() {
   // Search & Filtering
   const [searchText, setSearchText] = useState('')
   const [activeTab, setActiveTab] = useState<'all' | 'new'>('all')
+  const [showFilters, setShowFilters] = useState(false)
+  const [filterStatus, setFilterStatus] = useState('')
+  const [filterState, setFilterState] = useState('')
+  const [filterDistrict, setFilterDistrict] = useState('')
+  const [filterFromDate, setFilterFromDate] = useState('')
+  const [filterToDate, setFilterToDate] = useState('')
 
   // Context Menu State
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null)
@@ -67,6 +73,21 @@ export default function ApplicationPage() {
         queryParams.append('search', searchText)
       }
       queryParams.append('tab', activeTab)
+      if (filterStatus) {
+        queryParams.append('status', filterStatus)
+      }
+      if (filterState) {
+        queryParams.append('state', filterState)
+      }
+      if (filterDistrict) {
+        queryParams.append('district', filterDistrict)
+      }
+      if (filterFromDate) {
+        queryParams.append('start_date', filterFromDate)
+      }
+      if (filterToDate) {
+        queryParams.append('end_date', filterToDate)
+      }
 
       const response = await fetch(`/api/admin/application?${queryParams.toString()}`)
       const resData = await response.json()
@@ -95,7 +116,24 @@ export default function ApplicationPage() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    setCurrentPage(1)
     fetchApplications()
+  }
+
+  const handleApplyFilters = () => {
+    setCurrentPage(1)
+    fetchApplications()
+  }
+
+  const handleResetFilters = () => {
+    setFilterStatus('')
+    setFilterState('')
+    setFilterDistrict('')
+    setFilterFromDate('')
+    setFilterToDate('')
+    setCurrentPage(1)
+    // fetch will be called by the useEffect on activeTab or we can call it manually
+    setTimeout(() => fetchApplications(), 0)
   }
 
   // Close context menu on click outside
@@ -280,8 +318,8 @@ export default function ApplicationPage() {
   }
 
   // Pagination calculation
-  const totalEntries = applications.length
-  const totalPages = Math.ceil(totalEntries / pageSize)
+  const totalEntries = activeTab === 'all' ? metaCounts.totalCount : metaCounts.newCount
+  const totalPages = Math.ceil(totalEntries / pageSize) || 1
   const paginatedApps = applications.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
@@ -297,8 +335,6 @@ export default function ApplicationPage() {
       return { date: dateStr, time: '' }
     }
   }
-
-  const padZero = (num: number) => (num < 10 ? `0${num}` : num.toString())
 
   return (
     <AdminLayout>
@@ -319,6 +355,17 @@ export default function ApplicationPage() {
                 className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
               />
             </form>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm cursor-pointer transition-colors shrink-0 ${
+                showFilters
+                  ? 'bg-teal-600 text-white shadow-teal-600/10'
+                  : 'bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-600'
+              }`}
+              title="Toggle Filters"
+            >
+              {showFilters ? <ChevronUp className="w-5 h-5" /> : <Filter className="w-5 h-5" />}
+            </button>
             <Link 
               href="/admin/application/create"
               className="w-10 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-xl flex items-center justify-center shadow-md shadow-teal-600/10 cursor-pointer transition-colors shrink-0"
@@ -346,10 +393,10 @@ export default function ApplicationPage() {
             Total Application
             <span className={`text-xs font-bold px-2 py-0.5 rounded-lg transition-colors ${
               activeTab === 'all'
-                ? 'bg-teal-500 text-white'
+                ? 'bg-white/90 text-teal-700'
                 : 'bg-teal-50 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400'
             }`}>
-              {padZero(metaCounts.totalCount)}
+              {metaCounts.totalCount}
             </span>
           </button>
 
@@ -368,13 +415,88 @@ export default function ApplicationPage() {
             New Application
             <span className={`text-xs font-bold px-2 py-0.5 rounded-lg transition-colors ${
               activeTab === 'new'
-                ? 'bg-teal-500 text-white'
+                ? 'bg-white/90 text-teal-700'
                 : 'bg-teal-50 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400'
             }`}>
-              {padZero(metaCounts.newCount)}
+              {metaCounts.newCount}
             </span>
           </button>
         </div>
+
+        {/* Collapsible Filter Bar */}
+        {showFilters && (
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 shadow-sm">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Status</label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                >
+                  <option value="">All</option>
+                  <option value="Applied">Applied</option>
+                  <option value="Generate">Generate</option>
+                  <option value="Requested">Requested</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">State</label>
+                <input
+                  type="text"
+                  placeholder="Enter State"
+                  value={filterState}
+                  onChange={(e) => setFilterState(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">District</label>
+                <input
+                  type="text"
+                  placeholder="Enter District"
+                  value={filterDistrict}
+                  onChange={(e) => setFilterDistrict(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">From Date</label>
+                <input
+                  type="date"
+                  value={filterFromDate}
+                  onChange={(e) => setFilterFromDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">To Date</label>
+                <input
+                  type="date"
+                  value={filterToDate}
+                  onChange={(e) => setFilterToDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-3 mt-4">
+              <button
+                onClick={handleApplyFilters}
+                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-teal-600/10 cursor-pointer flex items-center gap-2"
+              >
+                <Filter className="w-4 h-4" />
+                Apply Filters
+              </button>
+              <button
+                onClick={handleResetFilters}
+                className="px-5 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 rounded-xl font-bold text-sm transition-all cursor-pointer"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Table Container Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col relative">
