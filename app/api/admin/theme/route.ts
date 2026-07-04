@@ -49,7 +49,7 @@ export async function GET() {
 
   const files = walkDir(directoryToSearch);
   let changedFilesCount = 0;
-  let changedFiles = []
+  let changedFiles: string[] = []
 
   files.forEach(file => {
     let content = fs.readFileSync(file, 'utf8');

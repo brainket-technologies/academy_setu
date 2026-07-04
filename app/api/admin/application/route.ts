@@ -63,7 +63,7 @@ export async function GET(request: Request) {
       LEFT JOIN institutions i ON a.institution_id = i.id
       LEFT JOIN admins u ON i.assigned_to = u.id
     `
-    const values: string[] = []
+    const values: any[] = []
     const conditions: string[] = []
 
     if (userRole === 'Manager' || userRole === 'BDM') {

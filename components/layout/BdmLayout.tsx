@@ -5,12 +5,15 @@ import { BdmSidebar } from './BdmSidebar'
 import { BdmHeader } from './BdmHeader'
 
 export function BdmLayout({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isSidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="min-h-screen flex bg-[#f5f3ff] dark:bg-slate-900 font-sans antialiased">
-      <Suspense fallback={<div className="hidden lg:block w-64 h-screen shrink-0" />}>
-        <BdmSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+    <div className="flex min-h-screen bg-[#f4f7fb] dark:bg-slate-900 transition-colors duration-300">
+      <Suspense fallback={<div className="hidden lg:block w-64 h-screen shrink-0 border-r border-slate-200 bg-white" />}>
+        <BdmSidebar 
+          isOpen={isSidebarOpen} 
+          onClose={() => setSidebarOpen(false)} 
+        />
       </Suspense>
       <div className="flex-1 flex flex-col min-w-0">
         <BdmHeader onMenuToggle={() => setSidebarOpen(prev => !prev)} />

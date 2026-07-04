@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Loader2, Camera, Paperclip, Eye, EyeOff, Check, CalendarIcon } from 'lucide-react'
 import { toast } from 'sonner'
+import { Suspense } from 'react'
 
 
 const STATES = ['Uttar Pradesh', 'Madhya Pradesh', 'Punjab', 'Delhi', 'Maharashtra', 'Bihar', 'Haryana', 'Rajasthan', 'Gujarat', 'Karnataka']
@@ -23,7 +24,7 @@ const DISTRICTS: Record<string, string[]> = {
 
 const STEPS = ['Personal Details', 'Address Details', 'Agreement & Commission', 'Account Details']
 
-export default function CreateDistributorPage() {
+function CreateDistributorForm() {
   const router = useRouter()
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
@@ -541,5 +542,13 @@ export default function CreateDistributorPage() {
         </div>
       </div>
     </AdminLayout>
+  )
+}
+
+export default function CreateDistributorPage() {
+  return (
+    <Suspense fallback={<AdminLayout><div className="p-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-600" /></div></AdminLayout>}>
+      <CreateDistributorForm />
+    </Suspense>
   )
 }

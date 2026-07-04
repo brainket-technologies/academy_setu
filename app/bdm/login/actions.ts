@@ -98,7 +98,7 @@ export async function updateBdmProfileAction(data: any) {
     // Attempt to invalidate cache if possible, so Admin table shows it instantly
     try {
       const { apiCache } = await import('@/lib/api-cache')
-      apiCache.del('admin_list')
+      apiCache.invalidate('admin_list')
     } catch (e) {}
 
     return { success: true }
