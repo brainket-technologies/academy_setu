@@ -10,9 +10,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen flex" style={{ background: 'transparent' }}>
-      <Suspense fallback={<div className="hidden lg:block w-64 h-screen shrink-0" />}>
-        <AdminSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      </Suspense>
+      <AdminSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0">
         <AdminHeader onMenuToggle={() => setSidebarOpen(prev => !prev)} />
         <main className="flex-1 p-4 md:p-6 min-w-0">

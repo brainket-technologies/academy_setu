@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { 
   LayoutDashboard, Users, FileText, MessagesSquare, 
@@ -26,7 +26,6 @@ interface MenuItem {
 
 export function ManagerSidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
   const [userPermissions, setUserPermissions] = useState<string[]>([])
 
   useEffect(() => {
@@ -175,8 +174,10 @@ export function ManagerSidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?
                           if (subHref.includes('?')) {
                             const [path, search] = subHref.split('?')
                             if (pathname !== path) return false
+                            if (typeof window === 'undefined') return true
                             const subParams = new URLSearchParams(search)
-                            return Array.from(subParams.entries()).every(([key, val]) => searchParams.get(key) === val)
+                            const currentParams = new URLSearchParams(window.location.search)
+                            return Array.from(subParams.entries()).every(([key, val]) => currentParams.get(key) === val)
                           }
                           if (pathname === subHref) return true
                           return false

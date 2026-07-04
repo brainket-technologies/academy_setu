@@ -46,7 +46,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
     const body = await request.json()
-    const { assigned_to_id, status_id, status, institution_name, state, district, contact_person, mobile_no, no_of_students } = body
+    const { assigned_to, assigned_to_id, status_id, status, institution_name, state, district, contact_person, mobile_no, no_of_students } = body
 
     // Build dynamic update query
     const updates: string[] = []
@@ -59,7 +59,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    addUpdate('assigned_to_id', assigned_to_id)
+    let finalAssignedToId = assigned_to_id
+    if (assigned_to === '') {
+      finalAssignedToId = null // allow un-assigning
+    } else if (!finalAssignedToId && assigned_to) {
+      const adminRes = await pool.query('SELECT id FROM admins WHERE name = $1 LIMIT 1', [assigned_to])
+      if (adminRes.rows.length > 0) finalAssignedToId = adminRes.rows[0].id
+    }
+    addUpdate('assigned_to_id', finalAssignedToId)
     addUpdate('institution_name', institution_name)
     addUpdate('state', state)
     addUpdate('district', district)

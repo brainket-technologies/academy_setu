@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { 
   LayoutDashboard, Users, FileText, Calendar, Tag, CreditCard, 
@@ -25,7 +25,6 @@ interface MenuItem {
 
 export function AdminSidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
 
   const menuItems: MenuItem[] = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/admin/dashboard' },
@@ -222,11 +221,15 @@ export function AdminSidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: 
                           if (subHref.includes('?')) {
                             const [path, search] = subHref.split('?')
                             if (pathname !== path) return false
+                            if (typeof window === 'undefined') return true
                             const subParams = new URLSearchParams(search)
-                            return Array.from(subParams.entries()).every(([key, val]) => searchParams.get(key) === val)
+                            const currentParams = new URLSearchParams(window.location.search)
+                            return Array.from(subParams.entries()).every(([key, val]) => currentParams.get(key) === val)
                           }
                           if (pathname === subHref) {
-                            if (pathname === '/admin/user-role') return !searchParams.has('role')
+                            if (pathname === '/admin/user-role' && typeof window !== 'undefined') {
+                              return !new URLSearchParams(window.location.search).has('role')
+                            }
                             return true
                           }
                           return false

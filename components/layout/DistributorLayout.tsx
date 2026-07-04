@@ -10,12 +10,10 @@ export function DistributorLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-[#f4f7fb] dark:bg-slate-900 transition-colors duration-300">
-      <Suspense fallback={<div className="hidden lg:block w-64 h-screen shrink-0 border-r border-slate-200 bg-white" />}>
-        <DistributorSidebar 
-          isOpen={isSidebarOpen} 
-          onClose={() => setSidebarOpen(false)} 
-        />
-      </Suspense>
+      <DistributorSidebar 
+        isOpen={isSidebarOpen} 
+        onClose={() => setSidebarOpen(false)} 
+      />
       
       <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
         <DistributorHeader onMenuToggle={() => setSidebarOpen(true)} />
