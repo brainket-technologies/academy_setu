@@ -23,7 +23,7 @@ export async function distributorLoginAction(
 
   try {
     const result = await pool.query(
-      'SELECT id, dist_id, name, email, password_hash, status FROM distributors WHERE email = $1 AND status = $2 LIMIT 1',
+      'SELECT id, dist_id, name, email, password_hash, status FROM distributors WHERE (email = $1 OR username = $1) AND status = $2 LIMIT 1',
       [email.toLowerCase().trim(), 'Active']
     )
 

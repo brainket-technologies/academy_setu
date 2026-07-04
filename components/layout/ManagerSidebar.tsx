@@ -26,7 +26,7 @@ interface MenuItem {
 
 export function ManagerSidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname()
-  const [userPermissions, setUserPermissions] = useState<string[]>([])
+  const [userPermissions, setUserPermissions] = useState<string[] | null>(null)
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -60,6 +60,7 @@ export function ManagerSidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?
 
   const menuItems = allMenuItems.filter(item => {
     if (!item.requiredPermission) return true
+    if (userPermissions === null) return true // Optimistically render while loading
     return userPermissions.includes(item.requiredPermission)
   })
 
