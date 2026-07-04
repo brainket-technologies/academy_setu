@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { DistributorLayout } from '@/components/layout/DistributorLayout'
 import { toast } from 'sonner'
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 
@@ -38,16 +37,16 @@ export default function DistributorTransactionsPage() {
 
   if (loading) {
     return (
-      <DistributorLayout>
+      <>
         <div className="flex h-[calc(100vh-100px)] items-center justify-center">
           <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
         </div>
-      </DistributorLayout>
+      </>
     )
   }
 
   return (
-    <DistributorLayout>
+    <>
       <div className="space-y-6 max-w-7xl mx-auto">
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700">
           <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-6">Transaction</h2>
@@ -203,6 +202,6 @@ export default function DistributorTransactionsPage() {
           </div>
         </div>
       </div>
-    </DistributorLayout>
+    </>
   )
 }

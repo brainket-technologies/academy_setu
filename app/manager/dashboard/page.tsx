@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState } from 'react'
-import { ManagerLayout } from '@/components/layout/ManagerLayout'
 import { MoreHorizontal, FileText, CheckCircle, Clock, CalendarDays, Key, MonitorPlay, Activity } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
@@ -31,7 +30,7 @@ export default function ManagerDashboardPage() {
   const [graphType, setGraphType] = useState('Annual')
 
   return (
-    <ManagerLayout>
+    <>
       <div className="flex flex-col gap-6 lg:gap-8 max-w-7xl mx-auto">
         
         {/* TOP ROW: Lead & Followup | Call & Login Time */}
@@ -292,6 +291,6 @@ export default function ManagerDashboardPage() {
         </div>
 
       </div>
-    </ManagerLayout>
+    </>
   )
 }

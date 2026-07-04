@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { ManagerLayout } from '@/components/layout/ManagerLayout'
 import { 
   Search, Edit3, Trash2, Calendar, Clock, Loader2, 
   ChevronLeft, ChevronRight, Share2, Upload, Plus
@@ -339,7 +338,7 @@ export default function LeadsPage() {
   }
 
   return (
-    <ManagerLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full p-4 md:p-6">
         {/* Title Header Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-6 md:px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm shrink-0 flex items-center justify-between flex-wrap gap-4">
@@ -1027,6 +1026,6 @@ export default function LeadsPage() {
           </div>
         </div>
       )}
-    </ManagerLayout>
+    </>
   )
 }

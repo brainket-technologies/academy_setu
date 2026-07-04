@@ -1,6 +1,5 @@
 'use client'
 
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { 
   Building2, GraduationCap, School, FileText, Calendar, 
   Tag, IndianRupee, Receipt, Users, Clock, 
@@ -55,7 +54,7 @@ export default function AdminDashboardPage() {
   ]
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-7xl mx-auto animate-fade-in-up">
         
         {/* Top Section */}
@@ -336,6 +335,6 @@ export default function AdminDashboardPage() {
         </div>
 
       </div>
-    </AdminLayout>
+    </>
   )
 }

@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Search, Filter, X, Edit, Trash2, ChevronDown, Check, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
@@ -243,7 +242,7 @@ export default function SegmentPage() {
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
         {/* Title Container */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm flex items-center justify-between">
@@ -606,6 +605,6 @@ export default function SegmentPage() {
         title="Delete Segment"
         description="Are you sure you want to delete this segment? This action cannot be undone."
       />
-    </AdminLayout>
+    </>
   )
 }

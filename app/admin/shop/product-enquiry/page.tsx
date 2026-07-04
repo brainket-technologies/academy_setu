@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Search, Loader2, Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -95,7 +94,7 @@ export default function ProductEnquiryPage() {
   }
 
   return (
-    <AdminLayout>
+    <>
       {/* Page Header */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 mb-6 shadow-sm border border-slate-100 dark:border-slate-700">
         <h1 className="text-xl font-bold text-slate-850 dark:text-slate-100">Product Enquiry</h1>
@@ -270,6 +269,6 @@ export default function ProductEnquiryPage() {
           </div>
         </div>
       </div>
-    </AdminLayout>
+    </>
   )
 }

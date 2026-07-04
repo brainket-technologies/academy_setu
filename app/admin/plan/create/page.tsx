@@ -2,7 +2,6 @@
 
 import React, { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Plus, Trash2, X, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -308,7 +307,7 @@ export default function CreatePlanPage() {
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full pb-10">
 
         {/* Title Card */}
@@ -544,6 +543,6 @@ export default function CreatePlanPage() {
           </div>
         </form>
       </div>
-    </AdminLayout>
+    </>
   )
 }

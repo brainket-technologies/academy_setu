@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ManagerLayout } from '@/components/layout/ManagerLayout'
 import { X, Camera, Check, ArrowLeft, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -145,7 +144,7 @@ export default function CreateApplicationPage() {
   }
 
   return (
-    <ManagerLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full pb-10">
         
         {/* Title Card */}
@@ -654,6 +653,6 @@ export default function CreateApplicationPage() {
 
         </div>
       </div>
-    </ManagerLayout>
+    </>
   )
 }

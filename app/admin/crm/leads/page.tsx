@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { 
   Search, Edit3, Trash2, Calendar, Clock, Loader2, 
   ChevronLeft, ChevronRight, Share2, Upload, AlertCircle 
@@ -325,7 +324,7 @@ export default function AllLeadsPage() {
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
         {/* Title Header Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm shrink-0 flex items-center justify-between">
@@ -984,6 +983,6 @@ export default function AllLeadsPage() {
         title="Delete CRM Lead"
         description="Are you sure you want to delete this CRM lead? This action will permanently remove all logs and history logs related to it."
       />
-    </AdminLayout>
+    </>
   )
 }

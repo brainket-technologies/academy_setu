@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Loader2, Trash2, Edit3, Tag, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
@@ -174,7 +173,7 @@ export default function CategoryPage() {
   const totalPages = Math.ceil(totalCount / pageSize)
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 p-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Create Category</h1>
@@ -430,6 +429,6 @@ export default function CategoryPage() {
         title="Delete Category"
         description="Are you sure you want to delete this category? Any transactions linked to it may lose their categorization."
       />
-    </AdminLayout>
+    </>
   )
 }

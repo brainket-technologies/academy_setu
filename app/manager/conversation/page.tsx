@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { ManagerLayout } from '@/components/layout/ManagerLayout'
 import { Search, Paperclip, Send, Loader2, CheckCheck, Check } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -237,7 +236,7 @@ export default function AllConversationPage() {
   )
 
   return (
-    <ManagerLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full h-[calc(100vh-120px)]">
         {/* Title Header Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm shrink-0">
@@ -452,6 +451,6 @@ export default function AllConversationPage() {
           </div>
         </div>
       </div>
-    </ManagerLayout>
+    </>
   )
 }

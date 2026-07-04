@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { X, Camera, Eye, ArrowLeft, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -182,17 +181,17 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
 
   if (loading) {
     return (
-      <AdminLayout>
+      <>
         <div className="flex flex-col items-center justify-center min-h-[400px] gap-2">
           <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
           <p className="text-slate-500 dark:text-slate-400 font-medium">Loading Application Details...</p>
         </div>
-      </AdminLayout>
+      </>
     )
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full pb-10">
         
         {/* Title Card */}
@@ -598,6 +597,6 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
         </div>
 
       </div>
-    </AdminLayout>
+    </>
   )
 }

@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Search, Loader2, Calendar, Plus, Edit3, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
@@ -175,7 +174,7 @@ export default function DispatchPage() {
   }
 
   return (
-    <AdminLayout>
+    <>
       {/* Page Header */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 mb-6 shadow-sm border border-slate-100 dark:border-slate-700 flex justify-between items-center">
         <div>
@@ -413,6 +412,6 @@ export default function DispatchPage() {
         description="Are you sure you want to delete this dispatch record? This action cannot be undone."
         loading={deleteLoading}
       />
-    </AdminLayout>
+    </>
   )
 }

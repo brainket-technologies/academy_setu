@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { BdmLayout } from '@/components/layout/BdmLayout'
 import { Search, Upload, Edit3, ChevronLeft, ChevronRight, Loader2, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -168,7 +167,7 @@ export default function BdmLeadsPage() {
   }
 
   return (
-    <BdmLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-7xl mx-auto">
         
         {/* Header Block */}
@@ -523,6 +522,6 @@ export default function BdmLeadsPage() {
           </div>
         </div>
       )}
-    </BdmLayout>
+    </>
   )
 }

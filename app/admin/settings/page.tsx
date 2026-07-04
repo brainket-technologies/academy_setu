@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import {
   Search, Loader2, Trash2, X, Plus, Filter, Download,
   ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, FileText,
@@ -253,7 +252,7 @@ export default function SettingsPage() {
   const paginatedData = states.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto">
         {/* Header Titles */}
         <div>
@@ -669,6 +668,6 @@ export default function SettingsPage() {
         title="Delete State Configuration"
         description="Are you sure you want to delete this state and city configuration? This action cannot be undone."
       />
-    </AdminLayout>
+    </>
   )
 }

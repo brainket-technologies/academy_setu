@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Plus, Trash2, X, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -288,16 +287,16 @@ export default function EditPlanPage({ params }: EditPlanPageProps) {
   }
 
   if (loading) return (
-    <AdminLayout>
+    <>
         <div className="flex items-center justify-center min-h-[400px] gap-2">
           <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
           <p className="text-slate-500 dark:text-slate-400 font-medium">Loading Plan...</p>
         </div>
-    </AdminLayout>
+    </>
   )
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full pb-10">
         {/* Title */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm flex items-center justify-between">
@@ -420,6 +419,6 @@ export default function EditPlanPage({ params }: EditPlanPageProps) {
           </div>
         </form>
       </div>
-    </AdminLayout>
+    </>
   )
 }

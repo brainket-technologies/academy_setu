@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Edit3, ArrowLeft, Loader2, ChevronLeft, ChevronRight, Check } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -77,11 +76,11 @@ export default function ProductDetailsPage() {
 
   if (loading) {
     return (
-      <AdminLayout>
+      <>
         <div className="flex justify-center items-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
         </div>
-      </AdminLayout>
+      </>
     )
   }
 
@@ -92,7 +91,7 @@ export default function ProductDetailsPage() {
   const images = product.images?.length ? product.images : ['https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=600']
 
   return (
-    <AdminLayout>
+    <>
       {/* Header Panel */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 mb-6 shadow-sm border border-slate-100 dark:border-slate-700 flex justify-between items-center">
         <div className="flex items-center gap-3">
@@ -259,6 +258,6 @@ export default function ProductDetailsPage() {
           )}
         </div>
       </div>
-    </AdminLayout>
+    </>
   )
 }

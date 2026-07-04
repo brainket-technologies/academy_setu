@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { 
   Search, FileText, Loader2, ChevronLeft, ChevronRight, Eye, X, Check, AlertCircle 
 } from 'lucide-react'
@@ -554,7 +553,7 @@ function RequestDashboardContent() {
 
 export default function RequestDashboardPage() {
   return (
-    <AdminLayout>
+    <>
       <Suspense fallback={
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
@@ -562,6 +561,6 @@ export default function RequestDashboardPage() {
       }>
         <RequestDashboardContent />
       </Suspense>
-    </AdminLayout>
+    </>
   )
 }

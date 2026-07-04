@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import {
   Search, Loader2, Edit3, Trash2, X,
   ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight
@@ -169,7 +168,7 @@ export default function AllQueriesPage() {
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
         {/* Title Header Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm shrink-0">
@@ -450,6 +449,6 @@ export default function AllQueriesPage() {
         title="Delete Query"
         description="Are you sure you want to delete this query? This action cannot be undone."
       />
-    </AdminLayout>
+    </>
   )
 }

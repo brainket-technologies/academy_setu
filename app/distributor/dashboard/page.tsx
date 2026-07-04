@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { DistributorLayout } from '@/components/layout/DistributorLayout'
 import { MoreHorizontal, Download, FileText, CheckCircle, Clock, CalendarDays, Key, MonitorPlay, Activity } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { toast } from 'sonner'
@@ -36,16 +35,16 @@ export default function DistributorDashboardPage() {
 
   if (loading) {
     return (
-      <DistributorLayout>
+      <>
         <div className="flex h-[calc(100vh-100px)] items-center justify-center">
           <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
         </div>
-      </DistributorLayout>
+      </>
     )
   }
 
   return (
-    <DistributorLayout>
+    <>
       <div className="space-y-6 max-w-7xl mx-auto">
         
         {/* STAT CARDS */}
@@ -280,6 +279,6 @@ export default function DistributorDashboardPage() {
         </div>
 
       </div>
-    </DistributorLayout>
+    </>
   )
 }

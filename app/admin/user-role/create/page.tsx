@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import {
   ArrowLeft, Printer, Camera, Paperclip, Clock, Calendar,
   Eye, EyeOff, Check, X, Loader2, Contact, Mail, Phone,
@@ -266,17 +265,17 @@ function UserWizardContent() {
 
   if (loadingUser) {
     return (
-      <AdminLayout>
+      <>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
           <Loader2 className="w-10 h-10 animate-spin text-indigo-650" />
           <span className="text-sm font-semibold text-slate-500">Retrieving user profile...</span>
         </div>
-      </AdminLayout>
+      </>
     )
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto print:p-0">
 
         {/* Header Title Card */}
@@ -1160,19 +1159,19 @@ function UserWizardContent() {
         )}
 
       </div>
-    </AdminLayout>
+    </>
   )
 }
 
 export default function UserWizardPage() {
   return (
     <Suspense fallback={
-      <AdminLayout>
+      <>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
           <Loader2 className="w-10 h-10 animate-spin text-indigo-650" />
           <span className="text-sm font-semibold text-slate-500">Loading progressive wizard...</span>
         </div>
-      </AdminLayout>
+      </>
     }>
       <UserWizardContent />
     </Suspense>

@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -100,7 +99,7 @@ export default function CreateLeadPage() {
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
         {/* Title Header Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm shrink-0">
@@ -270,6 +269,6 @@ export default function CreateLeadPage() {
           </form>
         </div>
       </div>
-    </AdminLayout>
+    </>
   )
 }

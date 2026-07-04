@@ -88,7 +88,20 @@ export async function PUT(
       addInstField('director_gender', director_gender)
       addInstField('director_sign', director_sign)
       addInstField('director_photo', director_photo)
-      addInstField('assigned_to', assigned_to)
+      
+      let finalAssignedTo = assigned_to
+      if (assigned_to === '') {
+        finalAssignedTo = null
+      } else if (assigned_to) {
+        // check if it's already a uuid or we need to lookup by name
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(assigned_to)) {
+          const adminRes = await pool.query('SELECT id FROM admins WHERE name = $1 LIMIT 1', [assigned_to])
+          if (adminRes.rows.length > 0) {
+            finalAssignedTo = adminRes.rows[0].id
+          }
+        }
+      }
+      addInstField('assigned_to', finalAssignedTo)
 
       if (instUpdates.length > 0) {
         instValues.push(institutionId)

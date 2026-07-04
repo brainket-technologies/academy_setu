@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ManagerLayout } from '@/components/layout/ManagerLayout'
 import { Camera, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getManagerProfileAction, updateManagerProfileAction } from '@/app/manager/login/actions'
@@ -100,7 +99,7 @@ export default function EditProfilePage() {
   }
 
   return (
-    <ManagerLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full pb-10">
         
         {/* Title Card */}
@@ -297,6 +296,6 @@ export default function EditProfilePage() {
           </form>
         </div>
       </div>
-    </ManagerLayout>
+    </>
   )
 }

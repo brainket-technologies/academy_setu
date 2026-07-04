@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import {
   Search, Loader2, Trash2, X, Plus, Filter, Download,
   ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, FileText, Upload,
@@ -360,7 +359,7 @@ export default function AllExpensesPage() {
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 p-6">
         {/* Page Title & Actions Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1236,6 +1235,6 @@ export default function AllExpensesPage() {
         title="Delete Expense Record"
         description="Are you sure you want to delete this expense record? This action cannot be undone."
       />
-    </AdminLayout>
+    </>
   )
 }

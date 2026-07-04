@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import {
   Search, Loader2, FileText, X, Upload, Plus,
   ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight
@@ -230,7 +229,7 @@ export default function DistributorPaymentPage() {
   const readonlyCls = "w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-600 dark:text-slate-300 cursor-not-allowed focus:outline-none"
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
         {/* Header */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm shrink-0 flex items-center justify-between">
@@ -586,6 +585,6 @@ export default function DistributorPaymentPage() {
           </div>
         </div>
       )}
-    </AdminLayout>
+    </>
   )
 }

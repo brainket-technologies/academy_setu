@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { 
   Search, Plus, Edit3, Trash2, FileText, Download, Loader2, 
   ChevronLeft, ChevronRight, X, Percent, Tag, Ticket, Check, Paperclip
@@ -1738,7 +1737,7 @@ function BillingDashboardContent() {
 
 export default function AllBillsPage() {
   return (
-    <AdminLayout>
+    <>
       <Suspense fallback={
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
@@ -1746,6 +1745,6 @@ export default function AllBillsPage() {
       }>
         <BillingDashboardContent />
       </Suspense>
-    </AdminLayout>
+    </>
   )
 }

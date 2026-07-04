@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { 
   Loader2, Trash2, Edit3, Users,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight 
@@ -213,7 +212,7 @@ export default function PartiesPage() {
   const paginatedParties = parties.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 p-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Create Parties</h1>
@@ -523,6 +522,6 @@ export default function PartiesPage() {
         title="Delete Party / Contact"
         description="Are you sure you want to delete this party? Any transactions linked to it will keep their received_from reference but this party will be deleted."
       />
-    </AdminLayout>
+    </>
   )
 }

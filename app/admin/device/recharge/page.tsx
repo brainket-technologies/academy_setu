@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Search, Loader2, Plus, Eye, X, Calendar, Check, ArrowUp, ArrowDown } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -215,7 +214,7 @@ export default function RechargeRequestPage() {
   }
 
   return (
-    <AdminLayout>
+    <>
       {/* Page Header */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 mb-6 shadow-sm border border-slate-100 dark:border-slate-700 flex justify-between items-center shrink-0">
         <div>
@@ -758,6 +757,6 @@ export default function RechargeRequestPage() {
           </div>
         </div>
       )}
-    </AdminLayout>
+    </>
   )
 }

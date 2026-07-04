@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import {
   Search, Loader2, Trash2, X, Plus, Filter, Download,
   ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, FileText, Upload,
@@ -273,7 +272,7 @@ function UserRoleContent() {
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 p-6">
         {/* Page Title & Actions Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -682,19 +681,19 @@ function UserRoleContent() {
         title="Delete User Account"
         description="Are you sure you want to delete this administrative user account? This action cannot be undone."
       />
-    </AdminLayout>
+    </>
   )
 }
 
 export default function UserRolePage() {
   return (
     <React.Suspense fallback={
-      <AdminLayout>
+      <>
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
           <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
           <span className="text-sm font-semibold text-slate-500">Loading page...</span>
         </div>
-      </AdminLayout>
+      </>
     }>
       <UserRoleContent />
     </React.Suspense>

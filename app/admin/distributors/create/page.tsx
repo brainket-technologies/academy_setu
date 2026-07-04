@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Loader2, Camera, Paperclip, Eye, EyeOff, Check, CalendarIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Suspense } from 'react'
@@ -171,12 +170,12 @@ function CreateDistributorForm() {
 
   if (loadingUser) {
     return (
-      <AdminLayout>
+      <>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
           <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
           <span className="text-sm font-semibold text-slate-500">Retrieving distributor profile...</span>
         </div>
-      </AdminLayout>
+      </>
     )
   }
 
@@ -185,7 +184,7 @@ function CreateDistributorForm() {
   const labelCls = "block text-xs font-bold text-slate-650 dark:text-slate-400 mb-1.5"
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
         {/* Header */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm shrink-0">
@@ -541,13 +540,13 @@ function CreateDistributorForm() {
           </div>
         </div>
       </div>
-    </AdminLayout>
+    </>
   )
 }
 
 export default function CreateDistributorPage() {
   return (
-    <Suspense fallback={<AdminLayout><div className="p-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-600" /></div></AdminLayout>}>
+    <Suspense fallback={<><div className="p-8 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-600" /></div></>}>
       <CreateDistributorForm />
     </Suspense>
   )

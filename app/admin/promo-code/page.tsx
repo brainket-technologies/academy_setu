@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Search, Edit3, Trash2, Filter, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
@@ -241,7 +240,7 @@ export default function AllPromoCodePage() {
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
 
         {/* Title Card */}
@@ -645,6 +644,6 @@ export default function AllPromoCodePage() {
         title="Delete Promo Code"
         description="Are you sure you want to delete this promo code? This action cannot be undone."
       />
-    </AdminLayout>
+    </>
   )
 }

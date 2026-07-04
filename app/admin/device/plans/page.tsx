@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Loader2, Plus, Edit, Trash2, X, Search, UploadCloud } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -261,7 +260,7 @@ export default function PlanSetupPage() {
   }
 
   return (
-    <AdminLayout>
+    <>
       {view === 'list' ? (
         /* LIST VIEW: All Plan Dashboard */
         <div className="flex flex-col gap-6">
@@ -758,6 +757,6 @@ export default function PlanSetupPage() {
           </div>
         </div>
       )}
-    </AdminLayout>
+    </>
   )
 }

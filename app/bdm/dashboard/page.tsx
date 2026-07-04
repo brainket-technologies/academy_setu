@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState } from 'react'
-import { BdmLayout } from '@/components/layout/BdmLayout'
 import { MoreHorizontal, FileText, CheckCircle, Clock, CalendarDays, Key, MonitorPlay, Activity } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
@@ -25,7 +24,7 @@ export default function BdmDashboardPage() {
   const [graphType, setGraphType] = useState('Annual')
 
   return (
-    <BdmLayout>
+    <>
       <div className="flex flex-col gap-6 lg:gap-8 max-w-7xl mx-auto">
         
         {/* TOP ROW: Lead & Followup | Call & Login Time */}
@@ -236,6 +235,6 @@ export default function BdmDashboardPage() {
           </div>
         </div>
       </div>
-    </BdmLayout>
+    </>
   )
 }

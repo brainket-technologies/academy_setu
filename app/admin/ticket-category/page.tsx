@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { 
   Loader2, Edit3, Trash2, RotateCcw, Calendar, Clock, 
   ChevronLeft, ChevronRight, CheckSquare, Square, Search
@@ -247,7 +246,7 @@ export default function TicketCategoryPage() {
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
         {/* Title Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm shrink-0">
@@ -656,6 +655,6 @@ export default function TicketCategoryPage() {
             : "Are you sure you want to delete this category? It will be moved to the Deleted Category tab where you can restore it later."
         }
       />
-    </AdminLayout>
+    </>
   )
 }

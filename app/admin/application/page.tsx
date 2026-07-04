@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Search, Plus, Eye, Edit3, RefreshCw, X, MoreVertical, Loader2, Filter, ChevronDown, ChevronUp, UserCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
@@ -420,7 +419,7 @@ export default function ApplicationPage() {
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
         
         {/* Title and Top Search/Create Row */}
@@ -1086,6 +1085,6 @@ export default function ApplicationPage() {
         title="Delete Application"
         description="Are you sure you want to delete this application? This action cannot be undone."
       />
-    </AdminLayout>
+    </>
   )
 }

@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import { 
   Search, Plus, Filter, Edit3, Trash2, Loader2, 
   ChevronLeft, ChevronRight, X, Paperclip, AlertCircle 
@@ -371,7 +370,7 @@ export default function AllTicketPage() {
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
         {/* Title / Action Header */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm flex items-center justify-between">
@@ -955,6 +954,6 @@ export default function AllTicketPage() {
         title="Delete Support Ticket"
         description="Are you sure you want to delete this support ticket? This action is permanent and cannot be undone."
       />
-    </AdminLayout>
+    </>
   )
 }

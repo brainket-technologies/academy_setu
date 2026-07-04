@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { AdminLayout } from '@/components/layout/AdminLayout'
 import {
   Camera, Eye, EyeOff, Loader2, Mail, Phone, Lock, 
   User, Shield, Calendar, Award, CheckCircle2
@@ -164,7 +163,7 @@ export default function EditProfilePage() {
   }
 
   return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto">
         
         {/* Header Title Card */}
@@ -392,6 +391,6 @@ export default function EditProfilePage() {
         )}
 
       </div>
-    </AdminLayout>
+    </>
   )
 }
