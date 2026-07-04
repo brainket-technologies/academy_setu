@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Loader2, Camera, Paperclip, Eye, EyeOff, Check, CalendarIcon } from 'lucide-react'
 import { toast } from 'sonner'
@@ -27,6 +27,9 @@ export default function CreateDistributorPage() {
   const router = useRouter()
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
+
+  const searchParams = useSearchParams()
+  const editId = searchParams.get('id')
 
   // Step 1: Personal Details
   const [distId, setDistId] = useState('')
@@ -66,6 +69,42 @@ export default function CreateDistributorPage() {
   const [upiId, setUpiId] = useState('')
   const [qrCode, setQrCode] = useState('')
 
+  const [loadingUser, setLoadingUser] = useState(false)
+
+  useEffect(() => {
+    if (editId) {
+      setLoadingUser(true)
+      fetch(`/api/admin/distributors/${editId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.data) {
+            const d = data.data
+            setDistId(d.dist_id || '')
+            setJoiningDate(d.joining_date ? d.joining_date.split('T')[0] : '')
+            setName(d.name || '')
+            setMobileNo(d.mobile_no || '')
+            setEmailId(d.email || '')
+            setGender(d.gender || '')
+            setUsername(d.username || '')
+            setAddress(d.address || '')
+            setState(d.state || '')
+            setDistrict(d.district || '')
+            setPincode(d.pincode || '')
+            setAadharNo(d.aadhar_no || '')
+            setCommissionIn(d.commission_in || '')
+            setTypeValue(d.commission_value || '')
+            setCommissionType(d.commission_type || '')
+            setAssignArea(d.assign_area || '')
+            setAccountHolderName(d.account_holder_name || '')
+            setAccountNumber(d.account_number || '')
+            setIfscCode(d.ifsc_code || '')
+            setBankName(d.bank_name || '')
+          }
+        })
+        .finally(() => setLoadingUser(false))
+    }
+  }, [editId])
+
   const validateStep1 = () => {
     if (!distId.trim()) { toast.error('ID No. is required'); return false }
     if (!joiningDate) { toast.error('Joining Date is required'); return false }
@@ -102,12 +141,14 @@ export default function CreateDistributorPage() {
   const handleSubmit = async () => {
     setSaving(true)
     try {
-      const res = await fetch('/api/admin/distributors', {
-        method: 'POST',
+      const url = editId ? `/api/admin/distributors/${editId}` : '/api/admin/distributors'
+      const method = editId ? 'PUT' : 'POST'
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           dist_id: distId, joining_date: joiningDate, name, mobile_no: mobileNo,
-          email: emailId, gender, username,
+          email: emailId, gender, username, password,
           address, state, district, pincode, aadhar_no: aadharNo,
           commission_in: commissionIn, commission_value: typeValue, commission_type: commissionType, assign_area: assignArea,
           account_holder_name: accountHolderName, account_number: accountNumber, ifsc_code: ifscCode, bank_name: bankName
@@ -115,10 +156,10 @@ export default function CreateDistributorPage() {
       })
       const data = await res.json()
       if (data.success) {
-        toast.success('Distributor created successfully!')
+        toast.success(editId ? 'Distributor updated successfully!' : 'Distributor created successfully!')
         router.push('/admin/distributors')
       } else {
-        toast.error(data.error || 'Failed to create distributor')
+        toast.error(data.error || 'Failed to save distributor')
       }
     } catch {
       toast.error('Something went wrong')
@@ -127,8 +168,19 @@ export default function CreateDistributorPage() {
     }
   }
 
-  const inputCls = "w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-  const selectCls = "w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200 cursor-pointer"
+  if (loadingUser) {
+    return (
+      <AdminLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+          <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+          <span className="text-sm font-semibold text-slate-500">Retrieving distributor profile...</span>
+        </div>
+      </AdminLayout>
+    )
+  }
+
+  const inputCls = "w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+  const selectCls = "w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 cursor-pointer"
   const labelCls = "block text-xs font-bold text-slate-650 dark:text-slate-400 mb-1.5"
 
   return (
@@ -136,7 +188,9 @@ export default function CreateDistributorPage() {
       <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
         {/* Header */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm shrink-0">
-          <h1 className="text-2xl font-bold text-slate-850 dark:text-slate-100 tracking-tight">Create Distributers</h1>
+          <h1 className="text-2xl font-bold text-slate-850 dark:text-slate-100 tracking-tight">
+            {editId ? 'Edit Distributor' : 'Create Distributor'}
+          </h1>
         </div>
 
         {/* Step Form Card */}
@@ -149,9 +203,9 @@ export default function CreateDistributorPage() {
                 onClick={() => idx < step && setStep(idx)}
                 className={`py-3.5 px-2 text-xs font-bold text-center transition-all border-r last:border-r-0 border-slate-100 dark:border-slate-700 cursor-default ${
                   idx === step
-                    ? 'bg-[#0F9E8F] text-white'
+                    ? 'bg-indigo-600 text-white'
                     : idx < step
-                    ? 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-pointer hover:bg-teal-50 dark:hover:bg-teal-900/20'
+                    ? 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
                     : 'bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500'
                 }`}
               >
@@ -166,15 +220,15 @@ export default function CreateDistributorPage() {
               <React.Fragment key={idx}>
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all text-xs font-bold flex-shrink-0 ${
                   idx < step
-                    ? 'bg-[#0F9E8F] border-[#0F9E8F] text-white'
+                    ? 'bg-indigo-600 border-indigo-600 text-white'
                     : idx === step
-                    ? 'bg-[#0F9E8F] border-[#0F9E8F] text-white'
+                    ? 'bg-indigo-600 border-indigo-600 text-white'
                     : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-500 text-slate-400'
                 }`}>
                   {idx < step ? <Check className="w-3.5 h-3.5" /> : <span className="w-2.5 h-2.5 rounded-full bg-current" />}
                 </div>
                 {idx < STEPS.length - 1 && (
-                  <div className={`flex-1 h-0.5 mx-2 rounded-full transition-all ${idx < step ? 'bg-[#0F9E8F]' : 'bg-slate-200 dark:bg-slate-600'}`} />
+                  <div className={`flex-1 h-0.5 mx-2 rounded-full transition-all ${idx < step ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-600'}`} />
                 )}
               </React.Fragment>
             ))}
@@ -223,7 +277,7 @@ export default function CreateDistributorPage() {
                                 value={g}
                                 checked={gender === g}
                                 onChange={() => setGender(g)}
-                                className="accent-teal-600 w-4 h-4"
+                                className="accent-indigo-600 w-4 h-4"
                               />
                               {g}
                             </label>
@@ -235,7 +289,7 @@ export default function CreateDistributorPage() {
                     {/* Right: Photo Upload */}
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-full h-36 bg-slate-100 dark:bg-slate-700 rounded-xl flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-600">
-                        <Camera className="w-10 h-10 text-[#0F9E8F]" />
+                        <Camera className="w-10 h-10 text-indigo-600" />
                       </div>
                       <button type="button" className="w-full py-2 border border-slate-200 dark:border-slate-600 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer">
                         Upload Photo
@@ -320,14 +374,14 @@ export default function CreateDistributorPage() {
                       <label className={labelCls}>Attach Aadhar</label>
                       <div className="relative">
                         <input type="text" readOnly placeholder="Upload Aadhar Photo" value={aadharFile} className={inputCls + ' pr-10 cursor-pointer'} onClick={() => toast.info('File upload not connected in demo')} />
-                        <Paperclip className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-teal-500" />
+                        <Paperclip className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
                       </div>
                     </div>
                     <div>
                       <label className={labelCls}>Attach Signature</label>
                       <div className="relative">
                         <input type="text" readOnly placeholder="Upload Signature Photo" value={signatureFile} className={inputCls + ' pr-10 cursor-pointer'} onClick={() => toast.info('File upload not connected in demo')} />
-                        <Paperclip className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-teal-500" />
+                        <Paperclip className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
                       </div>
                     </div>
                   </div>
@@ -345,7 +399,7 @@ export default function CreateDistributorPage() {
                       <label className={labelCls}>Agreement Document</label>
                       <div className="relative">
                         <input type="text" readOnly placeholder="Upload Document" value={agreementDoc} className={inputCls + ' pr-10 cursor-pointer'} onClick={() => toast.info('File upload not connected in demo')} />
-                        <Paperclip className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-teal-500" />
+                        <Paperclip className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
                       </div>
                     </div>
                     <button type="button" className="px-5 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer shrink-0">
@@ -380,7 +434,7 @@ export default function CreateDistributorPage() {
                               value={ct}
                               checked={commissionType === ct}
                               onChange={() => setCommissionType(ct)}
-                              className="accent-teal-600 w-4 h-4"
+                              className="accent-indigo-600 w-4 h-4"
                             />
                             {ct}
                           </label>
@@ -435,7 +489,7 @@ export default function CreateDistributorPage() {
                       <label className={labelCls}>QR Code</label>
                       <div className="relative">
                         <input type="text" readOnly placeholder="Upload QR" value={qrCode} className={inputCls + ' pr-10 cursor-pointer'} onClick={() => toast.info('QR upload not connected in demo')} />
-                        <Paperclip className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-teal-500" />
+                        <Paperclip className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
                       </div>
                     </div>
                   </div>
@@ -466,7 +520,7 @@ export default function CreateDistributorPage() {
                   <button
                     type="button"
                     onClick={handleNext}
-                    className="px-8 py-2.5 bg-[#0F9E8F] hover:bg-[#0D8E80] text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-teal-500/10 cursor-pointer"
+                    className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-500/10 cursor-pointer"
                   >
                     Save &amp; Next
                   </button>
@@ -475,7 +529,7 @@ export default function CreateDistributorPage() {
                     type="button"
                     onClick={handleSubmit}
                     disabled={saving}
-                    className="px-8 py-2.5 bg-[#0F9E8F] hover:bg-[#0D8E80] disabled:bg-slate-300 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-teal-500/10 flex items-center gap-2 cursor-pointer"
+                    className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-500/10 flex items-center gap-2 cursor-pointer"
                   >
                     {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                     Final Preview

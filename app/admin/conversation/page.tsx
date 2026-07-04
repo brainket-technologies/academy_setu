@@ -47,13 +47,13 @@ const formatMsgTime = (timestampStr: string | null) => {
 
 // Custom decorative SVG Avatar icons matching Manager, BDM, Admin styles
 const ContactAvatar = ({ name, size = '12' }: { name: string; size?: string }) => {
-  let bgColor = 'bg-teal-600'
-  let textColor = 'text-teal-100'
+  let bgColor = 'bg-indigo-600'
+  let textColor = 'text-indigo-100'
   let initials = name.substring(0, 2).toUpperCase()
 
   if (name === 'Manager') {
-    bgColor = 'bg-teal-500'
-    textColor = 'text-teal-50'
+    bgColor = 'bg-indigo-500'
+    textColor = 'text-indigo-50'
   } else if (name === 'BDM') {
     bgColor = 'bg-blue-600'
     textColor = 'text-blue-50'
@@ -258,7 +258,7 @@ export default function AllConversationPage() {
                   placeholder="Search"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm"
+                  className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm"
                 />
               </div>
             </div>
@@ -272,7 +272,7 @@ export default function AllConversationPage() {
             <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
               {loadingContacts ? (
                 <div className="py-12 text-center text-slate-400">
-                  <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-teal-600" />
+                  <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-600" />
                   <span className="text-xs font-semibold">Loading conversations...</span>
                 </div>
               ) : filteredContacts.length === 0 ? (
@@ -310,11 +310,11 @@ export default function AllConversationPage() {
                       {/* Read status check / Badge count */}
                       <div className="shrink-0 flex flex-col items-end gap-1.5 self-center">
                         {c.unread_count > 0 ? (
-                          <span className="w-5 h-5 rounded-full bg-teal-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm shadow-teal-500/25">
+                          <span className="w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm shadow-indigo-500/25">
                             {c.unread_count}
                           </span>
                         ) : c.latest_sender === 'Super Admin' ? (
-                          <CheckCheck className="w-3.5 h-3.5 text-teal-500" />
+                          <CheckCheck className="w-3.5 h-3.5 text-indigo-500" />
                         ) : (
                           c.latest_message && <Check className="w-3.5 h-3.5 text-slate-400" />
                         )}
@@ -345,7 +345,7 @@ export default function AllConversationPage() {
                 <div className="flex-1 overflow-y-auto p-6 space-y-4">
                   {loadingMessages && messages.length === 0 ? (
                     <div className="flex h-full items-center justify-center text-slate-400 text-xs">
-                      <Loader2 className="w-6 h-6 animate-spin text-teal-600 mr-2" />
+                      <Loader2 className="w-6 h-6 animate-spin text-indigo-600 mr-2" />
                       Loading messages history...
                     </div>
                   ) : messages.length === 0 ? (
@@ -378,7 +378,7 @@ export default function AllConversationPage() {
                             {formatMsgTime(msg.created_at)}
                             {isOutgoing && (
                               msg.is_read ? (
-                                <CheckCheck className="w-3 h-3 text-teal-500" />
+                                <CheckCheck className="w-3 h-3 text-indigo-500" />
                               ) : (
                                 <Check className="w-3 h-3 text-slate-400" />
                               )
@@ -416,12 +416,12 @@ export default function AllConversationPage() {
                       />
 
                       {mockFile && (
-                        <div className="bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 shrink-0 shadow-sm border border-teal-150">
+                        <div className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 shrink-0 shadow-sm border border-indigo-150">
                           <span className="max-w-[100px] truncate">{mockFile}</span>
                           <button
                             type="button"
                             onClick={() => setMockFile('')}
-                            className="text-teal-700 font-black hover:text-red-500"
+                            className="text-indigo-700 font-black hover:text-red-500"
                           >
                             ×
                           </button>
@@ -433,7 +433,7 @@ export default function AllConversationPage() {
                     <button
                       type="submit"
                       disabled={sending || (!inputMessage.trim() && !mockFile)}
-                      className="w-10 h-10 rounded-full bg-[#0F9E8F] hover:bg-[#0D8E80] disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 text-white flex items-center justify-center transition-all cursor-pointer shadow-md shadow-teal-500/10 shrink-0"
+                      className="w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 text-white flex items-center justify-center transition-all cursor-pointer shadow-md shadow-indigo-500/10 shrink-0"
                     >
                       {sending ? (
                         <Loader2 className="w-4 h-4 animate-spin" />

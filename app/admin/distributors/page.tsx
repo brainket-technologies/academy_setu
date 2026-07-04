@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { AdminLayout } from '@/components/layout/AdminLayout'
-import { Search, Plus, Trash2, Loader2, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react'
+import { Search, Plus, Trash2, Edit3, Loader2, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
@@ -119,7 +119,7 @@ export default function AllDistributorsPage() {
           </div>
           <button
             onClick={() => router.push('/admin/distributors/create')}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#0F9E8F] hover:bg-[#0D8E80] text-white rounded-xl font-bold text-sm shadow-md shadow-teal-500/10 transition-all cursor-pointer"
+            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-500/10 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             Create Distributor
@@ -136,7 +136,7 @@ export default function AllDistributorsPage() {
                 placeholder="Search by Name, ID, Mobile..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                className="pl-9 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm w-72 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 placeholder:text-slate-400 text-slate-800 dark:text-slate-200"
+                className="pl-9 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm w-72 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 placeholder:text-slate-400 text-slate-800 dark:text-slate-200"
               />
             </form>
           </div>
@@ -146,7 +146,7 @@ export default function AllDistributorsPage() {
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1) }}
-              className="px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200 cursor-pointer"
+              className="px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 cursor-pointer"
             >
               <option value="">All Status</option>
               <option value="Active">Active</option>
@@ -156,20 +156,20 @@ export default function AllDistributorsPage() {
               type="date"
               value={startDate}
               onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1) }}
-              className="px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+              className="px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
             />
             <span className="text-xs text-slate-400 font-medium">to</span>
             <input
               type="date"
               value={endDate}
               onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1) }}
-              className="px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+              className="px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
             />
           </div>
 
           <div className="overflow-x-auto border border-slate-100 dark:border-slate-700 rounded-2xl">
             <table className="w-full border-collapse text-left text-sm">
-              <thead className="bg-[#EBF6F6]/50 dark:bg-slate-700/50">
+              <thead className="bg-slate-50/50 dark:bg-slate-700/50">
                 <tr>
                   <th className="px-5 py-4 font-bold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 w-16">S. No.</th>
                   <th className="px-5 py-4 font-bold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">ID No.</th>
@@ -187,7 +187,7 @@ export default function AllDistributorsPage() {
                   <tr>
                     <td colSpan={9} className="px-5 py-12 text-center text-slate-400">
                       <div className="flex items-center justify-center gap-2 font-medium">
-                        <Loader2 className="w-5 h-5 animate-spin text-[#0E9485]" />
+                        <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
                         Loading distributors...
                       </div>
                     </td>
@@ -222,12 +222,22 @@ export default function AllDistributorsPage() {
                           </span>
                         </td>
                         <td className="px-5 py-4">
-                          <button
-                            onClick={() => setDeleteTargetId(dist.id)}
-                            className="p-2 rounded-xl bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-500 dark:text-red-400 transition-colors cursor-pointer"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => router.push(`/admin/distributors/create?id=${dist.id}`)}
+                              className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 transition-colors cursor-pointer"
+                              title="Edit Distributor"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteTargetId(dist.id)}
+                              className="p-2 rounded-xl bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-500 dark:text-red-400 transition-colors cursor-pointer"
+                              title="Delete Distributor"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -248,7 +258,7 @@ export default function AllDistributorsPage() {
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 {getPageNumbers().map(num => (
-                  <button key={num} onClick={() => setCurrentPage(num)} className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${currentPage === num ? 'bg-[#0F9E8F] text-white shadow-md' : 'border border-slate-200 dark:border-slate-600 text-slate-600 hover:bg-slate-50'}`}>
+                  <button key={num} onClick={() => setCurrentPage(num)} className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${currentPage === num ? 'bg-indigo-600 text-white shadow-md' : 'border border-slate-200 dark:border-slate-600 text-slate-600 hover:bg-slate-50'}`}>
                     {num}
                   </button>
                 ))}

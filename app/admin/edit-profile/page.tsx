@@ -179,7 +179,7 @@ export default function EditProfilePage() {
             onClick={() => setActiveTab('profile')}
             className={`px-6 py-2.5 font-semibold text-sm rounded-xl transition-all cursor-pointer ${
               activeTab === 'profile'
-                ? 'bg-teal-600 text-white shadow-md shadow-teal-600/15'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/15'
                 : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-350 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750'
             }`}
           >
@@ -189,7 +189,7 @@ export default function EditProfilePage() {
             onClick={() => setActiveTab('password')}
             className={`px-6 py-2.5 font-semibold text-sm rounded-xl transition-all cursor-pointer ${
               activeTab === 'password'
-                ? 'bg-teal-600 text-white shadow-md shadow-teal-600/15'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/15'
                 : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-350 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750'
             }`}
           >
@@ -200,7 +200,7 @@ export default function EditProfilePage() {
         {/* Tab contents */}
         {loading ? (
           <div className="bg-white dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 rounded-2xl p-16 flex flex-col items-center justify-center gap-2 shadow-sm">
-            <Loader2 className="w-8 h-8 animate-spin text-teal-650" />
+            <Loader2 className="w-8 h-8 animate-spin text-indigo-650" />
             <span className="text-sm text-slate-400 font-semibold">Loading profile information...</span>
           </div>
         ) : activeTab === 'profile' ? (
@@ -241,7 +241,7 @@ export default function EditProfilePage() {
                 <button
                   type="button"
                   onClick={triggerFileSelect}
-                  className="absolute bottom-[-10px] left-1/2 -translate-x-1/2 w-8 h-8 bg-teal-600 hover:bg-teal-700 text-white rounded-full flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-800 transition-colors cursor-pointer"
+                  className="absolute bottom-[-10px] left-1/2 -translate-x-1/2 w-8 h-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-800 transition-colors cursor-pointer"
                   title="Upload profile picture"
                 >
                   <Camera className="w-4 h-4" />
@@ -268,7 +268,7 @@ export default function EditProfilePage() {
                 {/* Container displaying Mobile & Email */}
                 <div className="bg-slate-50/50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/80 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                       <Phone className="w-4 h-4" />
                     </div>
                     <div>
@@ -278,7 +278,7 @@ export default function EditProfilePage() {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                       <Mail className="w-4 h-4" />
                     </div>
                     <div>
@@ -312,7 +312,7 @@ export default function EditProfilePage() {
                       placeholder="Enter Current Password"
                       value={currentPassword}
                       onChange={e => setCurrentPassword(e.target.value)}
-                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-semibold"
+                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold"
                     />
                     <button
                       type="button"
@@ -333,7 +333,7 @@ export default function EditProfilePage() {
                       placeholder="Enter New Password"
                       value={newPassword}
                       onChange={e => setNewPassword(e.target.value)}
-                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-semibold"
+                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold"
                     />
                     <button
                       type="button"
@@ -354,7 +354,7 @@ export default function EditProfilePage() {
                       placeholder="Confirm New Password"
                       value={confirmPassword}
                       onChange={e => setConfirmPassword(e.target.value)}
-                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-semibold"
+                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold"
                     />
                     <button
                       type="button"
@@ -380,7 +380,7 @@ export default function EditProfilePage() {
                 <button
                   type="submit"
                   disabled={submittingPassword}
-                  className="px-8 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm shadow-md shadow-teal-600/10 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-600/10 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {submittingPassword && <Loader2 className="w-4 h-4 animate-spin" />}
                   Update

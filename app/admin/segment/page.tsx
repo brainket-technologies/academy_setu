@@ -267,7 +267,7 @@ export default function SegmentPage() {
                   placeholder="Enter Segment Name"
                   value={segmentName}
                   onChange={(e) => setSegmentName(e.target.value)}
-                  className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                   required
                 />
               </div>
@@ -281,7 +281,7 @@ export default function SegmentPage() {
                 {/* Visual dropdown input */}
                 <div 
                   onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)}
-                  className="min-h-[46px] w-full px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm cursor-pointer shadow-sm flex items-center justify-between gap-2 focus-within:ring-2 focus-within:ring-teal-500/20 focus-within:border-teal-500 transition-all"
+                  className="min-h-[46px] w-full px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm cursor-pointer shadow-sm flex items-center justify-between gap-2 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all"
                 >
                   <div className="flex flex-wrap gap-1.5">
                     {selectedServices.length === 0 ? (
@@ -294,10 +294,10 @@ export default function SegmentPage() {
                             e.stopPropagation()
                             toggleServiceSelection(service)
                           }}
-                          className="inline-flex items-center gap-1 bg-teal-50 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 border border-teal-100 dark:border-teal-800 text-xs font-medium px-2 py-0.5 rounded-full hover:bg-teal-100 dark:hover:bg-teal-900/60 transition-colors"
+                          className="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800 text-xs font-medium px-2 py-0.5 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors"
                         >
                           {service}
-                          <X className="w-3 h-3 hover:text-teal-900" />
+                          <X className="w-3 h-3 hover:text-indigo-900" />
                         </span>
                       ))
                     )}
@@ -317,7 +317,7 @@ export default function SegmentPage() {
                           className="flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-600 text-sm text-slate-700 dark:text-slate-300 cursor-pointer transition-colors"
                         >
                           <span>{service}</span>
-                          {isSelected && <Check className="w-4 h-4 text-teal-600" />}
+                          {isSelected && <Check className="w-4 h-4 text-indigo-600" />}
                         </div>
                       )
                     })}
@@ -334,7 +334,7 @@ export default function SegmentPage() {
                 rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm resize-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm resize-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
               />
             </div>
 
@@ -357,7 +357,7 @@ export default function SegmentPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-8 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-semibold text-sm transition-all shadow-md shadow-teal-600/10 flex items-center justify-center gap-2 cursor-pointer"
+                className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-2 cursor-pointer"
               >
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 {editingId ? 'Update' : 'Create'}
@@ -380,15 +380,15 @@ export default function SegmentPage() {
                   placeholder="Search by Segment, Service Name"
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
               </form>
               <button 
                 onClick={() => setIsFilterModalOpen(true)}
                 className={`p-2.5 rounded-xl border transition-all shadow-sm flex items-center justify-center cursor-pointer ${
                   appliedFilters.name || appliedFilters.service 
-                    ? 'bg-teal-50 dark:bg-teal-900/40 border-teal-200 dark:border-teal-700 text-teal-600 dark:text-teal-400' 
-                    : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400'
+                    ? 'bg-indigo-50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400' 
+                    : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
                 }`}
               >
                 <Filter className="w-5 h-5" />
@@ -413,7 +413,7 @@ export default function SegmentPage() {
                   <tr>
                     <td colSpan={5} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
                       <div className="flex items-center justify-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin text-teal-600" />
+                        <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
                         Loading segments...
                       </div>
                     </td>
@@ -484,14 +484,14 @@ export default function SegmentPage() {
                 <button
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(1)}
-                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:hover:text-slate-300 dark:disabled:hover:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:hover:text-slate-300 dark:disabled:hover:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   &lt;&lt;
                 </button>
                 <button
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:hover:text-slate-300 dark:disabled:hover:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:hover:text-slate-300 dark:disabled:hover:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   &lt;
                 </button>
@@ -505,8 +505,8 @@ export default function SegmentPage() {
                       onClick={() => setCurrentPage(pgNum)}
                       className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                         isCurrent 
-                          ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/25' 
-                          : 'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 bg-white dark:bg-slate-700'
+                          ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25' 
+                          : 'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-700'
                       }`}
                     >
                       {pgNum}
@@ -517,14 +517,14 @@ export default function SegmentPage() {
                 <button
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:hover:text-slate-300 dark:disabled:hover:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:hover:text-slate-300 dark:disabled:hover:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   &gt;
                 </button>
                 <button
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(totalPages)}
-                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:hover:text-slate-300 dark:disabled:hover:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:hover:text-slate-300 dark:disabled:hover:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   &gt;&gt;
                 </button>
@@ -557,7 +557,7 @@ export default function SegmentPage() {
                   placeholder="Enter Name"
                   value={filterSegmentName}
                   onChange={(e) => setFilterSegmentName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
               </div>
 
@@ -567,7 +567,7 @@ export default function SegmentPage() {
                 <select
                   value={filterService}
                   onChange={(e) => setFilterService(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
                 >
                   <option value="">Select Service</option>
                   {AVAILABLE_SERVICES.map(s => (
@@ -582,14 +582,14 @@ export default function SegmentPage() {
               <button
                 type="button"
                 onClick={handleApplyFilters}
-                className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-teal-600/10 cursor-pointer text-center"
+                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 cursor-pointer text-center"
               >
                 Filter
               </button>
               <button
                 type="button"
                 onClick={handleClearFilters}
-                className="flex-1 py-2.5 bg-white dark:bg-slate-700 border border-teal-600 dark:border-teal-500 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 rounded-xl font-bold text-sm transition-all cursor-pointer text-center"
+                className="flex-1 py-2.5 bg-white dark:bg-slate-700 border border-indigo-600 dark:border-indigo-500 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl font-bold text-sm transition-all cursor-pointer text-center"
               >
                 Clear
               </button>

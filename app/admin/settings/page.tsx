@@ -19,6 +19,7 @@ interface StateRecord {
 
 export default function SettingsPage() {
   const [states, setStates] = useState<StateRecord[]>([])
+  const [allStates, setAllStates] = useState<StateRecord[]>([])  // for dropdown, never filtered
   const [loading, setLoading] = useState(true)
 
   // Form input states (Creation)
@@ -72,6 +73,17 @@ export default function SettingsPage() {
       setLoading(false)
     }
   }, [])
+
+  // Fetch all states once for dropdown (no filters)
+  const fetchAllStates = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/settings/state-city')
+      const data = await res.json()
+      if (data.success) setAllStates(data.data)
+    } catch { /* silent */ }
+  }, [])
+
+  useEffect(() => { fetchAllStates() }, [fetchAllStates])
 
   // Debounce searchInput to searchText
   useEffect(() => {
@@ -131,6 +143,7 @@ export default function SettingsPage() {
         setNewStateName('')
         setNewDistrictsList([])
         fetchStates(searchText, filterStateId)
+        fetchAllStates()  // refresh dropdown too
       } else {
         toast.error(data.error || 'Failed to create record')
       }
@@ -223,6 +236,7 @@ export default function SettingsPage() {
         toast.success('Record deleted successfully!')
         setDeleteTargetId(null)
         fetchStates(searchText, filterStateId)
+        fetchAllStates()  // refresh dropdown
       } else {
         toast.error(data.error || 'Failed to delete record')
       }
@@ -264,24 +278,24 @@ export default function SettingsPage() {
                   placeholder="Enter State Name Ex : Uttarpradesh"
                   value={newStateName}
                   onChange={e => setNewStateName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-semibold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold"
                 />
               </div>
 
               {/* Districts Multi select pills */}
               <div>
                 <label className="block text-xs font-bold text-slate-600 dark:text-slate-450 mb-1.5">District</label>
-                <div className="flex flex-wrap gap-2 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 bg-white dark:bg-slate-800 focus-within:ring-2 focus-within:ring-teal-500/20 focus-within:border-teal-500 transition-all">
+                <div className="flex flex-wrap gap-2 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 bg-white dark:bg-slate-800 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all">
                   {newDistrictsList.map((dist, idx) => (
                     <span 
                       key={idx}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 border border-teal-100 dark:border-teal-900/50 rounded-full text-xs font-bold shadow-sm"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 rounded-full text-xs font-bold shadow-sm"
                     >
                       {dist}
                       <button
                         type="button"
                         onClick={() => handleRemoveNewDistrict(idx)}
-                        className="text-teal-400 hover:text-teal-600 cursor-pointer"
+                        className="text-indigo-400 hover:text-indigo-600 cursor-pointer"
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -312,7 +326,7 @@ export default function SettingsPage() {
               <button
                 type="submit"
                 disabled={submittingCreate}
-                className="px-12 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm shadow-md shadow-teal-600/10 transition-colors cursor-pointer flex items-center gap-2"
+                className="px-12 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-600/10 transition-colors cursor-pointer flex items-center gap-2"
               >
                 {submittingCreate && <Loader2 className="w-4 h-4 animate-spin" />}
                 Create
@@ -341,7 +355,7 @@ export default function SettingsPage() {
                   setSearchInput(e.target.value)
                   setCurrentPage(1)
                 }}
-                className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-semibold"
+                className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold"
               />
             </div>
           </div>
@@ -355,10 +369,10 @@ export default function SettingsPage() {
                 setFilterStateId(e.target.value)
                 setCurrentPage(1)
               }}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 transition-all cursor-pointer font-semibold"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer font-semibold"
             >
               <option value="All">Select an Option</option>
-              {states.map(st => (
+              {allStates.map(st => (
                 <option key={st.id} value={st.id}>{st.state_name}</option>
               ))}
             </select>
@@ -380,7 +394,7 @@ export default function SettingsPage() {
                   <tr>
                     <td colSpan={4} className="py-12 text-center">
                       <div className="flex flex-col items-center justify-center gap-2">
-                        <Loader2 className="w-6 h-6 animate-spin text-teal-600" />
+                        <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
                         <span className="text-xs font-semibold text-slate-400">Loading configurations...</span>
                       </div>
                     </td>
@@ -458,7 +472,7 @@ export default function SettingsPage() {
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                <span className="px-3 py-1 bg-teal-600 text-white border border-teal-600 rounded-lg text-xs font-bold">
+                <span className="px-3 py-1 bg-indigo-600 text-white border border-indigo-600 rounded-lg text-xs font-bold">
                   {currentPage}
                 </span>
                 <button
@@ -485,22 +499,25 @@ export default function SettingsPage() {
       {viewStateId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 dark:bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-150">
           <div className="absolute inset-0 cursor-default" onClick={() => setViewStateId(null)} />
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-2xl p-6 w-full max-w-lg relative flex flex-col animate-in zoom-in-95 duration-200 z-10">
-            <button
-              type="button"
-              onClick={() => setViewStateId(null)}
-              className="absolute top-4 right-4 p-1 rounded-full border border-slate-200 dark:border-slate-700 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-2xl w-full max-w-lg relative flex flex-col animate-in zoom-in-95 duration-200 z-10 max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-700 flex-shrink-0">
+              <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                View Info
+              </h3>
+              <button
+                type="button"
+                onClick={() => setViewStateId(null)}
+                className="p-1.5 rounded-full border border-slate-200 dark:border-slate-700 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-            <h3 className="text-xl font-bold text-slate-850 dark:text-slate-100 mb-6 flex items-center gap-2">
-              View Info
-            </h3>
-
-            <div className="flex flex-col gap-5">
+            {/* Scrollable Body */}
+            <div className="overflow-y-auto flex-1 px-6 py-5 flex flex-col gap-5">
               <div>
-                <label className="block text-xs font-bold text-slate-450 dark:text-slate-500 mb-1.5">State Name</label>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">State Name</label>
                 <input
                   type="text"
                   disabled
@@ -510,12 +527,14 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-450 dark:text-slate-500 mb-1.5">Districts</label>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">
+                  Districts <span className="text-indigo-500">({modalDistrictsList.length})</span>
+                </label>
                 <div className="flex flex-wrap gap-2 border border-slate-100 dark:border-slate-700 rounded-xl p-3 bg-slate-50 dark:bg-slate-900 min-h-[44px]">
                   {modalDistrictsList.map((dist, idx) => (
-                    <span 
+                    <span
                       key={idx}
-                      className="inline-flex items-center px-2.5 py-1 bg-teal-50/50 dark:bg-teal-950/20 text-teal-500 dark:text-teal-400 border border-teal-100/50 dark:border-teal-900/30 rounded-full text-xs font-bold"
+                      className="inline-flex items-center px-2.5 py-1 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-500 dark:text-indigo-400 border border-indigo-100/50 dark:border-indigo-900/30 rounded-full text-xs font-bold"
                     >
                       {dist}
                     </span>
@@ -527,11 +546,12 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="flex justify-end mt-8 pt-4 border-t border-slate-100 dark:border-slate-700">
+            {/* Footer */}
+            <div className="flex justify-end px-6 py-4 border-t border-slate-100 dark:border-slate-700 flex-shrink-0">
               <button
                 type="button"
                 onClick={() => setViewStateId(null)}
-                className="px-6 py-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl font-bold text-sm transition-colors cursor-pointer"
+                className="px-6 py-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl font-bold text-sm transition-colors cursor-pointer"
               >
                 Close
               </button>
@@ -546,21 +566,22 @@ export default function SettingsPage() {
           <div className="absolute inset-0 cursor-default" onClick={() => setEditStateId(null)} />
           <form
             onSubmit={handleUpdateState}
-            className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-2xl p-6 w-full max-w-lg relative flex flex-col animate-in zoom-in-95 duration-200 z-10"
+            className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-2xl w-full max-w-lg relative flex flex-col animate-in zoom-in-95 duration-200 z-10 max-h-[90vh]"
           >
-            <button
-              type="button"
-              onClick={() => setEditStateId(null)}
-              className="absolute top-4 right-4 p-1 rounded-full border border-slate-200 dark:border-slate-700 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-700 flex-shrink-0">
+              <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Edit State &amp; District</h3>
+              <button
+                type="button"
+                onClick={() => setEditStateId(null)}
+                className="p-1.5 rounded-full border border-slate-200 dark:border-slate-700 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-            <h3 className="text-xl font-bold text-slate-850 dark:text-slate-100 mb-6 border-b border-slate-100 dark:border-slate-700 pb-2">
-              Edit State & District
-            </h3>
-
-            <div className="flex flex-col gap-5">
+            {/* Scrollable Body */}
+            <div className="overflow-y-auto flex-1 px-6 py-5 flex flex-col gap-5">
               <div>
                 <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">State Name *</label>
                 <input
@@ -569,32 +590,39 @@ export default function SettingsPage() {
                   placeholder="Enter state name"
                   value={modalStateName}
                   onChange={e => setModalStateName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-semibold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 dark:text-slate-450 mb-1.5">District / Cities *</label>
-                <div className="flex flex-wrap gap-2 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 bg-white dark:bg-slate-800 focus-within:ring-2 focus-within:ring-teal-500/20 focus-within:border-teal-500 transition-all">
-                  {modalDistrictsList.map((dist, idx) => (
-                    <span 
-                      key={idx}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 border border-teal-100 dark:border-teal-900/50 rounded-full text-xs font-bold shadow-sm animate-in scale-in-95 duration-100"
-                    >
-                      {dist}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveModalDistrict(idx)}
-                        className="text-teal-400 hover:text-teal-600 cursor-pointer"
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">
+                  District / Cities * <span className="text-indigo-500 font-semibold">({modalDistrictsList.length} added)</span>
+                </label>
+                {/* Scrollable pill container */}
+                <div className="max-h-52 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 bg-white dark:bg-slate-800 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all">
+                  <div className="flex flex-wrap gap-2">
+                    {modalDistrictsList.map((dist, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 rounded-full text-xs font-bold shadow-sm"
                       >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                  
+                        {dist}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveModalDistrict(idx)}
+                          className="text-indigo-400 hover:text-red-500 cursor-pointer transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                {/* Separate add input below pills */}
+                <div className="mt-2">
                   <input
                     type="text"
-                    placeholder="Type name + Enter"
+                    placeholder="Type district name + press Enter to add"
                     value={modalDistrictInput}
                     onChange={e => setModalDistrictInput(e.target.value)}
                     onKeyDown={e => {
@@ -603,24 +631,26 @@ export default function SettingsPage() {
                         handleAddModalDistrict(e)
                       }
                     }}
-                    className="flex-1 min-w-[120px] bg-transparent text-sm focus:outline-none text-slate-700 dark:text-slate-200 py-0.5"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                   />
+                  <p className="text-[10px] text-slate-400 mt-1 font-semibold">Press Enter to add a district.</p>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 mt-8 pt-4 border-t border-slate-100 dark:border-slate-700">
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-700 flex-shrink-0">
               <button
                 type="button"
                 onClick={() => setEditStateId(null)}
-                className="px-6 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-sm font-bold transition-all cursor-pointer"
+                className="px-6 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-sm font-bold transition-all cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submittingModal}
-                className="px-8 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-bold shadow-md shadow-teal-600/10 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-600/10 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {submittingModal && <Loader2 className="w-4 h-4 animate-spin" />}
                 Update

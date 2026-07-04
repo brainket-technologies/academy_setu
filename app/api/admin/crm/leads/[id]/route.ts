@@ -9,15 +9,26 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
     
-    // Fetch lead details
-    const leadRes = await pool.query('SELECT * FROM leads WHERE id = $1', [id])
+    // Fetch lead details with joined status and assigned user
+    const leadRes = await pool.query(`
+      SELECT l.*, 
+        ls.name as status, ls.text_color as status_text_color, ls.bg_color as status_bg_color,
+        a.name as assigned_to_name
+      FROM leads l
+      LEFT JOIN lead_statuses ls ON l.status_id = ls.id
+      LEFT JOIN admins a ON l.assigned_to_id = a.id
+      WHERE l.id = $1
+    `, [id])
     if (leadRes.rows.length === 0) {
       return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 })
     }
 
     // Fetch history
     const historyRes = await pool.query(
-      'SELECT * FROM lead_history WHERE lead_id = $1 ORDER BY created_at DESC',
+      `SELECT lh.*, ls.name as status_name, ls.text_color, ls.bg_color 
+       FROM lead_history lh
+       LEFT JOIN lead_statuses ls ON lh.status_id = ls.id
+       WHERE lh.lead_id = $1 ORDER BY lh.created_at DESC`,
       [id]
     )
 
@@ -35,21 +46,34 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
     const body = await request.json()
-    const { assigned_to, status } = body
+    const { assigned_to_id, status_id, status, institution_name, state, district, contact_person, mobile_no, no_of_students } = body
 
     // Build dynamic update query
     const updates: string[] = []
-    const paramsList: (string | number)[] = []
+    const paramsList: (string | number | null)[] = []
 
-    const addUpdate = (field: string, val: string | number | undefined) => {
+    const addUpdate = (field: string, val: string | number | null | undefined) => {
       if (val !== undefined) {
         paramsList.push(val)
         updates.push(`${field} = $${paramsList.length}`)
       }
     }
 
-    addUpdate('assigned_to', assigned_to)
-    addUpdate('status', status)
+    addUpdate('assigned_to_id', assigned_to_id)
+    addUpdate('institution_name', institution_name)
+    addUpdate('state', state)
+    addUpdate('district', district)
+    addUpdate('contact_person', contact_person)
+    addUpdate('mobile_no', mobile_no)
+    addUpdate('no_of_students', no_of_students)
+
+    // If status name provided instead of id, resolve it
+    let finalStatusId = status_id
+    if (!finalStatusId && status) {
+      const statusRes = await pool.query('SELECT id FROM lead_statuses WHERE name = $1 LIMIT 1', [status])
+      if (statusRes.rows.length > 0) finalStatusId = statusRes.rows[0].id
+    }
+    addUpdate('status_id', finalStatusId)
 
     if (updates.length === 0) {
       return NextResponse.json({ success: false, error: 'No fields to update' }, { status: 400 })

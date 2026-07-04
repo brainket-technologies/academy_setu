@@ -36,11 +36,11 @@ function UserRoleContent() {
   // Search & Filters
   const [searchInput, setSearchInput] = useState('')
   const [searchText, setSearchText] = useState('')
-  const [activeTab, setActiveTab] = useState<'All' | 'Admin' | 'Manager' | 'BDM' | 'Custom'>('All')
+  const [activeTab, setActiveTab] = useState<'All' | 'Admin' | 'Manager' | 'BDM'>('All')
 
   // Sync tab with URL parameter
   useEffect(() => {
-    if (roleParam === 'Admin' || roleParam === 'Manager' || roleParam === 'BDM' || roleParam === 'Custom' || roleParam === 'All') {
+    if (roleParam === 'Admin' || roleParam === 'Manager' || roleParam === 'BDM' || roleParam === 'All') {
       setActiveTab(roleParam as any)
     }
   }, [roleParam])
@@ -54,7 +54,7 @@ function UserRoleContent() {
   // Add / Edit Modal States
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [editingUserId, setEditingUserId] = useState<string | null>(null)
-  
+
   const [userForm, setUserForm] = useState({
     name: '',
     email: '',
@@ -109,10 +109,10 @@ function UserRoleContent() {
     setCurrentPage(1)
   }
 
-  const handleTabChange = (tab: 'All' | 'Admin' | 'Manager' | 'BDM' | 'Custom') => {
+  const handleTabChange = (tab: 'All' | 'Admin' | 'Manager' | 'BDM') => {
     setActiveTab(tab)
     setCurrentPage(1)
-    
+
     const params = new URLSearchParams(searchParams.toString())
     if (tab === 'All') {
       params.delete('role')
@@ -163,7 +163,7 @@ function UserRoleContent() {
     try {
       const url = editingUserId ? `/api/admin/users/${editingUserId}` : '/api/admin/users'
       const method = editingUserId ? 'PUT' : 'POST'
-      
+
       const payload = {
         name: userForm.name,
         email: userForm.email,
@@ -259,7 +259,7 @@ function UserRoleContent() {
         ]
         csvRows.push(values.join(','))
       })
-      
+
       const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -289,14 +289,14 @@ function UserRoleContent() {
                 placeholder="Search by Name, Mobile no."
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all font-medium"
+                className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-medium"
               />
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
             </form>
 
             <button
               onClick={() => toast.info('Filters summary')}
-              className="p-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-md shadow-teal-600/10 transition-colors cursor-pointer"
+              className="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-600/10 transition-colors cursor-pointer"
               title="Filter Roles"
             >
               <Filter className="w-5 h-5" />
@@ -304,7 +304,7 @@ function UserRoleContent() {
 
             <button
               onClick={handleExport}
-              className="p-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-650 dark:text-slate-350 hover:text-teal-650 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              className="p-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-650 dark:text-slate-350 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
               title="Export CSV"
             >
               <Download className="w-5 h-5" />
@@ -312,7 +312,7 @@ function UserRoleContent() {
 
             <button
               onClick={() => router.push('/admin/user-role/create')}
-              className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm shadow-md shadow-teal-600/10 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-600/10 transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Add
             </button>
@@ -321,17 +321,16 @@ function UserRoleContent() {
 
         {/* Tab Filters matching Screenshot 1-5 */}
         <div className="flex flex-wrap items-center gap-2 md:gap-4 border-b border-slate-100 dark:border-slate-700 pb-1">
-          {(['All', 'Admin', 'Manager', 'BDM', 'Custom'] as const).map(tab => {
+          {(['All', 'Admin', 'Manager', 'BDM'] as const).map(tab => {
             const isActive = activeTab === tab
             return (
               <button
                 key={tab}
                 onClick={() => handleTabChange(tab)}
-                className={`px-8 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-teal-600 text-white shadow-md shadow-teal-600/10'
+                className={`px-8 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${isActive
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/10'
                     : 'border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
-                }`}
+                  }`}
               >
                 {tab}
               </button>
@@ -361,7 +360,7 @@ function UserRoleContent() {
                   <tr>
                     <td colSpan={9} className="py-12 text-center">
                       <div className="flex flex-col items-center justify-center gap-2">
-                        <Loader2 className="w-6 h-6 animate-spin text-teal-600" />
+                        <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
                         <span className="text-xs font-medium text-slate-400">Loading user accounts...</span>
                       </div>
                     </td>
@@ -398,7 +397,7 @@ function UserRoleContent() {
                         <td className="py-4 px-6 text-center">
                           <button
                             onClick={() => toast.success(`ID Card layout preview for ${row.name}`)}
-                            className="p-1.5 border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-slate-400 hover:text-teal-600 transition-all cursor-pointer"
+                            className="p-1.5 border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-slate-400 hover:text-indigo-600 transition-all cursor-pointer"
                             title="Preview ID Card"
                           >
                             <FileText className="w-4 h-4" />
@@ -410,11 +409,10 @@ function UserRoleContent() {
                         <td className="py-4 px-6">
                           <button
                             onClick={() => handleToggleStatus(row)}
-                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold shadow-sm cursor-pointer transition-all hover:scale-105 active:scale-95 ${
-                              row.is_active
+                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold shadow-sm cursor-pointer transition-all hover:scale-105 active:scale-95 ${row.is_active
                                 ? 'bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400 border border-green-200/50 dark:border-green-900/50'
                                 : 'bg-red-50 dark:bg-red-950/30 text-red-650 dark:text-red-400 border border-red-200/50 dark:border-red-900/50'
-                            }`}
+                              }`}
                             title={`Click to mark as ${row.is_active ? 'Inactive' : 'Active'}`}
                           >
                             <span className={`w-1.5 h-1.5 rounded-full mr-1 ${row.is_active ? 'bg-green-500' : 'bg-red-500'}`} />
@@ -469,18 +467,17 @@ function UserRoleContent() {
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                <span className="px-3 py-1 bg-teal-600 text-white border border-teal-650 rounded-lg text-xs font-bold">
+                <span className="px-3 py-1 bg-indigo-600 text-white border border-indigo-650 rounded-lg text-xs font-bold">
                   {currentPage}
                 </span>
                 {totalPages >= 2 && (
                   <button
                     disabled={currentPage === totalPages || loading}
                     onClick={() => setCurrentPage(2)}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold border ${
-                      currentPage === 2
-                        ? 'bg-teal-600 text-white border-teal-650'
+                    className={`px-3 py-1 rounded-lg text-xs font-bold border ${currentPage === 2
+                        ? 'bg-indigo-600 text-white border-indigo-650'
                         : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     2
                   </button>
@@ -537,7 +534,7 @@ function UserRoleContent() {
                     placeholder="Enter full name"
                     value={userForm.name}
                     onChange={e => setUserForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                    className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                   />
                   <Contact className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                 </div>
@@ -553,7 +550,7 @@ function UserRoleContent() {
                     placeholder="Enter email address"
                     value={userForm.email}
                     onChange={e => setUserForm(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                    className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                   />
                   <Mail className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                 </div>
@@ -569,7 +566,7 @@ function UserRoleContent() {
                       placeholder="e.g. 9999999999"
                       value={userForm.phone}
                       onChange={e => setUserForm(prev => ({ ...prev, phone: e.target.value }))}
-                      className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                      className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                     />
                     <Phone className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                   </div>
@@ -583,7 +580,7 @@ function UserRoleContent() {
                     placeholder="e.g. AS123"
                     value={userForm.id_no}
                     onChange={e => setUserForm(prev => ({ ...prev, id_no: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                   />
                 </div>
               </div>
@@ -596,7 +593,7 @@ function UserRoleContent() {
                     required
                     value={userForm.role}
                     onChange={e => setUserForm(prev => ({ ...prev, role: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                   >
                     <option value="Admin">Admin</option>
                     <option value="Manager">Manager</option>
@@ -612,7 +609,7 @@ function UserRoleContent() {
                   <select
                     value={userForm.status}
                     onChange={e => setUserForm(prev => ({ ...prev, status: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                   >
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
@@ -632,7 +629,7 @@ function UserRoleContent() {
                     placeholder="Enter password"
                     value={userForm.password}
                     onChange={e => setUserForm(prev => ({ ...prev, password: e.target.value }))}
-                    className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                    className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                   />
                   <Key className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                 </div>
@@ -647,7 +644,7 @@ function UserRoleContent() {
                     placeholder="e.g. https://avatar.iran.liara.run/public/1"
                     value={userForm.avatar_url}
                     onChange={e => setUserForm(prev => ({ ...prev, avatar_url: e.target.value }))}
-                    className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                    className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                   />
                   <Image className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                 </div>
@@ -666,7 +663,7 @@ function UserRoleContent() {
               <button
                 type="submit"
                 disabled={submittingForm}
-                className="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-colors flex items-center gap-1.5 cursor-pointer shadow-md shadow-teal-600/10 disabled:opacity-50"
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-colors flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/10 disabled:opacity-50"
               >
                 {submittingForm && <Loader2 className="w-4 h-4 animate-spin" />}
                 Save
@@ -694,7 +691,7 @@ export default function UserRolePage() {
     <React.Suspense fallback={
       <AdminLayout>
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
-          <Loader2 className="w-10 h-10 animate-spin text-teal-600" />
+          <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
           <span className="text-sm font-semibold text-slate-500">Loading page...</span>
         </div>
       </AdminLayout>

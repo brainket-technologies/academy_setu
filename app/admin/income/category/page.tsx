@@ -184,7 +184,7 @@ export default function CategoryPage() {
         {/* Top Form Section (Full Width Card) */}
         <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-2xl shadow-sm p-6">
           <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-5 flex items-center gap-2">
-            <Tag className="w-5 h-5 text-teal-600" /> {editingId ? 'Edit Category' : 'Add Category'}
+            <Tag className="w-5 h-5 text-indigo-600" /> {editingId ? 'Edit Category' : 'Add Category'}
           </h2>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -195,7 +195,7 @@ export default function CategoryPage() {
                   required
                   value={categoryType}
                   onChange={e => setCategoryType(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all font-medium cursor-pointer"
+                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-medium cursor-pointer"
                 >
                   <option value="Income">Income</option>
                   <option value="Expense">Expense</option>
@@ -210,7 +210,7 @@ export default function CategoryPage() {
                   placeholder="Enter Category name"
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all font-medium"
+                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-medium"
                 />
               </div>
             </div>
@@ -222,7 +222,7 @@ export default function CategoryPage() {
                 rows={3}
                 value={description}
                 onChange={e => setDescription(e.target.value)}
-                className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all resize-none font-medium"
+                className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-none font-medium"
               />
             </div>
 
@@ -239,7 +239,7 @@ export default function CategoryPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-8 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-teal-600/10 disabled:opacity-50"
+                className="px-8 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/10 disabled:opacity-50"
               >
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 {editingId ? 'Save' : 'Create'}
@@ -259,7 +259,7 @@ export default function CategoryPage() {
                 <select
                   value={filterType}
                   onChange={e => setFilterType(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                 >
                   <option value="">All</option>
                   <option value="Income">Income</option>
@@ -281,7 +281,7 @@ export default function CategoryPage() {
                     }
                   }}
                   onBlur={() => setSearchText(searchInput)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                 />
               </div>
 
@@ -292,7 +292,7 @@ export default function CategoryPage() {
                   type="date"
                   value={startDate}
                   onChange={e => setStartDate(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                 />
               </div>
 
@@ -303,7 +303,7 @@ export default function CategoryPage() {
                   type="date"
                   value={endDate}
                   onChange={e => setEndDate(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                 />
               </div>
             </div>
@@ -328,7 +328,7 @@ export default function CategoryPage() {
                     <tr>
                       <td colSpan={6} className="py-12 text-center">
                         <div className="flex flex-col items-center justify-center gap-2">
-                          <Loader2 className="w-6 h-6 animate-spin text-teal-600" />
+                          <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
                           <span className="text-xs font-medium text-slate-400">Loading categories...</span>
                         </div>
                       </td>
@@ -397,7 +397,7 @@ export default function CategoryPage() {
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
-                  <span className="px-3 py-1 bg-teal-600 text-white border border-teal-600 rounded-lg text-xs font-bold">
+                  <span className="px-3 py-1 bg-indigo-600 text-white border border-indigo-600 rounded-lg text-xs font-bold">
                     {currentPage}
                   </span>
                   <button

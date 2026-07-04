@@ -10,6 +10,7 @@ export type SessionPayload = {
   role: string
   name: string
   email: string
+  permissions?: string[]
   expiresAt: Date
 }
 
@@ -32,12 +33,12 @@ export async function decrypt(session: string | undefined = '') {
   }
 }
 
-export async function createSession(payload: Omit<SessionPayload, 'expiresAt'>) {
+export async function createSession(payload: Omit<SessionPayload, 'expiresAt'>, cookieName = 'admin_session') {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
   const session = await encrypt({ ...payload, expiresAt })
   const cookieStore = await cookies()
 
-  cookieStore.set('admin_session', session, {
+  cookieStore.set(cookieName, session, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     expires: expiresAt,
@@ -46,14 +47,14 @@ export async function createSession(payload: Omit<SessionPayload, 'expiresAt'>) 
   })
 }
 
-export async function getSession() {
+export async function getSession(cookieName = 'admin_session') {
   const cookieStore = await cookies()
-  const session = cookieStore.get('admin_session')?.value
+  const session = cookieStore.get(cookieName)?.value
   if (!session) return null
   return decrypt(session)
 }
 
-export async function deleteSession() {
+export async function deleteSession(cookieName = 'admin_session') {
   const cookieStore = await cookies()
-  cookieStore.delete('admin_session')
+  cookieStore.delete(cookieName)
 }

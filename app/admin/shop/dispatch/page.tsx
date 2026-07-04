@@ -186,7 +186,7 @@ export default function DispatchPage() {
             setSelectedDispatch(null)
             setIsModalOpen(true)
           }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-teal-600/10 cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           Instant Dispatch
@@ -202,7 +202,7 @@ export default function DispatchPage() {
             <select
               value={schoolFilter}
               onChange={e => setSchoolFilter(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all dark:text-slate-350 cursor-pointer"
+              className="w-full px-4 py-2.5 bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all dark:text-slate-350 cursor-pointer"
             >
               <option value="Select an Option">Select an Option</option>
               <option value="All">All Schools</option>
@@ -221,7 +221,7 @@ export default function DispatchPage() {
               type="date"
               value={fromDate}
               onChange={e => setFromDate(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all dark:text-slate-350 cursor-pointer"
+              className="w-full px-4 py-2.5 bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all dark:text-slate-350 cursor-pointer"
             />
           </div>
 
@@ -232,7 +232,7 @@ export default function DispatchPage() {
               type="date"
               value={toDate}
               onChange={e => setToDate(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all dark:text-slate-350 cursor-pointer"
+              className="w-full px-4 py-2.5 bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all dark:text-slate-350 cursor-pointer"
             />
           </div>
 
@@ -242,7 +242,7 @@ export default function DispatchPage() {
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all dark:text-slate-350 cursor-pointer"
+              className="w-full px-4 py-2.5 bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all dark:text-slate-350 cursor-pointer"
             >
               <option value="Select an Option">Select an Option</option>
               <option value="All">All Statuses</option>
@@ -262,7 +262,7 @@ export default function DispatchPage() {
                 placeholder="Search..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all dark:text-slate-350"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all dark:text-slate-350"
               />
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             </div>
@@ -301,7 +301,7 @@ export default function DispatchPage() {
               {loading ? (
                 <tr>
                   <td colSpan={10} className="py-20 text-center">
-                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-teal-600" />
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
                   </td>
                 </tr>
               ) : dispatches.length === 0 ? (
@@ -350,7 +350,7 @@ export default function DispatchPage() {
                             setSelectedDispatch(disp)
                             setIsModalOpen(true)
                           }}
-                          className="p-1.5 rounded-lg bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 hover:bg-teal-100 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors cursor-pointer"
                           title="Edit Dispatch"
                         >
                           <Edit3 className="w-4 h-4" />
@@ -382,7 +382,7 @@ export default function DispatchPage() {
             <button className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-850 cursor-pointer disabled:opacity-50" disabled>
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <button className="px-3 py-1.5 rounded-lg bg-teal-600 text-white font-bold cursor-pointer">
+            <button className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold cursor-pointer">
               1
             </button>
             <button className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-850 cursor-pointer">

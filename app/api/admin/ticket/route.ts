@@ -6,56 +6,64 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
     const status = searchParams.get('status') || ''
-    const segment = searchParams.get('segment') || ''
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '10')
     const offset = (page - 1) * pageSize
 
-    let query = 'SELECT * FROM tickets'
     const conditions: string[] = []
     const params: (string | number)[] = []
 
     if (search) {
       params.push(`%${search}%`)
-      conditions.push(`(ticket_no ILIKE $${params.length} OR school_name ILIKE $${params.length} OR complainer_name ILIKE $${params.length})`)
+      conditions.push(`(t.ticket_no ILIKE $${params.length} OR i.name ILIKE $${params.length} OR t.complainer_name ILIKE $${params.length})`)
     }
-
     if (status) {
       params.push(status)
-      conditions.push(`status = $${params.length}`)
+      conditions.push(`t.status = $${params.length}`)
     }
 
-    if (segment) {
-      params.push(segment)
-      conditions.push(`segment = $${params.length}`)
-    }
+    const where = conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : ''
 
-    if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ')
-    }
-
-    const countQuery = query.replace('SELECT *', 'SELECT COUNT(*)')
+    // Count query
+    const countQuery = `
+      SELECT COUNT(*)::int as count
+      FROM tickets t
+      LEFT JOIN institutions i ON t.institution_id = i.id
+      ${where}
+    `
     const countResult = await pool.query(countQuery, params)
-    const totalCount = parseInt(countResult.rows[0].count)
+    const totalCount = countResult.rows[0].count
 
-    query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`
+    // Data query with joins
+    const query = `
+      SELECT 
+        t.*,
+        i.name as school_name,
+        i.state as school_state,
+        i.district as school_district,
+        tc.name as category_name
+      FROM tickets t
+      LEFT JOIN institutions i ON t.institution_id = i.id
+      LEFT JOIN ticket_categories tc ON t.category_id = tc.id
+      ${where}
+      ORDER BY t.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+    `
     params.push(pageSize, offset)
-
     const result = await pool.query(query, params)
 
     const countsResult = await pool.query(`
       SELECT 
-        COUNT(*) as all_count,
-        COUNT(*) FILTER (WHERE status = 'Pending') as pending_count,
-        COUNT(*) FILTER (WHERE status = 'Requested') as requested_count,
-        COUNT(*) FILTER (WHERE status = 'Completed') as completed_count
+        COUNT(*)::int as all_count,
+        COUNT(CASE WHEN status = 'Pending' THEN 1 END)::int as pending_count,
+        COUNT(CASE WHEN status = 'Requested' THEN 1 END)::int as requested_count,
+        COUNT(CASE WHEN status = 'Completed' THEN 1 END)::int as completed_count
       FROM tickets
     `)
     const counts = {
-      all: parseInt(countsResult.rows[0].all_count || '0'),
-      pending: parseInt(countsResult.rows[0].pending_count || '0'),
-      requested: parseInt(countsResult.rows[0].requested_count || '0'),
-      completed: parseInt(countsResult.rows[0].completed_count || '0')
+      all: countsResult.rows[0].all_count,
+      pending: countsResult.rows[0].pending_count,
+      requested: countsResult.rows[0].requested_count,
+      completed: countsResult.rows[0].completed_count
     }
 
     return NextResponse.json({
@@ -73,27 +81,34 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { 
-      segment, school_name, ticket_no, ticket_category, sub_category, 
-      priority, complainer_name, complainer_mobile, description, image_attachment, status 
+      school_name, institution_id, ticket_no, category_id, sub_category, 
+      priority, complainer_name, complainer_mobile, description, image_attachment, 
+      status, assigned_to
     } = body
 
-    if (!segment || !school_name || !ticket_category) {
-      return NextResponse.json({ success: false, error: 'Segment, School Name, and Category are required' }, { status: 400 })
+    if (!category_id) {
+      return NextResponse.json({ success: false, error: 'Category is required' }, { status: 400 })
+    }
+
+    // Resolve institution_id if school_name provided
+    let finalInstitutionId = institution_id
+    if (!finalInstitutionId && school_name) {
+      const instRes = await pool.query('SELECT id FROM institutions WHERE name ILIKE $1 LIMIT 1', [school_name])
+      finalInstitutionId = instRes.rows[0]?.id || null
     }
 
     // Generate ticket number if not provided
-    const finalTicketNo = ticket_no || `Tick${Math.floor(100000 + Math.random() * 900000)}`
+    const finalTicketNo = ticket_no || `TICK${Math.floor(100000 + Math.random() * 900000)}`
 
     const result = await pool.query(
-      `INSERT INTO tickets (ticket_no, assigned_to, segment, school_name, ticket_category, sub_category, priority, complainer_name, complainer_mobile, description, image_attachment, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `INSERT INTO tickets (ticket_no, assigned_to, institution_id, category_id, sub_category, priority, complainer_name, complainer_mobile, description, image_attachment, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
       [
         finalTicketNo,
-        '', // Initially not assigned
-        segment,
-        school_name,
-        ticket_category,
+        assigned_to || '',
+        finalInstitutionId,
+        category_id,
         sub_category || '',
         priority || 'Low',
         complainer_name || '',
@@ -104,7 +119,17 @@ export async function POST(request: NextRequest) {
       ]
     )
 
-    return NextResponse.json({ success: true, data: result.rows[0] })
+    // Fetch the joined data to return
+    const ticket = result.rows[0]
+    const enrichedRes = await pool.query(`
+      SELECT t.*, i.name as school_name, tc.name as category_name
+      FROM tickets t
+      LEFT JOIN institutions i ON t.institution_id = i.id
+      LEFT JOIN ticket_categories tc ON t.category_id = tc.id
+      WHERE t.id = $1
+    `, [ticket.id])
+
+    return NextResponse.json({ success: true, data: enrichedRes.rows[0] || ticket })
   } catch (error) {
     console.error('Ticket create error:', error)
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })

@@ -210,7 +210,7 @@ export default function SmsTemplatesPage() {
               placeholder="Search request school or person..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50/50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 dark:text-slate-350"
+              className="w-full pl-10 pr-4 py-2 bg-slate-50/50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:text-slate-350"
             />
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           </div>
@@ -235,7 +235,7 @@ export default function SmsTemplatesPage() {
               {loading ? (
                 <tr>
                   <td colSpan={10} className="py-20 text-center">
-                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-teal-600" />
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
                   </td>
                 </tr>
               ) : requests.length === 0 ? (
@@ -254,7 +254,7 @@ export default function SmsTemplatesPage() {
                       <select
                         value={req.assigned_to || ''}
                         onChange={e => handleAssignStaff(req.id, e.target.value)}
-                        className="px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
+                        className="px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
                       >
                         <option value="">Assign Staff</option>
                         {STAFF_LIST.map(staff => (
@@ -287,7 +287,7 @@ export default function SmsTemplatesPage() {
                       <div className="flex items-center justify-center">
                         <button
                           onClick={() => handleOpenDetails(req)}
-                          className="p-1.5 rounded-lg bg-teal-55 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 hover:bg-teal-100 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg bg-indigo-55 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors cursor-pointer"
                           title="View Request & Log Updates"
                         >
                           <Eye className="w-4 h-4" />
@@ -305,7 +305,7 @@ export default function SmsTemplatesPage() {
         <div className="md:hidden p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/10">
           {loading ? (
             <div className="py-12 text-center">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto text-teal-600" />
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
             </div>
           ) : requests.length === 0 ? (
             <div className="py-8 text-center text-slate-500 text-xs">
@@ -324,7 +324,7 @@ export default function SmsTemplatesPage() {
                   </div>
                   <button
                     onClick={() => handleOpenDetails(req)}
-                    className="p-2 bg-teal-50 dark:bg-teal-950/30 text-teal-600 dark:text-teal-400 rounded-xl cursor-pointer"
+                    className="p-2 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-xl cursor-pointer"
                   >
                     <Eye className="w-4 h-4" />
                   </button>
@@ -354,7 +354,7 @@ export default function SmsTemplatesPage() {
                   <select
                     value={req.assigned_to || ''}
                     onChange={e => handleAssignStaff(req.id, e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
                   >
                     <option value="">Assign Staff</option>
                     {STAFF_LIST.map(staff => (
@@ -470,7 +470,7 @@ export default function SmsTemplatesPage() {
                         type="radio"
                         checked={communicationOption === 'Call'}
                         onChange={() => setCommunicationOption('Call')}
-                        className="w-4 h-4 text-teal-650 focus:ring-teal-500"
+                        className="w-4 h-4 text-indigo-650 focus:ring-indigo-500"
                       />
                       Call
                     </label>
@@ -479,7 +479,7 @@ export default function SmsTemplatesPage() {
                         type="radio"
                         checked={communicationOption === 'Message'}
                         onChange={() => setCommunicationOption('Message')}
-                        className="w-4 h-4 text-teal-650 focus:ring-teal-500"
+                        className="w-4 h-4 text-indigo-650 focus:ring-indigo-500"
                       />
                       Message
                     </label>
@@ -496,7 +496,7 @@ export default function SmsTemplatesPage() {
                       placeholder="Enter Call Duration"
                       value={callDuration}
                       onChange={e => setCallDuration(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:text-slate-200"
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:text-slate-200"
                     />
                   </div>
                 )}
@@ -510,7 +510,7 @@ export default function SmsTemplatesPage() {
                     placeholder="Enter School Name"
                     value={remarks}
                     onChange={e => setRemarks(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:text-slate-200"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:text-slate-200"
                     required
                   />
                 </div>
@@ -524,7 +524,7 @@ export default function SmsTemplatesPage() {
                       type="date"
                       value={followUpDate}
                       onChange={e => setFollowUpDate(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:text-slate-200 cursor-pointer"
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:text-slate-200 cursor-pointer"
                     />
                   </div>
                   <div>
@@ -534,7 +534,7 @@ export default function SmsTemplatesPage() {
                     <select
                       value={status}
                       onChange={e => setStatus(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:text-slate-200 cursor-pointer"
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:text-slate-200 cursor-pointer"
                     >
                       {STATUS_OPTIONS.map(opt => (
                         <option key={opt} value={opt}>{opt}</option>
@@ -554,7 +554,7 @@ export default function SmsTemplatesPage() {
                   <button
                     type="submit"
                     disabled={submittingUpdate}
-                    className="px-5 py-2.5 bg-teal-650 hover:bg-teal-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-teal-600/10 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-indigo-600/10 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {submittingUpdate && <Loader2 className="w-4 h-4 animate-spin" />}
                     Update
@@ -587,7 +587,7 @@ export default function SmsTemplatesPage() {
                       {loadingHistory ? (
                         <tr>
                           <td colSpan={9} className="py-12 text-center text-slate-400">
-                            <Loader2 className="w-5 h-5 animate-spin mx-auto text-teal-650" />
+                            <Loader2 className="w-5 h-5 animate-spin mx-auto text-indigo-650" />
                           </td>
                         </tr>
                       ) : selectedHistory.length === 0 ? (

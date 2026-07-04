@@ -258,7 +258,7 @@ function RequestDashboardContent() {
                     <button
                       type="button"
                       onClick={() => setViewingScreenshot(s)}
-                      className="px-4 py-1.5 bg-[#EBF6F6] dark:bg-slate-750 hover:bg-[#EBF6F6]/85 text-teal-650 dark:text-teal-400 font-bold text-xs rounded-xl flex items-center gap-1 border border-teal-100/50 dark:border-slate-650 cursor-pointer"
+                      className="px-4 py-1.5 bg-[#EBF6F6] dark:bg-slate-750 hover:bg-[#EBF6F6]/85 text-indigo-650 dark:text-indigo-400 font-bold text-xs rounded-xl flex items-center gap-1 border border-indigo-100/50 dark:border-slate-650 cursor-pointer"
                     >
                       <Eye className="w-3.5 h-3.5" />
                       View
@@ -278,7 +278,7 @@ function RequestDashboardContent() {
                     value={transactionAmountInput}
                     onChange={e => setTransactionAmountInput(e.target.value)}
                     placeholder="Enter Amount"
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all text-slate-800 dark:text-slate-100 font-semibold"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-100 font-semibold"
                     required
                   />
                 </div>
@@ -290,7 +290,7 @@ function RequestDashboardContent() {
                   <select
                     value={statusInput}
                     onChange={e => setStatusInput(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all text-slate-800 dark:text-slate-100 font-semibold shadow-sm"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-100 font-semibold shadow-sm"
                   >
                     <option value="Accept">Accept</option>
                     <option value="Pending">Pending</option>
@@ -311,7 +311,7 @@ function RequestDashboardContent() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-8 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-xs transition-all shadow-md shadow-teal-600/10 cursor-pointer min-w-[130px] flex items-center justify-center gap-1.5"
+                className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer min-w-[130px] flex items-center justify-center gap-1.5"
               >
                 {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 Submit
@@ -329,7 +329,7 @@ function RequestDashboardContent() {
                 placeholder="Search By School Name, Trans. ID"
                 value={searchText}
                 onChange={e => setSearchText(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm"
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm"
               />
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             </form>
@@ -338,7 +338,7 @@ function RequestDashboardContent() {
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
-                className="px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm font-semibold"
+                className="px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm font-semibold"
               >
                 <option value="">All Status</option>
                 <option value="Accept">Accept</option>
@@ -368,7 +368,7 @@ function RequestDashboardContent() {
                   <tr>
                     <td colSpan={9} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">
                       <div className="flex items-center justify-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin text-teal-600" />
+                        <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
                         Loading requests...
                       </div>
                     </td>
@@ -412,7 +412,7 @@ function RequestDashboardContent() {
                           {isAccept ? (
                             <button
                               onClick={() => handleDownloadPDF(req)}
-                              className="w-8 h-8 inline-flex items-center justify-center bg-teal-50 dark:bg-teal-900/30 hover:bg-teal-100 dark:hover:bg-teal-900/50 text-teal-600 dark:text-teal-400 rounded-lg transition-colors cursor-pointer border border-teal-100 dark:border-teal-900/40 shadow-sm"
+                              className="w-8 h-8 inline-flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg transition-colors cursor-pointer border border-indigo-100 dark:border-indigo-900/40 shadow-sm"
                               title="Download Receipt (PDF)"
                             >
                               <FileText className="w-4 h-4" />
@@ -425,7 +425,7 @@ function RequestDashboardContent() {
                           <div className="flex items-center justify-center">
                             <button
                               onClick={() => handleSelectRequest(req)}
-                              className="w-7 h-7 flex items-center justify-center bg-[#EBF6F6] dark:bg-slate-700 hover:bg-teal-150 dark:hover:bg-slate-650 text-teal-600 dark:text-teal-400 rounded-lg transition-colors cursor-pointer"
+                              className="w-7 h-7 flex items-center justify-center bg-[#EBF6F6] dark:bg-slate-700 hover:bg-indigo-150 dark:hover:bg-slate-650 text-indigo-600 dark:text-indigo-400 rounded-lg transition-colors cursor-pointer"
                               title="View Request Details"
                             >
                               <Eye className="w-4 h-4" />
@@ -450,14 +450,14 @@ function RequestDashboardContent() {
                 <button
                   disabled={currentPage === 1}
                   onClick={() => fetchRequests(1, searchText, statusFilter)}
-                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   {'<<'}
                 </button>
                 <button
                   disabled={currentPage === 1}
                   onClick={() => fetchRequests(currentPage - 1, searchText, statusFilter)}
-                  className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                  className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -467,8 +467,8 @@ function RequestDashboardContent() {
                     onClick={() => fetchRequests(pg, searchText, statusFilter)}
                     className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                       pg === currentPage
-                        ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/25'
-                        : 'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 bg-white dark:bg-slate-700'
+                        ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+                        : 'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-700'
                     }`}
                   >
                     {pg}
@@ -477,14 +477,14 @@ function RequestDashboardContent() {
                 <button
                   disabled={currentPage === totalPages}
                   onClick={() => fetchRequests(currentPage + 1, searchText, statusFilter)}
-                  className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                  className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
                 <button
                   disabled={currentPage === totalPages}
                   onClick={() => fetchRequests(totalPages, searchText, statusFilter)}
-                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   {'>>'}
                 </button>
@@ -541,7 +541,7 @@ function RequestDashboardContent() {
 
             <button
               onClick={() => setViewingScreenshot(null)}
-              className="w-full mt-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-teal-600/10 cursor-pointer"
+              className="w-full mt-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
             >
               Close
             </button>
@@ -557,7 +557,7 @@ export default function RequestDashboardPage() {
     <AdminLayout>
       <Suspense fallback={
         <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
         </div>
       }>
         <RequestDashboardContent />

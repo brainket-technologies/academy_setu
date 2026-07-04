@@ -73,7 +73,7 @@ const defaultPromoCodes = [
   { id: 'm2', code: 'RENEW1000', discount_name: 'Renewal Offer', discount_type: 'Fixed', discount_value: 1000, created_at: '2025-11-01', category: 'Renewal', color: 'bg-purple-600 text-purple-600 border-purple-600/10 text-purple-700' },
   { id: 'm3', code: 'ADVANCE1500', discount_name: 'Advance Pay', discount_type: 'Fixed', discount_value: 1500, created_at: '2025-11-01', category: 'Advance Payment', color: 'bg-violet-600 text-violet-600 border-violet-600/10 text-violet-700' },
   { id: 'm4', code: 'FESTIVE800', discount_name: 'Festival Bonus', discount_type: 'Fixed', discount_value: 800, created_at: '2025-11-01', category: 'First Time', color: 'bg-rose-600 text-rose-600 border-rose-600/10 text-rose-700' },
-  { id: 'm5', code: 'CORP1200', discount_name: 'Corporate Code', discount_type: 'Fixed', discount_value: 1200, created_at: '2025-11-01', category: 'Renewal', color: 'bg-teal-700 text-teal-700 border-teal-700/10 text-teal-800' },
+  { id: 'm5', code: 'CORP1200', discount_name: 'Corporate Code', discount_type: 'Fixed', discount_value: 1200, created_at: '2025-11-01', category: 'Renewal', color: 'bg-indigo-700 text-indigo-700 border-indigo-700/10 text-indigo-800' },
   { id: 'm6', code: 'SPECIAL2000', discount_name: 'Special Deal', discount_type: 'Fixed', discount_value: 2000, created_at: '2025-11-01', category: 'Advance Payment', color: 'bg-lime-600 text-lime-600 border-lime-600/10 text-lime-700' },
 
   { id: 'p1', code: 'FIRST10', discount_name: 'First Time 10%', discount_type: 'Percentage', discount_value: 10, created_at: '2025-11-01', category: 'First Time', color: 'bg-green-600 text-green-600 border-green-600/10 text-green-700' },
@@ -318,7 +318,7 @@ function BillingDashboardContent() {
         'bg-purple-600 text-purple-600 border-purple-600/10 text-purple-700',
         'bg-violet-600 text-violet-600 border-violet-600/10 text-violet-700',
         'bg-rose-600 text-rose-600 border-rose-600/10 text-rose-700',
-        'bg-teal-700 text-teal-700 border-teal-700/10 text-teal-800',
+        'bg-indigo-700 text-indigo-700 border-indigo-700/10 text-indigo-800',
         'bg-lime-600 text-lime-600 border-lime-600/10 text-lime-700'
       ]
       return {
@@ -594,8 +594,8 @@ function BillingDashboardContent() {
             onClick={() => setActiveTab('purchase')}
             className={`px-5 py-2 rounded-lg font-bold text-xs transition-all cursor-pointer ${
               activeTab === 'purchase'
-                ? 'bg-teal-600 text-white shadow-md shadow-teal-600/15'
-                : 'text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/15'
+                : 'text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400'
             }`}
           >
             Purchase Plan
@@ -604,8 +604,8 @@ function BillingDashboardContent() {
             onClick={() => setActiveTab('history')}
             className={`px-5 py-2 rounded-lg font-bold text-xs transition-all cursor-pointer ${
               activeTab === 'history'
-                ? 'bg-teal-600 text-white shadow-md shadow-teal-600/15'
-                : 'text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/15'
+                : 'text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400'
             }`}
           >
             Transaction History
@@ -634,7 +634,7 @@ function BillingDashboardContent() {
                           setSelectedSchool('')
                           setIsSubmitted(false)
                         }}
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
                         required
                       >
                         <option value="">Select Segment</option>
@@ -655,7 +655,7 @@ function BillingDashboardContent() {
                           setSelectedSchool(e.target.value)
                           setIsSubmitted(false)
                         }}
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
                         required
                         disabled={!selectedSegment}
                       >
@@ -672,7 +672,7 @@ function BillingDashboardContent() {
 
                   <button
                     type="submit"
-                    className="px-8 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-teal-600/10 hover:shadow-teal-600/20 cursor-pointer h-[42px] shrink-0"
+                    className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 hover:shadow-indigo-600/20 cursor-pointer h-[42px] shrink-0"
                   >
                     Submit
                   </button>
@@ -685,7 +685,7 @@ function BillingDashboardContent() {
                   <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 px-1">Available Plans</h2>
                   {loadingPlans ? (
                     <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 border border-slate-100 dark:border-slate-700 text-center shadow-sm">
-                      <Loader2 className="w-8 h-8 animate-spin text-teal-600 mx-auto mb-2" />
+                      <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mx-auto mb-2" />
                       <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Loading plan specifications...</p>
                     </div>
                   ) : filteredPlansList.length === 0 ? (
@@ -711,7 +711,7 @@ function BillingDashboardContent() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
                               {getPlanFeatures(p).map((feature, fIdx) => (
                                 <div key={fIdx} className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0" />
+                                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
                                   <span className="truncate">{feature}</span>
                                 </div>
                               ))}
@@ -727,7 +727,7 @@ function BillingDashboardContent() {
                             <div className="flex flex-row md:flex-col gap-2 flex-1 md:flex-none">
                               <button
                                 onClick={() => setShowViewPlanModal(p)}
-                                className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-[#EBF6F6] dark:bg-slate-750 hover:bg-[#EBF6F6]/80 text-teal-600 dark:text-teal-400 rounded-xl text-xs font-bold transition-all border border-teal-100 dark:border-slate-600 cursor-pointer"
+                                className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-[#EBF6F6] dark:bg-slate-750 hover:bg-[#EBF6F6]/80 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold transition-all border border-indigo-100 dark:border-slate-600 cursor-pointer"
                               >
                                 <FileText className="w-4 h-4" />
                                 View Plan
@@ -737,7 +737,7 @@ function BillingDashboardContent() {
                                   setSelectedPlan(p)
                                   setWizardStep(2)
                                 }}
-                                className="flex-1 md:flex-none px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-teal-600/10 cursor-pointer"
+                                className="flex-1 md:flex-none px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
                               >
                                 Buy Now
                               </button>
@@ -755,7 +755,7 @@ function BillingDashboardContent() {
             <div className="flex flex-col gap-6">
               <button
                 onClick={() => setWizardStep(1)}
-                className="self-start flex items-center gap-1.5 text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer"
+                className="self-start flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
               >
                 &larr; Back to plan list
               </button>
@@ -776,7 +776,7 @@ function BillingDashboardContent() {
                     />
                     <button
                       onClick={() => setPromoModalOpen(true)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 flex items-center justify-center text-teal-600 cursor-pointer transition-colors border border-teal-100/50"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 flex items-center justify-center text-indigo-600 cursor-pointer transition-colors border border-indigo-100/50"
                     >
                       <Percent className="w-4 h-4" />
                     </button>
@@ -799,7 +799,7 @@ function BillingDashboardContent() {
                           name="paymentMode"
                           checked={paymentModeOption === 'gateway'}
                           onChange={() => setPaymentModeOption('gateway')}
-                          className="w-4.5 h-4.5 text-teal-600 border-slate-300 focus:ring-teal-500"
+                          className="w-4.5 h-4.5 text-indigo-600 border-slate-300 focus:ring-indigo-500"
                         />
                         Payment Gateway
                       </label>
@@ -809,7 +809,7 @@ function BillingDashboardContent() {
                           name="paymentMode"
                           checked={paymentModeOption === 'bank'}
                           onChange={() => setPaymentModeOption('bank')}
-                          className="w-4.5 h-4.5 text-teal-600 border-slate-300 focus:ring-teal-500"
+                          className="w-4.5 h-4.5 text-indigo-600 border-slate-300 focus:ring-indigo-500"
                         />
                         Bank
                       </label>
@@ -819,7 +819,7 @@ function BillingDashboardContent() {
                           name="paymentMode"
                           checked={paymentModeOption === 'upi'}
                           onChange={() => setPaymentModeOption('upi')}
-                          className="w-4.5 h-4.5 text-teal-600 border-slate-300 focus:ring-teal-500"
+                          className="w-4.5 h-4.5 text-indigo-600 border-slate-300 focus:ring-indigo-500"
                         />
                         UPI
                       </label>
@@ -829,7 +829,7 @@ function BillingDashboardContent() {
                           name="paymentMode"
                           checked={paymentModeOption === 'qr'}
                           onChange={() => setPaymentModeOption('qr')}
-                          className="w-4.5 h-4.5 text-teal-600 border-slate-300 focus:ring-teal-500"
+                          className="w-4.5 h-4.5 text-indigo-600 border-slate-300 focus:ring-indigo-500"
                         />
                         QR Code
                       </label>
@@ -942,7 +942,7 @@ function BillingDashboardContent() {
                                 onClick={() => setScreenshotName('screenshot_bank_txn.png')}
                                 className="w-full px-4 py-2.5 pr-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400 cursor-pointer"
                               />
-                              <Paperclip className="w-4 h-4 text-teal-600 absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer" />
+                              <Paperclip className="w-4 h-4 text-indigo-600 absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer" />
                             </div>
                           </div>
                           <div className="flex flex-col gap-1.5">
@@ -961,7 +961,7 @@ function BillingDashboardContent() {
                         {/* Plus button */}
                         <div
                           onClick={() => toast.success('Payment Details line added')}
-                          className="w-11 h-11 bg-teal-600 hover:bg-teal-700 text-white rounded-xl flex items-center justify-center text-xl font-bold cursor-pointer transition-colors shrink-0 shadow-sm shadow-teal-600/10"
+                          className="w-11 h-11 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center justify-center text-xl font-bold cursor-pointer transition-colors shrink-0 shadow-sm shadow-indigo-600/10"
                         >
                           +
                         </div>
@@ -1017,7 +1017,7 @@ function BillingDashboardContent() {
                                 onClick={() => setScreenshotName('screenshot_upi_txn.png')}
                                 className="w-full px-4 py-2.5 pr-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400 cursor-pointer"
                               />
-                              <Paperclip className="w-4 h-4 text-teal-600 absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer" />
+                              <Paperclip className="w-4 h-4 text-indigo-600 absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer" />
                             </div>
                           </div>
                           <div className="flex flex-col gap-1.5">
@@ -1036,7 +1036,7 @@ function BillingDashboardContent() {
                         {/* Plus button */}
                         <div
                           onClick={() => toast.success('Payment Details line added')}
-                          className="w-11 h-11 bg-teal-600 hover:bg-teal-700 text-white rounded-xl flex items-center justify-center text-xl font-bold cursor-pointer transition-colors shrink-0 shadow-sm shadow-teal-600/10"
+                          className="w-11 h-11 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center justify-center text-xl font-bold cursor-pointer transition-colors shrink-0 shadow-sm shadow-indigo-600/10"
                         >
                           +
                         </div>
@@ -1100,7 +1100,7 @@ function BillingDashboardContent() {
                                 onClick={() => setScreenshotName('screenshot_qr_txn.png')}
                                 className="w-full px-4 py-2.5 pr-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400 cursor-pointer"
                               />
-                              <Paperclip className="w-4 h-4 text-teal-600 absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer" />
+                              <Paperclip className="w-4 h-4 text-indigo-600 absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer" />
                             </div>
                           </div>
                           <div className="flex flex-col gap-1.5">
@@ -1119,7 +1119,7 @@ function BillingDashboardContent() {
                         {/* Plus button */}
                         <div
                           onClick={() => toast.success('Payment Details line added')}
-                          className="w-11 h-11 bg-teal-600 hover:bg-teal-700 text-white rounded-xl flex items-center justify-center text-xl font-bold cursor-pointer transition-colors shrink-0 shadow-sm shadow-teal-600/10"
+                          className="w-11 h-11 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center justify-center text-xl font-bold cursor-pointer transition-colors shrink-0 shadow-sm shadow-indigo-600/10"
                         >
                           +
                         </div>
@@ -1166,7 +1166,7 @@ function BillingDashboardContent() {
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="px-10 py-3 bg-[#E8F5F5] dark:bg-slate-750 text-teal-800 dark:text-teal-400 border border-teal-100 dark:border-slate-650 rounded-xl font-bold text-sm hover:bg-teal-600 hover:text-white dark:hover:bg-teal-600 dark:hover:text-white transition-all shadow-sm cursor-pointer min-w-[180px] text-center"
+                      className="px-10 py-3 bg-[#E8F5F5] dark:bg-slate-750 text-indigo-800 dark:text-indigo-400 border border-indigo-100 dark:border-slate-650 rounded-xl font-bold text-sm hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-600 dark:hover:text-white transition-all shadow-sm cursor-pointer min-w-[180px] text-center"
                     >
                       {submitting ? (
                         <div className="flex items-center justify-center gap-2">
@@ -1214,7 +1214,7 @@ function BillingDashboardContent() {
                         setSchoolName('')
                         setPlanName('')
                       }}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
                       required
                     >
                       <option value="">Select Segment</option>
@@ -1231,7 +1231,7 @@ function BillingDashboardContent() {
                     <select
                       value={schoolName}
                       onChange={e => setSchoolName(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
                       required
                     >
                       <option value="">Select School</option>
@@ -1248,7 +1248,7 @@ function BillingDashboardContent() {
                     <select
                       value={planName}
                       onChange={e => setPlanName(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
                       required
                     >
                       <option value="">Select Plan</option>
@@ -1267,7 +1267,7 @@ function BillingDashboardContent() {
                     <select
                       value={paymentMode}
                       onChange={e => setPaymentMode(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
                       required
                     >
                       <option value="">Select Payment Mode</option>
@@ -1342,7 +1342,7 @@ function BillingDashboardContent() {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="px-8 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-teal-600/10 cursor-pointer flex items-center gap-2"
+                    className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center gap-2"
                   >
                     {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                     Update Bill
@@ -1362,7 +1362,7 @@ function BillingDashboardContent() {
                   <select
                     value={filterSegment}
                     onChange={(e) => setFilterSegment(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-55 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm"
+                    className="w-full px-4 py-2.5 bg-slate-55 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
                   >
                     <option value="">Select Segment</option>
                     {segments.map(s => (
@@ -1377,7 +1377,7 @@ function BillingDashboardContent() {
                   <select
                     value={filterSchool}
                     onChange={(e) => setFilterSchool(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-55 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm"
+                    className="w-full px-4 py-2.5 bg-slate-55 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
                   >
                     <option value="">Select School</option>
                     {Array.from(new Set(schools.map(s => s.school_name))).map(name => (
@@ -1392,7 +1392,7 @@ function BillingDashboardContent() {
                   <select
                     value={filterPaymentMode}
                     onChange={(e) => setFilterPaymentMode(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-55 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm"
+                    className="w-full px-4 py-2.5 bg-slate-55 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
                   >
                     <option value="">Select Payment Mode</option>
                     <option value="Bank Account">Bank Account</option>
@@ -1410,7 +1410,7 @@ function BillingDashboardContent() {
                   <select
                     value={filterDateRange}
                     onChange={(e) => setFilterDateRange(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-55 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm"
+                    className="w-full px-4 py-2.5 bg-slate-55 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
                   >
                     <option value="">Select Option</option>
                     <option value="Last Week">Last Week</option>
@@ -1448,7 +1448,7 @@ function BillingDashboardContent() {
                     <tr>
                       <td colSpan={8} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">
                         <div className="flex items-center justify-center gap-2">
-                          <Loader2 className="w-5 h-5 animate-spin text-teal-600" />
+                          <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
                           Loading transaction records...
                         </div>
                       </td>
@@ -1477,7 +1477,7 @@ function BillingDashboardContent() {
                           <td className="px-5 py-4 text-center">
                             <button
                               onClick={() => handleDownloadPDF(bill)}
-                              className="w-8 h-8 inline-flex items-center justify-center bg-teal-50 dark:bg-teal-900/30 hover:bg-teal-100 dark:hover:bg-teal-900/50 text-teal-600 dark:text-teal-400 rounded-lg transition-colors cursor-pointer border border-teal-100 dark:border-teal-900/40"
+                              className="w-8 h-8 inline-flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg transition-colors cursor-pointer border border-indigo-100 dark:border-indigo-900/40"
                               title="Download Invoice (PDF)"
                             >
                               <FileText className="w-4 h-4" />
@@ -1519,14 +1519,14 @@ function BillingDashboardContent() {
                   <button
                     disabled={currentPage === 1}
                     onClick={() => fetchBills(1)}
-                    className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                    className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                   >
                     {'<<'}
                   </button>
                   <button
                     disabled={currentPage === 1}
                     onClick={() => fetchBills(currentPage - 1)}
-                    className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                    className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
@@ -1536,8 +1536,8 @@ function BillingDashboardContent() {
                       onClick={() => fetchBills(pg)}
                       className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                         pg === currentPage
-                          ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/25'
-                          : 'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 bg-white dark:bg-slate-700'
+                          ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+                          : 'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-700'
                       }`}
                     >
                       {pg}
@@ -1546,14 +1546,14 @@ function BillingDashboardContent() {
                   <button
                     disabled={currentPage === totalPages}
                     onClick={() => fetchBills(currentPage + 1)}
-                    className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                    className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
                   <button
                     disabled={currentPage === totalPages}
                     onClick={() => fetchBills(totalPages)}
-                    className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                    className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                   >
                     {'>>'}
                   </button>
@@ -1624,9 +1624,9 @@ function BillingDashboardContent() {
                   </tbody>
                 </table>
               </div>
-              <div className="flex justify-between items-center bg-[#EBF6F6]/40 dark:bg-teal-950/20 p-4 rounded-xl border border-teal-100/50 dark:border-slate-700">
+              <div className="flex justify-between items-center bg-[#EBF6F6]/40 dark:bg-indigo-950/20 p-4 rounded-xl border border-indigo-100/50 dark:border-slate-700">
                 <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Total Subscription Price</span>
-                <span className="text-base font-extrabold text-teal-600 dark:text-teal-400">₹{getPlanPrice(showViewPlanModal)}</span>
+                <span className="text-base font-extrabold text-indigo-600 dark:text-indigo-400">₹{getPlanPrice(showViewPlanModal)}</span>
               </div>
             </div>
           </div>
@@ -1651,14 +1651,14 @@ function BillingDashboardContent() {
                 onClick={() => setPromoActiveTab('amount')}
                 className={`flex items-center px-6 py-2.5 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
                   promoActiveTab === 'amount'
-                    ? 'bg-teal-600 text-white shadow-md shadow-teal-600/10'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/10'
                     : 'border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                 }`}
               >
                 Amount Discount
                 <span className={`ml-2 px-2 py-0.5 rounded-lg text-[10px] font-bold ${
                   promoActiveTab === 'amount'
-                    ? 'bg-white text-teal-600'
+                    ? 'bg-white text-indigo-600'
                     : 'bg-slate-100 dark:bg-slate-700 text-slate-500'
                 }`}>
                   {amountPromoCodes.length.toString().padStart(2, '0')}
@@ -1668,14 +1668,14 @@ function BillingDashboardContent() {
                 onClick={() => setPromoActiveTab('percentage')}
                 className={`flex items-center px-6 py-2.5 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
                   promoActiveTab === 'percentage'
-                    ? 'bg-teal-600 text-white shadow-md shadow-teal-600/10'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/10'
                     : 'border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                 }`}
               >
                 Percentage Discount
                 <span className={`ml-2 px-2 py-0.5 rounded-lg text-[10px] font-bold ${
                   promoActiveTab === 'percentage'
-                    ? 'bg-white text-teal-600'
+                    ? 'bg-white text-indigo-600'
                     : 'bg-slate-100 dark:bg-slate-700 text-slate-500'
                 }`}>
                   {percentagePromoCodes.length.toString().padStart(2, '0')}
@@ -1720,7 +1720,7 @@ function BillingDashboardContent() {
                         setPromoModalOpen(false)
                         toast.success(`Promo code ${pc.code} applied!`)
                       }}
-                      className="text-xs font-extrabold text-slate-500 hover:text-teal-600 transition-colors self-end mt-4 cursor-pointer flex items-center gap-1.5"
+                      className="text-xs font-extrabold text-slate-500 hover:text-indigo-600 transition-colors self-end mt-4 cursor-pointer flex items-center gap-1.5"
                     >
                       Apply &rarr;
                     </button>
@@ -1741,7 +1741,7 @@ export default function AllBillsPage() {
     <AdminLayout>
       <Suspense fallback={
         <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
         </div>
       }>
         <BillingDashboardContent />

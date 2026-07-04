@@ -139,7 +139,7 @@ export default function ReferralCodePage() {
               placeholder="Search by name, mobile, address..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+              className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
             />
           </form>
 
@@ -154,7 +154,7 @@ export default function ReferralCodePage() {
                   setFilterStatus(e.target.value)
                   setCurrentPage(1)
                 }}
-                className="px-3.5 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200 cursor-pointer font-semibold shadow-sm"
+                className="px-3.5 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 cursor-pointer font-semibold shadow-sm"
               >
                 <option value="">All</option>
                 <option value="Onboarded">Onboarded</option>
@@ -171,7 +171,7 @@ export default function ReferralCodePage() {
                   setStartDate(e.target.value)
                   setCurrentPage(1)
                 }}
-                className="px-3.5 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                className="px-3.5 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
               />
             </div>
 
@@ -185,7 +185,7 @@ export default function ReferralCodePage() {
                   setEndDate(e.target.value)
                   setCurrentPage(1)
                 }}
-                className="px-3.5 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                className="px-3.5 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
               />
             </div>
           </div>
@@ -236,7 +236,7 @@ export default function ReferralCodePage() {
                             <button
                               onClick={() => handleConvertLead(ref.id)}
                               disabled={convertingId !== null}
-                              className="px-4 py-1.5 bg-[#0F9E8F] hover:bg-[#0D8E80] disabled:bg-slate-300 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
+                              className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
                             >
                               {convertingId === ref.id && <Loader2 className="w-3 h-3 animate-spin" />}
                               Convert to Lead
@@ -246,7 +246,7 @@ export default function ReferralCodePage() {
                               Onboarded
                             </span>
                           ) : ref.status === 'Converted' ? (
-                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#EBF6F6] text-[#0F9E8F] shadow-sm">
+                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#EBF6F6] text-indigo-600 shadow-sm">
                               Lead Converted
                             </span>
                           ) : (
@@ -295,7 +295,7 @@ export default function ReferralCodePage() {
                     onClick={() => setCurrentPage(num)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       currentPage === num
-                        ? 'bg-[#0F9E8F] text-white shadow-md shadow-teal-500/10'
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/10'
                         : 'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-55 dark:hover:bg-slate-700'
                     }`}
                   >

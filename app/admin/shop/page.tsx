@@ -90,7 +90,7 @@ export default function AllProductsPage() {
             setSelectedProduct(null)
             setIsModalOpen(true)
           }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-teal-600/10 cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           Add Product
@@ -99,7 +99,7 @@ export default function AllProductsPage() {
 
       {loading ? (
         <div className="flex justify-center items-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
         </div>
       ) : products.length === 0 ? (
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center border border-slate-100 dark:border-slate-700 shadow-sm">
@@ -172,7 +172,7 @@ export default function AllProductsPage() {
                       </div>
                       
                       {savings > 0 && (
-                        <div className="text-xs font-bold text-teal-600 dark:text-teal-400">
+                        <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
                           Save: ₹{savings.toLocaleString('en-IN')}
                         </div>
                       )}

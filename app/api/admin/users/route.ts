@@ -18,7 +18,11 @@ export async function GET(request: NextRequest) {
       const cacheKey = `users:id:${id}`
       const userData = await withCache(cacheKey, async () => {
         const singleRes = await pool.query(
-          'SELECT id, name, email, role, phone, avatar_url, is_active, id_no, joining_date, permissions, gender, state, district, created_at FROM admins WHERE id = $1 LIMIT 1',
+          `SELECT id, name, email, role, phone, avatar_url, is_active, id_no, id_card_url,
+                  joining_date, permissions, gender, address, state, district, pincode,
+                  aadhar_no, aadhar_card_url, signature_url, login_time_type, login_time,
+                  logout_time, login_expire_date, device_permission_count, created_at
+           FROM admins WHERE id = $1 LIMIT 1`,
           [id]
         )
         return singleRes.rows[0] ?? null

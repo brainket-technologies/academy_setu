@@ -388,7 +388,7 @@ export default function AllTicketPage() {
           {view === 'list' && (
             <button
               onClick={handleStartCreate}
-              className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-teal-600/10 cursor-pointer flex items-center gap-2"
+              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center gap-2"
             >
               <Plus className="w-4 h-4" /> Create Ticket
             </button>
@@ -402,7 +402,7 @@ export default function AllTicketPage() {
             {/* Step 1: Segment & School Validation */}
             <div className="border border-slate-100 dark:border-slate-700 rounded-xl p-5 bg-slate-50/50 dark:bg-slate-800/50">
               <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-teal-100 dark:bg-teal-900/30 text-teal-600 flex items-center justify-center text-xs">1</span>
+                <span className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center text-xs">1</span>
                 Segment & School Validation
               </h3>
               <form onSubmit={handleValidateSegmentSchool} className="grid grid-cols-1 md:grid-cols-3 gap-5 items-end">
@@ -415,7 +415,7 @@ export default function AllTicketPage() {
                       setIsValidated(false)
                     }}
                     disabled={editingId !== null}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all text-slate-800 dark:text-slate-200"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200"
                     required
                   >
                     <option value="">Select Segment</option>
@@ -433,7 +433,7 @@ export default function AllTicketPage() {
                       setIsValidated(false)
                     }}
                     disabled={editingId !== null}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all text-slate-800 dark:text-slate-200"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200"
                     required
                   >
                     <option value="">Select School</option>
@@ -449,7 +449,7 @@ export default function AllTicketPage() {
                     className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer ${
                       isValidated 
                         ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 border border-emerald-200/50' 
-                        : 'bg-teal-600 hover:bg-teal-700 text-white shadow-md shadow-teal-600/10'
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/10'
                     }`}
                   >
                     {isValidated ? 'Validated ✓' : 'Validate & Proceed'}
@@ -463,7 +463,7 @@ export default function AllTicketPage() {
               <form onSubmit={handleFormSubmit} className="flex flex-col gap-6 animate-in slide-in-from-top-4 duration-250">
                 <div className="border-t border-slate-100 dark:border-slate-700 pt-6">
                   <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-5 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-teal-100 dark:bg-teal-900/30 text-teal-600 flex items-center justify-center text-xs">2</span>
+                    <span className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center text-xs">2</span>
                     Ticket Particulars
                   </h3>
                   
@@ -486,7 +486,7 @@ export default function AllTicketPage() {
                       <select
                         value={ticketCategory}
                         onChange={(e) => setTicketCategory(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                         required
                       >
                         <option value="">Select Category</option>
@@ -503,7 +503,7 @@ export default function AllTicketPage() {
                         value={subCategory}
                         onChange={(e) => setSubCategory(e.target.value)}
                         placeholder="e.g. Password Reset"
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
                       />
                     </div>
                   </div>
@@ -518,7 +518,7 @@ export default function AllTicketPage() {
                       value={complainerName}
                       onChange={(e) => setComplainerName(e.target.value)}
                       placeholder="e.g. John Doe"
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
                     />
                   </div>
                   {/* Complainer Mobile */}
@@ -529,7 +529,7 @@ export default function AllTicketPage() {
                       value={complainerMobile}
                       onChange={(e) => setComplainerMobile(e.target.value)}
                       placeholder="e.g. 9876543210"
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
                     />
                   </div>
                   {/* Complaint Status dropdown */}
@@ -538,7 +538,7 @@ export default function AllTicketPage() {
                     <select
                       value={complaintStatus}
                       onChange={(e) => setComplaintStatus(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                     >
                       <option value="Created">Created</option>
                       <option value="Working">Working</option>
@@ -561,7 +561,7 @@ export default function AllTicketPage() {
                               value={prio}
                               checked={priority === prio}
                               onChange={() => setPriority(prio)}
-                              className="text-teal-600 focus:ring-teal-500 w-4 h-4"
+                              className="text-indigo-600 focus:ring-indigo-500 w-4 h-4"
                             />
                             {prio}
                           </label>
@@ -604,7 +604,7 @@ export default function AllTicketPage() {
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Enter detailed description of the support ticket issue..."
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 resize-none"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 resize-none"
                   />
                 </div>
 
@@ -620,7 +620,7 @@ export default function AllTicketPage() {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="px-8 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-teal-600/10 cursor-pointer flex items-center gap-2"
+                    className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center gap-2"
                   >
                     {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                     {editingId ? 'Update Ticket' : 'Create Ticket'}
@@ -702,14 +702,14 @@ export default function AllTicketPage() {
                     placeholder="Search by Ticket / School / Name"
                     value={searchText}
                     onChange={(e) => setSearchText(e.target.value)}
-                    className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm"
+                    className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm"
                   />
                 </form>
                 <button
                   onClick={() => setIsFilterModalOpen(true)}
                   className={`p-2.5 border rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-bold ${
                     filterTicketNo || filterSegment || filterSchoolName
-                      ? 'bg-teal-550 border-teal-550 text-white shadow-sm shadow-teal-550/20'
+                      ? 'bg-indigo-550 border-indigo-550 text-white shadow-sm shadow-indigo-550/20'
                       : 'text-slate-550 hover:bg-slate-50 border-slate-200 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-800'
                   }`}
                   title="Filter Search Options"
@@ -740,7 +740,7 @@ export default function AllTicketPage() {
                     <tr>
                       <td colSpan={8} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">
                         <div className="flex items-center justify-center gap-2">
-                          <Loader2 className="w-5 h-5 animate-spin text-teal-600" />
+                          <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
                           Loading tickets...
                         </div>
                       </td>
@@ -761,7 +761,7 @@ export default function AllTicketPage() {
                             <select
                               value={t.assigned_to || ''}
                               onChange={(e) => handleAssignStaffChange(t.id, e.target.value)}
-                              className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-750 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
+                              className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-750 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
                             >
                               <option value="">Assign Staff</option>
                               {STAFF_LIST.map(staff => (
@@ -770,7 +770,7 @@ export default function AllTicketPage() {
                             </select>
                           </td>
                           <td className="px-5 py-4">
-                            <span className="font-mono font-bold text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 px-3 py-1 rounded-lg text-xs tracking-wider uppercase">
+                            <span className="font-mono font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-lg text-xs tracking-wider uppercase">
                               {t.ticket_no}
                             </span>
                           </td>
@@ -827,14 +827,14 @@ export default function AllTicketPage() {
                   <button
                     disabled={currentPage === 1}
                     onClick={() => fetchTickets(1, searchText, activeTab, filterSegment, filterSchoolName, filterTicketNo)}
-                    className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-350 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                    className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-350 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                   >
                     {'<<'}
                   </button>
                   <button
                     disabled={currentPage === 1}
                     onClick={() => fetchTickets(currentPage - 1, searchText, activeTab, filterSegment, filterSchoolName, filterTicketNo)}
-                    className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-350 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                    className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-350 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
@@ -844,8 +844,8 @@ export default function AllTicketPage() {
                       onClick={() => fetchTickets(pg, searchText, activeTab, filterSegment, filterSchoolName, filterTicketNo)}
                       className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                         pg === currentPage
-                          ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/25'
-                          : 'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 bg-white dark:bg-slate-700'
+                          ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
+                          : 'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-700'
                       }`}
                     >
                       {pg}
@@ -854,14 +854,14 @@ export default function AllTicketPage() {
                   <button
                     disabled={currentPage === totalPages}
                     onClick={() => fetchTickets(currentPage + 1, searchText, activeTab, filterSegment, filterSchoolName, filterTicketNo)}
-                    className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-350 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                    className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-350 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
                   <button
                     disabled={currentPage === totalPages}
                     onClick={() => fetchTickets(totalPages, searchText, activeTab, filterSegment, filterSchoolName, filterTicketNo)}
-                    className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-350 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                    className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-350 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                   >
                     {'>>'}
                   </button>
@@ -896,7 +896,7 @@ export default function AllTicketPage() {
                   placeholder="e.g. Tick12345"
                   value={filterTicketNo}
                   onChange={(e) => setFilterTicketNo(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                 />
               </div>
 
@@ -906,7 +906,7 @@ export default function AllTicketPage() {
                 <select
                   value={filterSegment}
                   onChange={(e) => setFilterSegment(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                 >
                   <option value="">All Segments</option>
                   {segments.map(seg => (
@@ -923,7 +923,7 @@ export default function AllTicketPage() {
                   placeholder="e.g. abcdschool"
                   value={filterSchoolName}
                   onChange={(e) => setFilterSchoolName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                 />
               </div>
             </div>
@@ -937,7 +937,7 @@ export default function AllTicketPage() {
               </button>
               <button
                 onClick={handleApplyFilters}
-                className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-all cursor-pointer text-center shadow-md"
+                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all cursor-pointer text-center shadow-md"
               >
                 Apply Filters
               </button>

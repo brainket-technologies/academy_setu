@@ -184,7 +184,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
     return (
       <AdminLayout>
         <div className="flex flex-col items-center justify-center min-h-[400px] gap-2">
-          <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
           <p className="text-slate-500 dark:text-slate-400 font-medium">Loading Application Details...</p>
         </div>
       </AdminLayout>
@@ -224,7 +224,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                     type="text"
                     value={schoolName}
                     onChange={(e) => setSchoolName(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm font-medium"
+                    className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm font-medium"
                   />
                 </div>
 
@@ -236,7 +236,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                       type="text"
                       value={schoolCode}
                       onChange={(e) => setSchoolCode(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm font-medium"
+                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm font-medium"
                     />
                   </div>
                   <div className="flex flex-col gap-2">
@@ -245,7 +245,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                       type="text"
                       value={affiliatedTo}
                       onChange={(e) => setAffiliatedTo(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm font-medium"
+                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm font-medium"
                     />
                   </div>
                   <div className="flex flex-col gap-2">
@@ -254,7 +254,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                       type="text"
                       value={affiliationCode}
                       onChange={(e) => setAffiliationCode(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm font-medium"
+                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm font-medium"
                     />
                   </div>
                 </div>
@@ -267,7 +267,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                       type="text"
                       value={contactPerson}
                       onChange={(e) => setContactPerson(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm font-medium"
+                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm font-medium"
                     />
                   </div>
                   <div className="flex flex-col gap-2">
@@ -276,7 +276,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                       type="text"
                       value={mobileNo}
                       onChange={(e) => setMobileNo(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm font-medium"
+                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm font-medium"
                     />
                   </div>
                   <div className="flex flex-col gap-2">
@@ -285,7 +285,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                       type="email"
                       value={emailId}
                       onChange={(e) => setEmailId(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm font-medium"
+                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm font-medium"
                     />
                   </div>
                 </div>
@@ -297,7 +297,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                     type="text"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm font-medium"
+                    className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm font-medium"
                   />
                 </div>
 
@@ -309,7 +309,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                       type="text"
                       value={stateName}
                       onChange={(e) => setStateName(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm font-medium"
+                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm font-medium"
                     />
                   </div>
                   <div className="flex flex-col gap-2">
@@ -318,7 +318,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                       type="text"
                       value={districtName}
                       onChange={(e) => setDistrictName(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm font-medium"
+                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm font-medium"
                     />
                   </div>
                   <div className="flex flex-col gap-2">
@@ -327,7 +327,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                       type="text"
                       value={pincode}
                       onChange={(e) => setPincode(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm font-medium"
+                      className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm font-medium"
                     />
                   </div>
                 </div>
@@ -344,7 +344,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                           type="text"
                           value={principalName}
                           onChange={(e) => setPrincipalName(e.target.value)}
-                          className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-sm text-slate-700 dark:text-slate-200"
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm text-slate-700 dark:text-slate-200"
                         />
                       </div>
                       
@@ -359,7 +359,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                                 value={g}
                                 checked={principalGender === g}
                                 onChange={() => setPrincipalGender(g as any)}
-                                className="text-teal-600 focus:ring-teal-500"
+                                className="text-indigo-600 focus:ring-indigo-500"
                               />
                               {g}
                             </label>
@@ -396,7 +396,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                           <img src={principalPhoto} alt="Principal" className="w-full h-full object-cover" />
                         ) : (
                           <div className="flex flex-col items-center gap-1 text-slate-400">
-                            <div className="p-2.5 bg-teal-50 dark:bg-teal-900/40 rounded-xl text-teal-600 dark:text-teal-400">
+                            <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/40 rounded-xl text-indigo-600 dark:text-indigo-400">
                               <Camera className="w-5 h-5" />
                             </div>
                           </div>
@@ -423,7 +423,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                           type="text"
                           value={directorName}
                           onChange={(e) => setDirectorName(e.target.value)}
-                          className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-sm text-slate-700 dark:text-slate-200"
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm text-slate-700 dark:text-slate-200"
                         />
                       </div>
                       
@@ -438,7 +438,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                                 value={g}
                                 checked={directorGender === g}
                                 onChange={() => setDirectorGender(g as any)}
-                                className="text-teal-600 focus:ring-teal-500"
+                                className="text-indigo-600 focus:ring-indigo-500"
                               />
                               {g}
                             </label>
@@ -475,7 +475,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                           <img src={directorPhoto} alt="Director" className="w-full h-full object-cover" />
                         ) : (
                           <div className="flex flex-col items-center gap-1 text-slate-400">
-                            <div className="p-2.5 bg-teal-50 dark:bg-teal-900/40 rounded-xl text-teal-600 dark:text-teal-400">
+                            <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/40 rounded-xl text-indigo-600 dark:text-indigo-400">
                               <Camera className="w-5 h-5" />
                             </div>
                           </div>
@@ -510,7 +510,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value as any)}
-                    className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm cursor-pointer font-medium"
+                    className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer font-medium"
                   >
                     <option value="Applied">Applied</option>
                     <option value="Paid">Paid</option>
@@ -526,7 +526,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                   <select
                     value={enquiryStatus}
                     onChange={(e) => setEnquiryStatus(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm cursor-pointer font-medium"
+                    className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer font-medium"
                   >
                     <option value="Applied">Applied</option>
                     <option value="In Review">In Review</option>
@@ -545,7 +545,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                   <select
                     value={plan}
                     onChange={(e) => setPlan(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm cursor-pointer font-medium"
+                    className="w-full px-4 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer font-medium"
                   >
                     <option value="">Select Plan</option>
                     <option value="Premium Plan">Premium Plan</option>
@@ -561,14 +561,14 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                     <select
                       value={promoCode}
                       onChange={(e) => setPromoCode(e.target.value)}
-                      className="w-full pl-4 pr-12 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm cursor-pointer appearance-none font-medium"
+                      className="w-full pl-4 pr-12 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer appearance-none font-medium"
                     >
                       <option value="">Select Promo Code</option>
                       <option value="WELCOME10">WELCOME10</option>
                       <option value="FESTIVE20">FESTIVE20</option>
                       <option value="SCHOOLDISCOUNT">SCHOOLDISCOUNT</option>
                     </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-teal-600 dark:text-teal-400 font-bold bg-teal-50 dark:bg-teal-900/40 border border-teal-100 dark:border-teal-800 rounded-lg p-1 px-2 pointer-events-none">
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-800 rounded-lg p-1 px-2 pointer-events-none">
                       <span className="text-xs font-bold leading-none">%</span>
                     </div>
                   </div>
@@ -588,7 +588,7 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-10 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-teal-600/10 cursor-pointer flex items-center justify-center gap-2"
+                className="px-10 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center justify-center gap-2"
               >
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 Save & Next

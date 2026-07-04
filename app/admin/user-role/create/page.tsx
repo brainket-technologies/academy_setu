@@ -92,7 +92,7 @@ function UserWizardContent() {
               email: u.email || '',
               phone: u.phone || '',
               role: u.role || 'Admin',
-              roleName: u.role === 'Custom' ? (u.role_name || '') : '',
+              roleName: '',
               joining_date: formatInputDate(u.joining_date),
               permissions: u.permissions || [],
               id_no: u.id_no || '',
@@ -125,6 +125,20 @@ function UserWizardContent() {
     }
   }, [userId, roleParam])
 
+  // Scrub invalid permissions when role changes
+  useEffect(() => {
+    if (formData.role === 'BDM' || formData.role === 'Manager') {
+      const allowed = ['Lead Permission', 'Conversation Permission', 'Application Permission']
+      setFormData(prev => {
+        const validPerms = prev.permissions.filter(p => allowed.includes(p))
+        if (validPerms.length !== prev.permissions.length) {
+          return { ...prev, permissions: validPerms }
+        }
+        return prev
+      })
+    }
+  }, [formData.role])
+
   // Permission selection
   const handleAddPermission = (perm: string) => {
     if (!formData.permissions.includes(perm)) {
@@ -156,7 +170,6 @@ function UserWizardContent() {
     if (step === 1) {
       if (!formData.name) return 'Full Name is required'
       if (!formData.email) return 'Email Address is required'
-      if (formData.role === 'Custom' && !formData.roleName) return 'User Role Name is required for custom roles'
       if (!userId && !formData.password) return 'Password is required'
       if (formData.password && formData.password !== formData.confirmPassword) return 'Passwords do not match'
       return null
@@ -201,7 +214,7 @@ function UserWizardContent() {
       const payload = {
         name: formData.name,
         email: formData.email,
-        role: formData.role === 'Custom' ? formData.roleName : formData.role,
+        role: formData.role,
         phone: formData.phone,
         id_no: formData.id_no || `AS${Math.floor(100 + Math.random() * 900)}`,
         avatar_url: formData.avatar_url || 'https://i.pravatar.cc/150?u=' + formData.email,
@@ -255,7 +268,7 @@ function UserWizardContent() {
     return (
       <AdminLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-          <Loader2 className="w-10 h-10 animate-spin text-teal-650" />
+          <Loader2 className="w-10 h-10 animate-spin text-indigo-650" />
           <span className="text-sm font-semibold text-slate-500">Retrieving user profile...</span>
         </div>
       </AdminLayout>
@@ -265,7 +278,7 @@ function UserWizardContent() {
   return (
     <AdminLayout>
       <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto print:p-0">
-        
+
         {/* Header Title Card */}
         {activeStep < 4 ? (
           <div className="bg-white dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm flex items-center justify-between">
@@ -297,7 +310,7 @@ function UserWizardContent() {
             </div>
             <button
               onClick={handlePrint}
-              className="p-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-md transition-colors cursor-pointer flex items-center gap-1.5 font-semibold text-sm"
+              className="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md transition-colors cursor-pointer flex items-center gap-1.5 font-semibold text-sm"
               title="Print Preview"
             >
               <Printer className="w-5 h-5" /> Print Info
@@ -312,33 +325,30 @@ function UserWizardContent() {
             <div className="grid grid-cols-3 gap-2 border border-slate-100 dark:border-slate-700 rounded-xl overflow-hidden p-1 bg-slate-50/50 dark:bg-slate-800/30">
               <button
                 type="button"
-                className={`py-3 rounded-lg font-bold text-xs transition-all ${
-                  activeStep === 1
-                    ? 'bg-teal-600 text-white shadow-sm'
+                className={`py-3 rounded-lg font-bold text-xs transition-all ${activeStep === 1
+                    ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
-                }`}
+                  }`}
                 onClick={() => activeStep > 1 && setActiveStep(1)}
               >
                 Personal Details
               </button>
               <button
                 type="button"
-                className={`py-3 rounded-lg font-bold text-xs transition-all ${
-                  activeStep === 2
-                    ? 'bg-teal-600 text-white shadow-sm'
+                className={`py-3 rounded-lg font-bold text-xs transition-all ${activeStep === 2
+                    ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
-                }`}
+                  }`}
                 onClick={() => activeStep > 2 && setActiveStep(2)}
               >
                 Address Details
               </button>
               <button
                 type="button"
-                className={`py-3 rounded-lg font-bold text-xs transition-all ${
-                  activeStep === 3
-                    ? 'bg-teal-600 text-white shadow-sm'
+                className={`py-3 rounded-lg font-bold text-xs transition-all ${activeStep === 3
+                    ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
-                }`}
+                  }`}
                 onClick={() => activeStep > 3 && setActiveStep(3)}
               >
                 Log in Criteria
@@ -348,43 +358,40 @@ function UserWizardContent() {
             {/* Timeline progress connector line */}
             <div className="relative flex items-center justify-between px-16 mt-6 pb-2">
               <div className="absolute left-16 right-16 top-1/2 -translate-y-1/2 h-0.5 bg-slate-200 dark:bg-slate-700 -z-10">
-                <div 
-                  className="h-full bg-teal-500 transition-all duration-300"
+                <div
+                  className="h-full bg-indigo-500 transition-all duration-300"
                   style={{ width: `${((activeStep - 1) / 2) * 100}%` }}
                 />
               </div>
 
               {/* Step 1 dot */}
               <div className="flex flex-col items-center">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold transition-all ${
-                  activeStep > 1 
-                    ? 'bg-green-500' 
-                    : 'bg-teal-600 ring-4 ring-teal-100 dark:ring-teal-900/50'
-                }`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold transition-all ${activeStep > 1
+                    ? 'bg-green-500'
+                    : 'bg-indigo-600 ring-4 ring-indigo-100 dark:ring-indigo-900/50'
+                  }`}>
                   {activeStep > 1 ? <Check className="w-3.5 h-3.5" /> : <div className="w-1.5 h-1.5 bg-white rounded-full" />}
                 </div>
               </div>
 
               {/* Step 2 dot */}
               <div className="flex flex-col items-center">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold transition-all ${
-                  activeStep > 2 
-                    ? 'bg-green-500' 
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold transition-all ${activeStep > 2
+                    ? 'bg-green-500'
                     : activeStep === 2
-                      ? 'bg-teal-600 ring-4 ring-teal-100 dark:ring-teal-900/50'
+                      ? 'bg-indigo-600 ring-4 ring-indigo-100 dark:ring-indigo-900/50'
                       : 'bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 text-slate-400'
-                }`}>
+                  }`}>
                   {activeStep > 2 ? <Check className="w-3.5 h-3.5" /> : activeStep === 2 ? <div className="w-1.5 h-1.5 bg-white rounded-full" /> : null}
                 </div>
               </div>
 
               {/* Step 3 dot */}
               <div className="flex flex-col items-center">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold transition-all ${
-                  activeStep === 3
-                    ? 'bg-teal-600 ring-4 ring-teal-100 dark:ring-teal-900/50'
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold transition-all ${activeStep === 3
+                    ? 'bg-indigo-600 ring-4 ring-indigo-100 dark:ring-indigo-900/50'
                     : 'bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-600 text-slate-400'
-                }`}>
+                  }`}>
                   {activeStep === 3 ? <div className="w-1.5 h-1.5 bg-white rounded-full" /> : null}
                 </div>
               </div>
@@ -408,28 +415,14 @@ function UserWizardContent() {
                   <select
                     value={formData.role}
                     onChange={e => setFormData(prev => ({ ...prev, role: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all cursor-pointer"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all cursor-pointer"
                   >
                     <option value="Admin">Admin</option>
                     <option value="Manager">Manager</option>
                     <option value="BDM">BDM</option>
                     <option value="Support Team">Support Team</option>
-                    <option value="Custom">Custom</option>
                   </select>
                 </div>
-
-                {formData.role === 'Custom' && (
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-450 mb-1.5">User Role Name *</label>
-                    <input
-                      type="text"
-                      placeholder="Enter User Role Name"
-                      value={formData.roleName}
-                      onChange={e => setFormData(prev => ({ ...prev, roleName: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all"
-                    />
-                  </div>
-                )}
 
                 <div>
                   <label className="block text-xs font-bold text-slate-600 dark:text-slate-450 mb-1.5">Joining Date</label>
@@ -438,7 +431,7 @@ function UserWizardContent() {
                       type="date"
                       value={formData.joining_date}
                       onChange={e => setFormData(prev => ({ ...prev, joining_date: e.target.value }))}
-                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all cursor-pointer"
+                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all cursor-pointer"
                     />
                     <Calendar className="absolute right-3.5 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
                   </div>
@@ -450,15 +443,15 @@ function UserWizardContent() {
                 <label className="block text-xs font-bold text-slate-600 dark:text-slate-450 mb-1.5">Permissions (Select Multiple Permission)</label>
                 <div className="border border-slate-200 dark:border-slate-750 rounded-xl p-3 bg-slate-50/30 dark:bg-slate-900/10 min-h-[44px] flex flex-wrap gap-2 items-center">
                   {formData.permissions.map(perm => (
-                    <span 
+                    <span
                       key={perm}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-teal-550/10 border border-teal-100 dark:border-teal-900/50 rounded-full text-xs font-bold text-teal-600 dark:text-teal-400 shadow-sm"
+                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-550/10 border border-indigo-100 dark:border-indigo-900/50 rounded-full text-xs font-bold text-indigo-600 dark:text-indigo-400 shadow-sm"
                     >
                       {perm}
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         onClick={() => handleRemovePermission(perm)}
-                        className="text-teal-400 hover:text-teal-650 p-0.5 rounded-full hover:bg-teal-100/50 cursor-pointer"
+                        className="text-indigo-400 hover:text-indigo-650 p-0.5 rounded-full hover:bg-indigo-100/50 cursor-pointer"
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -473,12 +466,17 @@ function UserWizardContent() {
                 <div className="mt-2.5 flex items-center gap-2">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Quick Add:</span>
                   <div className="flex flex-wrap gap-1.5">
-                    {PERMISSION_OPTIONS.filter(o => !formData.permissions.includes(o)).map(o => (
+                    {PERMISSION_OPTIONS.filter(o => !formData.permissions.includes(o)).filter(o => {
+                      if (formData.role === 'BDM' || formData.role === 'Manager') {
+                        return ['Lead Permission', 'Conversation Permission', 'Application Permission'].includes(o)
+                      }
+                      return true
+                    }).map(o => (
                       <button
                         key={o}
                         type="button"
                         onClick={() => handleAddPermission(o)}
-                        className="px-2.5 py-1 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-350 hover:bg-teal-50 hover:text-teal-650 hover:border-teal-200 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                        className="px-2.5 py-1 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-350 hover:bg-indigo-50 hover:text-indigo-650 hover:border-indigo-200 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
                       >
                         + {o.split(' ')[0]}
                       </button>
@@ -505,7 +503,7 @@ function UserWizardContent() {
                       placeholder="Enter ID No."
                       value={formData.id_no}
                       onChange={e => setFormData(prev => ({ ...prev, id_no: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all font-semibold"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all font-semibold"
                     />
                   </div>
 
@@ -516,13 +514,13 @@ function UserWizardContent() {
                       placeholder="Enter Name"
                       value={formData.name}
                       onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all font-semibold"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all font-semibold"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-450 mb-1.5">Mobile No. *</label>
-                    <div className="flex border border-slate-200 dark:border-slate-750 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-teal-500/20 focus-within:border-teal-500 bg-white dark:bg-slate-800 transition-all">
+                    <div className="flex border border-slate-200 dark:border-slate-750 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 bg-white dark:bg-slate-800 transition-all">
                       <select className="px-3 border-r border-slate-100 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-350 text-xs font-semibold focus:outline-none cursor-pointer">
                         <option>+91</option>
                         <option>+1</option>
@@ -544,7 +542,7 @@ function UserWizardContent() {
                       placeholder="Enter Email ID"
                       value={formData.email}
                       onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all font-semibold"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all font-semibold"
                     />
                   </div>
 
@@ -559,7 +557,7 @@ function UserWizardContent() {
                             value={g}
                             checked={formData.gender === g}
                             onChange={() => setFormData(prev => ({ ...prev, gender: g }))}
-                            className="w-4 h-4 text-teal-600 border-slate-300 dark:border-slate-650 bg-white dark:bg-slate-800 focus:ring-teal-500 cursor-pointer"
+                            className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-650 bg-white dark:bg-slate-800 focus:ring-indigo-500 cursor-pointer"
                           />
                           {g}
                         </label>
@@ -574,13 +572,13 @@ function UserWizardContent() {
                     {formData.avatar_url ? (
                       <img src={formData.avatar_url} alt="Profile" className="w-full h-full object-cover" />
                     ) : (
-                      <Camera className="w-8 h-8 text-teal-600" />
+                      <Camera className="w-8 h-8 text-indigo-600" />
                     )}
                   </div>
                   <button
                     type="button"
                     onClick={() => handleMockUpload('avatar_url')}
-                    className="px-4 py-2 border border-teal-500 dark:border-teal-700 hover:bg-teal-500 hover:text-white rounded-xl text-xs font-bold text-teal-600 dark:text-teal-400 transition-all cursor-pointer shadow-sm shadow-teal-500/5 flex items-center gap-1.5"
+                    className="px-4 py-2 border border-indigo-500 dark:border-indigo-700 hover:bg-indigo-500 hover:text-white rounded-xl text-xs font-bold text-indigo-600 dark:text-indigo-400 transition-all cursor-pointer shadow-sm shadow-indigo-500/5 flex items-center gap-1.5"
                   >
                     <Camera className="w-3.5 h-3.5" /> Upload Photo
                   </button>
@@ -603,7 +601,7 @@ function UserWizardContent() {
                     placeholder="Enter User Name"
                     value={formData.username}
                     onChange={e => setFormData(prev => ({ ...prev, username: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all font-semibold"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all font-semibold"
                   />
                 </div>
 
@@ -617,7 +615,7 @@ function UserWizardContent() {
                       placeholder="Enter Password"
                       value={formData.password}
                       onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all font-semibold"
+                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all font-semibold"
                     />
                     <button
                       type="button"
@@ -637,7 +635,7 @@ function UserWizardContent() {
                       placeholder="Confirm Password"
                       value={formData.confirmPassword}
                       onChange={e => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all font-semibold"
+                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all font-semibold"
                     />
                     <button
                       type="button"
@@ -663,7 +661,7 @@ function UserWizardContent() {
               <button
                 type="button"
                 onClick={handleNext}
-                className="px-8 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-bold shadow-md shadow-teal-600/10 transition-all cursor-pointer"
+                className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-600/10 transition-all cursor-pointer"
               >
                 Save & Next
               </button>
@@ -689,7 +687,7 @@ function UserWizardContent() {
                     placeholder="Enter Address"
                     value={formData.address}
                     onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all font-semibold"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all font-semibold"
                   />
                 </div>
 
@@ -699,7 +697,7 @@ function UserWizardContent() {
                     <select
                       value={formData.state}
                       onChange={e => setFormData(prev => ({ ...prev, state: e.target.value, district: '' }))}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all cursor-pointer font-semibold"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all cursor-pointer font-semibold"
                     >
                       <option value="">Select State</option>
                       {Object.keys(STATES_AND_DISTRICTS).map(st => (
@@ -714,7 +712,7 @@ function UserWizardContent() {
                       value={formData.district}
                       disabled={!formData.state}
                       onChange={e => setFormData(prev => ({ ...prev, district: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all cursor-pointer font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all cursor-pointer font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <option value="">Select District</option>
                       {formData.state && STATES_AND_DISTRICTS[formData.state]?.map(dist => (
@@ -731,7 +729,7 @@ function UserWizardContent() {
                       placeholder="Enter Pincode"
                       value={formData.pincode}
                       onChange={e => setFormData(prev => ({ ...prev, pincode: e.target.value.replace(/\D/g, '') }))}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all font-semibold"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all font-semibold"
                     />
                   </div>
                 </div>
@@ -754,18 +752,18 @@ function UserWizardContent() {
                     placeholder="Enter Aadhar No."
                     value={formData.aadhar_no}
                     onChange={e => setFormData(prev => ({ ...prev, aadhar_no: e.target.value.replace(/\D/g, '') }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all font-semibold"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all font-semibold"
                   />
                 </div>
 
                 {/* Attach Aadhar file input card styling */}
                 <div>
                   <label className="block text-xs font-bold text-slate-600 dark:text-slate-450 mb-1.5">Attach Aadhar</label>
-                  <div 
+                  <div
                     onClick={() => handleMockUpload('aadhar_card_url')}
-                    className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm hover:border-teal-500/60 transition-all cursor-pointer"
+                    className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm hover:border-indigo-500/60 transition-all cursor-pointer"
                   >
-                    <span className={`truncate font-semibold ${formData.aadhar_card_url ? 'text-teal-600 dark:text-teal-400 font-bold' : 'text-slate-400'}`}>
+                    <span className={`truncate font-semibold ${formData.aadhar_card_url ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-400'}`}>
                       {formData.aadhar_card_url || 'Upload Aadhar Photo'}
                     </span>
                     <Paperclip className="w-4 h-4 text-slate-400 flex-shrink-0" />
@@ -775,11 +773,11 @@ function UserWizardContent() {
                 {/* Attach Signature file input card styling */}
                 <div>
                   <label className="block text-xs font-bold text-slate-600 dark:text-slate-450 mb-1.5">Attach Signature</label>
-                  <div 
+                  <div
                     onClick={() => handleMockUpload('signature_url')}
-                    className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-755 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm hover:border-teal-500/60 transition-all cursor-pointer"
+                    className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-755 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm hover:border-indigo-500/60 transition-all cursor-pointer"
                   >
-                    <span className={`truncate font-semibold ${formData.signature_url ? 'text-teal-600 dark:text-teal-400 font-bold' : 'text-slate-400'}`}>
+                    <span className={`truncate font-semibold ${formData.signature_url ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-400'}`}>
                       {formData.signature_url || 'Upload Signature Photo'}
                     </span>
                     <Paperclip className="w-4 h-4 text-slate-400 flex-shrink-0" />
@@ -807,7 +805,7 @@ function UserWizardContent() {
               <button
                 type="button"
                 onClick={handleNext}
-                className="px-8 py-2.5 bg-teal-600 hover:bg-teal-750 text-white rounded-xl text-sm font-bold shadow-md shadow-teal-600/10 transition-all cursor-pointer"
+                className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-600/10 transition-all cursor-pointer"
               >
                 Save & Next
               </button>
@@ -836,7 +834,7 @@ function UserWizardContent() {
                           value={t}
                           checked={formData.login_time_type === t}
                           onChange={() => setFormData(prev => ({ ...prev, login_time_type: t }))}
-                          className="w-4 h-4 text-teal-600 border-slate-300 dark:border-slate-655 bg-white dark:bg-slate-800 focus:ring-teal-500 cursor-pointer"
+                          className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-655 bg-white dark:bg-slate-800 focus:ring-indigo-500 cursor-pointer"
                         />
                         {t}
                       </label>
@@ -853,7 +851,7 @@ function UserWizardContent() {
                           type="time"
                           value={formData.login_time}
                           onChange={e => setFormData(prev => ({ ...prev, login_time: e.target.value }))}
-                          className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-755 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all cursor-pointer font-semibold"
+                          className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-755 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all cursor-pointer font-semibold"
                         />
                         <Clock className="absolute right-3.5 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
                       </div>
@@ -865,7 +863,7 @@ function UserWizardContent() {
                           type="time"
                           value={formData.logout_time}
                           onChange={e => setFormData(prev => ({ ...prev, logout_time: e.target.value }))}
-                          className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-755 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all cursor-pointer font-semibold"
+                          className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-755 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all cursor-pointer font-semibold"
                         />
                         <Clock className="absolute right-3.5 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
                       </div>
@@ -880,7 +878,7 @@ function UserWizardContent() {
                       type="date"
                       value={formData.login_expire_date}
                       onChange={e => setFormData(prev => ({ ...prev, login_expire_date: e.target.value }))}
-                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-755 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all cursor-pointer font-semibold"
+                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-755 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all cursor-pointer font-semibold"
                     />
                     <Calendar className="absolute right-3.5 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
                   </div>
@@ -895,7 +893,7 @@ function UserWizardContent() {
                     placeholder="Enter No. of Device"
                     value={formData.device_permission_count}
                     onChange={e => setFormData(prev => ({ ...prev, device_permission_count: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-755 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:outline-none transition-all font-semibold"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-755 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all font-semibold"
                   />
                 </div>
               </div>
@@ -920,7 +918,7 @@ function UserWizardContent() {
               <button
                 type="button"
                 onClick={handleNext}
-                className="px-8 py-2.5 bg-teal-600 hover:bg-teal-750 text-white rounded-xl text-sm font-bold shadow-md shadow-teal-600/10 transition-all cursor-pointer"
+                className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-600/10 transition-all cursor-pointer"
               >
                 Save & Next
               </button>
@@ -931,17 +929,17 @@ function UserWizardContent() {
         {/* STEP 4: FINAL PREVIEW DESIGN - Matches mockup 4 */}
         {activeStep === 4 && (
           <div className="flex flex-col gap-6 animate-in zoom-in-95 duration-200 print:bg-white print:text-black">
-            
+
             {/* Grid of Preview Cards */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-              
+
               {/* Card 1: Basic Info - Left Side span 8 */}
               <div className="md:col-span-8 bg-white dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/60 rounded-2xl shadow-sm overflow-hidden flex flex-col">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 print:bg-slate-100">
                   <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Basic Info</h4>
-                  <button 
+                  <button
                     onClick={() => setActiveStep(1)}
-                    className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer print:hidden flex items-center gap-1"
+                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer print:hidden flex items-center gap-1"
                   >
                     <Plus className="w-3.5 h-3.5" /> Edit
                   </button>
@@ -955,7 +953,7 @@ function UserWizardContent() {
                     ) : (
                       <Camera className="w-6 h-6 text-slate-400" />
                     )}
-                    <div className="absolute bottom-0 right-0 w-7 h-7 bg-teal-600 rounded-full flex items-center justify-center text-white border-2 border-white shadow-md print:hidden">
+                    <div className="absolute bottom-0 right-0 w-7 h-7 bg-indigo-600 rounded-full flex items-center justify-center text-white border-2 border-white shadow-md print:hidden">
                       <Camera className="w-3.5 h-3.5" />
                     </div>
                   </div>
@@ -1002,9 +1000,9 @@ function UserWizardContent() {
               <div className="md:col-span-4 bg-white dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/60 rounded-2xl shadow-sm overflow-hidden flex flex-col self-stretch">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 print:bg-slate-100">
                   <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Login & Account Details</h4>
-                  <button 
+                  <button
                     onClick={() => setActiveStep(1)}
-                    className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer print:hidden flex items-center gap-1"
+                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer print:hidden flex items-center gap-1"
                   >
                     <Plus className="w-3.5 h-3.5" /> Edit
                   </button>
@@ -1031,9 +1029,9 @@ function UserWizardContent() {
               <div className="md:col-span-6 bg-white dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/60 rounded-2xl shadow-sm overflow-hidden flex flex-col self-stretch">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 print:bg-slate-100">
                   <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Aadhar Details</h4>
-                  <button 
+                  <button
                     onClick={() => setActiveStep(2)}
-                    className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer print:hidden flex items-center gap-1"
+                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer print:hidden flex items-center gap-1"
                   >
                     <Plus className="w-3.5 h-3.5" /> Edit
                   </button>
@@ -1047,8 +1045,8 @@ function UserWizardContent() {
 
                   <div className="flex justify-between items-center py-2">
                     <span className="text-slate-400 font-semibold">Aadhar Card</span>
-                    <span className="font-bold text-teal-600 dark:text-teal-400 flex items-center gap-1">
-                      <FileText className="w-4 h-4 text-teal-500" /> {formData.aadhar_card_url || 'Not Attached'}
+                    <span className="font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                      <FileText className="w-4 h-4 text-indigo-500" /> {formData.aadhar_card_url || 'Not Attached'}
                     </span>
                   </div>
                 </div>
@@ -1058,9 +1056,9 @@ function UserWizardContent() {
               <div className="md:col-span-6 bg-white dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/60 rounded-2xl shadow-sm overflow-hidden flex flex-col self-stretch">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 print:bg-slate-100">
                   <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Address Details</h4>
-                  <button 
+                  <button
                     onClick={() => setActiveStep(2)}
-                    className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer print:hidden flex items-center gap-1"
+                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer print:hidden flex items-center gap-1"
                   >
                     <Plus className="w-3.5 h-3.5" /> Edit
                   </button>
@@ -1090,9 +1088,9 @@ function UserWizardContent() {
               <div className="md:col-span-12 bg-white dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/60 rounded-2xl shadow-sm overflow-hidden flex flex-col">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 print:bg-slate-100">
                   <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Log in Criteria</h4>
-                  <button 
+                  <button
                     onClick={() => setActiveStep(3)}
-                    className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer print:hidden flex items-center gap-1"
+                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer print:hidden flex items-center gap-1"
                   >
                     <Plus className="w-3.5 h-3.5" /> Edit
                   </button>
@@ -1138,7 +1136,7 @@ function UserWizardContent() {
               >
                 Back
               </button>
-              
+
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -1151,7 +1149,7 @@ function UserWizardContent() {
                   type="button"
                   disabled={submitting}
                   onClick={handleSubmit}
-                  className="px-10 py-2.5 bg-teal-600 hover:bg-teal-750 text-white rounded-xl text-sm font-bold shadow-md shadow-teal-600/10 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="px-10 py-2.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-600/10 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   Final Submit
@@ -1171,7 +1169,7 @@ export default function UserWizardPage() {
     <Suspense fallback={
       <AdminLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-          <Loader2 className="w-10 h-10 animate-spin text-teal-650" />
+          <Loader2 className="w-10 h-10 animate-spin text-indigo-650" />
           <span className="text-sm font-semibold text-slate-500">Loading progressive wizard...</span>
         </div>
       </AdminLayout>

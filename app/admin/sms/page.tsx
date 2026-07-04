@@ -216,7 +216,7 @@ export default function SmsOrderPage() {
               placeholder="Search schools..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50/50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 dark:text-slate-350"
+              className="w-full pl-10 pr-4 py-2 bg-slate-50/50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:text-slate-350"
             />
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           </div>
@@ -240,7 +240,7 @@ export default function SmsOrderPage() {
               {loading ? (
                 <tr>
                   <td colSpan={activeTab === 'New Order' ? 7 : 8} className="py-20 text-center">
-                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-teal-600" />
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
                   </td>
                 </tr>
               ) : orders.length === 0 ? (
@@ -310,7 +310,7 @@ export default function SmsOrderPage() {
                                 }}
                                 className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors cursor-pointer ${
                                   ord.status === st 
-                                    ? 'bg-slate-50 dark:bg-slate-700 text-teal-650 dark:text-teal-400' 
+                                    ? 'bg-slate-50 dark:bg-slate-700 text-indigo-650 dark:text-indigo-400' 
                                     : 'text-slate-700 dark:text-slate-355'
                                 }`}
                               >
@@ -328,7 +328,7 @@ export default function SmsOrderPage() {
                             setSelectedOrder(ord)
                             setEditStatus(ord.status)
                           }}
-                          className="p-1.5 rounded-lg bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 hover:bg-teal-100 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors cursor-pointer"
                           title="View Details"
                         >
                           <Eye className="w-4 h-4" />
@@ -346,7 +346,7 @@ export default function SmsOrderPage() {
         <div className="md:hidden p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/10">
           {loading ? (
             <div className="py-12 text-center">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto text-teal-600" />
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
             </div>
           ) : orders.length === 0 ? (
             <div className="py-8 text-center text-slate-500 text-xs">
@@ -368,7 +368,7 @@ export default function SmsOrderPage() {
                       setSelectedOrder(ord)
                       setEditStatus(ord.status)
                     }}
-                    className="p-2 bg-teal-50 dark:bg-teal-950/30 text-teal-600 dark:text-teal-400 rounded-xl cursor-pointer"
+                    className="p-2 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-xl cursor-pointer"
                   >
                     <Eye className="w-4 h-4" />
                   </button>
@@ -389,7 +389,7 @@ export default function SmsOrderPage() {
                   </div>
                   <div className="mt-1">
                     <span className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Paid Amount</span>
-                    <span className="text-teal-650 dark:text-teal-400 font-extrabold">₹{parseFloat(String(ord.amount)).toFixed(2)}</span>
+                    <span className="text-indigo-650 dark:text-indigo-400 font-extrabold">₹{parseFloat(String(ord.amount)).toFixed(2)}</span>
                   </div>
                 </div>
 
@@ -434,7 +434,7 @@ export default function SmsOrderPage() {
                             }}
                             className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors cursor-pointer ${
                               ord.status === st 
-                                ? 'bg-slate-50 dark:bg-slate-700 text-teal-650 dark:text-teal-400' 
+                                ? 'bg-slate-50 dark:bg-slate-700 text-indigo-650 dark:text-indigo-400' 
                                 : 'text-slate-700 dark:text-slate-355'
                             }`}
                           >
@@ -461,7 +461,7 @@ export default function SmsOrderPage() {
             <button className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-850 cursor-pointer disabled:opacity-50" disabled>
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <button className="px-3 py-1.5 rounded-lg bg-teal-600 text-white font-bold cursor-pointer">
+            <button className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold cursor-pointer">
               1
             </button>
             <button className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-850 cursor-pointer">
@@ -620,7 +620,7 @@ export default function SmsOrderPage() {
                   <select
                     value={editStatus}
                     onChange={e => setEditStatus(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:text-slate-200 cursor-pointer"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:text-slate-200 cursor-pointer"
                   >
                     <option value="New Order">New Order</option>
                     <option value="Active">Active</option>
@@ -644,7 +644,7 @@ export default function SmsOrderPage() {
               <button
                 type="button"
                 onClick={handleUpdateStatus}
-                className="px-5 py-2.5 bg-teal-650 hover:bg-teal-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-teal-600/10 transition-colors cursor-pointer"
+                className="px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-indigo-600/10 transition-colors cursor-pointer"
               >
                 Update
               </button>

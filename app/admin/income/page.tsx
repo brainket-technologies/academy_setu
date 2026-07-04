@@ -372,14 +372,14 @@ export default function AllIncomePage() {
                 placeholder="Search Reference No, category..."
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all font-medium"
+                className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-medium"
               />
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
             </form>
 
             <button
               onClick={() => setIsFilterModalOpen(true)}
-              className="p-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-md shadow-teal-600/10 transition-colors cursor-pointer"
+              className="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-600/10 transition-colors cursor-pointer"
               title="Filter Income"
             >
               <Filter className="w-5 h-5" />
@@ -387,7 +387,7 @@ export default function AllIncomePage() {
 
             <button
               onClick={handleExport}
-              className="p-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 hover:text-teal-650 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              className="p-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
               title="Export CSV"
             >
               <Download className="w-5 h-5" />
@@ -395,7 +395,7 @@ export default function AllIncomePage() {
 
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm shadow-md shadow-teal-600/10 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-600/10 transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Add Income
             </button>
@@ -404,11 +404,11 @@ export default function AllIncomePage() {
 
         {/* Filters Summary (If any filter is active) */}
         {(activeFilters.startDate || activeFilters.endDate || activeFilters.payment_mode || activeFilters.category || activeFilters.session || activeFilters.received_from) && (
-          <div className="flex items-center justify-between px-4 py-2.5 bg-teal-50/50 dark:bg-teal-950/20 border border-teal-100 dark:border-teal-900 rounded-xl">
-            <span className="text-xs font-semibold text-teal-800 dark:text-teal-400">Active filters applied</span>
+          <div className="flex items-center justify-between px-4 py-2.5 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900 rounded-xl">
+            <span className="text-xs font-semibold text-indigo-800 dark:text-indigo-400">Active filters applied</span>
             <button
               onClick={handleResetFilters}
-              className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer"
+              className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
             >
               Reset Filters
             </button>
@@ -439,7 +439,7 @@ export default function AllIncomePage() {
                   <tr>
                     <td colSpan={11} className="py-12 text-center">
                       <div className="flex flex-col items-center justify-center gap-2">
-                        <Loader2 className="w-6 h-6 animate-spin text-teal-600" />
+                        <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
                         <span className="text-xs font-medium text-slate-400">Loading income records...</span>
                       </div>
                     </td>
@@ -477,7 +477,7 @@ export default function AllIncomePage() {
                         <td className="py-4 px-6 text-center">
                           <button
                             onClick={() => toast.success(`Viewing invoice for Reference No: ${row.trans_id}`)}
-                            className="p-1.5 border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 rounded-xl text-slate-400 hover:text-teal-600 transition-all cursor-pointer"
+                            className="p-1.5 border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 rounded-xl text-slate-400 hover:text-indigo-600 transition-all cursor-pointer"
                             title="Invoice Details"
                           >
                             <FileText className="w-4.5 h-4.5" />
@@ -541,7 +541,7 @@ export default function AllIncomePage() {
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                <span className="px-3 py-1 bg-teal-600 text-white border border-teal-650 rounded-lg text-xs font-bold">
+                <span className="px-3 py-1 bg-indigo-600 text-white border border-indigo-650 rounded-lg text-xs font-bold">
                   {currentPage}
                 </span>
                 {totalPages >= 2 && (
@@ -550,7 +550,7 @@ export default function AllIncomePage() {
                     onClick={() => setCurrentPage(2)}
                     className={`px-3 py-1 rounded-lg text-xs font-bold border ${
                       currentPage === 2
-                        ? 'bg-teal-600 text-white border-teal-650'
+                        ? 'bg-indigo-600 text-white border-indigo-650'
                         : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
@@ -601,7 +601,7 @@ export default function AllIncomePage() {
                       type="date"
                       value={filters.startDate}
                       onChange={e => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                     />
                   </div>
                 </div>
@@ -612,7 +612,7 @@ export default function AllIncomePage() {
                       type="date"
                       value={filters.endDate}
                       onChange={e => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                     />
                   </div>
                 </div>
@@ -625,7 +625,7 @@ export default function AllIncomePage() {
                   <select
                     value={filters.payment_mode}
                     onChange={e => setFilters(prev => ({ ...prev, payment_mode: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                   >
                     <option value="">Select an option</option>
                     <option value="Cash">Cash</option>
@@ -639,7 +639,7 @@ export default function AllIncomePage() {
                   <select
                     value={filters.category}
                     onChange={e => setFilters(prev => ({ ...prev, category: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                   >
                     <option value="">Select an option</option>
                     {categories.map(c => (
@@ -656,7 +656,7 @@ export default function AllIncomePage() {
                   <select
                     value={filters.session}
                     onChange={e => setFilters(prev => ({ ...prev, session: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                   >
                     <option value="">Select an option</option>
                     {sessions.map(s => (
@@ -669,7 +669,7 @@ export default function AllIncomePage() {
                   <select
                     value={filters.received_from}
                     onChange={e => setFilters(prev => ({ ...prev, received_from: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                    className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                   >
                     <option value="">Select an option</option>
                     {parties.map(p => (
@@ -685,14 +685,14 @@ export default function AllIncomePage() {
               <button
                 type="button"
                 onClick={handleApplyFilters}
-                className="px-8 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-teal-600/10 cursor-pointer"
+                className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
               >
                 Filter
               </button>
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="px-8 py-2.5 border border-teal-600 hover:bg-teal-50 dark:hover:bg-slate-700 text-teal-600 dark:text-teal-400 bg-white dark:bg-slate-800 rounded-xl font-bold text-sm transition-all cursor-pointer"
+                className="px-8 py-2.5 border border-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-700 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 rounded-xl font-bold text-sm transition-all cursor-pointer"
               >
                 Clear
               </button>
@@ -731,7 +731,7 @@ export default function AllIncomePage() {
                       required
                       value={addForm.income_category}
                       onChange={e => setAddForm(prev => ({ ...prev, income_category: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                     >
                       <option value="">Select a Type</option>
                       {categories.map(c => (
@@ -747,7 +747,7 @@ export default function AllIncomePage() {
                       placeholder="Enter Reference No."
                       value={addForm.trans_id}
                       onChange={e => setAddForm(prev => ({ ...prev, trans_id: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                     />
                   </div>
 
@@ -758,7 +758,7 @@ export default function AllIncomePage() {
                       required
                       value={addForm.received_date}
                       onChange={e => setAddForm(prev => ({ ...prev, received_date: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                     />
                   </div>
                 </div>
@@ -774,7 +774,7 @@ export default function AllIncomePage() {
                       required
                       value={addForm.payment_mode}
                       onChange={e => setAddForm(prev => ({ ...prev, payment_mode: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                     >
                       <option value="">Select an Option</option>
                       <option value="Cash">Cash</option>
@@ -794,7 +794,7 @@ export default function AllIncomePage() {
                       placeholder="Enter Amount"
                       value={addForm.amount}
                       onChange={e => setAddForm(prev => ({ ...prev, amount: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                     />
                   </div>
 
@@ -803,7 +803,7 @@ export default function AllIncomePage() {
                     <select
                       value={addForm.payment_account}
                       onChange={e => setAddForm(prev => ({ ...prev, payment_account: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                     >
                       <option value="">Select an Option</option>
                       <option value="SBI">SBI Bank</option>
@@ -818,7 +818,7 @@ export default function AllIncomePage() {
                       required
                       value={addForm.received_from}
                       onChange={e => setAddForm(prev => ({ ...prev, received_from: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                     >
                       <option value="">Select an Option</option>
                       {parties.map(p => (
@@ -832,7 +832,7 @@ export default function AllIncomePage() {
                     <select
                       value={addForm.session_name}
                       onChange={e => setAddForm(prev => ({ ...prev, session_name: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                     >
                       <option value="">Select Session</option>
                       {sessions.map(s => (
@@ -846,7 +846,7 @@ export default function AllIncomePage() {
                     <select
                       value={addForm.status}
                       onChange={e => setAddForm(prev => ({ ...prev, status: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                     >
                       <option value="Paid">Paid</option>
                       <option value="Unpaid">Unpaid</option>
@@ -858,7 +858,7 @@ export default function AllIncomePage() {
                   <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Photo</label>
                   <div className="flex items-center justify-between px-4 py-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-400">
                     <span className="text-sm font-medium text-slate-500">Upload a photo</span>
-                    <button type="button" onClick={() => toast.info('Receipt upload capability')} className="p-1 text-teal-600 hover:text-teal-700">
+                    <button type="button" onClick={() => toast.info('Receipt upload capability')} className="p-1 text-indigo-600 hover:text-indigo-700">
                       <Upload className="w-5 h-5" />
                     </button>
                   </div>
@@ -878,7 +878,7 @@ export default function AllIncomePage() {
               <button
                 type="submit"
                 disabled={submittingAdd}
-                className="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-colors flex items-center gap-1.5 cursor-pointer shadow-md shadow-teal-600/10 disabled:opacity-50"
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-colors flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/10 disabled:opacity-50"
               >
                 {submittingAdd && <Loader2 className="w-4 h-4 animate-spin" />}
                 Save
@@ -918,7 +918,7 @@ export default function AllIncomePage() {
                       required
                       value={editForm.income_category}
                       onChange={e => setEditForm(prev => ({ ...prev, income_category: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                     >
                       <option value="">Select a Type</option>
                       {categories.map(c => (
@@ -934,7 +934,7 @@ export default function AllIncomePage() {
                       placeholder="Enter Reference No."
                       value={editForm.trans_id}
                       onChange={e => setEditForm(prev => ({ ...prev, trans_id: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                     />
                   </div>
 
@@ -945,7 +945,7 @@ export default function AllIncomePage() {
                       required
                       value={editForm.received_date}
                       onChange={e => setEditForm(prev => ({ ...prev, received_date: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                     />
                   </div>
                 </div>
@@ -961,7 +961,7 @@ export default function AllIncomePage() {
                       required
                       value={editForm.payment_mode}
                       onChange={e => setEditForm(prev => ({ ...prev, payment_mode: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                     >
                       <option value="">Select an Option</option>
                       <option value="Cash">Cash</option>
@@ -981,7 +981,7 @@ export default function AllIncomePage() {
                       placeholder="Enter Amount"
                       value={editForm.amount}
                       onChange={e => setEditForm(prev => ({ ...prev, amount: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                     />
                   </div>
 
@@ -990,7 +990,7 @@ export default function AllIncomePage() {
                     <select
                       value={editForm.payment_account}
                       onChange={e => setEditForm(prev => ({ ...prev, payment_account: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                     >
                       <option value="">Select an Option</option>
                       <option value="SBI">SBI Bank</option>
@@ -1005,7 +1005,7 @@ export default function AllIncomePage() {
                       required
                       value={editForm.received_from}
                       onChange={e => setEditForm(prev => ({ ...prev, received_from: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                     >
                       <option value="">Select an Option</option>
                       {parties.map(p => (
@@ -1019,7 +1019,7 @@ export default function AllIncomePage() {
                     <select
                       value={editForm.session_name}
                       onChange={e => setEditForm(prev => ({ ...prev, session_name: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                     >
                       <option value="">Select Session</option>
                       {sessions.map(s => (
@@ -1033,7 +1033,7 @@ export default function AllIncomePage() {
                     <select
                       value={editForm.status}
                       onChange={e => setEditForm(prev => ({ ...prev, status: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all font-medium cursor-pointer"
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                     >
                       <option value="Paid">Paid</option>
                       <option value="Unpaid">Unpaid</option>
@@ -1045,7 +1045,7 @@ export default function AllIncomePage() {
                   <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Photo</label>
                   <div className="flex items-center justify-between px-4 py-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-400">
                     <span className="text-sm font-medium text-slate-500">Upload a photo</span>
-                    <button type="button" onClick={() => toast.info('Receipt upload capability')} className="p-1 text-teal-600 hover:text-teal-700">
+                    <button type="button" onClick={() => toast.info('Receipt upload capability')} className="p-1 text-indigo-600 hover:text-indigo-700">
                       <Upload className="w-5 h-5" />
                     </button>
                   </div>
@@ -1065,7 +1065,7 @@ export default function AllIncomePage() {
               <button
                 type="submit"
                 disabled={submittingEdit}
-                className="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-colors flex items-center gap-1.5 cursor-pointer shadow-md shadow-teal-600/10 disabled:opacity-50"
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-colors flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/10 disabled:opacity-50"
               >
                 {submittingEdit && <Loader2 className="w-4 h-4 animate-spin" />}
                 Save
@@ -1089,7 +1089,7 @@ export default function AllIncomePage() {
             </button>
 
             <div className="flex items-center gap-2.5 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/30 text-teal-600 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 flex items-center justify-center">
                 <Info className="w-5 h-5" />
               </div>
               <div>
@@ -1101,7 +1101,7 @@ export default function AllIncomePage() {
             <div className="flex flex-col gap-5">
               {/* Section 1: Income Details */}
               <div>
-                <h4 className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-1 mb-3">Income Details</h4>
+                <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-1 mb-3">Income Details</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Income Category</span>
@@ -1120,7 +1120,7 @@ export default function AllIncomePage() {
 
               {/* Section 2: Payment Details */}
               <div>
-                <h4 className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-1 mb-3">Payment Details</h4>
+                <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-1 mb-3">Payment Details</h4>
                 <div className="grid grid-cols-2 gap-y-4 gap-x-4 text-sm">
                   <div>
                     <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Payment Mode</span>
@@ -1130,7 +1130,7 @@ export default function AllIncomePage() {
                   </div>
                   <div>
                     <span className="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Total Amount</span>
-                    <span className="font-bold text-teal-600 dark:text-teal-400">
+                    <span className="font-bold text-indigo-600 dark:text-indigo-400">
                       ₹{Number(viewingRecord.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
@@ -1177,7 +1177,7 @@ export default function AllIncomePage() {
             <div className="mt-8 border-t border-slate-100 dark:border-slate-700 pt-4 flex items-center gap-3">
               <button
                 onClick={() => { setIsViewModalOpen(false); setViewingRecord(null); }}
-                className="w-full py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-colors cursor-pointer text-center"
+                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-colors cursor-pointer text-center"
               >
                 Close Details
               </button>

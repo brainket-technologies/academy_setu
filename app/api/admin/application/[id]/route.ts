@@ -7,7 +7,23 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const result = await pool.query('SELECT * FROM applications WHERE id = $1 LIMIT 1', [id])
+    const result = await pool.query(`
+      SELECT 
+        a.*, 
+        i.name as school_name, i.code as school_code, i.contact_person, i.mobile_no,
+        i.email_id, i.address, i.state, i.district, i.pincode,
+        i.affiliated_to, i.affiliation_code,
+        i.principal_name, i.principal_gender, i.principal_sign, i.principal_photo,
+        i.director_name, i.director_gender, i.director_sign, i.director_photo,
+        i.segment_id, i.assigned_to,
+        u.name as assigned_user_name, u.role as assigned_user_role,
+        p.plan_name
+      FROM applications a
+      LEFT JOIN institutions i ON a.institution_id = i.id
+      LEFT JOIN admins u ON i.assigned_to = u.id
+      LEFT JOIN plans p ON a.plan_id = p.id
+      WHERE a.id = $1 LIMIT 1
+    `, [id])
 
     if (result.rows.length === 0) {
       return NextResponse.json({ success: false, error: 'Application not found.' }, { status: 404 })
@@ -32,51 +48,79 @@ export async function PUT(
       contact_person, mobile_no, email_id, address, state, district, pincode,
       principal_name, principal_gender, principal_sign, principal_photo,
       director_name, director_gender, director_sign, director_photo,
-      status, enquiry_status 
+      status, enquiry_status, plan_id, assigned_to 
     } = body
 
-    let query = 'UPDATE applications SET'
-    const values: any[] = []
-    const updates: string[] = []
+    // First, update the institution with address/personal details
+    // Get institution_id for this application
+    const appRes = await pool.query('SELECT institution_id FROM applications WHERE id = $1', [id])
+    if (appRes.rows.length === 0) {
+      return NextResponse.json({ success: false, error: 'Application not found.' }, { status: 404 })
+    }
+    const institutionId = appRes.rows[0].institution_id
 
-    const addField = (name: string, val: any) => {
-      if (val !== undefined) {
-        updates.push(`${name} = $` + (values.length + 1))
-        values.push(val)
+    if (institutionId) {
+      const instUpdates: string[] = []
+      const instValues: any[] = []
+
+      const addInstField = (name: string, val: any) => {
+        if (val !== undefined) {
+          instUpdates.push(`${name} = $` + (instValues.length + 1))
+          instValues.push(val)
+        }
+      }
+      addInstField('name', school_name)
+      addInstField('code', school_code)
+      addInstField('affiliated_to', affiliated_to)
+      addInstField('affiliation_code', affiliation_code)
+      addInstField('contact_person', contact_person)
+      addInstField('mobile_no', mobile_no)
+      addInstField('email_id', email_id)
+      addInstField('address', address)
+      addInstField('state', state)
+      addInstField('district', district)
+      addInstField('pincode', pincode)
+      addInstField('principal_name', principal_name)
+      addInstField('principal_gender', principal_gender)
+      addInstField('principal_sign', principal_sign)
+      addInstField('principal_photo', principal_photo)
+      addInstField('director_name', director_name)
+      addInstField('director_gender', director_gender)
+      addInstField('director_sign', director_sign)
+      addInstField('director_photo', director_photo)
+      addInstField('assigned_to', assigned_to)
+
+      if (instUpdates.length > 0) {
+        instValues.push(institutionId)
+        await pool.query(
+          `UPDATE institutions SET ${instUpdates.join(', ')}, updated_at = NOW() WHERE id = $${instValues.length}`,
+          instValues
+        )
       }
     }
 
-    addField('school_name', school_name)
-    addField('school_code', school_code)
-    addField('affiliated_to', affiliated_to)
-    addField('affiliation_code', affiliation_code)
-    addField('contact_person', contact_person)
-    addField('mobile_no', mobile_no)
-    addField('email_id', email_id)
-    addField('address', address)
-    addField('state', state)
-    addField('district', district)
-    addField('pincode', pincode)
-    addField('principal_name', principal_name)
-    addField('principal_gender', principal_gender)
-    addField('principal_sign', principal_sign)
-    addField('principal_photo', principal_photo)
-    addField('director_name', director_name)
-    addField('director_gender', director_gender)
-    addField('director_sign', director_sign)
-    addField('director_photo', director_photo)
-    addField('status', status)
-    addField('enquiry_status', enquiry_status)
+    // Now update the application itself (only its own fields)
+    const appUpdates: string[] = []
+    const appValues: any[] = []
 
-    if (updates.length === 0) {
-      return NextResponse.json({ success: false, error: 'No fields to update.' }, { status: 400 })
+    const addAppField = (name: string, val: any) => {
+      if (val !== undefined) {
+        appUpdates.push(`${name} = $` + (appValues.length + 1))
+        appValues.push(val)
+      }
     }
 
-    updates.push('updated_at = NOW()')
-    query += ' ' + updates.join(', ') + ' WHERE id = $' + (values.length + 1) + ' RETURNING *'
-    values.push(id)
+    addAppField('status', status)
+    addAppField('enquiry_status', enquiry_status)
+    addAppField('plan_id', plan_id)
 
-    const result = await pool.query(query, values)
+    appUpdates.push('updated_at = NOW()')
+    appValues.push(id)
+
+    const result = await pool.query(
+      `UPDATE applications SET ${appUpdates.join(', ')} WHERE id = $${appValues.length} RETURNING *`,
+      appValues
+    )
 
     if (result.rows.length === 0) {
       return NextResponse.json({ success: false, error: 'Application not found.' }, { status: 404 })

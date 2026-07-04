@@ -467,7 +467,7 @@ export default function AllLeadsPage() {
                       placeholder="Enter Call Duration (e.g. 5 min)"
                       value={callDuration}
                       onChange={(e) => setCallDuration(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                     />
                   </div>
                 )}
@@ -482,7 +482,7 @@ export default function AllLeadsPage() {
                     placeholder="Enter Remarks"
                     value={remarks}
                     onChange={(e) => setRemarks(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                     required
                   />
                 </div>
@@ -497,7 +497,7 @@ export default function AllLeadsPage() {
                       type="date"
                       value={followUpDate}
                       onChange={(e) => setFollowUpDate(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                       required
                     />
                   </div>
@@ -509,7 +509,7 @@ export default function AllLeadsPage() {
                     <select
                       value={editStatus}
                       onChange={(e) => setEditStatus(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                       required
                     >
                       <option value="">Select Status</option>
@@ -532,7 +532,7 @@ export default function AllLeadsPage() {
                   <button
                     type="submit"
                     disabled={submittingUpdate}
-                    className="px-10 py-2.5 bg-[#0F9E8F] hover:bg-[#0D8E80] text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-teal-500/10 cursor-pointer flex items-center justify-center gap-2"
+                    className="px-10 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-500/10 cursor-pointer flex items-center justify-center gap-2"
                   >
                     {submittingUpdate && <Loader2 className="w-4 h-4 animate-spin" />}
                     Update
@@ -594,7 +594,7 @@ export default function AllLeadsPage() {
                             <td className="px-5 py-4 text-slate-500 dark:text-slate-400 text-xs leading-relaxed max-w-xs break-words font-medium">
                               {hist.remarks || '—'}
                               {hist.communication_option === 'Call' && hist.call_duration ? (
-                                <span className="block text-[10px] text-teal-600 font-bold mt-0.5">
+                                <span className="block text-[10px] text-indigo-600 font-bold mt-0.5">
                                   Duration: {hist.call_duration}
                                 </span>
                               ) : null}
@@ -644,7 +644,7 @@ export default function AllLeadsPage() {
                   <select
                     value={filterSource}
                     onChange={(e) => setFilterSource(e.target.value)}
-                    className="px-3.5 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 text-slate-800 dark:text-slate-200 cursor-pointer"
+                    className="px-3.5 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 cursor-pointer"
                   >
                     <option value="">Select an Option</option>
                     {SOURCE_OPTIONS.map(opt => (
@@ -659,7 +659,7 @@ export default function AllLeadsPage() {
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="px-3.5 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-teal-500 text-slate-800 dark:text-slate-200 cursor-pointer"
+                    className="px-3.5 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 cursor-pointer"
                   >
                     <option value="">Select an Option</option>
                     {statuses.map(st => (
@@ -678,14 +678,14 @@ export default function AllLeadsPage() {
                     placeholder="Search by School Name, Address, Mb no."
                     value={searchText}
                     onChange={(e) => setSearchText(e.target.value)}
-                    className="w-full pl-11 pr-4 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                    className="w-full pl-11 pr-4 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
                   />
                 </form>
                 
                 {/* Export button */}
                 <button
                   onClick={() => toast.success('Exporting leads data...')}
-                  className="p-2.5 bg-[#0E9485] hover:bg-[#0D8E80] text-white rounded-xl transition-all shadow-md shadow-teal-500/10 cursor-pointer"
+                  className="p-2.5 bg-[#0E9485] hover:bg-indigo-700 text-white rounded-xl transition-all shadow-md shadow-indigo-500/10 cursor-pointer"
                   title="Export Leads Log"
                 >
                   <Upload className="w-4 h-4" />
@@ -737,7 +737,7 @@ export default function AllLeadsPage() {
                             <select
                               value={l.assigned_to || ''}
                               onChange={(e) => handleAssignStaff(l.id, e.target.value)}
-                              className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-755 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
+                              className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-755 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
                             >
                               <option value="">Assign Staff</option>
                               {STAFF_LIST.map(staff => (
@@ -885,7 +885,7 @@ export default function AllLeadsPage() {
                           <select
                             value={l.assigned_to || ''}
                             onChange={(e) => handleAssignStaff(l.id, e.target.value)}
-                            className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
+                            className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
                           >
                             <option value="">Assign Staff</option>
                             {STAFF_LIST.map(staff => (
@@ -930,14 +930,14 @@ export default function AllLeadsPage() {
                   <button
                     disabled={currentPage === 1}
                     onClick={() => fetchLeads(1, searchText, filterSource, filterStatus)}
-                    className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-305 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                    className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-305 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                   >
                     {'<<'}
                   </button>
                   <button
                     disabled={currentPage === 1}
                     onClick={() => fetchLeads(currentPage - 1, searchText, filterSource, filterStatus)}
-                    className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-305 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                    className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-305 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
@@ -948,7 +948,7 @@ export default function AllLeadsPage() {
                       className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                         pg === currentPage
                           ? 'bg-[#0E9485] text-white shadow-sm'
-                          : 'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 bg-white dark:bg-slate-700'
+                          : 'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-700'
                       }`}
                     >
                       {pg}
@@ -957,14 +957,14 @@ export default function AllLeadsPage() {
                   <button
                     disabled={currentPage === totalPages}
                     onClick={() => fetchLeads(currentPage + 1, searchText, filterSource, filterStatus)}
-                    className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-305 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                    className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-305 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
                   <button
                     disabled={currentPage === totalPages}
                     onClick={() => fetchLeads(totalPages, searchText, filterSource, filterStatus)}
-                    className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-355 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                    className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-355 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                   >
                     {'>>'}
                   </button>

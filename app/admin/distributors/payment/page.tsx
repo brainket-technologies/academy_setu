@@ -39,7 +39,7 @@ interface Transaction {
 // Initials avatar component
 function Avatar({ name }: { name: string }) {
   const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
-  const colors = ['bg-teal-500', 'bg-blue-500', 'bg-purple-500', 'bg-rose-500', 'bg-amber-500', 'bg-emerald-500']
+  const colors = ['bg-indigo-500', 'bg-blue-500', 'bg-purple-500', 'bg-rose-500', 'bg-amber-500', 'bg-emerald-500']
   const color = colors[name.charCodeAt(0) % colors.length]
   return (
     <div className={`w-8 h-8 rounded-full ${color} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
@@ -226,7 +226,7 @@ export default function DistributorPaymentPage() {
     return pages
   }
 
-  const inputCls = "w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+  const inputCls = "w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
   const readonlyCls = "w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-600 dark:text-slate-300 cursor-not-allowed focus:outline-none"
 
   return (
@@ -243,13 +243,13 @@ export default function DistributorPaymentPage() {
                 placeholder="Search by Name, Mobile no."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                className="pl-9 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm w-64 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 placeholder:text-slate-400"
+                className="pl-9 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 placeholder:text-slate-400"
               />
             </form>
             <button className="p-2.5 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer">
               <Upload className="w-4 h-4" />
             </button>
-            <button className="p-2.5 bg-[#0F9E8F] hover:bg-[#0D8E80] text-white rounded-xl transition-colors cursor-pointer shadow-md shadow-teal-500/10">
+            <button className="p-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors cursor-pointer shadow-md shadow-indigo-500/10">
               <Plus className="w-4 h-4" />
             </button>
           </div>
@@ -264,7 +264,7 @@ export default function DistributorPaymentPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1) }}
-                className="px-4 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500/20 cursor-pointer w-44"
+                className="px-4 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer w-44"
               >
                 <option value="">Select an Option</option>
                 <option value="Paid">Paid</option>
@@ -279,7 +279,7 @@ export default function DistributorPaymentPage() {
                 placeholder="Search by Name, Mb. no., Email"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                className="pl-9 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm w-72 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 placeholder:text-slate-400"
+                className="pl-9 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm w-72 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 placeholder:text-slate-400"
               />
             </form>
           </div>
@@ -287,7 +287,7 @@ export default function DistributorPaymentPage() {
           {/* Table */}
           <div className="overflow-x-auto border border-slate-100 dark:border-slate-700 rounded-2xl">
             <table className="w-full border-collapse text-left text-sm">
-              <thead className="bg-[#EBF6F6]/50 dark:bg-slate-700/50">
+              <thead className="bg-slate-50/50 dark:bg-slate-700/50">
                 <tr>
                   <th className="px-4 py-4 font-bold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 w-12">S. No.</th>
                   <th className="px-4 py-4 font-bold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Name</th>
@@ -307,7 +307,7 @@ export default function DistributorPaymentPage() {
                   <tr>
                     <td colSpan={11} className="px-5 py-12 text-center text-slate-400">
                       <div className="flex items-center justify-center gap-2 font-medium">
-                        <Loader2 className="w-5 h-5 animate-spin text-[#0E9485]" />
+                        <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
                         Loading payments...
                       </div>
                     </td>
@@ -370,7 +370,7 @@ export default function DistributorPaymentPage() {
                           {!isPaid ? (
                             <button
                               onClick={() => handleOpenPayModal(dist)}
-                              className="px-4 py-1.5 bg-[#0F9E8F] hover:bg-[#0D8E80] text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
+                              className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
                             >
                               Pay Now
                             </button>
@@ -396,7 +396,7 @@ export default function DistributorPaymentPage() {
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 {getPageNumbers().map(num => (
-                  <button key={num} onClick={() => setCurrentPage(num)} className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${currentPage === num ? 'bg-[#0F9E8F] text-white shadow-md' : 'border border-slate-200 dark:border-slate-600 text-slate-600 hover:bg-slate-50'}`}>
+                  <button key={num} onClick={() => setCurrentPage(num)} className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${currentPage === num ? 'bg-indigo-600 text-white shadow-md' : 'border border-slate-200 dark:border-slate-600 text-slate-600 hover:bg-slate-50'}`}>
                     {num}
                   </button>
                 ))}
@@ -440,7 +440,7 @@ export default function DistributorPaymentPage() {
                         name="paymentMode"
                         checked={paymentMode === mode}
                         onChange={() => setPaymentMode(mode)}
-                        className="accent-teal-600 w-4 h-4"
+                        className="accent-indigo-600 w-4 h-4"
                       />
                       {mode}
                     </label>
@@ -528,7 +528,7 @@ export default function DistributorPaymentPage() {
                 <button
                   onClick={handlePay}
                   disabled={payLoading}
-                  className="px-16 py-3 bg-[#0F9E8F] hover:bg-[#0D8E80] disabled:bg-slate-300 text-white rounded-2xl font-bold text-base transition-all shadow-md shadow-teal-500/10 flex items-center gap-2 cursor-pointer"
+                  className="px-16 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white rounded-2xl font-bold text-base transition-all shadow-md shadow-indigo-500/10 flex items-center gap-2 cursor-pointer"
                 >
                   {payLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                   Pay Now

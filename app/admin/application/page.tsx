@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { AdminLayout } from '@/components/layout/AdminLayout'
-import { Search, Plus, Eye, Edit3, RefreshCw, X, MoreVertical, Loader2, Filter, ChevronDown, ChevronUp } from 'lucide-react'
+import { Search, Plus, Eye, Edit3, RefreshCw, X, MoreVertical, Loader2, Filter, ChevronDown, ChevronUp, UserCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
@@ -17,6 +17,9 @@ interface Application {
   district: string
   status: 'Applied' | 'Generate' | 'Requested' | 'Completed'
   created_at: string
+  assigned_to?: string | null
+  assigned_user_name?: string | null
+  assigned_user_role?: string | null
 }
 
 export default function ApplicationPage() {
@@ -37,6 +40,7 @@ export default function ApplicationPage() {
   const [filterDistrict, setFilterDistrict] = useState('')
   const [filterFromDate, setFilterFromDate] = useState('')
   const [filterToDate, setFilterToDate] = useState('')
+  const [filterAssignedTo, setFilterAssignedTo] = useState('')
 
   // Context Menu State
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null)
@@ -47,6 +51,14 @@ export default function ApplicationPage() {
 
   // Selected Record
   const [selectedApp, setSelectedApp] = useState<Application | null>(null)
+
+  // Assignment states
+  const [selectedApps, setSelectedApps] = useState<string[]>([])
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
+  const [assignableUsers, setAssignableUsers] = useState<any[]>([])
+  const [selectedAssignee, setSelectedAssignee] = useState('')
+  const [isAssigning, setIsAssigning] = useState(false)
+  const [filterAssignRole, setFilterAssignRole] = useState<'All' | 'Manager' | 'BDM'>('All')
 
   // Form States (Create & Edit)
   const [schoolName, setSchoolName] = useState('')
@@ -88,6 +100,9 @@ export default function ApplicationPage() {
       if (filterToDate) {
         queryParams.append('end_date', filterToDate)
       }
+      if (filterAssignedTo) {
+        queryParams.append('assigned_to', filterAssignedTo)
+      }
 
       const response = await fetch(`/api/admin/application?${queryParams.toString()}`)
       const resData = await response.json()
@@ -110,17 +125,34 @@ export default function ApplicationPage() {
     }
   }
 
+  const fetchAssignableUsers = async () => {
+    try {
+      const res = await fetch('/api/admin/users/assignable')
+      const data = await res.json()
+      if (data.success) {
+        setAssignableUsers(data.data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch assignable users', err)
+    }
+  }
+
   useEffect(() => {
     fetchApplications()
+    fetchAssignableUsers()
   }, [activeTab])
+
+  // Auto-apply filters when they change (with a small debounce for text inputs)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCurrentPage(1)
+      fetchApplications()
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [filterStatus, filterAssignedTo, filterState, filterDistrict, filterFromDate, filterToDate])
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setCurrentPage(1)
-    fetchApplications()
-  }
-
-  const handleApplyFilters = () => {
     setCurrentPage(1)
     fetchApplications()
   }
@@ -131,6 +163,7 @@ export default function ApplicationPage() {
     setFilterDistrict('')
     setFilterFromDate('')
     setFilterToDate('')
+    setFilterAssignedTo('')
     setCurrentPage(1)
     // fetch will be called by the useEffect on activeTab or we can call it manually
     setTimeout(() => fetchApplications(), 0)
@@ -255,14 +288,49 @@ export default function ApplicationPage() {
         toast.error(resData.error || 'Failed to update status')
       }
     } catch (error) {
-      console.error('Status error:', error)
+      console.error('Status update error:', error)
       toast.error('Something went wrong updating status')
     } finally {
       setSubmitting(false)
     }
   }
 
-  // Delete Action
+  const handleBulkAssign = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (selectedApps.length === 0) {
+      toast.error('No applications selected')
+      return
+    }
+    
+    setIsAssigning(true)
+    try {
+      const res = await fetch('/api/admin/application/assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          application_ids: selectedApps,
+          assigned_to: selectedAssignee || null // null to unassign
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(data.message)
+        setIsAssignModalOpen(false)
+        setSelectedApps([])
+        setSelectedAssignee('')
+        fetchApplications()
+      } else {
+        toast.error(data.error || 'Failed to assign applications')
+      }
+    } catch (err) {
+      console.error('Assign error:', err)
+      toast.error('Error during assignment')
+    } finally {
+      setIsAssigning(false)
+    }
+  }
+
+  // Row context menu navigationDelete Action
   const handleDeleteApplication = (id: string) => {
     setDeleteTargetId(id)
   }
@@ -310,12 +378,27 @@ export default function ApplicationPage() {
         return 'bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800'
       case 'Requested':
         return 'bg-pink-50 dark:bg-pink-900/40 text-pink-600 dark:text-pink-400 border border-pink-100 dark:border-pink-800'
-      case 'Completed':
-        return 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800'
-      default:
-        return 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-700'
+      case 'Requested': return 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400'
+    case 'Completed': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+    default: return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+  }
+}
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedApps(paginatedApps.map(app => app.id))
+    } else {
+      setSelectedApps([])
     }
   }
+
+  const handleSelectRow = (appId: string) => {
+    setSelectedApps(prev => 
+      prev.includes(appId) ? prev.filter(id => id !== appId) : [...prev, appId]
+    )
+  }
+
+
 
   // Pagination calculation
   const totalEntries = activeTab === 'all' ? metaCounts.totalCount : metaCounts.newCount
@@ -352,14 +435,14 @@ export default function ApplicationPage() {
                 placeholder="Search by Name, Mobile no."
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
               />
             </form>
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm cursor-pointer transition-colors shrink-0 ${
                 showFilters
-                  ? 'bg-teal-600 text-white shadow-teal-600/10'
+                  ? 'bg-indigo-600 text-white shadow-indigo-600/10'
                   : 'bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-600'
               }`}
               title="Toggle Filters"
@@ -368,7 +451,7 @@ export default function ApplicationPage() {
             </button>
             <Link 
               href="/admin/application/create"
-              className="w-10 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-xl flex items-center justify-center shadow-md shadow-teal-600/10 cursor-pointer transition-colors shrink-0"
+              className="w-10 h-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center justify-center shadow-md shadow-indigo-600/10 cursor-pointer transition-colors shrink-0"
               title="Add Application"
             >
               <Plus className="w-5 h-5" />
@@ -386,15 +469,15 @@ export default function ApplicationPage() {
             }}
             className={`px-5 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-3 shadow-sm border cursor-pointer ${
               activeTab === 'all'
-                ? 'bg-teal-600 text-white border-teal-600'
+                ? 'bg-indigo-600 text-white border-indigo-600'
                 : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'
             }`}
           >
             Total Application
             <span className={`text-xs font-bold px-2 py-0.5 rounded-lg transition-colors ${
               activeTab === 'all'
-                ? 'bg-white/90 text-teal-700'
-                : 'bg-teal-50 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400'
+                ? 'bg-white/90 text-indigo-700'
+                : 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'
             }`}>
               {metaCounts.totalCount}
             </span>
@@ -408,31 +491,47 @@ export default function ApplicationPage() {
             }}
             className={`px-5 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-3 shadow-sm border cursor-pointer ${
               activeTab === 'new'
-                ? 'bg-teal-600 text-white border-teal-600'
+                ? 'bg-indigo-600 text-white border-indigo-600'
                 : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'
             }`}
           >
             New Application
             <span className={`text-xs font-bold px-2 py-0.5 rounded-lg transition-colors ${
               activeTab === 'new'
-                ? 'bg-white/90 text-teal-700'
-                : 'bg-teal-50 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400'
+                ? 'bg-white/90 text-indigo-700'
+                : 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'
             }`}>
               {metaCounts.newCount}
             </span>
           </button>
         </div>
 
+        {/* Selected Actions Bar */}
+        {selectedApps.length > 0 && (
+          <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl p-4 flex items-center justify-between animate-in fade-in duration-200">
+            <span className="text-sm font-bold text-indigo-800 dark:text-indigo-200">
+              {selectedApps.length} Application{selectedApps.length > 1 ? 's' : ''} Selected
+            </span>
+            <button
+              onClick={() => setIsAssignModalOpen(true)}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center gap-2"
+            >
+              <UserCheck className="w-4 h-4" />
+              Assign Applications
+            </button>
+          </div>
+        )}
+
         {/* Collapsible Filter Bar */}
         {showFilters && (
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 shadow-sm">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Status</label>
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
                 >
                   <option value="">All</option>
                   <option value="Applied">Applied</option>
@@ -442,13 +541,29 @@ export default function ApplicationPage() {
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Assigned To</label>
+                <select
+                  value={filterAssignedTo}
+                  onChange={(e) => setFilterAssignedTo(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                >
+                  <option value="">All Users</option>
+                  <option value="unassigned">Unassigned</option>
+                  {assignableUsers.map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.name} ({user.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">State</label>
                 <input
                   type="text"
                   placeholder="Enter State"
                   value={filterState}
                   onChange={(e) => setFilterState(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -458,7 +573,7 @@ export default function ApplicationPage() {
                   placeholder="Enter District"
                   value={filterDistrict}
                   onChange={(e) => setFilterDistrict(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -467,7 +582,7 @@ export default function ApplicationPage() {
                   type="date"
                   value={filterFromDate}
                   onChange={(e) => setFilterFromDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -476,18 +591,11 @@ export default function ApplicationPage() {
                   type="date"
                   value={filterToDate}
                   onChange={(e) => setFilterToDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
                 />
               </div>
             </div>
             <div className="flex items-center gap-3 mt-4">
-              <button
-                onClick={handleApplyFilters}
-                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-teal-600/10 cursor-pointer flex items-center gap-2"
-              >
-                <Filter className="w-4 h-4" />
-                Apply Filters
-              </button>
               <button
                 onClick={handleResetFilters}
                 className="px-5 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 rounded-xl font-bold text-sm transition-all cursor-pointer"
@@ -504,30 +612,39 @@ export default function ApplicationPage() {
             <table className="w-full border-collapse text-left text-sm">
               <thead className="bg-[#EBF6F6]/50 dark:bg-slate-700/50">
                 <tr>
+                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      checked={paginatedApps.length > 0 && selectedApps.length === paginatedApps.length}
+                      onChange={handleSelectAll}
+                    />
+                  </th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">S.No.</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Application No.</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">School Name</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Contact Person</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">State</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">District</th>
+                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">City / District</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Created At</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Status</th>
+                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Assigned To</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
+                    <td colSpan={10} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
                       <div className="flex items-center justify-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin text-teal-600" />
+                        <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
                         Loading applications...
                       </div>
                     </td>
                   </tr>
                 ) : paginatedApps.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
+                    <td colSpan={10} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
                       No applications found.
                     </td>
                   </tr>
@@ -537,6 +654,14 @@ export default function ApplicationPage() {
                     const { date, time } = formatDate(app.created_at)
                     return (
                       <tr key={app.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                        <td className="px-5 py-4">
+                          <input 
+                            type="checkbox"
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            checked={selectedApps.includes(app.id)}
+                            onChange={() => handleSelectRow(app.id)}
+                          />
+                        </td>
                         <td className="px-5 py-4 font-medium text-slate-500 dark:text-slate-400">{sNo}.</td>
                         <td className="px-5 py-4 font-bold text-slate-700 dark:text-slate-200 text-xs tracking-wider">{app.application_no}</td>
                         <td className="px-5 py-4 text-slate-700 dark:text-slate-200 font-medium">{app.school_name}</td>
@@ -556,6 +681,21 @@ export default function ApplicationPage() {
                             }`} />
                             {app.status}
                           </span>
+                        </td>
+                        <td className="px-5 py-4 text-slate-600 dark:text-slate-300 text-xs font-semibold">
+                          {app.assigned_user_name ? (
+                            <span className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit">
+                              <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
+                              {app.assigned_user_name}
+                              {app.assigned_user_role && (
+                                <span className="ml-1 text-[10px] uppercase bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-500 dark:text-slate-400">
+                                  {app.assigned_user_role}
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic">Unassigned</span>
+                          )}
                         </td>
                         <td className="px-5 py-4 text-center relative">
                           <button
@@ -580,6 +720,17 @@ export default function ApplicationPage() {
                               >
                                 <RefreshCw className="w-4 h-4 shrink-0 text-amber-500" />
                                 Update Status
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedApps([app.id])
+                                  setIsAssignModalOpen(true)
+                                  setActiveMenuId(null)
+                                }}
+                                className="w-full px-4 py-2.5 hover:bg-[#f0f9ff] dark:hover:bg-slate-600 text-purple-600 dark:text-purple-400 font-bold text-xs flex items-center gap-2.5 transition-colors cursor-pointer"
+                              >
+                                <UserCheck className="w-4 h-4 shrink-0 text-purple-500" />
+                                Assign Application
                               </button>
                               <button
                                 onClick={() => goToDetailsPage(app)}
@@ -628,14 +779,14 @@ export default function ApplicationPage() {
                 <button
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(1)}
-                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:hover:text-slate-300 dark:disabled:hover:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:hover:text-slate-300 dark:disabled:hover:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   &lt;&lt;
                 </button>
                 <button
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:hover:text-slate-300 dark:disabled:hover:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:hover:text-slate-300 dark:disabled:hover:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   &lt;
                 </button>
@@ -649,8 +800,8 @@ export default function ApplicationPage() {
                       onClick={() => setCurrentPage(pgNum)}
                       className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                         isCurrent 
-                          ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/25' 
-                          : 'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 bg-white dark:bg-slate-700'
+                          ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25' 
+                          : 'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-700'
                       }`}
                     >
                       {pgNum}
@@ -661,14 +812,14 @@ export default function ApplicationPage() {
                 <button
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:hover:text-slate-300 dark:disabled:hover:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:hover:text-slate-300 dark:disabled:hover:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   &gt;
                 </button>
                 <button
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(totalPages)}
-                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:hover:text-slate-300 dark:disabled:hover:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:hover:text-slate-300 dark:disabled:hover:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   &gt;&gt;
                 </button>
@@ -697,7 +848,7 @@ export default function ApplicationPage() {
                   placeholder="Enter School Name"
                   value={schoolName}
                   onChange={(e) => setSchoolName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                   required
                 />
               </div>
@@ -708,7 +859,7 @@ export default function ApplicationPage() {
                   placeholder="Enter Contact Person"
                   value={contactPerson}
                   onChange={(e) => setContactPerson(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                   required
                 />
               </div>
@@ -720,7 +871,7 @@ export default function ApplicationPage() {
                     placeholder="Enter State"
                     value={stateName}
                     onChange={(e) => setStateName(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     required
                   />
                 </div>
@@ -731,7 +882,7 @@ export default function ApplicationPage() {
                     placeholder="Enter District"
                     value={districtName}
                     onChange={(e) => setDistrictName(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     required
                   />
                 </div>
@@ -741,7 +892,7 @@ export default function ApplicationPage() {
                 <select
                   value={appStatus}
                   onChange={(e) => setAppStatus(e.target.value as Application['status'])}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
                 >
                   <option value="Applied">Applied</option>
                   <option value="Generate">Generate</option>
@@ -754,7 +905,7 @@ export default function ApplicationPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-teal-600/10 cursor-pointer flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center justify-center gap-2"
                 >
                   {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   Save Application
@@ -801,7 +952,7 @@ export default function ApplicationPage() {
                 <select
                   value={appStatus}
                   onChange={(e) => setAppStatus(e.target.value as Application['status'])}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
                 >
                   <option value="Applied">Applied</option>
                   <option value="Generate">Generate</option>
@@ -814,7 +965,7 @@ export default function ApplicationPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-teal-600/10 cursor-pointer flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center justify-center gap-2"
                 >
                   {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   Save Status
@@ -828,6 +979,98 @@ export default function ApplicationPage() {
                   className="flex-1 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 rounded-xl font-bold text-sm transition-all cursor-pointer"
                 >
                   Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Modal */}
+      {isAssignModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-700">
+            <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-indigo-600" />
+                Assign Application{selectedApps.length > 1 ? 's' : ''}
+              </h2>
+              <button
+                onClick={() => {
+                  setIsAssignModalOpen(false)
+                  setSelectedApps([])
+                }}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleBulkAssign} className="p-6 flex flex-col gap-5">
+              <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-4">
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Filter by Role:</span>
+                <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+                  {['All', 'Manager', 'BDM'].map(role => (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => {
+                        setFilterAssignRole(role as 'All' | 'Manager' | 'BDM')
+                        setSelectedAssignee('')
+                      }}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${
+                        filterAssignRole === role
+                          ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      {role}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                  Select User
+                </label>
+                <select
+                  value={selectedAssignee}
+                  onChange={(e) => setSelectedAssignee(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                >
+                  <option value="">-- Unassign / Select a User --</option>
+                  {assignableUsers
+                    .filter(u => filterAssignRole === 'All' || u.role === filterAssignRole)
+                    .map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.name} ({user.role})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  You are assigning {selectedApps.length} application(s).
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAssignModalOpen(false)
+                    setSelectedApps([])
+                  }}
+                  className="px-5 py-2.5 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAssigning}
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/20 flex items-center gap-2 cursor-pointer"
+                >
+                  {isAssigning ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+                  Assign
                 </button>
               </div>
             </form>

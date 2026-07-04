@@ -223,7 +223,7 @@ export default function RechargeRequestPage() {
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-teal-650 hover:bg-teal-700 text-white font-bold text-sm rounded-xl shadow-md shadow-teal-600/10 transition-colors cursor-pointer"
+          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md shadow-indigo-600/10 transition-colors cursor-pointer"
         >
           <Plus className="w-4.5 h-4.5" />
           Recharge
@@ -238,7 +238,7 @@ export default function RechargeRequestPage() {
             <select
               value={filterSchool}
               onChange={e => setFilterSchool(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-350 focus:outline-none focus:ring-2 focus:ring-teal-500/20 cursor-pointer"
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-350 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
             >
               <option value="">Select an Option</option>
               {schools.map(s => (
@@ -251,7 +251,7 @@ export default function RechargeRequestPage() {
             <select
               value={filterDeviceType}
               onChange={e => setFilterDeviceType(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-350 focus:outline-none focus:ring-2 focus:ring-teal-500/20 cursor-pointer"
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-350 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
             >
               <option value="">Select an Option</option>
               {deviceTypes.map(t => (
@@ -264,7 +264,7 @@ export default function RechargeRequestPage() {
             <select
               value={filterExpiry}
               onChange={e => setFilterExpiry(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-350 focus:outline-none focus:ring-2 focus:ring-teal-500/20 cursor-pointer"
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-350 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
             >
               <option value="">Select an Option</option>
               <option value="7">Last 7 Days</option>
@@ -297,7 +297,7 @@ export default function RechargeRequestPage() {
               {loading ? (
                 <tr>
                   <td colSpan={9} className="py-20 text-center">
-                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-teal-600" />
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
                   </td>
                 </tr>
               ) : requests.length === 0 ? (
@@ -341,7 +341,7 @@ export default function RechargeRequestPage() {
                       <div className="flex items-center justify-center">
                         <button
                           onClick={() => handleOpenVerify(req)}
-                          className="p-1.5 rounded-lg bg-teal-55 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 hover:bg-teal-100 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg bg-indigo-55 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors cursor-pointer"
                           title="Verify Recharge details"
                         >
                           <Eye className="w-4 h-4" />
@@ -359,7 +359,7 @@ export default function RechargeRequestPage() {
         <div className="md:hidden p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/10">
           {loading ? (
             <div className="py-12 text-center">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto text-teal-650" />
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-650" />
             </div>
           ) : requests.length === 0 ? (
             <div className="py-8 text-center text-slate-500 text-xs">
@@ -378,7 +378,7 @@ export default function RechargeRequestPage() {
                   </div>
                   <button
                     onClick={() => handleOpenVerify(req)}
-                    className="p-2 bg-teal-50 dark:bg-teal-950/30 text-teal-600 dark:text-teal-400 rounded-xl cursor-pointer"
+                    className="p-2 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-xl cursor-pointer"
                     title="Verify Request"
                   >
                     <Eye className="w-4 h-4" />
@@ -404,7 +404,7 @@ export default function RechargeRequestPage() {
                   </div>
                   <div className="mt-1 col-span-2">
                     <span className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Paid Amount</span>
-                    <span className="text-teal-650 dark:text-teal-400 font-extrabold">₹{parseFloat(String(req.amount)).toFixed(2)}</span>
+                    <span className="text-indigo-650 dark:text-indigo-400 font-extrabold">₹{parseFloat(String(req.amount)).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -443,7 +443,7 @@ export default function RechargeRequestPage() {
                   <select
                     value={addSchool}
                     onChange={e => setAddSchool(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500/20 cursor-pointer"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
                     required
                   >
                     <option value="">Select an Option</option>
@@ -456,7 +456,7 @@ export default function RechargeRequestPage() {
                   <select
                     value={addDevice}
                     onChange={e => setAddDevice(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500/20 cursor-pointer"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
                   >
                     <option value="Device 1">Device 1 (GPS)</option>
                     <option value="Device 2">Device 2 (Finger Print)</option>
@@ -469,7 +469,7 @@ export default function RechargeRequestPage() {
                   <select
                     value={addPlanId}
                     onChange={e => handlePlanChange(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500/20 cursor-pointer"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
                     required
                   >
                     {plans.map(p => (
@@ -506,7 +506,7 @@ export default function RechargeRequestPage() {
                     placeholder="Enter Reference"
                     value={addPaymentRef}
                     onChange={e => setAddPaymentRef(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:text-slate-200"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:text-slate-200"
                   />
                 </div>
               </div>
@@ -515,7 +515,7 @@ export default function RechargeRequestPage() {
                 <button
                   type="submit"
                   disabled={submittingAdd}
-                  className="w-full py-2.5 bg-teal-650 hover:bg-teal-700 text-white font-semibold text-sm rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {submittingAdd && <Loader2 className="w-4 h-4 animate-spin" />}
                   Recharge
@@ -638,7 +638,7 @@ export default function RechargeRequestPage() {
                   Device Image
                 </h3>
                 <div className="flex items-center gap-6">
-                  <div className="w-52 h-36 border-2 border-dashed border-teal-500/30 rounded-2xl bg-teal-50/10 flex items-center justify-center text-xs font-semibold text-slate-400 uppercase tracking-widest">
+                  <div className="w-52 h-36 border-2 border-dashed border-indigo-500/30 rounded-2xl bg-indigo-50/10 flex items-center justify-center text-xs font-semibold text-slate-400 uppercase tracking-widest">
                     No Image Uploaded
                   </div>
                   <div className="flex flex-col gap-2">
@@ -719,7 +719,7 @@ export default function RechargeRequestPage() {
                       type="date"
                       value={verifyStartDate}
                       onChange={e => setVerifyStartDate(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:text-slate-200 cursor-pointer"
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:text-slate-200 cursor-pointer"
                       required
                     />
                   </div>
@@ -729,7 +729,7 @@ export default function RechargeRequestPage() {
                       type="date"
                       value={verifyEndDate}
                       onChange={e => setVerifyEndDate(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:text-slate-200 cursor-pointer"
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:text-slate-200 cursor-pointer"
                       required
                     />
                   </div>
@@ -746,7 +746,7 @@ export default function RechargeRequestPage() {
                   <button
                     type="submit"
                     disabled={submittingVerify}
-                    className="px-5 py-2.5 bg-teal-650 hover:bg-teal-700 text-white font-semibold text-sm rounded-xl shadow-md transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-md transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {submittingVerify && <Loader2 className="w-4 h-4 animate-spin" />}
                     Verify

@@ -269,7 +269,7 @@ export default function TicketCategoryPage() {
                 <select
                   value={parentCategory}
                   onChange={(e) => setParentCategory(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                   required
                 >
                   <option value="">Select an Option</option>
@@ -289,7 +289,7 @@ export default function TicketCategoryPage() {
                   placeholder="Enter Name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-550/20 focus:border-teal-550 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
                   required
                 />
               </div>
@@ -302,7 +302,7 @@ export default function TicketCategoryPage() {
                 <select
                   value={segment}
                   onChange={(e) => setSegment(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                   required
                 >
                   <option value="">Select Segment</option>
@@ -331,7 +331,7 @@ export default function TicketCategoryPage() {
                   placeholder="Enter Low Timeline"
                   value={lowTimeline}
                   onChange={(e) => setLowTimeline(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
                   required
                 />
               </div>
@@ -346,7 +346,7 @@ export default function TicketCategoryPage() {
                   placeholder="Enter Medium Timeline"
                   value={mediumTimeline}
                   onChange={(e) => setMediumTimeline(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
                   required
                 />
               </div>
@@ -361,7 +361,7 @@ export default function TicketCategoryPage() {
                   placeholder="Enter High Timeline"
                   value={highTimeline}
                   onChange={(e) => setHighTimeline(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
                   required
                 />
               </div>
@@ -381,7 +381,7 @@ export default function TicketCategoryPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-10 py-2.5 bg-[#0F9E8F] hover:bg-[#0D8E80] text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-teal-500/10 cursor-pointer flex items-center justify-center gap-2"
+                className="px-10 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-500/10 cursor-pointer flex items-center justify-center gap-2"
               >
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 Submit
@@ -403,7 +403,7 @@ export default function TicketCategoryPage() {
               }}
               className={`px-5 py-2.5 rounded-xl border flex items-center gap-3 text-xs font-black transition-all cursor-pointer ${
                 activeTab === 'all'
-                  ? 'bg-[#0B9688] border-[#0B9688] text-white shadow-md shadow-teal-500/10'
+                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-500/10'
                   : 'bg-white border-slate-200 text-slate-700 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300'
               }`}
             >
@@ -415,8 +415,8 @@ export default function TicketCategoryPage() {
               All Category
               <span className={`px-2 py-0.5 rounded text-[10px] font-black tracking-wide ${
                 activeTab === 'all' 
-                  ? 'bg-white text-[#0B9688]' 
-                  : 'bg-[#0B9688] text-white'
+                  ? 'bg-white text-indigo-600' 
+                  : 'bg-indigo-600 text-white'
               }`}>
                 {counts.active}
               </span>
@@ -430,7 +430,7 @@ export default function TicketCategoryPage() {
               }}
               className={`px-5 py-2.5 rounded-xl border flex items-center gap-3 text-xs font-black transition-all cursor-pointer ${
                 activeTab === 'deleted'
-                  ? 'bg-[#0B9688] border-[#0B9688] text-white shadow-md shadow-teal-500/10'
+                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-500/10'
                   : 'bg-white border-slate-200 text-slate-700 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300'
               }`}
             >
@@ -442,8 +442,8 @@ export default function TicketCategoryPage() {
               Deleted Category
               <span className={`px-2 py-0.5 rounded text-[10px] font-black tracking-wide ${
                 activeTab === 'deleted' 
-                  ? 'bg-white text-[#0B9688]' 
-                  : 'bg-[#0B9688] text-white'
+                  ? 'bg-white text-indigo-600' 
+                  : 'bg-indigo-600 text-white'
               }`}>
                 {counts.deleted}
               </span>
@@ -459,7 +459,7 @@ export default function TicketCategoryPage() {
                 placeholder="Search by Name, Parent Category, Segment"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -471,7 +471,7 @@ export default function TicketCategoryPage() {
                   setStartDate(e.target.value)
                   setCurrentPage(1)
                 }}
-                className="px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+                className="px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
               />
               <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">To:</label>
               <input
@@ -481,7 +481,7 @@ export default function TicketCategoryPage() {
                   setEndDate(e.target.value)
                   setCurrentPage(1)
                 }}
-                className="px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 text-slate-800 dark:text-slate-200"
+                className="px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
               />
             </div>
           </form>
@@ -505,7 +505,7 @@ export default function TicketCategoryPage() {
                   <tr>
                     <td colSpan={7} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">
                       <div className="flex items-center justify-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin text-[#0B9688]" />
+                        <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
                         Loading categories...
                       </div>
                     </td>
@@ -600,14 +600,14 @@ export default function TicketCategoryPage() {
                 <button
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(1)}
-                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-550 dark:text-slate-405 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-550 dark:text-slate-405 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   {'<<'}
                 </button>
                 <button
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(currentPage - 1)}
-                  className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-555 dark:text-slate-405 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                  className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-555 dark:text-slate-405 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -617,8 +617,8 @@ export default function TicketCategoryPage() {
                     onClick={() => setCurrentPage(pg)}
                     className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                       pg === currentPage
-                        ? 'bg-[#0B9688] text-white shadow-sm'
-                        : 'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 bg-white dark:bg-slate-700'
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-700'
                     }`}
                   >
                     {pg}
@@ -627,14 +627,14 @@ export default function TicketCategoryPage() {
                 <button
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(currentPage + 1)}
-                  className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-555 dark:text-slate-405 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                  className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-555 dark:text-slate-405 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
                 <button
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(totalPages)}
-                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-555 dark:text-slate-405 hover:text-teal-600 dark:hover:text-teal-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
+                  className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-555 dark:text-slate-405 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-300 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                 >
                   {'>>'}
                 </button>

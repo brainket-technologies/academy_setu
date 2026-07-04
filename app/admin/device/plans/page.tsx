@@ -270,7 +270,7 @@ export default function PlanSetupPage() {
             <h1 className="text-xl font-bold text-slate-850 dark:text-slate-100">All Plan</h1>
             <button
               onClick={handleOpenCreate}
-              className="p-2.5 bg-teal-650 hover:bg-teal-700 text-white rounded-xl shadow-md transition-colors cursor-pointer"
+              className="p-2.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl shadow-md transition-colors cursor-pointer"
               title="Add New Plan Setup"
             >
               <Plus className="w-5 h-5" />
@@ -343,7 +343,7 @@ export default function PlanSetupPage() {
                 {loading ? (
                   <tr>
                     <td colSpan={9} className="py-20 text-center">
-                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-teal-650" />
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-650" />
                     </td>
                   </tr>
                 ) : plans.length === 0 ? (
@@ -380,7 +380,7 @@ export default function PlanSetupPage() {
                       <td className="py-4 px-5 font-bold">
                         {p.duration} {p.duration_type}
                       </td>
-                      <td className="py-4 px-5 font-bold text-teal-650 dark:text-teal-400">
+                      <td className="py-4 px-5 font-bold text-indigo-650 dark:text-indigo-400">
                         ₹{parseFloat(String(p.amount)).toFixed(2)}
                       </td>
                       <td className="py-4 px-5">
@@ -410,7 +410,7 @@ export default function PlanSetupPage() {
           <div className="md:hidden p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/10">
             {loading ? (
               <div className="py-12 text-center">
-                <Loader2 className="w-6 h-6 animate-spin mx-auto text-teal-650" />
+                <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-650" />
               </div>
             ) : plans.length === 0 ? (
               <div className="py-8 text-center text-slate-500 text-xs">
@@ -465,7 +465,7 @@ export default function PlanSetupPage() {
                     </div>
                     <div className="mt-1 col-span-2">
                       <span className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Plan Amount</span>
-                      <span className="text-teal-655 dark:text-teal-400 font-bold">₹{parseFloat(String(p.amount)).toFixed(2)}</span>
+                      <span className="text-indigo-655 dark:text-indigo-400 font-bold">₹{parseFloat(String(p.amount)).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -484,7 +484,7 @@ export default function PlanSetupPage() {
                 setShowBrandModal(true)
                 setModalTab('brand')
               }}
-              className="flex items-center gap-2 px-5 py-2.5 bg-teal-650 hover:bg-teal-700 text-white font-bold text-sm rounded-xl shadow-md transition-colors cursor-pointer"
+              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               Add Brand
@@ -541,8 +541,8 @@ export default function PlanSetupPage() {
               {/* Upload image box */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-500">Device Image</label>
-                <div className="border-2 border-dashed border-teal-500/25 rounded-2xl bg-teal-50/5 py-8 flex flex-col items-center justify-center gap-2">
-                  <UploadCloud className="w-8 h-8 text-teal-600" />
+                <div className="border-2 border-dashed border-indigo-500/25 rounded-2xl bg-indigo-50/5 py-8 flex flex-col items-center justify-center gap-2">
+                  <UploadCloud className="w-8 h-8 text-indigo-600" />
                   <span className="text-xs font-bold text-slate-400">Browser or Desktop</span>
                 </div>
               </div>
@@ -668,7 +668,7 @@ export default function PlanSetupPage() {
               <button
                 type="submit"
                 disabled={submittingForm}
-                className="px-8 py-2.5 bg-teal-650 hover:bg-teal-700 text-white font-bold text-sm rounded-xl shadow-md transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                className="px-8 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {submittingForm && <Loader2 className="w-4 h-4 animate-spin" />}
                 Save
@@ -702,7 +702,7 @@ export default function PlanSetupPage() {
                 onClick={() => setModalTab('brand')}
                 className={`flex-1 py-2 text-xs font-bold rounded-xl transition-colors cursor-pointer ${
                   modalTab === 'brand' 
-                    ? 'bg-teal-650 text-white shadow' 
+                    ? 'bg-indigo-650 text-white shadow' 
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
@@ -713,7 +713,7 @@ export default function PlanSetupPage() {
                 onClick={() => setModalTab('type')}
                 className={`flex-1 py-2 text-xs font-bold rounded-xl transition-colors cursor-pointer ${
                   modalTab === 'type' 
-                    ? 'bg-teal-650 text-white shadow' 
+                    ? 'bg-indigo-650 text-white shadow' 
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
@@ -748,7 +748,7 @@ export default function PlanSetupPage() {
                 <button
                   type="submit"
                   disabled={savingItem}
-                  className="flex-1 py-2 bg-teal-650 hover:bg-teal-700 text-white font-semibold text-xs rounded-xl shadow-md cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  className="flex-1 py-2 bg-indigo-650 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-md cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
                   {savingItem && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Add

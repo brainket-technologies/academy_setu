@@ -233,7 +233,7 @@ export default function ExpiryRechargePage() {
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-teal-650 hover:bg-teal-700 text-white font-bold text-sm rounded-xl shadow-md shadow-teal-600/10 transition-colors cursor-pointer"
+          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md shadow-indigo-600/10 transition-colors cursor-pointer"
         >
           <Plus className="w-4.5 h-4.5" />
           Recharge
@@ -248,7 +248,7 @@ export default function ExpiryRechargePage() {
             <select
               value={filterSchool}
               onChange={e => setFilterSchool(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-350 focus:outline-none focus:ring-2 focus:ring-teal-500/20 cursor-pointer"
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-350 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
             >
               <option value="">Select an Option</option>
               {schools.map(s => (
@@ -261,7 +261,7 @@ export default function ExpiryRechargePage() {
             <select
               value={filterDeviceType}
               onChange={e => setFilterDeviceType(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-350 focus:outline-none focus:ring-2 focus:ring-teal-500/20 cursor-pointer"
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-350 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
             >
               <option value="">Select an Option</option>
               {deviceTypes.map(t => (
@@ -274,7 +274,7 @@ export default function ExpiryRechargePage() {
             <select
               value={filterExpiry}
               onChange={e => setFilterExpiry(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-350 focus:outline-none focus:ring-2 focus:ring-teal-500/20 cursor-pointer"
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-350 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
             >
               <option value="">Select an Option</option>
               <option value="7">Last 7 Days</option>
@@ -307,7 +307,7 @@ export default function ExpiryRechargePage() {
               {loading ? (
                 <tr>
                   <td colSpan={9} className="py-20 text-center">
-                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-teal-600" />
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
                   </td>
                 </tr>
               ) : expiryList.length === 0 ? (
@@ -352,7 +352,7 @@ export default function ExpiryRechargePage() {
                     <td className="py-4 px-5 text-center">
                       <button
                         onClick={() => handleLoginClick(req.id)}
-                        className="px-3.5 py-1 bg-teal-650 hover:bg-teal-700 text-white font-extrabold text-[10px] rounded-lg transition-colors cursor-pointer uppercase tracking-wider shadow-sm"
+                        className="px-3.5 py-1 bg-indigo-650 hover:bg-indigo-700 text-white font-extrabold text-[10px] rounded-lg transition-colors cursor-pointer uppercase tracking-wider shadow-sm"
                       >
                         Log in
                       </button>
@@ -368,7 +368,7 @@ export default function ExpiryRechargePage() {
         <div className="md:hidden p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/10">
           {loading ? (
             <div className="py-12 text-center">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto text-teal-650" />
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-650" />
             </div>
           ) : expiryList.length === 0 ? (
             <div className="py-8 text-center text-slate-500 text-xs">
@@ -387,7 +387,7 @@ export default function ExpiryRechargePage() {
                   </div>
                   <button
                     onClick={() => handleLoginClick(req.id)}
-                    className="px-3.5 py-1 bg-teal-650 hover:bg-teal-700 text-white font-extrabold text-[10px] rounded-lg cursor-pointer uppercase tracking-wider shadow-xs shrink-0 mt-1"
+                    className="px-3.5 py-1 bg-indigo-650 hover:bg-indigo-700 text-white font-extrabold text-[10px] rounded-lg cursor-pointer uppercase tracking-wider shadow-xs shrink-0 mt-1"
                   >
                     Log in
                   </button>
@@ -457,7 +457,7 @@ export default function ExpiryRechargePage() {
                   <select
                     value={addSchool}
                     onChange={e => setAddSchool(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-305 focus:outline-none focus:ring-2 focus:ring-teal-500/20 cursor-pointer"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-305 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
                     required
                   >
                     <option value="">Select an Option</option>
@@ -470,7 +470,7 @@ export default function ExpiryRechargePage() {
                   <select
                     value={addDevice}
                     onChange={e => setAddDevice(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-305 focus:outline-none focus:ring-2 focus:ring-teal-500/20 cursor-pointer"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-305 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
                   >
                     <option value="Device 1">Device 1 (GPS)</option>
                     <option value="Device 2">Device 2 (Finger Print)</option>
@@ -483,7 +483,7 @@ export default function ExpiryRechargePage() {
                   <select
                     value={addPlanId}
                     onChange={e => handlePlanChange(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-305 focus:outline-none focus:ring-2 focus:ring-teal-500/20 cursor-pointer"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-305 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
                     required
                   >
                     {plans.map(p => (
@@ -520,7 +520,7 @@ export default function ExpiryRechargePage() {
                     placeholder="Enter Reference"
                     value={addPaymentRef}
                     onChange={e => setAddPaymentRef(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:text-slate-200"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:text-slate-200"
                   />
                 </div>
               </div>
@@ -529,7 +529,7 @@ export default function ExpiryRechargePage() {
                 <button
                   type="submit"
                   disabled={submittingAdd}
-                  className="w-full py-2.5 bg-teal-650 hover:bg-teal-700 text-white font-semibold text-sm rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {submittingAdd && <Loader2 className="w-4 h-4 animate-spin" />}
                   Recharge

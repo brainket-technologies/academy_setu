@@ -79,7 +79,7 @@ export default function ProductDetailsPage() {
     return (
       <AdminLayout>
         <div className="flex justify-center items-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
         </div>
       </AdminLayout>
     )
@@ -151,7 +151,7 @@ export default function ProductDetailsPage() {
                   key={idx}
                   onClick={() => setActiveImageIdx(idx)}
                   className={`w-20 h-20 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
-                    activeImageIdx === idx ? 'border-teal-500 scale-95 shadow-sm' : 'border-slate-200 hover:border-slate-300'
+                    activeImageIdx === idx ? 'border-indigo-500 scale-95 shadow-sm' : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   <img src={img} alt="Thumbnail preview" className="w-full h-full object-cover" />
@@ -220,7 +220,7 @@ export default function ProductDetailsPage() {
                       onClick={() => setSelectedColor(color)}
                       className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer transition-transform duration-200 border relative ${
                         isWhite ? 'border-slate-350' : 'border-transparent'
-                      } ${selectedColor === color ? 'ring-2 ring-teal-500 ring-offset-2 scale-105' : 'hover:scale-105'}`}
+                      } ${selectedColor === color ? 'ring-2 ring-indigo-500 ring-offset-2 scale-105' : 'hover:scale-105'}`}
                       style={{ backgroundColor: hex }}
                       title={color}
                     >
@@ -247,7 +247,7 @@ export default function ProductDetailsPage() {
                     onClick={() => setSelectedSize(size)}
                     className={`min-w-10 px-3.5 py-2 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
                       selectedSize === size
-                        ? 'bg-teal-500 border-teal-500 text-white shadow-md'
+                        ? 'bg-indigo-500 border-indigo-500 text-white shadow-md'
                         : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750'
                     }`}
                   >

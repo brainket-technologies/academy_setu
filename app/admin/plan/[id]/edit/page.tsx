@@ -55,7 +55,7 @@ function CustomSelect({ label, required, options, value, onChange, placeholder }
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       <button type="button" onClick={() => setOpen(o => !o)}
-        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm cursor-pointer">
+        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer">
         <span className={value ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'}>{value || placeholder || 'Select'}</span>
         <svg className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -65,7 +65,7 @@ function CustomSelect({ label, required, options, value, onChange, placeholder }
         <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl shadow-2xl z-50 py-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
           {options.map(opt => (
             <button key={opt} type="button" onClick={() => { onChange(opt); setOpen(false) }}
-              className={`w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-600 cursor-pointer ${value === opt ? 'text-teal-600 font-bold bg-teal-50/50 dark:bg-teal-900/30 dark:text-teal-400' : 'text-slate-700 dark:text-slate-300'}`}>
+              className={`w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-600 cursor-pointer ${value === opt ? 'text-indigo-600 font-bold bg-indigo-50/50 dark:bg-indigo-900/30 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300'}`}>
               {opt}
             </button>
           ))}
@@ -290,7 +290,7 @@ export default function EditPlanPage({ params }: EditPlanPageProps) {
   if (loading) return (
     <AdminLayout>
         <div className="flex items-center justify-center min-h-[400px] gap-2">
-          <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
           <p className="text-slate-500 dark:text-slate-400 font-medium">Loading Plan...</p>
         </div>
     </AdminLayout>
@@ -323,7 +323,7 @@ export default function EditPlanPage({ params }: EditPlanPageProps) {
                   <div className="flex items-center gap-6 mt-2.5">
                     {(['All User', 'New User'] as const).map(opt => (
                       <label key={opt} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer font-medium">
-                        <input type="radio" name="plan_for" value={opt} checked={planFor === opt} onChange={() => setPlanFor(opt)} className="text-teal-600 focus:ring-teal-500 w-4 h-4" />
+                        <input type="radio" name="plan_for" value={opt} checked={planFor === opt} onChange={() => setPlanFor(opt)} className="text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
                         {opt}
                       </label>
                     ))}
@@ -334,12 +334,12 @@ export default function EditPlanPage({ params }: EditPlanPageProps) {
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Plan Name<span className="text-red-500 ml-0.5">*</span></label>
                   <input type="text" value={planName} onChange={e => setPlanName(e.target.value)} placeholder="Enter Plan Name"
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500" />
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Description</label>
                   <input type="text" value={description} onChange={e => setDescription(e.target.value)} placeholder="Enter Description"
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500" />
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500" />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -351,7 +351,7 @@ export default function EditPlanPage({ params }: EditPlanPageProps) {
                   <div key={label} className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">{label}<span className="text-red-500 ml-0.5">*</span></label>
                     <input type="number" value={val} onChange={e => set(e.target.value)} placeholder={ph}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500" />
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500" />
                   </div>
                 ))}
               </div>
@@ -365,7 +365,7 @@ export default function EditPlanPage({ params }: EditPlanPageProps) {
               <div className="flex items-center gap-3">
                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Plan Duration (in days)</span>
                 <input type="number" value={firstDuration} onChange={e => setFirstDuration(e.target.value)} placeholder="Enter Duration"
-                  className="w-32 px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500" />
+                  className="w-32 px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500" />
               </div>
             </div>
             <BillingTable
@@ -383,19 +383,19 @@ export default function EditPlanPage({ params }: EditPlanPageProps) {
               <div className="flex items-center gap-3">
                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Plan Duration (in days)</span>
                 <input type="number" value={renewalDuration} onChange={e => setRenewalDuration(e.target.value)} placeholder="Enter Duration"
-                  className="w-32 px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500" />
+                  className="w-32 px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500" />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Pre Bill Generate in Days<span className="text-red-500 ml-0.5">*</span></label>
                 <input type="number" value={preBillDays} onChange={e => setPreBillDays(e.target.value)} placeholder="Enter Days"
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500" />
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Payment Relaxation After Plan Expire<span className="text-red-500 ml-0.5">*</span></label>
                 <input type="number" value={paymentRelaxation} onChange={e => setPaymentRelaxation(e.target.value)} placeholder="Enter Percentage"
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500" />
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500" />
               </div>
             </div>
             <BillingTable
@@ -413,7 +413,7 @@ export default function EditPlanPage({ params }: EditPlanPageProps) {
               Cancel
             </button>
             <button type="submit" disabled={submitting}
-              className="px-12 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-teal-600/10 cursor-pointer flex items-center gap-2">
+              className="px-12 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center gap-2">
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
               Save
             </button>

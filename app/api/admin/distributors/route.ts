@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
+import bcrypt from 'bcryptjs'
 
 export async function GET(request: NextRequest) {
   try {
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const {
       dist_id, joining_date, name, mobile_no, email, gender,
-      username,
+      username, password,
       address, state, district, pincode, aadhar_no,
       commission_in, commission_value, commission_type, assign_area,
       account_holder_name, account_number, ifsc_code, bank_name
@@ -77,6 +78,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const passwordHash = password ? await bcrypt.hash(password, 10) : ''
 
     const result = await pool.query(
       `INSERT INTO distributors (
@@ -90,7 +93,7 @@ export async function POST(request: NextRequest) {
       RETURNING id, dist_id, name, mobile_no, status`,
       [
         dist_id, joining_date || null, name, mobile_no, email || '', gender || '',
-        username, '',
+        username, passwordHash,
         address || '', state || '', district || '', pincode || '', aadhar_no || '',
         commission_in || '', parseFloat(commission_value || '0'), commission_type || '', assign_area || '',
         account_holder_name || '', account_number || '', ifsc_code || '', bank_name || ''

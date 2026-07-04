@@ -102,7 +102,7 @@ export default function AdminDashboardPage() {
 
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: 'Total Income', value: '₹3,500,000', pct: '↑ 15%', gradient: 'from-emerald-500 to-teal-400', light: 'bg-emerald-50 dark:bg-emerald-950/30' },
+                { label: 'Total Income', value: '₹3,500,000', pct: '↑ 15%', gradient: 'from-emerald-500 to-indigo-400', light: 'bg-emerald-50 dark:bg-emerald-950/30' },
                 { label: 'Total Expense', value: '₹1,200,000', pct: '↑ 17%', gradient: 'from-blue-500 to-cyan-400', light: 'bg-blue-50 dark:bg-blue-950/30' },
                 { label: 'Distributor Amt', value: '₹2,000,000', pct: '↑ 12%', gradient: 'from-violet-500 to-purple-400', light: 'bg-violet-50 dark:bg-violet-950/30' },
                 { label: 'Total Due Amt', value: '₹300,000', pct: '↑ 12%', gradient: 'from-rose-500 to-pink-400', light: 'bg-rose-50 dark:bg-rose-950/30' },
@@ -297,15 +297,15 @@ export default function AdminDashboardPage() {
                   <option>Annual</option>
                 </select>
               </div>
-              <div className="bg-teal-200 dark:bg-teal-900/50 rounded-2xl p-6 flex-1 flex flex-col justify-center relative overflow-hidden">
+              <div className="bg-indigo-200 dark:bg-indigo-900/50 rounded-2xl p-6 flex-1 flex flex-col justify-center relative overflow-hidden">
                 <div className="flex justify-between items-start mb-4 relative z-10">
                   <div className="w-10 h-10 rounded bg-white/40 dark:bg-white/20 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-teal-800 dark:text-teal-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                    <svg className="w-5 h-5 text-indigo-800 dark:text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
                   </div>
-                  <span className="bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">↑ 12%</span>
+                  <span className="bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">↑ 12%</span>
                 </div>
-                <p className="text-3xl font-bold text-teal-950 dark:text-teal-100 relative z-10">₹29,545,000</p>
-                <p className="text-sm font-medium text-teal-800 dark:text-teal-300 mt-1 relative z-10">Total Income</p>
+                <p className="text-3xl font-bold text-indigo-950 dark:text-indigo-100 relative z-10">₹29,545,000</p>
+                <p className="text-sm font-medium text-indigo-800 dark:text-indigo-300 mt-1 relative z-10">Total Income</p>
                 {/* Decorative lines */}
                 <div className="absolute right-0 bottom-0 opacity-20 transform translate-x-1/4 translate-y-1/4">
                   <svg width="150" height="150" viewBox="0 0 100 100" fill="none">
