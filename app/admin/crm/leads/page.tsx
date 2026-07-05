@@ -22,7 +22,7 @@ interface Lead {
   district: string
   no_of_students: number
   status: string
-  assigned_to_id?: string
+  assigned_to?: string
   assigned_user_name?: string
   assigned_user_role?: string
   created_at: string
@@ -781,7 +781,7 @@ export default function AllLeadsPage() {
                               </div>
                             ) : null}
                             <select
-                              value={l.assigned_to_id || ''}
+                              value={l.assigned_to || ''}
                               onChange={(e) => handleAssignStaff(l.id, e.target.value)}
                               className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-755 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
                             >
@@ -917,7 +917,7 @@ export default function AllLeadsPage() {
                         <div className="flex flex-col gap-1 w-full sm:w-auto">
                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Assign Staff:</span>
                           <select
-                            value={l.assigned_to_id || ''}
+                            value={l.assigned_to || ''}
                             onChange={(e) => handleAssignStaff(l.id, e.target.value)}
                             className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
                           >

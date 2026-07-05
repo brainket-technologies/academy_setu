@@ -28,10 +28,10 @@ export async function GET(request: NextRequest) {
       if (status) { params.push(status); conditions.push(`ls.name = $${params.length}`) }
       
       if (assigned_to === 'unassigned') {
-        conditions.push(`l.assigned_to_id IS NULL`)
+        conditions.push(`l.assigned_to IS NULL`)
       } else if (assigned_to) {
         params.push(assigned_to)
-        conditions.push(`l.assigned_to_id = $${params.length}`)
+        conditions.push(`l.assigned_to = $${params.length}`)
       }
 
       const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : ''
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
           COUNT(*) OVER()::int AS _total_count
         FROM leads l
         LEFT JOIN lead_statuses ls ON l.status_id = ls.id
-        LEFT JOIN admins a ON l.assigned_to_id = a.id
+        LEFT JOIN admins a ON l.assigned_to = a.id
         ${where}
         ORDER BY l.created_at DESC
         LIMIT $${params.length + 1} OFFSET $${params.length + 2}

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         a.name as assigned_to_name
       FROM leads l
       LEFT JOIN lead_statuses ls ON l.status_id = ls.id
-      LEFT JOIN admins a ON l.assigned_to_id = a.id
+      LEFT JOIN admins a ON l.assigned_to = a.id
       WHERE l.id = $1
     `, [id])
     if (leadRes.rows.length === 0) {
@@ -70,7 +70,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         if (adminRes.rows.length > 0) finalAssignedToId = adminRes.rows[0].id
       }
     }
-    addUpdate('assigned_to_id', finalAssignedToId)
+    addUpdate('assigned_to', finalAssignedToId)
     addUpdate('institution_name', institution_name)
     addUpdate('state', state)
     addUpdate('district', district)
