@@ -86,17 +86,17 @@ export default function AllLeadsPage() {
   const [editStatus, setEditStatus] = useState('')
   const [submittingUpdate, setSubmittingUpdate] = useState(false)
 
-  const fetchLeads = useCallback(async (page: number, search: string, source: string, status: string, assignedTo: string) => {
+  const fetchLeads = useCallback(async (page = 1, search = '', source = '', status = '', assignedTo = '') => {
     try {
       setLoading(true)
       const params = new URLSearchParams({
-        page: page.toString(),
-        pageSize: pageSize.toString(),
-        search: search,
-        source: source,
-        status: status,
-        assigned_to: assignedTo
+        page: String(page),
+        pageSize: String(pageSize)
       })
+      if (search) params.append('search', search)
+      if (source) params.append('source', source)
+      if (status) params.append('status', status)
+      if (assignedTo) params.append('assigned_to', assignedTo)
 
       const res = await fetch(`/api/admin/crm/leads?${params.toString()}`)
       const data = await res.json()
@@ -106,10 +106,10 @@ export default function AllLeadsPage() {
         setTotalPages(data.meta.totalPages)
         setCurrentPage(data.meta.page)
       } else {
-        toast.error('Failed to load leads')
+        toast.error(data.error || 'Failed to load leads')
       }
-    } catch {
-      toast.error('Error occurred loading leads')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error occurred loading leads')
     } finally {
       setLoading(false)
     }

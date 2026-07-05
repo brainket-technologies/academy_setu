@@ -10,7 +10,8 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || ''
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '10')
-    const assigned_to = searchParams.get('assigned_to') || ''
+    let assigned_to = searchParams.get('assigned_to') || ''
+    if (assigned_to === 'undefined') assigned_to = ''
     const offset = (page - 1) * pageSize
 
     const cacheKey = `leads:${search}:${source}:${status}:${assigned_to}:${page}:${pageSize}`
