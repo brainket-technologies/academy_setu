@@ -10,9 +10,10 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || ''
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '10')
+    const assigned_to = searchParams.get('assigned_to') || ''
     const offset = (page - 1) * pageSize
 
-    const cacheKey = `leads:${search}:${source}:${status}:${page}:${pageSize}`
+    const cacheKey = `leads:${search}:${source}:${status}:${assigned_to}:${page}:${pageSize}`
 
     const data = await withCache(cacheKey, async () => {
       const conditions: string[] = []
@@ -24,6 +25,13 @@ export async function GET(request: NextRequest) {
       }
       if (source) { params.push(source); conditions.push(`l.lead_source = $${params.length}`) }
       if (status) { params.push(status); conditions.push(`ls.name = $${params.length}`) }
+      
+      if (assigned_to === 'unassigned') {
+        conditions.push(`l.assigned_to_id IS NULL`)
+      } else if (assigned_to) {
+        params.push(assigned_to)
+        conditions.push(`l.assigned_to_id = $${params.length}`)
+      }
 
       const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : ''
 
@@ -35,9 +43,12 @@ export async function GET(request: NextRequest) {
           ls.bg_color as status_bg_color,
           (SELECT remarks FROM lead_history lh WHERE lh.lead_id = l.id ORDER BY lh.created_at DESC LIMIT 1) AS latest_remarks,
           (SELECT follow_up_date FROM lead_history lh WHERE lh.lead_id = l.id ORDER BY lh.created_at DESC LIMIT 1) AS latest_follow_up,
+          a.name as assigned_user_name,
+          a.role as assigned_user_role,
           COUNT(*) OVER()::int AS _total_count
         FROM leads l
         LEFT JOIN lead_statuses ls ON l.status_id = ls.id
+        LEFT JOIN admins a ON l.assigned_to_id = a.id
         ${where}
         ORDER BY l.created_at DESC
         LIMIT $${params.length + 1} OFFSET $${params.length + 2}

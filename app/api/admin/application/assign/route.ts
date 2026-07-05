@@ -3,9 +3,6 @@ import pool from '@/lib/db'
 
 export async function POST(request: Request) {
   try {
-    // Ensure column exists first
-    await pool.query('ALTER TABLE applications ADD COLUMN IF NOT EXISTS assigned_to UUID REFERENCES admins(id) ON DELETE SET NULL;')
-    
     const body = await request.json()
     const { application_ids, assigned_to } = body
 
@@ -24,9 +21,11 @@ export async function POST(request: Request) {
     const placeholders = application_ids.map((_, i) => `$${i + 2}`).join(',')
     
     const query = `
-      UPDATE applications 
+      UPDATE institutions 
       SET assigned_to = $1, updated_at = NOW() 
-      WHERE id IN (${placeholders})
+      WHERE id IN (
+        SELECT institution_id FROM applications WHERE id IN (${placeholders})
+      )
     `
     
     const values = [paramAssignedTo, ...application_ids]

@@ -3,12 +3,12 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Search, Edit3, Trash2, Calendar, Clock, Loader2, 
-  ChevronLeft, ChevronRight, Share2, Upload, AlertCircle 
+  ChevronLeft, ChevronRight, Share2, Upload, AlertCircle, Users
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
-const STAFF_LIST = ['Riya', 'Amit', 'Amit B', 'Ankit', 'Priya', 'Rahul']
+
 const SOURCE_OPTIONS = ['Offline Meeting', 'YouTube', 'Facebook', 'Other']
 
 interface Lead {
@@ -22,7 +22,9 @@ interface Lead {
   district: string
   no_of_students: number
   status: string
-  assigned_to: string
+  assigned_to_id?: string
+  assigned_user_name?: string
+  assigned_user_role?: string
   created_at: string
   updated_at: string
   latest_remarks?: string
@@ -53,11 +55,13 @@ export default function AllLeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
   const [statuses, setStatuses] = useState<LeadStatus[]>([])
+  const [assignableUsers, setAssignableUsers] = useState<any[]>([])
 
   // Search & Filter
   const [searchText, setSearchText] = useState('')
   const [filterSource, setFilterSource] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
+  const [filterAssignedTo, setFilterAssignedTo] = useState('')
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -82,16 +86,17 @@ export default function AllLeadsPage() {
   const [editStatus, setEditStatus] = useState('')
   const [submittingUpdate, setSubmittingUpdate] = useState(false)
 
-  const fetchLeads = useCallback(async (page = 1, search = '', src = '', stat = '') => {
-    setLoading(true)
+  const fetchLeads = useCallback(async (page: number, search: string, source: string, status: string, assignedTo: string) => {
     try {
+      setLoading(true)
       const params = new URLSearchParams({
-        page: String(page),
-        pageSize: String(pageSize)
+        page: page.toString(),
+        pageSize: pageSize.toString(),
+        search: search,
+        source: source,
+        status: status,
+        assigned_to: assignedTo
       })
-      if (search) params.append('search', search)
-      if (src) params.append('source', src)
-      if (stat) params.append('status', stat)
 
       const res = await fetch(`/api/admin/crm/leads?${params.toString()}`)
       const data = await res.json()
@@ -122,28 +127,42 @@ export default function AllLeadsPage() {
     }
   }, [])
 
+  const fetchAssignableUsers = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/users/assignable')
+      const data = await res.json()
+      if (data.success) {
+        setAssignableUsers(data.data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch assignable users', err)
+    }
+  }, [])
+
   useEffect(() => {
-    fetchLeads(1, searchText, filterSource, filterStatus)
+    fetchLeads(1, searchText, filterSource, filterStatus, filterAssignedTo)
     fetchStatuses()
-  }, [fetchLeads, fetchStatuses])
+    fetchAssignableUsers()
+  }, [fetchLeads, fetchStatuses, fetchAssignableUsers])
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    fetchLeads(1, searchText, filterSource, filterStatus)
+    fetchLeads(1, searchText, filterSource, filterStatus, filterAssignedTo)
   }
 
   // Handle staff assignment inline update
-  const handleAssignStaff = async (leadId: string, staffName: string) => {
+  const handleAssignStaff = async (leadId: string, staffId: string) => {
     try {
       const res = await fetch(`/api/admin/crm/leads/${leadId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assigned_to: staffName })
+        body: JSON.stringify({ assigned_to: staffId })
       })
       const data = await res.json()
       if (data.success) {
-        toast.success(`Assigned lead to ${staffName || 'None'}`)
-        setLeads(prev => prev.map(l => l.id === leadId ? { ...l, assigned_to: staffName } : l))
+        toast.success(`Assigned lead successfully`)
+        // Refresh leads to get updated name/role
+        fetchLeads(currentPage, searchText, filterSource, filterStatus, filterAssignedTo)
       } else {
         toast.error(data.error || 'Failed to assign staff')
       }
@@ -254,7 +273,7 @@ export default function AllLeadsPage() {
       const data = await res.json()
       if (data.success) {
         toast.success('Lead deleted successfully')
-        fetchLeads(currentPage, searchText, filterSource, filterStatus)
+        fetchLeads(currentPage, searchText, filterSource, filterStatus, filterAssignedTo)
       } else {
         toast.error(data.error || 'Failed to delete lead')
       }
@@ -275,15 +294,6 @@ export default function AllLeadsPage() {
       return { date, time }
     } catch {
       return { date: dateStr, time: '' }
-    }
-  }
-
-  const formatDateOnly = (dateStr: string | null) => {
-    if (!dateStr) return '—'
-    try {
-      return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
-    } catch {
-      return dateStr
     }
   }
 
@@ -637,34 +647,52 @@ export default function AllLeadsPage() {
             {/* Filter controls row */}
             <div className="flex items-center justify-between flex-wrap gap-5">
               <div className="flex items-center flex-wrap gap-4 flex-1">
-                {/* Lead Source Filter */}
-                <div className="flex flex-col gap-1 shrink-0 w-44">
-                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Lead Source</label>
-                  <select
-                    value={filterSource}
-                    onChange={(e) => setFilterSource(e.target.value)}
-                    className="px-3.5 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 cursor-pointer"
-                  >
-                    <option value="">Select an Option</option>
-                    {SOURCE_OPTIONS.map(opt => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Status Filter */}
-                <div className="flex flex-col gap-1 shrink-0 w-44">
-                  <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</label>
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="px-3.5 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 cursor-pointer"
-                  >
-                    <option value="">Select an Option</option>
-                    {statuses.map(st => (
-                      <option key={st.id} value={st.name}>{st.name}</option>
-                    ))}
-                  </select>
+                <div className="flex gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">Lead Source</label>
+                    <select
+                      value={filterSource}
+                      onChange={(e) => {
+                        setFilterSource(e.target.value)
+                        fetchLeads(1, searchText, e.target.value, filterStatus, filterAssignedTo)
+                      }}
+                      className="px-3.5 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-800 dark:text-slate-200 cursor-pointer"
+                    >
+                      <option value="">Select an Option</option>
+                      {SOURCE_OPTIONS.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">Status</label>
+                    <select
+                      value={filterStatus}
+                      onChange={e => {
+                        setFilterStatus(e.target.value)
+                        fetchLeads(1, searchText, filterSource, e.target.value, filterAssignedTo)
+                      }}
+                      className="bg-white dark:bg-slate-750 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer shadow-sm min-w-[150px]"
+                    >
+                      <option value="">Select an Option</option>
+                      {statuses.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">Assigned To</label>
+                    <select
+                      value={filterAssignedTo}
+                      onChange={e => {
+                        setFilterAssignedTo(e.target.value)
+                        fetchLeads(1, searchText, filterSource, filterStatus, e.target.value)
+                      }}
+                      className="bg-white dark:bg-slate-750 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer shadow-sm min-w-[150px]"
+                    >
+                      <option value="">Select an Option</option>
+                      <option value="unassigned">Unassigned</option>
+                      {assignableUsers.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -690,7 +718,9 @@ export default function AllLeadsPage() {
                   <Upload className="w-4 h-4" />
                 </button>
               </div>
-                    {/* Desktop Leads Log Table */}
+            </div>
+
+            {/* Desktop Leads Log Table */}
             <div className="hidden md:block overflow-x-auto border border-slate-100 dark:border-slate-700 rounded-2xl">
               <table className="w-full border-collapse text-left text-sm">
                 <thead className="bg-[#EBF6F6]/50 dark:bg-slate-700/50">
@@ -733,14 +763,31 @@ export default function AllLeadsPage() {
                         <tr key={l.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-750/30 transition-colors">
                           <td className="px-5 py-4 font-medium text-slate-550 dark:text-slate-400">{sNo}.</td>
                           <td className="px-5 py-4">
+                            {l.assigned_user_name ? (
+                              <div className="flex flex-col items-start gap-1.5 mb-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center border border-indigo-200 dark:border-indigo-800">
+                                    <Users className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                                  </div>
+                                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                    {l.assigned_user_name}
+                                  </span>
+                                  {l.assigned_user_role && (
+                                    <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                      {l.assigned_user_role}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ) : null}
                             <select
-                              value={l.assigned_to || ''}
+                              value={l.assigned_to_id || ''}
                               onChange={(e) => handleAssignStaff(l.id, e.target.value)}
                               className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-755 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
                             >
                               <option value="">Assign Staff</option>
-                              {STAFF_LIST.map(staff => (
-                                <option key={staff} value={staff}>{staff}</option>
+                              {assignableUsers.map(staff => (
+                                <option key={staff.id} value={staff.id}>{staff.name} ({staff.role})</option>
                               ))}
                             </select>
                           </td>
@@ -776,19 +823,7 @@ export default function AllLeadsPage() {
                             </div>
                           </td>
                           <td className="px-5 py-4">
-                            {l.status === 'Active' ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-500 border border-emerald-200 uppercase tracking-wider">
-                                ● Active
-                              </span>
-                            ) : l.status === 'Created' ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-fuchsia-50 text-fuchsia-500 border border-fuchsia-200 uppercase tracking-wider">
-                                ● Created
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 uppercase tracking-wider">
-                                ● Pending
-                              </span>
-                            )}
+                            {renderStatusBadge(l.status)}
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-center gap-2">
@@ -882,13 +917,13 @@ export default function AllLeadsPage() {
                         <div className="flex flex-col gap-1 w-full sm:w-auto">
                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Assign Staff:</span>
                           <select
-                            value={l.assigned_to || ''}
+                            value={l.assigned_to_id || ''}
                             onChange={(e) => handleAssignStaff(l.id, e.target.value)}
                             className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
                           >
                             <option value="">Assign Staff</option>
-                            {STAFF_LIST.map(staff => (
-                              <option key={staff} value={staff}>{staff}</option>
+                            {assignableUsers.map(staff => (
+                              <option key={staff.id} value={staff.id}>{staff.name} ({staff.role})</option>
                             ))}
                           </select>
                         </div>
@@ -896,19 +931,7 @@ export default function AllLeadsPage() {
                         <div className="flex flex-col gap-1 items-end w-full sm:w-auto">
                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status:</span>
                           <div className="mt-0.5">
-                            {l.status === 'Active' ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-500 border border-emerald-200 uppercase tracking-wider">
-                                ● Active
-                              </span>
-                            ) : l.status === 'Created' ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-fuchsia-50 text-fuchsia-500 border border-fuchsia-200 uppercase tracking-wider">
-                                ● Created
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 uppercase tracking-wider">
-                                ● Pending
-                              </span>
-                            )}
+                            {renderStatusBadge(l.status)}
                           </div>
                         </div>
                       </div>
@@ -916,7 +939,6 @@ export default function AllLeadsPage() {
                   )
                 })
               )}
-            </div>
             </div>
 
             {/* Pagination Controls */}
@@ -928,14 +950,14 @@ export default function AllLeadsPage() {
                 <div className="flex items-center gap-1.5">
                   <button
                     disabled={currentPage === 1}
-                    onClick={() => fetchLeads(1, searchText, filterSource, filterStatus)}
+                    onClick={() => fetchLeads(1, searchText, filterSource, filterStatus, filterAssignedTo)}
                     className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-305 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                   >
                     {'<<'}
                   </button>
                   <button
                     disabled={currentPage === 1}
-                    onClick={() => fetchLeads(currentPage - 1, searchText, filterSource, filterStatus)}
+                    onClick={() => fetchLeads(currentPage - 1, searchText, filterSource, filterStatus, filterAssignedTo)}
                     className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-305 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                   >
                     <ChevronLeft className="w-4 h-4" />
@@ -943,7 +965,7 @@ export default function AllLeadsPage() {
                   {getPageNumbers().map((pg) => (
                     <button
                       key={pg}
-                      onClick={() => fetchLeads(pg, searchText, filterSource, filterStatus)}
+                      onClick={() => fetchLeads(pg, searchText, filterSource, filterStatus, filterAssignedTo)}
                       className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                         pg === currentPage
                           ? 'bg-[#0E9485] text-white shadow-sm'
@@ -955,14 +977,14 @@ export default function AllLeadsPage() {
                   ))}
                   <button
                     disabled={currentPage === totalPages}
-                    onClick={() => fetchLeads(currentPage + 1, searchText, filterSource, filterStatus)}
+                    onClick={() => fetchLeads(currentPage + 1, searchText, filterSource, filterStatus, filterAssignedTo)}
                     className="p-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-305 dark:disabled:text-slate-600 rounded-lg bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
                   <button
                     disabled={currentPage === totalPages}
-                    onClick={() => fetchLeads(totalPages, searchText, filterSource, filterStatus)}
+                    onClick={() => fetchLeads(totalPages, searchText, filterSource, filterStatus, filterAssignedTo)}
                     className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:text-slate-355 dark:disabled:text-slate-600 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 transition-colors cursor-pointer"
                   >
                     {'>>'}

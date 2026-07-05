@@ -63,8 +63,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (assigned_to === '') {
       finalAssignedToId = null // allow un-assigning
     } else if (!finalAssignedToId && assigned_to) {
-      const adminRes = await pool.query('SELECT id FROM admins WHERE name = $1 LIMIT 1', [assigned_to])
-      if (adminRes.rows.length > 0) finalAssignedToId = adminRes.rows[0].id
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(assigned_to)) {
+        finalAssignedToId = assigned_to
+      } else {
+        const adminRes = await pool.query('SELECT id FROM admins WHERE name = $1 LIMIT 1', [assigned_to])
+        if (adminRes.rows.length > 0) finalAssignedToId = adminRes.rows[0].id
+      }
     }
     addUpdate('assigned_to_id', finalAssignedToId)
     addUpdate('institution_name', institution_name)
