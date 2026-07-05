@@ -70,12 +70,9 @@ export const apiCache: LRUApiCache =
 export async function withCache<T>(
   key: string,
   fetcher: () => Promise<T>,
-  ttlMs = 30_000
+  ttlMs = 0 // Disabled cache by default to ensure instant updates
 ): Promise<T> {
-  const cached = apiCache.get<T>(key)
-  if (cached !== null) return cached
-
+  // Always fetch fresh data to prevent stale UI after mutations
   const fresh = await fetcher()
-  apiCache.set(key, fresh, ttlMs)
   return fresh
 }
