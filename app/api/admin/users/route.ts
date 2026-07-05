@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         data: data.rows,
         meta: { totalCount: data.totalCount, page, pageSize, totalPages: Math.ceil(data.totalCount / pageSize) }
       },
-      { headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' } }
+      { headers: { 'Cache-Control': 'no-store' } }
     )
   } catch (error) {
     console.error('Fetch users error:', error)
