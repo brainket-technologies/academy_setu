@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
+import { apiCache } from '@/lib/api-cache'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -99,6 +100,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 })
     }
 
+    // Invalidate cache so UI refreshes immediately
+    if (global._apiCache) {
+      global._apiCache.invalidate('leads:')
+    }
+
     return NextResponse.json({ success: true, data: result.rows[0] })
   } catch (error) {
     console.error('Lead update error:', error)
@@ -112,6 +118,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const result = await pool.query('DELETE FROM leads WHERE id = $1 RETURNING *', [id])
     if (result.rows.length === 0) {
       return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 })
+    }
+
+    if (global._apiCache) {
+      global._apiCache.invalidate('leads:')
     }
     return NextResponse.json({ success: true, message: 'Lead deleted successfully' })
   } catch (error) {

@@ -57,6 +57,12 @@ export default function AllLeadsPage() {
   const [statuses, setStatuses] = useState<LeadStatus[]>([])
   const [assignableUsers, setAssignableUsers] = useState<any[]>([])
 
+  // Bulk Assignment States
+  const [selectedLeads, setSelectedLeads] = useState<string[]>([])
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
+  const [selectedAssignee, setSelectedAssignee] = useState('')
+  const [isAssigning, setIsAssigning] = useState(false)
+
   // Search & Filter
   const [searchText, setSearchText] = useState('')
   const [filterSource, setFilterSource] = useState('')
@@ -166,8 +172,44 @@ export default function AllLeadsPage() {
       } else {
         toast.error(data.error || 'Failed to assign staff')
       }
-    } catch {
-      toast.error('Something went wrong')
+    } catch (err) {
+      console.error(err)
+      toast.error('Error assigning staff')
+    }
+  }
+
+  const handleBulkAssign = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (selectedLeads.length === 0) {
+      toast.error('No leads selected')
+      return
+    }
+
+    setIsAssigning(true)
+    try {
+      const res = await fetch('/api/admin/crm/leads/assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lead_ids: selectedLeads,
+          assigned_to: selectedAssignee || null
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(data.message)
+        setIsAssignModalOpen(false)
+        setSelectedLeads([])
+        setSelectedAssignee('')
+        fetchLeads(currentPage, searchText, filterSource, filterStatus, filterAssignedTo)
+      } else {
+        toast.error(data.error || 'Failed to assign leads')
+      }
+    } catch (err) {
+      console.error('Assign error:', err)
+      toast.error('Error during assignment')
+    } finally {
+      setIsAssigning(false)
     }
   }
 
@@ -697,7 +739,16 @@ export default function AllLeadsPage() {
               </div>
 
               {/* Search Bar & Export button */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 ml-auto">
+                {selectedLeads.length > 0 && (
+                  <button
+                    onClick={() => setIsAssignModalOpen(true)}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
+                  >
+                    <Users className="w-4 h-4" />
+                    Assign Selected ({selectedLeads.length})
+                  </button>
+                )}
                 <form onSubmit={handleSearchSubmit} className="relative w-72">
                   <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
@@ -725,6 +776,17 @@ export default function AllLeadsPage() {
               <table className="w-full border-collapse text-left text-sm">
                 <thead className="bg-[#EBF6F6]/50 dark:bg-slate-700/50">
                   <tr>
+                    <th className="px-5 py-4 w-12 border-b border-slate-100 dark:border-slate-700">
+                      <input 
+                        type="checkbox"
+                        checked={leads.length > 0 && selectedLeads.length === leads.length}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedLeads(leads.map(l => l.id))
+                          else setSelectedLeads([])
+                        }}
+                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      />
+                    </th>
                     <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 w-16">S. No.</th>
                     <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 w-44">Assigned To</th>
                     <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">School Name</th>
@@ -761,6 +823,17 @@ export default function AllLeadsPage() {
                       const { date: uDate, time: uTime } = formatDateTime(l.updated_at)
                       return (
                         <tr key={l.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-750/30 transition-colors">
+                          <td className="px-5 py-4">
+                            <input 
+                              type="checkbox"
+                              checked={selectedLeads.includes(l.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) setSelectedLeads(prev => [...prev, l.id])
+                                else setSelectedLeads(prev => prev.filter(id => id !== l.id))
+                              }}
+                              className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            />
+                          </td>
                           <td className="px-5 py-4 font-medium text-slate-550 dark:text-slate-400">{sNo}.</td>
                           <td className="px-5 py-4">
                             {l.assigned_user_name ? (
@@ -868,9 +941,20 @@ export default function AllLeadsPage() {
                   return (
                     <div 
                       key={l.id} 
-                      className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-xs space-y-3"
+                      className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-xs space-y-3 relative"
                     >
-                      <div className="flex justify-between items-start">
+                      <div className="absolute top-4 right-4">
+                        <input 
+                          type="checkbox"
+                          checked={selectedLeads.includes(l.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) setSelectedLeads(prev => [...prev, l.id])
+                            else setSelectedLeads(prev => prev.filter(id => id !== l.id))
+                          }}
+                          className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                      </div>
+                      <div className="flex justify-between items-start pr-8">
                         <div>
                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">#{sNo} Lead • {l.lead_source}</span>
                           <h4 className="text-sm font-bold text-slate-850 dark:text-slate-200 mt-0.5">{l.school_name}</h4>
@@ -1002,9 +1086,74 @@ export default function AllLeadsPage() {
         onClose={() => setDeleteTargetId(null)}
         onConfirm={handleConfirmDelete}
         loading={deleteLoading}
-        title="Delete CRM Lead"
-        description="Are you sure you want to delete this CRM lead? This action will permanently remove all logs and history logs related to it."
+        title="Delete Lead"
+        description="Are you sure you want to delete this lead? This action cannot be undone."
       />
+
+      {/* Bulk Assign Modal */}
+      {isAssignModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            onClick={() => setIsAssignModalOpen(false)}
+          />
+          <div className="relative bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/20">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                Assign Lead{selectedLeads.length > 1 ? 's' : ''}
+              </h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                You are assigning {selectedLeads.length} lead(s).
+              </p>
+            </div>
+            
+            <form onSubmit={handleBulkAssign} className="p-6 flex flex-col gap-5">
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Select Assignee
+                </label>
+                <select
+                  required
+                  value={selectedAssignee}
+                  onChange={(e) => setSelectedAssignee(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
+                >
+                  <option value="">Select a user...</option>
+                  <option value="unassigned">Unassigned (Remove assignment)</option>
+                  {assignableUsers.map(user => (
+                    <option key={user.id} value={user.id}>{user.name} ({user.role})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAssignModalOpen(false)}
+                  className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAssigning || !selectedAssignee}
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-indigo-500/20 flex items-center gap-2 cursor-pointer"
+                >
+                  {isAssigning ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Assigning...
+                    </>
+                  ) : (
+                    'Confirm Assignment'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   )
 }
