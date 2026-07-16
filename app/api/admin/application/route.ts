@@ -49,7 +49,7 @@ export async function GET(request: Request) {
         COUNT(CASE WHEN a.status IN ('Applied', 'Requested') THEN 1 END)::int as new
       FROM applications a
       LEFT JOIN institutions i ON a.institution_id = i.id
-      ${userRole === 'Manager' || userRole === 'BDM' ? `WHERE i.assigned_to = '${userId}'` : ''}
+      ${userRole === 'Manager' || userRole === 'BDM' ? `WHERE i.assigned_to = '${userId}' OR a.created_by = '${userId}'` : ''}
     `)
     const { total, new: newCount } = countsResult.rows[0]
 
@@ -67,7 +67,7 @@ export async function GET(request: Request) {
     const conditions: string[] = []
 
     if (userRole === 'Manager' || userRole === 'BDM') {
-      conditions.push('i.assigned_to = $' + (values.length + 1))
+      conditions.push(`(i.assigned_to = $${values.length + 1} OR a.created_by = $${values.length + 1})`)
       values.push(userId)
     }
 
@@ -140,6 +140,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession()
+    const userId = session?.userId
+
     const body = await request.json()
     const { 
       school_name, school_code, affiliated_to, affiliation_code,
@@ -180,12 +183,12 @@ export async function POST(request: Request) {
     const result = await pool.query(
       `INSERT INTO applications (
         application_no, institution_id,
-        status, enquiry_status, promo_code
-      ) VALUES ($1, $2, $3, $4, $5)
+        status, enquiry_status, promo_code, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
       [
         applicationNo, institutionId,
-        status || 'Applied', enquiry_status || 'Applied', promo_code || ''
+        status || 'Applied', enquiry_status || 'Applied', promo_code || '', userId
       ]
     )
 

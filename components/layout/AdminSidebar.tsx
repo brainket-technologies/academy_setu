@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { 
   LayoutDashboard, Users, FileText, Calendar, Tag, CreditCard, 
   MessageSquare, MessagesSquare, HelpCircle, UserCheck, Share2, 
-  Truck, DollarSign, UserCog, ShoppingCart, Settings, Edit, LogOut, ChevronDown, Cpu, X
+  Truck, DollarSign, UserCog, ShoppingCart, Settings, Edit, LogOut, ChevronDown, Cpu, X, School
 } from 'lucide-react'
 
 import { logoutAction } from '@/app/admin/login/actions'
@@ -36,6 +36,7 @@ export function AdminSidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: 
         { label: 'Create Application', href: '/admin/application/create' },
       ]
     },
+    { icon: School, label: 'Institute', href: '/admin/institute' },
     { 
       icon: Calendar, label: 'Plan', href: '/admin/plan',
       subItems: [

@@ -17,20 +17,22 @@ function createPool(): Pool {
     ssl: { rejectUnauthorized: false },
 
     // ─── Production-grade pool settings ────────────────────────────────────────
-    max: 50,                        // maximum simultaneous DB connections
-    min: 5,                         // keep 5 warm connections at all times
+    max: 20,                        // maximum simultaneous DB connections
+    min: 0,                         // don't keep warm connections for serverless
     idleTimeoutMillis: 60_000,      // close idle connections after 60 s
-    connectionTimeoutMillis: 3_000, // fail-fast if DB is unreachable
+    connectionTimeoutMillis: 15_000, // wait up to 15 seconds for DB to wake up
     maxUses: 7_500,                 // recycle connections after 7 500 queries to avoid memory drift
-    allowExitOnIdle: false,         // keep pool alive in serverless warm instances
+    allowExitOnIdle: true,          // allow exit to prevent hanging processes
   });
 }
 
 function getPool(): Pool {
-  if (process.env.NODE_ENV === "development") {
-    return (globalThis._pgPool ??= createPool());
+  // Force recreate pool to pick up new DATABASE_URL
+  if (globalThis._pgPool) {
+    globalThis._pgPool.end();
+    globalThis._pgPool = undefined;
   }
-  return (globalThis._pgPool ??= createPool());
+  return (globalThis._pgPool = createPool());
 }
 
 const pool: Pool = getPool();

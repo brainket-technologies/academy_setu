@@ -1,24 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { withCache, apiCache } from '@/lib/api-cache'
+import { getSession } from '@/lib/session'
 
 export async function GET(request: NextRequest) {
   try {
+    // TEMPORARY DB MIGRATION: Ensure created_by exists
+    await pool.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES admins(id)`)
+    await pool.query(`ALTER TABLE applications ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES admins(id)`)
+
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
     const source = searchParams.get('source') || ''
     const status = searchParams.get('status') || ''
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '10')
+    const session = await getSession()
+    const userRole = session?.role
+    const userId = session?.userId
     let assigned_to = searchParams.get('assigned_to') || ''
     if (assigned_to === 'undefined') assigned_to = ''
     const offset = (page - 1) * pageSize
 
-    const cacheKey = `leads:${search}:${source}:${status}:${assigned_to}:${page}:${pageSize}`
+    const cacheKey = `leads:${search}:${source}:${status}:${assigned_to}:${page}:${pageSize}:${userId}`
 
     const data = await withCache(cacheKey, async () => {
       const conditions: string[] = []
       const params: (string | number)[] = []
+
+      if (userRole === 'BDM' || userRole === 'Manager') {
+        params.push(userId as string)
+        conditions.push(`(l.assigned_to = $${params.length} OR l.created_by = $${params.length})`)
+      }
 
       if (search) {
         params.push(`%${search}%`)
@@ -73,6 +86,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getSession()
+    const userId = session?.userId
+
     const body = await request.json()
     const { 
       lead_source, mobile_no, email_id, contact_person, 
@@ -101,12 +117,12 @@ export async function POST(request: NextRequest) {
       `INSERT INTO leads (
         lead_source, mobile_no, email_id, contact_person, 
         institution_name, state, district, no_of_students, status_id,
-        created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+        created_at, updated_at, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW(), $10)
        RETURNING *`,
       [
         lead_source, mobile_no, email_id || '', contact_person || '',
-        school_name, state || '', district || '', parseInt(no_of_students || '0'), finalStatusId
+        school_name, state || '', district || '', parseInt(no_of_students || '0'), finalStatusId, userId
       ]
     )
 

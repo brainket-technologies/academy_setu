@@ -98,7 +98,9 @@ export async function GET() {
       ('Vikram', 'vikram@academysetu.com', $2, 'Support Team', 'AS123', '9999999999', true)`, [hashedPassword, userPassword])
 
     const adminIds = (await pool.query("SELECT id FROM admins")).rows.map(r => r.id)
-    const riyaId = (await pool.query("SELECT id FROM admins WHERE email='riya@academysetu.com'")).rows[0].id
+    const superAdminId = adminIds[0]
+    const ashokId = adminIds[1]
+    const riyaId = adminIds[4]
 
     // Segments (5)
     await pool.query(`INSERT INTO segments (name, services, description) VALUES
@@ -136,6 +138,22 @@ export async function GET() {
       ($5, 'Institute', 'Admin', 'All User', 'Max Plan', 'Max', 2000)`, segmentIds)
     const planIds = (await pool.query("SELECT id FROM plans")).rows.map(r => r.id)
 
+    // Plan Billing Items (5)
+    await pool.query(`INSERT INTO plan_billing_items (plan_id, billing_type, serial_no, item_description, price) VALUES
+      ($1, 'first', 1, 'Setup Fee', 500),
+      ($2, 'first', 1, 'Pro Setup Fee', 1000),
+      ($3, 'first', 1, 'Enterprise Setup Fee', 2000),
+      ($4, 'first', 1, 'Starter Setup Fee', 200),
+      ($5, 'first', 1, 'Max Setup Fee', 3000)`, planIds)
+
+    // Promo Codes (5)
+    await pool.query(`INSERT INTO promo_codes (code, segment_id, segment, discount_type, discount_value, status) VALUES
+      ('WELCOME10', $1, 'School', 'Percentage', 10, 'Active'),
+      ('FESTIVE20', $2, 'Coaching', 'Percentage', 20, 'Active'),
+      ('FLAT500', $3, 'College', 'Fixed', 500, 'Active'),
+      ('NEWYEAR', $4, 'Teacher', 'Percentage', 15, 'Active'),
+      ('SPECIAL', $5, 'Institute', 'Fixed', 1000, 'Active')`, segmentIds)
+
     // Bills (5)
     await pool.query(`INSERT INTO bills (institution_id, plan_id, school_name, plan_name, payment_mode, amount, transaction_id, status) VALUES
       ($1, $6, 'Delhi Public School', 'Basic Plan', 'Bank Account', 1000.00, 'TXN10001', 'Paid'),
@@ -170,7 +188,7 @@ export async function GET() {
       ('Tick005', $5, 'Riya', $10, 'MIT College', $15, 'Software', 'Institute', 'Completed')`,
       [...adminIds.slice(0,5), ...instIds, ...catIds])
 
-    // Lead Statuses
+    // Lead Statuses (4)
     await pool.query(`INSERT INTO lead_statuses (name) VALUES ('Completed'), ('Pending'), ('Cancelled'), ('Created')`)
     const lsId = (await pool.query("SELECT id FROM lead_statuses LIMIT 1")).rows[0].id
 
@@ -181,12 +199,101 @@ export async function GET() {
       ('Referral', '9999933333', $5, 'Aakash Institute', $1, $2, 'Ashok'), 
       ('Email', '9999944444', $6, 'KV School', $1, $2, 'Ashok'), 
       ('Call', '9999955555', $7, 'MIT College', $1, $2, 'Ashok')`, [lsId, riyaId, ...instIds])
+    const leadIds = (await pool.query("SELECT id FROM leads")).rows.map(r => r.id)
+
+    // Lead History (5)
+    await pool.query(`INSERT INTO lead_history (lead_id, communication_option, remarks, status_id) VALUES
+      ($1, 'Call', 'Interested', $6),
+      ($2, 'Email', 'Waiting for reply', $6),
+      ($3, 'Meeting', 'Positive response', $6),
+      ($4, 'WhatsApp', 'Shared details', $6),
+      ($5, 'Call', 'Not reachable', $6)`, [...leadIds, lsId])
 
     // Distributors (5)
     await pool.query(`INSERT INTO distributors (dist_id, name, mobile_no, username, status) VALUES
-      ('D01', 'Dist1', '111', 'd1', 'Active'), ('D02', 'Dist2', '222', 'd2', 'Active'), ('D03', 'Dist3', '333', 'd3', 'Inactive'), ('D04', 'Dist4', '444', 'd4', 'Active'), ('D05', 'Dist5', '555', 'd5', 'Active')`)
+      ('D01', 'Distributor A', '1111111111', 'dist_a', 'Active'),
+      ('D02', 'Distributor B', '2222222222', 'dist_b', 'Active'),
+      ('D03', 'Distributor C', '3333333333', 'dist_c', 'Inactive'),
+      ('D04', 'Distributor D', '4444444444', 'dist_d', 'Active'),
+      ('D05', 'Distributor E', '5555555555', 'dist_e', 'Active')`)
+    const distIds = (await pool.query("SELECT id FROM distributors")).rows.map(r => r.id)
 
-    // Return success
+    // Distributor Payments (5)
+    await pool.query(`INSERT INTO distributor_payments (distributor_id, amount, payment_mode, status) VALUES
+      ($1, 5000, 'UPI', 'Paid'),
+      ($2, 3000, 'Bank Transfer', 'Paid'),
+      ($3, 1000, 'Cash', 'Pending'),
+      ($4, 4500, 'UPI', 'Paid'),
+      ($5, 2000, 'Bank Transfer', 'Paid')`, distIds)
+
+    // Referrals (5)
+    await pool.query(`INSERT INTO referrals (referral_by_admin, referral_to_institution, name, address, mobile_no, status) VALUES
+      ($1, $2, 'Referral 1', 'Delhi', '9000000001', 'Pending'),
+      ($1, $3, 'Referral 2', 'Mumbai', '9000000002', 'Approved'),
+      ($1, $4, 'Referral 3', 'Pune', '9000000003', 'Rejected'),
+      ($1, $5, 'Referral 4', 'Bhopal', '9000000004', 'Pending'),
+      ($1, $6, 'Referral 5', 'Lucknow', '9000000005', 'Pending')`, [ashokId, ...instIds])
+
+    // Income Categories & Sessions & Parties
+    await pool.query(`INSERT INTO income_categories (name, category_type) VALUES ('Fees', 'Income'), ('Donation', 'Income'), ('Sponsorship', 'Income'), ('Salary', 'Expense'), ('Maintenance', 'Expense')`)
+    const catIncomeIds = (await pool.query("SELECT id FROM income_categories")).rows.map(r => r.id)
+    await pool.query(`INSERT INTO income_sessions (name) VALUES ('2023-24'), ('2024-25'), ('2025-26')`)
+    const sessIds = (await pool.query("SELECT id FROM income_sessions")).rows.map(r => r.id)
+    await pool.query(`INSERT INTO income_parties (name, party_category) VALUES ('Party A', 'Income'), ('Party B', 'Income'), ('Vendor A', 'Expense'), ('Vendor B', 'Expense')`)
+    const partyIds = (await pool.query("SELECT id FROM income_parties")).rows.map(r => r.id)
+
+    // Income & Expense Records
+    await pool.query(`INSERT INTO income_records (category_id, amount, session_id, party_id, status) VALUES
+      ($1, 15000, $4, $7, 'Paid'),
+      ($2, 25000, $5, $8, 'Paid'),
+      ($3, 10000, $6, $7, 'Pending')`, [catIncomeIds[0], catIncomeIds[1], catIncomeIds[2], sessIds[0], sessIds[1], sessIds[2], partyIds[0], partyIds[1]])
+    await pool.query(`INSERT INTO expense_records (category_id, amount, paid_by_id, paid_to_id, status) VALUES
+      ($1, 5000, $3, $5, 'Paid'),
+      ($2, 2000, $4, $6, 'Paid')`, [catIncomeIds[3], catIncomeIds[4], superAdminId, ashokId, partyIds[2], partyIds[3]])
+
+    // Products & related
+    await pool.query(`INSERT INTO products (name, description, mrp_price, sell_price) VALUES
+      ('Laptop', 'Study Laptop', 50000, 45000),
+      ('Tablet', 'Study Tablet', 20000, 18000),
+      ('Uniform', 'School Uniform', 2000, 1500),
+      ('Books', 'Textbooks set', 1500, 1200),
+      ('Bag', 'School Bag', 1000, 800)`)
+    const prodIds = (await pool.query("SELECT id FROM products")).rows.map(r => r.id)
+    
+    await pool.query(`INSERT INTO product_enquiries (institution_id, product_id, quantity, name, mobile_no) VALUES
+      ($1, $3, 10, 'Rahul', '9000000001'),
+      ($2, $4, 20, 'Shivam', '9000000002')`, [instIds[0], instIds[1], prodIds[0], prodIds[1]])
+      
+    await pool.query(`INSERT INTO product_dispatches (institution_id, product_id, quantity, status) VALUES
+      ($1, $3, 5, 'Dispatched'),
+      ($2, $4, 10, 'Delivered')`, [instIds[0], instIds[1], prodIds[0], prodIds[1]])
+
+    // SMS related
+    await pool.query(`INSERT INTO sms_orders (institution_id, sms_quantity, amount, status) VALUES
+      ($1, 10000, 5000, 'Completed'),
+      ($2, 5000, 2500, 'Pending')`, [instIds[0], instIds[1]])
+    await pool.query(`INSERT INTO sms_templates (template_name, message_content, status) VALUES
+      ('Welcome', 'Welcome to our school!', 'Approved'),
+      ('Fee Reminder', 'Please pay your dues.', 'Approved')`)
+
+    // Devices
+    await pool.query(`INSERT INTO device_brands (name) VALUES ('Samsung'), ('Apple'), ('Lenovo'), ('Dell'), ('HP')`)
+    const brandIds = (await pool.query("SELECT id FROM device_brands")).rows.map(r => r.id)
+    await pool.query(`INSERT INTO device_types (name) VALUES ('Mobile'), ('Tablet'), ('Laptop'), ('Desktop'), ('Watch')`)
+    const typeIds = (await pool.query("SELECT id FROM device_types")).rows.map(r => r.id)
+    await pool.query(`INSERT INTO device_plans (name, duration, amount, total_amount, brand_id, type_id) VALUES
+      ('Plan 1', 30, 500, 590, $1, $3),
+      ('Plan 2', 90, 1400, 1652, $2, $4)`, [brandIds[0], brandIds[1], typeIds[0], typeIds[1]])
+    const devPlanIds = (await pool.query("SELECT id FROM device_plans")).rows.map(r => r.id)
+    await pool.query(`INSERT INTO device_recharge_requests (institution_id, device_plan_id, amount, total_amount) VALUES
+      ($1, $3, 500, 590),
+      ($2, $4, 1400, 1652)`, [instIds[0], instIds[1], devPlanIds[0], devPlanIds[1]])
+
+    // Others
+    await pool.query(`INSERT INTO states_districts (state_name, districts) VALUES ('Delhi', ARRAY['New Delhi', 'North Delhi']), ('Maharashtra', ARRAY['Mumbai', 'Pune'])`)
+    await pool.query(`INSERT INTO queries (name, mobile_no, message) VALUES ('Test User', '9999999999', 'How to join?'), ('User 2', '8888888888', 'Pricing details?')`)
+    await pool.query(`INSERT INTO messages (sender_id, receiver_id, message) VALUES ($1, $2, 'Hello Ashok'), ($2, $1, 'Hi Super Admin')`, [superAdminId, ashokId])
+
     return NextResponse.json({ success: true, message: 'Seeded 5 rows across tables.' })
   } catch (error) {
     console.error('Setup error:', error)

@@ -4,24 +4,35 @@ import React, { useState } from 'react'
 import { MoreHorizontal, FileText, CheckCircle, Clock, CalendarDays, Key, MonitorPlay, Activity } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
-const lineChartData = [
-  { name: 'Jan', value: 3000 },
-  { name: 'Feb', value: 4500 },
-  { name: 'Mar', value: 3800 },
-  { name: 'Apr', value: 5000 },
-  { name: 'May', value: 5500 },
-  { name: 'Jun', value: 3200 },
-  { name: 'Jul', value: 4800 },
-  { name: 'Aug', value: 2100 },
-  { name: 'Sep', value: 3900 },
-  { name: 'Oct', value: 4500 },
-  { name: 'Nov', value: 3800 },
-  { name: 'Dec', value: 2000 },
-]
-
 export default function BdmDashboardPage() {
   const [graphFilter, setGraphFilter] = useState('2023-2024')
   const [graphType, setGraphType] = useState('Annual')
+  const [stats, setStats] = useState({
+    totalLeads: 0,
+    totalApplications: 0,
+    totalPendingFollowup: 0,
+    todayPendingFollowup: 0,
+    totalCallTime: 0,
+    todayLoginTime: '00:00',
+    lineChartData: [],
+    bdmData: []
+  })
+  const [loading, setLoading] = useState(true)
+
+  React.useEffect(() => {
+    fetch('/api/dashboard/stats')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setStats(data.data)
+        }
+        setLoading(false)
+      })
+      .catch(err => {
+        console.error(err)
+        setLoading(false)
+      })
+  }, [])
 
   return (
     <>
@@ -38,7 +49,7 @@ export default function BdmDashboardPage() {
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-50 dark:border-slate-700/50 flex items-center justify-between">
                 <div>
                   <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Total Lead</p>
-                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">700</h3>
+                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">{loading ? '...' : stats.totalLeads}</h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
                   <FileText className="w-6 h-6 text-green-500 dark:text-green-400" />
@@ -49,7 +60,7 @@ export default function BdmDashboardPage() {
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-50 dark:border-slate-700/50 flex items-center justify-between">
                 <div>
                   <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Total Application</p>
-                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">8000</h3>
+                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">{loading ? '...' : stats.totalApplications}</h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-fuchsia-100 dark:bg-fuchsia-900/40 flex items-center justify-center">
                   <CheckCircle className="w-6 h-6 text-fuchsia-500 dark:text-fuchsia-400" />
@@ -60,7 +71,7 @@ export default function BdmDashboardPage() {
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-50 dark:border-slate-700/50 flex items-center justify-between">
                 <div>
                   <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Total Pending Followup</p>
-                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">2000</h3>
+                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">{loading ? '...' : stats.totalPendingFollowup}</h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-yellow-100 dark:bg-yellow-900/40 flex items-center justify-center">
                   <Clock className="w-6 h-6 text-yellow-500 dark:text-yellow-400" />
@@ -71,7 +82,7 @@ export default function BdmDashboardPage() {
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-50 dark:border-slate-700/50 flex items-center justify-between">
                 <div>
                   <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Today Pending Followup</p>
-                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">25</h3>
+                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">{loading ? '...' : stats.todayPendingFollowup}</h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-rose-100 dark:bg-rose-900/40 flex items-center justify-center">
                   <CalendarDays className="w-6 h-6 text-rose-500 dark:text-rose-400" />
@@ -193,43 +204,20 @@ export default function BdmDashboardPage() {
               </div>
 
               <div className="flex-1 w-full h-full min-h-[200px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={lineChartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis 
-                      dataKey="name" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fontSize: 10, fill: '#94a3b8' }} 
-                      dy={10} 
-                    />
-                    <YAxis 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fontSize: 10, fill: '#94a3b8' }}
-                      ticks={[0, 1000, 2500, 5000, 7500]}
-                    />
-                    <Tooltip 
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      itemStyle={{ color: '#6366f1', fontWeight: 'bold' }}
-                      labelStyle={{ color: '#64748b', marginBottom: '4px', fontSize: '12px' }}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="value" 
-                      stroke="#6366f1" 
-                      strokeWidth={3} 
-                      dot={{ r: 4, strokeWidth: 2, fill: '#fff', stroke: '#6366f1' }}
-                      activeDot={{ r: 6, fill: '#6366f1', stroke: '#fff', strokeWidth: 2 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                {stats.lineChartData && stats.lineChartData.length > 0 && (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={stats.lineChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 15px -3px rgba(0,0,0,0.1)' }}
+                        cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }}
+                      />
+                      <Line type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={3} dot={{ r: 4, fill: '#fff', stroke: '#6366f1', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#4f46e5' }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
           </div>

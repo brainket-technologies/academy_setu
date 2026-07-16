@@ -4,30 +4,35 @@ import React, { useState } from 'react'
 import { MoreHorizontal, FileText, CheckCircle, Clock, CalendarDays, Key, MonitorPlay, Activity } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
-const lineChartData = [
-  { name: 'Jan', value: 3000 },
-  { name: 'Feb', value: 4500 },
-  { name: 'Mar', value: 3800 },
-  { name: 'Apr', value: 5000 },
-  { name: 'May', value: 5500 },
-  { name: 'Jun', value: 3200 },
-  { name: 'Jul', value: 4800 },
-  { name: 'Aug', value: 2100 },
-  { name: 'Sep', value: 3900 },
-  { name: 'Oct', value: 4500 },
-  { name: 'Nov', value: 3800 },
-  { name: 'Dec', value: 2000 },
-]
-
-const bdmData = [
-  { id: 1, name: 'Riya', totalFollowUp: 200, todayFollowUp: 30, status: 'Online' },
-  { id: 2, name: 'Alok', totalFollowUp: 250, todayFollowUp: 25, status: 'Offline' },
-  { id: 3, name: 'Shivam', totalFollowUp: 125, todayFollowUp: 18, status: 'Offline' },
-]
-
 export default function ManagerDashboardPage() {
   const [graphFilter, setGraphFilter] = useState('2023-2024')
   const [graphType, setGraphType] = useState('Annual')
+  const [stats, setStats] = useState({
+    totalLeads: 0,
+    totalApplications: 0,
+    totalPendingFollowup: 0,
+    todayPendingFollowup: 0,
+    totalCallTime: 0,
+    todayLoginTime: '00:00',
+    lineChartData: [],
+    bdmData: []
+  })
+  const [loading, setLoading] = useState(true)
+
+  React.useEffect(() => {
+    fetch('/api/dashboard/stats')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setStats(data.data)
+        }
+        setLoading(false)
+      })
+      .catch(err => {
+        console.error(err)
+        setLoading(false)
+      })
+  }, [])
 
   return (
     <>
@@ -44,7 +49,7 @@ export default function ManagerDashboardPage() {
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-50 dark:border-slate-700/50 flex items-center justify-between">
                 <div>
                   <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Total Lead</p>
-                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">700</h3>
+                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">{loading ? '...' : stats.totalLeads}</h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
                   <FileText className="w-6 h-6 text-green-500 dark:text-green-400" />
@@ -55,7 +60,7 @@ export default function ManagerDashboardPage() {
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-50 dark:border-slate-700/50 flex items-center justify-between">
                 <div>
                   <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Total Application</p>
-                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">8000</h3>
+                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">{loading ? '...' : stats.totalApplications}</h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-fuchsia-100 dark:bg-fuchsia-900/40 flex items-center justify-center">
                   <CheckCircle className="w-6 h-6 text-fuchsia-500 dark:text-fuchsia-400" />
@@ -66,7 +71,7 @@ export default function ManagerDashboardPage() {
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-50 dark:border-slate-700/50 flex items-center justify-between">
                 <div>
                   <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Total Pending Followup</p>
-                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">2000</h3>
+                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">{loading ? '...' : stats.totalPendingFollowup}</h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-yellow-100 dark:bg-yellow-900/40 flex items-center justify-center">
                   <Clock className="w-6 h-6 text-yellow-500 dark:text-yellow-400" />
@@ -77,7 +82,7 @@ export default function ManagerDashboardPage() {
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-50 dark:border-slate-700/50 flex items-center justify-between">
                 <div>
                   <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Today Pending Followup</p>
-                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">25</h3>
+                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">{loading ? '...' : stats.todayPendingFollowup}</h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-rose-100 dark:bg-rose-900/40 flex items-center justify-center">
                   <CalendarDays className="w-6 h-6 text-rose-500 dark:text-rose-400" />
@@ -199,43 +204,20 @@ export default function ManagerDashboardPage() {
               </div>
 
               <div className="flex-1 w-full h-full min-h-[200px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={lineChartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis 
-                      dataKey="name" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fontSize: 10, fill: '#94a3b8' }} 
-                      dy={10} 
-                    />
-                    <YAxis 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fontSize: 10, fill: '#94a3b8' }}
-                      ticks={[0, 1000, 2500, 5000, 7500]}
-                    />
-                    <Tooltip 
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      itemStyle={{ color: '#3b82f6', fontWeight: 'bold' }}
-                      labelStyle={{ color: '#64748b', marginBottom: '4px', fontSize: '12px' }}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="value" 
-                      stroke="#3b82f6" 
-                      strokeWidth={3} 
-                      dot={{ r: 4, strokeWidth: 2, fill: '#fff', stroke: '#3b82f6' }}
-                      activeDot={{ r: 6, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                {stats.lineChartData && stats.lineChartData.length > 0 && (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={stats.lineChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 15px -3px rgba(0,0,0,0.1)' }}
+                        cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }}
+                      />
+                      <Line type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={3} dot={{ r: 4, fill: '#fff', stroke: '#6366f1', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#4f46e5' }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
           </div>
@@ -243,49 +225,27 @@ export default function ManagerDashboardPage() {
 
         {/* BOTTOM ROW: BDM Data Table */}
         <div>
-          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-6 tracking-tight">BDM Data Table</h2>
-          <div className="bg-white dark:bg-slate-800 rounded-[28px] p-2 shadow-sm border border-slate-100 dark:border-slate-700/50 overflow-hidden">
-            <div className="overflow-x-auto rounded-[24px]">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700/50">
-                    <th className="py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">S. No.</th>
-                    <th className="py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Name</th>
-                    <th className="py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center">Total Follow up</th>
-                    <th className="py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center">Today Follow up</th>
-                    <th className="py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center">Status</th>
-                    <th className="py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
-                  {bdmData.map((row) => (
-                    <tr key={row.id} className="hover:bg-slate-50/30 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-5 px-6 text-sm font-medium text-slate-500 dark:text-slate-400">{row.id}.</td>
-                      <td className="py-5 px-6 text-sm font-semibold text-slate-700 dark:text-slate-200">{row.name}</td>
-                      <td className="py-5 px-6 text-sm font-medium text-slate-600 dark:text-slate-300 text-center">{row.totalFollowUp}</td>
-                      <td className="py-5 px-6 text-sm font-medium text-slate-600 dark:text-slate-300 text-center">{row.todayFollowUp}</td>
-                      <td className="py-5 px-6 text-center">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
-                          row.status === 'Online' 
-                            ? 'bg-green-50 text-green-600 border-green-200/60 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800/50' 
-                            : 'bg-red-50 text-red-500 border-red-200/60 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800/50'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${row.status === 'Online' ? 'bg-green-500' : 'bg-red-500'}`} />
-                          {row.status}
-                        </span>
-                      </td>
-                      <td className="py-5 px-6 text-center">
-                        <button className="inline-flex items-center justify-center gap-1.5 px-4 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 rounded-lg text-xs font-bold transition-colors cursor-pointer">
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                          </svg>
-                          Log in
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-6 tracking-tight">Team Members</h2>
+          <div className="bg-white dark:bg-slate-800 rounded-[28px] p-6 shadow-sm border border-slate-100 dark:border-slate-700/50">
+            <div className="flex flex-col gap-3">
+              {stats.bdmData && stats.bdmData.length > 0 ? stats.bdmData.map((bdm: any) => (
+                <div key={bdm.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-sm flex items-center justify-between group hover:border-indigo-200 dark:hover:border-indigo-500/30 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-sm">
+                      {bdm.name.charAt(0)}
+                    </div>
+                    <div>
+                      <h4 className="text-[15px] font-bold text-slate-800 dark:text-slate-100">{bdm.name}</h4>
+                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">Total: {bdm.totalFollowUp} | Today: {bdm.todayFollowUp}</p>
+                    </div>
+                  </div>
+                  <div className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${bdm.status === 'Online' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700/50 dark:text-slate-400'}`}>
+                    {bdm.status}
+                  </div>
+                </div>
+              )) : (
+                <div className="p-4 text-center text-sm font-semibold text-slate-500">No team members to show</div>
+              )}
             </div>
           </div>
         </div>
