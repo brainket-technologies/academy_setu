@@ -10,6 +10,7 @@
     "db:init": "node C:\\Users\\fammu\\.gemini\\antigravity-ide\\brain\\7d8fb253-0dc0-4e22-b926-6d93fd222209\\scratch\\init-db.js"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.9.0",
     "@prisma/client": "^7.8.0",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.3",

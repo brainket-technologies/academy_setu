@@ -17,9 +17,6 @@ interface StudentTC {
 }
 
 const INITIAL_TCS: StudentTC[] = [
-  { id: 1, tcNo: '0123456', admissionNo: 'Adm/2025/2315', studentName: 'Sohan Singh', avatar: '👦', classGrade: 'Class III', section: 'Section B', session: '2025-26', dateCreated: '15/09/2025', timeCreated: '11:03 AM' },
-  { id: 2, tcNo: '0123456', admissionNo: 'Adm/2025/2315', studentName: 'Sohan Singh', avatar: '👦', classGrade: 'Class VII', section: 'Section B', session: '2025-26', dateCreated: '15/09/2025', timeCreated: '11:03 AM' },
-  { id: 3, tcNo: '0123456', admissionNo: 'Adm/2025/2315', studentName: 'Sohan Singh', avatar: '👦', classGrade: 'Class VIII', section: 'Section B', session: '2025-26', dateCreated: '15/09/2025', timeCreated: '11:03 AM' },
 ]
 
 export default function TransferCertificatesListPage() {

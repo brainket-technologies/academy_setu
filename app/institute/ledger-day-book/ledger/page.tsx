@@ -18,9 +18,6 @@ interface LedgerRecord {
 }
 
 const INITIAL_LEDGERS: LedgerRecord[] = [
-  { id: 1, referenceId: '123456', txnId: '123abc455def', amount: '2000/-', txnType: 'CR', entryType: 'Fee', paymentMode: 'Cash', date: '15/09/2025 11:00 AM', bankName: 'abcd bank', totalBankAmount: '400000/-' },
-  { id: 2, referenceId: '123456', txnId: '123abc455def', amount: '15000/-', txnType: 'DR', entryType: 'Expenses', paymentMode: 'Bank Transfer', date: '15/09/2025 11:00 AM', bankName: 'abcd bank', totalBankAmount: '300000/-' },
-  { id: 3, referenceId: '123456', txnId: '123abc455def', amount: '12000/-', txnType: 'CR', entryType: 'Income', paymentMode: 'UPI', date: '15/09/2025 11:00 AM', bankName: 'abcd bank', totalBankAmount: '290000/-' },
 ]
 
 export default function LedgerDashboardPage() {

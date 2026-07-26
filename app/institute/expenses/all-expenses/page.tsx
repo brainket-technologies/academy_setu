@@ -17,9 +17,6 @@ interface ExpenseRecord {
 }
 
 const INITIAL_EXPENSES: ExpenseRecord[] = [
-  { id: 1, referenceNo: '123/456', expenseType: 'Budget', amount: '2,500/-', paymentMode: 'Cash', expenseDate: '02/01/2025', paidBy: 'Neeraj', paidTo: 'Gokul', status: 'Paid' },
-  { id: 2, referenceNo: '123/456', expenseType: 'Refreshment', amount: '800/-', paymentMode: 'UPI', expenseDate: '02/01/2025', paidBy: 'Sourabh', paidTo: 'Komal', status: 'Unpaid' },
-  { id: 3, referenceNo: '123/456', expenseType: 'School Bus', amount: '2,500/-', paymentMode: 'RTGS', expenseDate: '02/01/2025', paidBy: 'Kamlesh', paidTo: 'Anil', status: 'Paid' },
 ]
 
 export default function AllExpensesPage() {

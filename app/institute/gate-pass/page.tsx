@@ -19,10 +19,6 @@ interface GatePassRecord {
 }
 
 const INITIAL_PASSES: GatePassRecord[] = [
-  { id: 1, userType: 'Student', userName: 'Ankush', idNo: 'st01', receiverName: 'Kamlesh', receiverDetail: 'Rel : Brother\n+91-9999-999-999', reason: 'Lorem ipsum', entryGate: 'Gate 1', exitGate: 'Gate 3', createdAt: '15/09/2025 11:00 AM', passType: 'one-time' },
-  { id: 2, userType: 'Staff', userName: 'Shivam', idNo: 'st03', receiverName: 'Arun', receiverDetail: '+91-8888-888-888', reason: 'Lorem ipsum', entryGate: 'Gate 1', exitGate: '', createdAt: '15/09/2025 11:00 AM', passType: 'one-time' },
-  { id: 3, userType: 'Visitor', userName: 'Dev', idNo: 'vt03', receiverName: 'Karan', receiverDetail: 'Rel : Brother\n+91-9999-999-999', reason: 'Lorem ipsum', entryGate: 'Gate 1', exitGate: 'Gate 3', createdAt: '15/09/2025 11:00 AM', passType: 'one-time' },
-  { id: 4, userType: 'Student', userName: 'Priya', idNo: 'st05', receiverName: 'Suman', receiverDetail: 'Rel : Mother\n+91-7777-777-777', reason: 'Medical', entryGate: 'Gate 1', exitGate: 'Gate 2', createdAt: '15/09/2025 11:00 AM', passType: 'permanent' },
 ]
 
 export default function AllGatePassPage() {

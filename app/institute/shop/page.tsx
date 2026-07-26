@@ -123,10 +123,6 @@ const ALL_PRODUCTS: Product[] = [
 ]
 
 const INITIAL_HISTORY: OrderHistoryItem[] = [
-  { id: 1, productName: 'xyz product', quantity: 32, perPiecePrice: 100.00, totalPrice: 3200.00, tax: '18%', finalAmount: 3776.00, updatedAt: '14/09/2026', status: 'Payment Pending' },
-  { id: 2, productName: 'xyz product', quantity: 25, perPiecePrice: 100.00, totalPrice: 3200.00, tax: '18%', finalAmount: 3776.00, updatedAt: '14/10/2025', status: 'Order Generated' },
-  { id: 3, productName: 'xyz product', quantity: 50, perPiecePrice: 100.00, totalPrice: 3200.00, tax: '18%', finalAmount: 3776.00, updatedAt: '01/10/2025', status: 'Working' },
-  { id: 4, productName: 'xyz product', quantity: 50, perPiecePrice: 100.00, totalPrice: 3200.00, tax: '18%', finalAmount: 3776.00, updatedAt: '01/10/2025', status: 'Order Dispatched' },
 ]
 
 export default function ShopModulePage() {

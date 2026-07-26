@@ -21,66 +21,6 @@ interface AdmitCardConfig {
 }
 
 const INITIAL_ADMIT_CARDS: AdmitCardConfig[] = [
-  {
-    id: 1,
-    className: 'Class V',
-    examName: 'Half Yearly Exam',
-    admitCardLabel: 'Admit Card',
-    timeTableId: 1,
-    session: '2024-25',
-    schoolName: 'SCHOOL NAME',
-    schoolAddress: 'Address : 123, Location, Street Name, City, State, Country, Pincode',
-    displayFields: {
-      name: true, fatherName: true, motherName: true, mobileNo: true,
-      admissionNo: true, registrationNo: true, rollNo: true, class: true, section: true,
-      dob: true, address: true, photo: true, studentSign: true, teacherSign: true,
-      principalSign: true, parentSign: true
-    },
-    status: 'Inactive',
-    instructions: 'Please bring your identity card. Mobiles are strictly prohibited.',
-    dateCreated: '15/09/2025',
-    timeCreated: '11:00 AM'
-  },
-  {
-    id: 2,
-    className: 'Class V',
-    examName: 'Annual Exam',
-    admitCardLabel: 'Admit Card',
-    timeTableId: 2,
-    session: '2024-25',
-    schoolName: 'SCHOOL NAME',
-    schoolAddress: 'Address : 123, Location, Street Name, City, State, Country, Pincode',
-    displayFields: {
-      name: true, fatherName: true, motherName: true, mobileNo: true,
-      admissionNo: true, registrationNo: true, rollNo: true, class: true, section: true,
-      dob: true, address: true, photo: true, studentSign: true, teacherSign: true,
-      principalSign: true, parentSign: true
-    },
-    status: 'Active',
-    instructions: 'Report at least 30 minutes before exam time.',
-    dateCreated: '15/09/2025',
-    timeCreated: '11:00 AM'
-  },
-  {
-    id: 3,
-    className: 'Class VI',
-    examName: 'Half Yearly Exam',
-    admitCardLabel: 'Admit Card',
-    timeTableId: 3,
-    session: '2025-26',
-    schoolName: 'SCHOOL NAME',
-    schoolAddress: 'Address : 123, Location, Street Name, City, State, Country, Pincode',
-    displayFields: {
-      name: true, fatherName: true, motherName: true, mobileNo: true,
-      admissionNo: true, registrationNo: true, rollNo: true, class: true, section: true,
-      dob: true, address: true, photo: true, studentSign: true, teacherSign: true,
-      principalSign: true, parentSign: true
-    },
-    status: 'Active',
-    instructions: 'Mobiles and digital logs are prohibited.',
-    dateCreated: '15/09/2025',
-    timeCreated: '11:00 AM'
-  }
 ]
 
 export default function AdmitCardsPage() {

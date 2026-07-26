@@ -17,19 +17,6 @@ interface HouseRecord {
 }
 
 const INITIAL_HOUSES: HouseRecord[] = [
-  { id: 1, name: 'Red', members: 25, captain: 'Veer Singh', vCaptain: 'Veer Singh', teacher: 'Shubham Singh', tagline: 'Ignite and Shine', objective: 'To foster healthy competitive spirit.' },
-  { id: 2, name: 'Red', members: 25, captain: 'Alok Tiwari', vCaptain: 'Alok Tiwari', teacher: 'Shubh Tiwari', tagline: 'Ignite and Shine', objective: 'To foster healthy competitive spirit.' },
-  { id: 3, name: 'Red', members: 25, captain: 'Suraj', vCaptain: 'Suraj', teacher: 'Himesh', tagline: 'Ignite and Shine', objective: 'To foster healthy competitive spirit.' },
-  { id: 4, name: 'Red', members: 25, captain: 'Ankit', vCaptain: 'Ankit', teacher: 'Komal', tagline: 'Ignite and Shine', objective: 'To foster healthy competitive spirit.' },
-  
-  { id: 5, name: 'Green', members: 25, captain: 'Rahul Kumar', vCaptain: 'Rahul Kumar', teacher: 'Rishi Kumar', tagline: 'Green is Serene', objective: 'To promote environment consciousness.' },
-  { id: 6, name: 'Green', members: 25, captain: 'Ravi', vCaptain: 'Ravi', teacher: 'Ashok', tagline: 'Green is Serene', objective: 'To promote environment consciousness.' },
-
-  { id: 7, name: 'Yellow', members: 25, captain: 'Santosh Singh', vCaptain: 'Santosh Singh', teacher: 'Priya Kumari', tagline: 'Bright as Sun', objective: 'To inspire intellectual creativity.' },
-  { id: 8, name: 'Yellow', members: 25, captain: 'Mukesh', vCaptain: 'Mukesh', teacher: 'Keshav', tagline: 'Bright as Sun', objective: 'To inspire intellectual creativity.' },
-
-  { id: 9, name: 'Blue', members: 25, captain: 'Aman', vCaptain: 'Aman', teacher: 'Rahul', tagline: 'Depth like Ocean', objective: 'To encourage resilience and determination.' },
-  { id: 10, name: 'Blue', members: 25, captain: 'Rajesh', vCaptain: 'Rajesh', teacher: 'Shivam', tagline: 'Depth like Ocean', objective: 'To encourage resilience and determination.' },
 ]
 
 export default function HouseBlocksPage() {

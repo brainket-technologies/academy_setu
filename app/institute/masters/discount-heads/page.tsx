@@ -19,9 +19,6 @@ interface DiscountHeadRecord {
 }
 
 const INITIAL_DISCOUNTS: DiscountHeadRecord[] = [
-  { id: 1, name: 'Holi Discount', promoCode: 'Holi 20', applicableType: 'Admission Time', continuity: 'One Time', valueType: 'Percentage', amount: '—', percentage: '25%', startDate: '01/01/2026', expireDate: '28/02/2026', createdAt: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 2, name: 'Monthly Concession', promoCode: 'Every Month', applicableType: 'Fee Collection', continuity: 'Every Month', valueType: 'Fixed amount', amount: '500', percentage: '—', startDate: '15/01/2025', expireDate: '10/02/2027', createdAt: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 3, name: 'Early Bird', promoCode: 'One Time', applicableType: 'Fee Collection', continuity: 'One Time', valueType: 'Percentage', amount: '—', percentage: '2%', startDate: '01/09/2025', expireDate: '10/10/2026', createdAt: '15/09/2025\n11:00 AM', deleted: false },
 ]
 
 export default function DiscountHeadsPage() {

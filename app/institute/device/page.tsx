@@ -29,15 +29,9 @@ interface PaymentHistoryRecord {
 }
 
 const INITIAL_DEVICES: DeviceRecord[] = [
-  { id: 1, deviceName: 'Device 1', brand: 'Brand 1', deviceType: 'GPS', simNo: '9999999999', simImei: 'IMEI11111', deviceSrNo: 'SR111', validFrom: '15/09/2025', validTo: '14/09/2026', expiryDays: 3, status: 'Active' },
-  { id: 2, deviceName: 'Device 2', brand: 'Brand 1', deviceType: 'Finger Print', simNo: '8888888888', simImei: 'IMEI22222', deviceSrNo: 'SR222', validFrom: '15/09/2025', validTo: '14/10/2026', expiryDays: 15, status: 'Active' },
-  { id: 3, deviceName: 'Device 3', brand: 'Brand 2', deviceType: 'Attendance', simNo: '9999999999', simImei: 'IMEI33333', deviceSrNo: 'SR333', validFrom: '15/09/2025', validTo: '01/10/2026', expiryDays: 30, status: 'Inactive' },
 ]
 
 const MOCK_PAYMENTS: PaymentHistoryRecord[] = [
-  { id: 1, planName: 'Plan 1', validFrom: '15/09/2025', validTo: '14/09/2026', mode: 'UPI', transId: 'Rzpy1234', amount: 2000.00, status: 'Under Verification' },
-  { id: 2, planName: 'Plan 2', validFrom: '15/09/2025', validTo: '14/10/2026', mode: 'UPI', transId: 'TXN12345', amount: 10000.00, status: 'Paid' },
-  { id: 3, planName: 'Plan 3', validFrom: '15/09/2025', validTo: '01/10/2026', mode: 'QR', transId: 'TXN12345', amount: 20000.00, status: 'Paid' },
 ]
 
 export default function DeviceModulePage() {

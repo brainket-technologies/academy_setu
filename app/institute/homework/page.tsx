@@ -27,21 +27,9 @@ interface SubmissionRecord {
 }
 
 const INITIAL_HOMEWORKS: HomeworkRecord[] = [
-  { id: 1, title: 'Lorem ipsum', classes: 'Class V', section: 'Section A', subject: 'Math', status: 'Active', submissionDate: '11/12/2025', scheduleDate: '15/09/2025 11:00 AM', description: 'Solve chapters 4 and 5 exercises on coordinate geometry.' },
-  { id: 2, title: 'Lorem ipsum', classes: 'Class XII', section: 'Section B', subject: 'Science', status: 'Active', submissionDate: '11/12/2025', scheduleDate: '15/09/2025 11:00 AM', description: 'Draw organic chemistry reactions chart.' },
-  { id: 3, title: 'Lorem ipsum', classes: 'Class VIII', section: 'Section D', subject: 'English', status: 'Inactive', submissionDate: '15/12/2025', scheduleDate: '15/09/2025 11:00 AM', description: 'Write an essay on global warming (300 words).' },
 ]
 
 const MOCK_SUBMISSIONS: Record<number, SubmissionRecord[]> = {
-  1: [
-    { studentName: 'Abhay Singh', rollNo: '101', submittedAt: '10/12/2025 04:00 PM', attachment: 'abhay_geometry.pdf', grade: 'A', remarks: 'Excellent presentation', status: 'Evaluated' },
-    { studentName: 'Ashok Kumar', rollNo: '102', submittedAt: '10/12/2025 05:00 PM', attachment: 'ashok_geometry.pdf', grade: '', remarks: '', status: 'Pending' },
-    { studentName: 'Priya Kumari', rollNo: '103', submittedAt: '11/12/2025 09:00 AM', attachment: 'priya_geometry.pdf', grade: '', remarks: '', status: 'Pending' },
-  ],
-  2: [
-    { studentName: 'Sneha Pandey', rollNo: '105', submittedAt: '10/12/2025 02:00 PM', attachment: 'sneha_chemistry.pdf', grade: 'B+', remarks: 'Well explained', status: 'Evaluated' },
-    { studentName: 'Alok Tiwari', rollNo: '106', submittedAt: '11/12/2025 10:00 AM', attachment: 'alok_chemistry.pdf', grade: '', remarks: '', status: 'Pending' },
-  ]
 }
 
 export default function HomeworkPage() {

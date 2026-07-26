@@ -13,9 +13,6 @@ interface DayBookRecord {
 }
 
 const INITIAL_DAYBOOKS: DayBookRecord[] = [
-  { id: 1, date: '15/09/2025', totalCR: '14,000/-', totalDR: '15,000/-', netCash: '-1,000/-', transactionsCount: 3 },
-  { id: 2, date: '14/09/2025', totalCR: '25,000/-', totalDR: '0/-', netCash: '25,000/-', transactionsCount: 2 },
-  { id: 3, date: '13/09/2025', totalCR: '8,000/-', totalDR: '4,000/-', netCash: '4,000/-', transactionsCount: 4 },
 ]
 
 export default function DayBookPage() {

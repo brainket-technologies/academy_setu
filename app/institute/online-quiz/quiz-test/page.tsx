@@ -40,8 +40,6 @@ interface QuestionItem {
 }
 
 const INITIAL_QUIZZES: QuizRecord[] = [
-  { id: 1, className: 'Class I', section: 'Section A', title: 'Lorem ipsum dolor sit amet', totalQus: 5, maxMarks: 25, passMarks: 15, markPerAns: 5, negMark: 'No Negative Mark', totalAttempt: 12, createdAt: '10/09/2025\n11:00 AM', status: 'Active', testType: 'Online Test', subjects: ['Hindi'], allowMultipleAttempts: false, randomizePerUser: true, randomizePerAttempt: false },
-  { id: 2, className: 'Class IV', section: 'Section C', title: 'Lorem ipsum dolor sit amet second', totalQus: 10, maxMarks: 50, passMarks: 20, markPerAns: 5, negMark: '0.25', totalAttempt: 8, createdAt: '15/09/2025\n11:00 AM', status: 'Active', testType: 'Practice', subjects: ['Hindi', 'Science'], allowMultipleAttempts: true, randomizePerUser: false, randomizePerAttempt: true },
 ]
 
 const ALL_QUESTIONS: QuestionItem[] = [

@@ -19,10 +19,6 @@ interface SubjectRecord {
 }
 
 const INITIAL_SUBJECTS: SubjectRecord[] = [
-  { id: 1, subjectCode: '03', subjectName: 'Physics', orderNo: 2, groupName: 'PCM', className: 'Class VIII', streamName: 'Science', type: 'Marks', createdAt: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 2, subjectCode: '04', subjectName: 'Zoology', orderNo: 3, groupName: 'ZBC', className: 'Class IX', streamName: 'Science', type: 'Grade (Discipline)', createdAt: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 3, subjectCode: '02', subjectName: 'Accounts', orderNo: 4, groupName: 'Accounts', className: 'Class VIII', streamName: 'Accounts', type: 'Grade (Activity)', createdAt: '14/09/2025\n11:00 AM', deleted: false },
-  { id: 4, subjectCode: '05', subjectName: 'Chemistry', orderNo: 1, groupName: 'PCM', className: 'Class VIII', streamName: 'Science', type: 'Marks', createdAt: '15/09/2025\n11:00 AM', deleted: true },
 ]
 
 export default function SubjectsPage() {

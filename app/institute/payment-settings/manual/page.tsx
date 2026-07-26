@@ -13,16 +13,6 @@ interface ReceiverRecord {
 }
 
 const INITIAL_RECEIVERS: ReceiverRecord[] = [
-  { id: 1, accountType: 'School Bank Account', receiverRole: 'Employee', receiverName: 'Abhay Singh', walletBalance: '25000/-', receiveDate: '15/09/2025 11:00 AM' },
-  { id: 2, accountType: 'Other Bank Account', receiverRole: 'Employee', receiverName: 'Ashok Singh', walletBalance: '14000/-', receiveDate: '15/09/2025 11:00 AM' },
-  { id: 3, accountType: 'Other Bank Account', receiverRole: 'Teacher', receiverName: 'Priya Kumari', walletBalance: '25000/-', receiveDate: '15/09/2025 11:00 AM' },
-  { id: 4, accountType: 'Other Bank Account', receiverRole: 'Employee', receiverName: 'Sneha Pandey', walletBalance: '14000/-', receiveDate: '15/09/2025 11:00 AM' },
-  { id: 5, accountType: 'Other Bank Account', receiverRole: 'Teacher', receiverName: 'Alok Tiwari', walletBalance: '8000/-', receiveDate: '15/09/2025 11:00 AM' },
-  { id: 6, accountType: 'Other Bank Account', receiverRole: 'Employee', receiverName: 'Divya Prajapati', walletBalance: '25000/-', receiveDate: '15/09/2025 11:00 AM' },
-  { id: 7, accountType: 'Other Bank Account', receiverRole: 'Teacher', receiverName: 'Garima', walletBalance: '14000/-', receiveDate: '15/09/2025 11:00 AM' },
-  { id: 8, accountType: 'Other Bank Account', receiverRole: 'Teacher', receiverName: 'Rahul', walletBalance: '8000/-', receiveDate: '15/09/2025 11:00 AM' },
-  { id: 9, accountType: 'Other Bank Account', receiverRole: 'Employee', receiverName: 'Anamika', walletBalance: '25000/-', receiveDate: '15/09/2025 11:00 AM' },
-  { id: 10, accountType: 'Other Bank Account', receiverRole: 'Employee', receiverName: 'Tanu', walletBalance: '14000/-', receiveDate: '15/09/2025 11:00 AM' },
 ]
 
 export default function OnlineManualPaymentPage() {

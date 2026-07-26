@@ -13,11 +13,6 @@ interface SectionRecord {
 }
 
 const INITIAL_SECTIONS: SectionRecord[] = [
-  { id: 1, sectionName: 'A', className: 'Class I', createdAt: '15/09/2025\n11:00 AM', lastUpdate: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 2, sectionName: 'B', className: 'Class II', createdAt: '15/09/2025\n11:00 AM', lastUpdate: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 3, sectionName: 'C', className: 'Class III', createdAt: '15/09/2025\n11:00 AM', lastUpdate: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 4, sectionName: 'D', className: 'Class IV', createdAt: '15/09/2025\n11:00 AM', lastUpdate: '15/09/2025\n11:00 AM', deleted: true },
-  { id: 5, sectionName: 'E', className: 'Class V', createdAt: '15/09/2025\n11:00 AM', lastUpdate: '15/09/2025\n11:00 AM', deleted: true },
 ]
 
 export default function SectionsPage() {

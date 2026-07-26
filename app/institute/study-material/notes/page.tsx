@@ -16,9 +16,6 @@ interface NoteRecord {
 }
 
 const INITIAL_NOTES: NoteRecord[] = [
-  { id: 1, title: 'Lorem ipsum dolor sit amet', className: 'Class I', subjectName: 'Hindi', noOfContent: 2, createdAt: '15/09/2025\n11:00 AM', attachmentName: 'syllabus_hindi.pdf' },
-  { id: 2, title: 'Lorem ipsum dolor sit amet', className: 'Class II', subjectName: 'Science', noOfContent: 2, createdAt: '15/09/2025\n11:00 AM', attachmentName: 'chapter2_notes.pdf' },
-  { id: 3, title: 'Lorem ipsum dolor sit amet', className: 'Class IV', subjectName: 'English', noOfContent: 1, createdAt: '15/09/2025\n11:00 AM', attachmentName: 'grammar_basics.pdf' },
 ]
 
 export default function NotesPage() {

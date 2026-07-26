@@ -14,18 +14,6 @@ interface AppUserRecord {
 }
 
 const INITIAL_USERS: AppUserRecord[] = [
-  { id: 1, name: 'Shubham Singh', username: 'shubham123', classes: 'I-B', fatherName: 'Veer Singh', role: 'Student', lastActive: '20/01/2025 11:03 AM' },
-  { id: 2, name: 'Rishi Kumar', username: 'rishi123', classes: 'IV-A', fatherName: 'Rahul Kumar', role: 'Student', lastActive: '20/01/2025 11:03 AM' },
-  { id: 3, name: 'Priya Kumari', username: 'priya123', classes: 'II-C', fatherName: 'Santosh Singh', role: 'Student', lastActive: '20/01/2025 11:03 AM' },
-  { id: 4, name: 'Shubh Tiwari', username: 'shubh123', classes: '', fatherName: 'Alok Tiwari', role: 'Teacher', lastActive: '20/01/2025 11:03 AM' },
-  { id: 5, name: 'Himesh', username: 'himesh123', classes: '', fatherName: 'Suraj', role: 'Parents', lastActive: '20/01/2025 11:03 AM' },
-  { id: 6, name: 'Ashok', username: 'ashok123', classes: '', fatherName: 'Ravi', role: 'Teacher', lastActive: '20/01/2025 11:03 AM' },
-  { id: 7, name: 'Rahul', username: 'rahul123', classes: '', fatherName: 'Aman', role: 'Parents', lastActive: '20/01/2025 11:03 AM' },
-  { id: 8, name: 'Shivam', username: 'shivam123', classes: 'VII-A', fatherName: 'Rajesh', role: 'Student', lastActive: '20/01/2025 11:03 AM' },
-  { id: 9, name: 'Komal', username: 'komal123', classes: '', fatherName: 'Ankit', role: 'Teacher', lastActive: '20/01/2025 11:03 AM' },
-  { id: 10, name: 'Keshav', username: 'keshav123', classes: '', fatherName: 'Mukesh', role: 'Teacher', lastActive: '20/01/2025 11:03 AM' },
-  { id: 11, name: 'Vikram Singh', username: 'vikram123', classes: 'X-B', fatherName: 'Devender', role: 'Student', lastActive: '20/01/2025 11:03 AM' },
-  { id: 12, name: 'Sanjay Kumar', username: 'sanjay123', classes: '', fatherName: 'Dinesh', role: 'Parents', lastActive: '20/01/2025 11:03 AM' },
 ]
 
 export default function MobileAppUserPage() {

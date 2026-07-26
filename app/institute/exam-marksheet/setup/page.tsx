@@ -16,9 +16,6 @@ interface ExamSetup {
 }
 
 const INITIAL_SETUPS: ExamSetup[] = [
-  { id: 1, group: 'Exam', exam: 'Final Exam', classGrade: 'Class V', marksGrade: 'Percentage', templateName: 'Classic Navy', date: '15/09/2025', time: '11:00 AM' },
-  { id: 2, group: 'Theory Exam', exam: 'Half Yearly Exam', classGrade: 'Class II', marksGrade: 'Grade', templateName: 'Classic Navy', date: '15/09/2025', time: '11:00 AM' },
-  { id: 3, group: 'Practical Exam', exam: 'Half Yearly Exam', classGrade: 'Class III', marksGrade: 'Division', templateName: 'Teal Modern', date: '15/09/2025', time: '11:00 AM' },
 ]
 
 export default function ExamMarksheetSetupPage() {

@@ -29,14 +29,9 @@ interface DriverRecord {
 }
 
 const INITIAL_ACTIVE: DriverRecord[] = [
-  { id: 1, username: 'aloktiwari2012326', driverName: 'Alok Tiwari', driverId: '42', licenseNumber: 'LMV/123/456', licenseType: 'LMV', contact: '9999999999', status: 'Inactive', joiningDate: '01/01/2026', gender: 'Male', dob: '14-01-2018', fatherName: 'Ram Lal Rawat', maritalStatus: 'Married', email: 'abc@gmail.com' },
-  { id: 2, username: 'aloktiwari2012326', driverName: 'Alok Tiwari', driverId: '42', licenseNumber: 'LMV/123/456', licenseType: 'LMV', contact: '9999999999', status: 'Active', joiningDate: '01/01/2026', gender: 'Male', dob: '14-01-2018', fatherName: 'Ram Lal Rawat', maritalStatus: 'Married', email: 'abc@gmail.com' },
-  { id: 3, username: 'aloktiwari2012326', driverName: 'Alok Tiwari', driverId: '42', licenseNumber: 'LMV/123/456', licenseType: 'LMV', contact: '9999999999', status: 'Active', joiningDate: '01/01/2026', gender: 'Male', dob: '14-01-2018', fatherName: 'Ram Lal Rawat', maritalStatus: 'Married', email: 'abc@gmail.com' },
-  { id: 4, username: 'aloktiwari2012326', driverName: 'Alok Tiwari', driverId: '42', licenseNumber: 'LMV/123/456', licenseType: 'LMV', contact: '9999999999', status: 'Active', joiningDate: '01/01/2026', gender: 'Male', dob: '14-01-2018', fatherName: 'Ram Lal Rawat', maritalStatus: 'Married', email: 'abc@gmail.com' },
 ]
 
 const INITIAL_DELETED: DriverRecord[] = [
-  { id: 5, username: 'drisud123', driverName: 'Sudhir Rawat', driverId: 'Dri123', licenseNumber: 'LMV/123/456', licenseType: 'LMV', contact: '9999999999', status: 'Inactive', joiningDate: '01/01/2026', deletedDate: '01/01/2026', gender: 'Male', dob: '15-08-1988', fatherName: 'Ram Lal Rawat' }
 ]
 
 export default function TransportDriverPage() {

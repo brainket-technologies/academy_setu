@@ -12,10 +12,6 @@ interface LeaveTypeRecord {
 }
 
 const INITIAL_TYPES: LeaveTypeRecord[] = [
-  { id: 1, applyTo: 'Staff', leaveType: 'Medical Leave', leaveAbbr: 'ML', markAs: 'Present' },
-  { id: 2, applyTo: 'Student', leaveType: 'Special Leave', leaveAbbr: 'SL', markAs: 'Absent' },
-  { id: 3, applyTo: 'Staff', leaveType: 'Casual Leave', leaveAbbr: 'CL', markAs: 'Present' },
-  { id: 4, applyTo: 'Leave/Holiday', leaveType: 'Occasion Leave', leaveAbbr: 'OL', markAs: 'Leave' },
 ]
 
 export default function LeaveTypesPage() {

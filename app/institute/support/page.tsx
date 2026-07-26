@@ -19,9 +19,6 @@ interface TicketRecord {
 }
 
 const INITIAL_TICKETS: TicketRecord[] = [
-  { id: 1, ticketId: 'Tick123', priority: 'Low', type: 'Sales', title: 'Lorem Ipsum', replies: '2025-26', status: 'Active', createdAt: '15/09/2025\n11:00 AM', description: 'Need sales invoice details.' },
-  { id: 2, ticketId: 'Tick56', priority: 'Medium', type: 'Feedback', title: 'Lorem Ipsum', replies: '2024-25', status: 'Inactive', createdAt: '15/09/2025\n11:00 AM', description: 'System performance could be improved.' },
-  { id: 3, ticketId: 'Tick741', priority: 'High', type: 'Technical Support', title: 'Lorem Ipsum', replies: '2023-24', status: 'Active', createdAt: '15/09/2025\n11:00 AM', description: 'Database sync error.' },
 ]
 
 export default function SupportTicketsPage() {

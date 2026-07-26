@@ -17,9 +17,6 @@ interface LessonPlanRecord {
 }
 
 const INITIAL_PLANS: LessonPlanRecord[] = [
-  { id: 1, className: 'Class I', section: 'Section A', title: 'Lorem ipsum dolor sit amet', subject: 'Lorem Ipsum', methodology: 'Lorem Ipsum', date: '02/11/2025', totalMilestones: 2, createdAt: '15/09/2025 11:00 AM' },
-  { id: 2, className: 'Class IV', section: 'Section C', title: 'Lorem ipsum dolor sit amet', subject: 'Lorem Ipsum', methodology: 'Lorem Ipsum', date: '02/11/2025', totalMilestones: 2, createdAt: '15/09/2025 11:00 AM' },
-  { id: 3, className: 'Class VII', section: 'Section D', title: 'Lorem ipsum dolor sit amet', subject: 'Lorem Ipsum', methodology: 'Lorem Ipsum', date: '02/11/2025', totalMilestones: 5, createdAt: '15/09/2025 11:00 AM' },
 ]
 
 export default function LessonPlansPage() {

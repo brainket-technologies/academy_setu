@@ -14,9 +14,6 @@ interface FeeChartRecord {
 }
 
 const INITIAL_FEES: FeeChartRecord[] = [
-  { id: 1, from: 'School', location: 'Noida', km: 25, amount: 1000, createdAt: '15/01/2026 11:00 AM' },
-  { id: 2, from: 'School', location: 'Delhi', km: 40, amount: 1500, createdAt: '15/01/2026 11:00 AM' },
-  { id: 3, from: 'School', location: 'Ghaziabad', km: 50, amount: 2000, createdAt: '15/01/2026 11:00 AM' },
 ]
 
 export default function TransportationFeePage() {

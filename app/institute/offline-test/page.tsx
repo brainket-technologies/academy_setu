@@ -33,15 +33,9 @@ interface StudentMarksRecord {
 }
 
 const INITIAL_TESTS: TestRecord[] = [
-  { id: 1, className: 'Class I', section: 'Section A', subject: 'Hindi', title: 'Lorem ipsum dolor sit amet', date: '11/12/2025', fromTime: '02:00 PM', toTime: '03:00 PM', noOfStudents: 30, createdAt: '15/09/2025\n11:00 AM' },
-  { id: 2, className: 'Class IV', section: 'Section C', subject: 'English', title: 'Lorem ipsum dolor sit amet', date: '11/02/2026', fromTime: '03:00 PM', toTime: '03:30 PM', noOfStudents: 25, createdAt: '15/09/2025\n11:00 AM' },
-  { id: 3, className: 'Class VIII', section: 'Section D', subject: 'Math', title: 'Lorem ipsum dolor sit amet', date: '01/11/2026', fromTime: '11:00 AM', toTime: '02:00 PM', noOfStudents: 30, createdAt: '15/09/2025\n11:00 AM' },
 ]
 
 const INITIAL_STUDENT_MARKS: StudentMarksRecord[] = [
-  { id: 1, studentName: 'Alok Kumar', hindi: '', hindiPrac: '', english: '', math: '', obtMarks: 0, totalMarks: 50, percentage: '0.0%', rank: 1 },
-  { id: 2, studentName: 'Shivam Tiwari', hindi: '', hindiPrac: '', english: '', math: '', obtMarks: 0, totalMarks: 50, percentage: '0.0%', rank: 3 },
-  { id: 3, studentName: 'Komal Singh', hindi: '', hindiPrac: '', english: '', math: '', obtMarks: 0, totalMarks: 50, percentage: '0.0%', rank: 5 },
 ]
 
 export default function OfflineTestPage() {

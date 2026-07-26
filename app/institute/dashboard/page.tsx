@@ -1,69 +1,89 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
-  MessageSquare, UserCheck, Users, Search, 
-  UserMinus, Banknote, Download, ArrowUpRight, ArrowDownRight,
-  MoreHorizontal
+  Building2, Users, UserCheck, UserMinus, Search, DollarSign,
+  MessageSquare, Banknote, Download, History, CreditCard,
+  PhoneCall, Timer, Clock, Hourglass, MoreHorizontal,
+  ArrowUpRight, ArrowDownRight
 } from 'lucide-react'
-import {
-  LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area
 } from 'recharts'
 import { redirect } from 'next/navigation'
 
 // Dummy Data for Charts
 const feesData = [
-  { name: 'Jan', value: 3000 },
-  { name: 'Feb', value: 4500 },
-  { name: 'Mar', value: 3500 },
-  { name: 'Apr', value: 4000 },
-  { name: 'May', value: 6500 },
-  { name: 'Jun', value: 4500 },
-  { name: 'Jul', value: 3000 },
-  { name: 'Aug', value: 5000 },
-  { name: 'Sep', value: 2000 },
-  { name: 'Oct', value: 3000 },
-  { name: 'Nov', value: 5000 },
-  { name: 'Dec', value: 3500 },
+  { name: 'Jan', value: 0 },
+  { name: 'Feb', value: 0 },
+  { name: 'Mar', value: 0 },
+  { name: 'Apr', value: 0 },
+  { name: 'May', value: 0 },
+  { name: 'Jun', value: 0 },
+  { name: 'Jul', value: 0 },
+  { name: 'Aug', value: 0 },
+  { name: 'Sep', value: 0 },
+  { name: 'Oct', value: 0 },
+  { name: 'Nov', value: 0 },
+  { name: 'Dec', value: 0 },
 ]
 
 const empAttendanceData = [
-  { name: 'Jan', value: 65 }, { name: 'Feb', value: 75 }, { name: 'Mar', value: 70 },
-  { name: 'Apr', value: 80 }, { name: 'May', value: 130 }, { name: 'Jun', value: 90 },
-  { name: 'Jul', value: 85 }, { name: 'Aug', value: 95 }, { name: 'Sep', value: 110 },
-  { name: 'Oct', value: 100 }, { name: 'Nov', value: 90 }, { name: 'Dec', value: 85 },
+  { name: 'Jan', value: 0 }, { name: 'Feb', value: 0 }, { name: 'Mar', value: 0 },
+  { name: 'Apr', value: 0 }, { name: 'May', value: 0 }, { name: 'Jun', value: 0 },
+  { name: 'Jul', value: 0 }, { name: 'Aug', value: 0 }, { name: 'Sep', value: 0 },
+  { name: 'Oct', value: 0 }, { name: 'Nov', value: 0 }, { name: 'Dec', value: 0 },
 ]
 
 const stdAttendanceData = [
-  { name: 'Jan', value: 70 }, { name: 'Feb', value: 65 }, { name: 'Mar', value: 75 },
-  { name: 'Apr', value: 70 }, { name: 'May', value: 135 }, { name: 'Jun', value: 85 },
-  { name: 'Jul', value: 80 }, { name: 'Aug', value: 90 }, { name: 'Sep', value: 100 },
-  { name: 'Oct', value: 95 }, { name: 'Nov', value: 85 }, { name: 'Dec', value: 80 },
+  { name: 'Jan', value: 0 }, { name: 'Feb', value: 0 }, { name: 'Mar', value: 0 },
+  { name: 'Apr', value: 0 }, { name: 'May', value: 0 }, { name: 'Jun', value: 0 },
+  { name: 'Jul', value: 0 }, { name: 'Aug', value: 0 }, { name: 'Sep', value: 0 },
+  { name: 'Oct', value: 0 }, { name: 'Nov', value: 0 }, { name: 'Dec', value: 0 },
 ]
 
 const financeData = [
-  { name: 'Jun', income: 500, expense: 300 },
-  { name: 'Feb', income: 650, expense: 450 },
-  { name: 'Mar', income: 450, expense: 200 },
-  { name: 'Apr', income: 600, expense: 400 },
-  { name: 'May', income: 550, expense: 300 },
-  { name: 'Jun', income: 800, expense: 500 },
-  { name: 'Jul', income: 750, expense: 400 },
-  { name: 'Aug', income: 500, expense: 350 },
-  { name: 'Sep', income: 650, expense: 450 },
-  { name: 'Oct', income: 600, expense: 300 },
-  { name: 'Nov', income: 700, expense: 500 },
-  { name: 'Dec', income: 650, expense: 400 },
+  { name: 'Jun', income: 0, expense: 0 },
+  { name: 'Feb', income: 0, expense: 0 },
+  { name: 'Mar', income: 0, expense: 0 },
+  { name: 'Apr', income: 0, expense: 0 },
+  { name: 'May', income: 0, expense: 0 },
+  { name: 'Jun', income: 0, expense: 0 },
+  { name: 'Jul', income: 0, expense: 0 },
+  { name: 'Aug', income: 0, expense: 0 },
+  { name: 'Sep', income: 0, expense: 0 },
+  { name: 'Oct', income: 0, expense: 0 },
+  { name: 'Nov', income: 0, expense: 0 },
+  { name: 'Dec', income: 0, expense: 0 },
 ]
 
 const smsData = [
-  { name: 'Jan', value: 20 }, { name: 'Feb', value: 40 }, { name: 'Mar', value: 35 },
-  { name: 'Apr', value: 50 }, { name: 'May', value: 75 }, { name: 'Jun', value: 60 },
-  { name: 'Jul', value: 80 }, { name: 'Aug', value: 95 }, { name: 'Sep', value: 85 },
-  { name: 'Oct', value: 90 }, { name: 'Nov', value: 70 }, { name: 'Dec', value: 65 },
+  { name: 'Jan', value: 0 }, { name: 'Feb', value: 0 }, { name: 'Mar', value: 0 },
+  { name: 'Apr', value: 0 }, { name: 'May', value: 0 }, { name: 'Jun', value: 0 },
+  { name: 'Jul', value: 0 }, { name: 'Aug', value: 0 }, { name: 'Sep', value: 0 },
+  { name: 'Oct', value: 0 }, { name: 'Nov', value: 0 }, { name: 'Dec', value: 0 },
 ]
 
 export default function InstituteDashboard() {
+  const [stats, setStats] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/institute/dashboard/stats')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setStats(data.data)
+        }
+        setLoading(false)
+      })
+      .catch(err => {
+        console.error(err)
+        setLoading(false)
+      })
+  }, [])
+
   return (
     <div className="flex flex-col gap-6 max-w-[1600px] mx-auto w-full pb-10">
       
@@ -72,17 +92,17 @@ export default function InstituteDashboard() {
         
         {/* Left: 9 Metrics */}
         <div className="xl:col-span-7 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          <MetricCard icon={<MessageSquare />} label="SMS" value="1000" subValue="Used - 250 Available - 750" color="bg-blue-50 text-blue-600" />
-          <MetricCard icon={<UserCheck />} label="Teachers" value="06" color="bg-orange-50 text-orange-500" />
-          <MetricCard icon={<Search />} label="No. of Enquiry" value="070" color="bg-rose-50 text-rose-500" />
+          <MetricCard icon={<MessageSquare />} label="SMS" value={stats?.metrics?.sms?.used?.toString() ?? "0"} subValue={`Used - ${stats?.metrics?.sms?.used ?? 0} Available - ${stats?.metrics?.sms?.available ?? 0}`} color="bg-blue-50 text-blue-600" />
+          <MetricCard icon={<UserCheck />} label="Teachers" value={stats?.metrics?.teachers?.toString() ?? "0"} color="bg-orange-50 text-orange-500" />
+          <MetricCard icon={<Search />} label="No. of Enquiry" value={stats?.metrics?.enquiries?.toString() ?? "0"} color="bg-rose-50 text-rose-500" />
           
-          <MetricCard icon={<Users />} label="Students" value="700" color="bg-purple-50 text-purple-600" />
-          <MetricCard icon={<UserCheck />} label="Paid Students" value="650" color="bg-emerald-50 text-emerald-500" />
-          <MetricCard icon={<UserMinus />} label="Unpaid Students" value="50" color="bg-orange-50 text-orange-500" />
+          <MetricCard icon={<Users />} label="Students" value={stats?.metrics?.students?.toString() ?? "0"} color="bg-purple-50 text-purple-600" />
+          <MetricCard icon={<UserCheck />} label="Paid Students" value={stats?.metrics?.paidStudents?.toString() ?? "0"} color="bg-emerald-50 text-emerald-500" />
+          <MetricCard icon={<UserMinus />} label="Unpaid Students" value={stats?.metrics?.unpaidStudents?.toString() ?? "0"} color="bg-orange-50 text-orange-500" />
           
-          <MetricCard icon={<Banknote />} label="Total Income" value="200K" color="bg-green-50 text-green-500" />
-          <MetricCard icon={<Banknote />} label="Total Expenses" value="150K" color="bg-cyan-50 text-cyan-500" />
-          <MetricCard icon={<Download />} label="App Installed By" value="03" color="bg-pink-50 text-pink-500" />
+          <MetricCard icon={<Banknote />} label="Total Income" value={`₹${(stats?.metrics?.totalIncome ?? 0).toLocaleString()}`} color="bg-green-50 text-green-500" />
+          <MetricCard icon={<Banknote />} label="Total Expenses" value={`₹${(stats?.metrics?.totalExpenses ?? 0).toLocaleString()}`} color="bg-cyan-50 text-cyan-500" />
+          <MetricCard icon={<Download />} label="App Installed By" value={stats?.metrics?.appInstalls?.toString() ?? "0"} color="bg-pink-50 text-pink-500" />
         </div>
 
         {/* Right: Fee Overview */}
@@ -100,10 +120,10 @@ export default function InstituteDashboard() {
           </div>
           
           <div className="grid grid-cols-2 gap-4 h-full">
-            <FeeOverviewCard label="Total Amount" value="₹3,500,000" trend="+12%" gradient="from-cyan-100 to-cyan-50 dark:from-cyan-900/40 dark:to-cyan-900/10" text="text-cyan-700 dark:text-cyan-400" />
-            <FeeOverviewCard label="Total Hostel" value="₹1,200,000" trend="+12%" gradient="from-cyan-100 to-cyan-50 dark:from-cyan-900/40 dark:to-cyan-900/10" text="text-cyan-700 dark:text-cyan-400" />
-            <FeeOverviewCard label="Total Tution" value="₹2,000,000" trend="+12%" gradient="from-cyan-100 to-cyan-50 dark:from-cyan-900/40 dark:to-cyan-900/10" text="text-cyan-700 dark:text-cyan-400" />
-            <FeeOverviewCard label="Total Day-Boarding" value="₹300,000" trend="+12%" gradient="from-cyan-100 to-cyan-50 dark:from-cyan-900/40 dark:to-cyan-900/10" text="text-cyan-700 dark:text-cyan-400" />
+            <FeeOverviewCard label="Total Amount" value={`₹${(stats?.feeOverview?.totalAmount ?? 0).toLocaleString()}`} trend="+0%" gradient="from-cyan-100 to-cyan-50 dark:from-cyan-900/40 dark:to-cyan-900/10" text="text-cyan-700 dark:text-cyan-400" />
+            <FeeOverviewCard label="Total Hostel" value={`₹${(stats?.feeOverview?.totalHostel ?? 0).toLocaleString()}`} trend="+0%" gradient="from-cyan-100 to-cyan-50 dark:from-cyan-900/40 dark:to-cyan-900/10" text="text-cyan-700 dark:text-cyan-400" />
+            <FeeOverviewCard label="Total Tution" value={`₹${(stats?.feeOverview?.totalTution ?? 0).toLocaleString()}`} trend="+0%" gradient="from-cyan-100 to-cyan-50 dark:from-cyan-900/40 dark:to-cyan-900/10" text="text-cyan-700 dark:text-cyan-400" />
+            <FeeOverviewCard label="Total Day-Boarding" value={`₹${(stats?.feeOverview?.totalDayBoarding ?? 0).toLocaleString()}`} trend="+0%" gradient="from-cyan-100 to-cyan-50 dark:from-cyan-900/40 dark:to-cyan-900/10" text="text-cyan-700 dark:text-cyan-400" />
           </div>
         </div>
 

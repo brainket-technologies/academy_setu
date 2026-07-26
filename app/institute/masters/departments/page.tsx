@@ -12,10 +12,6 @@ interface DepartmentRecord {
 }
 
 const INITIAL_DEPARTMENTS: DepartmentRecord[] = [
-  { id: 1, departmentName: 'Academics', parentName: 'Admin', createdAt: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 2, departmentName: 'Finance', parentName: 'Admin', createdAt: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 3, departmentName: 'Human Resources', parentName: 'Admin', createdAt: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 4, departmentName: 'Security & Operations', parentName: 'Operations', createdAt: '15/09/2025\n11:00 AM', deleted: true },
 ]
 
 export default function DepartmentsPage() {

@@ -16,9 +16,6 @@ interface IncomeRecord {
 }
 
 const INITIAL_INCOMES: IncomeRecord[] = [
-  { id: 1, transId: '123/456', incomeType: 'Budget', amount: '2,500/-', paymentMode: 'Cash', receivedDate: '02/01/2025', receivedFrom: 'Neeraj', status: 'Paid' },
-  { id: 2, transId: '123/456', incomeType: 'Refreshment', amount: '800/-', paymentMode: 'UPI', receivedDate: '02/01/2025', receivedFrom: 'Sourabh', status: 'Unpaid' },
-  { id: 3, transId: '123/456', incomeType: 'School Bus', amount: '2,500/-', paymentMode: 'RTGS', receivedDate: '02/01/2025', receivedFrom: 'Kamlesh', status: 'Paid' },
 ]
 
 export default function AllIncomePage() {

@@ -1,13 +1,84 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../app/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  INSTITUTE
+  MANAGER
+  BDM
+}
+
+enum SegmentType {
+  SCHOOL
+  COLLEGE
+  INSTITUTE
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  role         Role     @default(ADMIN)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Driving KPI: School, College, Institute counts
+model Institution {
+  id          String      @id @default(uuid())
+  name        String
+  segment     SegmentType
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+// Driving KPI: Application, Lead counts
+model Application {
+  id          String   @id @default(uuid())
+  title       String
+  status      String   @default("Pending")
+  isLead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Driving KPI: No. of Plan, Promo Codes
+model Plan {
+  id          String   @id @default(uuid())
+  name        String
+  price       Float
+  createdAt   DateTime @default(now())
+}
+
+model PromoCode {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  discount    Float
+  createdAt   DateTime @default(now())
+}
+
+// Driving KPI: Total Income, Total Expenses
+model Transaction {
+  id          String   @id @default(uuid())
+  type        String   // "INCOME" or "EXPENSE"
+  amount      Float
+  description String?
+  createdAt   DateTime @default(now())
+}
+
+// Driving KPI: Distributers
+model Distributor {
+  id          String   @id @default(uuid())
+  name        String
+  createdAt   DateTime @default(now())
 }

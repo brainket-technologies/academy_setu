@@ -20,40 +20,6 @@ interface TimeTableEntry {
 }
 
 const INITIAL_TIMETABLES: TimeTableEntry[] = [
-  { 
-    id: 1, 
-    title: 'Half Yearly Exam', 
-    classGrade: 'Class V',
-    session: '2024-25', 
-    subjects: [
-      { subjectName: 'English', date: '2025-03-21', fromTime: '10:00', toTime: '13:00' },
-      { subjectName: 'Mathematics', date: '2025-03-22', fromTime: '10:00', toTime: '13:00' }
-    ],
-    dateCreated: '15/09/2025', 
-    timeCreated: '11:00 AM' 
-  },
-  { 
-    id: 2, 
-    title: 'Annual Exam', 
-    classGrade: 'Class V',
-    session: '2024-25', 
-    subjects: [
-      { subjectName: 'Science', date: '2025-05-10', fromTime: '09:00', toTime: '12:00' }
-    ],
-    dateCreated: '15/09/2025', 
-    timeCreated: '11:00 AM' 
-  },
-  { 
-    id: 3, 
-    title: 'Half Yearly Exam', 
-    classGrade: 'Class VI',
-    session: '2025-26', 
-    subjects: [
-      { subjectName: 'Hindi', date: '2025-09-25', fromTime: '10:30', toTime: '13:30' }
-    ],
-    dateCreated: '15/09/2025', 
-    timeCreated: '11:00 AM' 
-  },
 ]
 
 export default function ExamTimeTablePage() {

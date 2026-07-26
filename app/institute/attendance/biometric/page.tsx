@@ -13,9 +13,6 @@ interface DeviceRecord {
 }
 
 const INITIAL_DEVICES: DeviceRecord[] = [
-  { deviceName: 'Device 01', serialNo: 'Device/001', status: 'Active', totalRegistered: 150, lastUpdate: '15/09/2025 11:00 AM', createdAt: '15/09/2025 11:00 AM' },
-  { deviceName: 'Device 02', serialNo: 'Device/002', status: 'Inactive', totalRegistered: 98, lastUpdate: '15/09/2025 11:00 AM', createdAt: '15/09/2025 11:00 AM' },
-  { deviceName: 'Device 03', serialNo: 'Device/003', status: 'Active', totalRegistered: 150, lastUpdate: '15/09/2025 11:00 AM', createdAt: '15/09/2025 11:00 AM' },
 ]
 
 export default function BiometricDevicesPage() {

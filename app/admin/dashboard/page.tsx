@@ -1,5 +1,6 @@
 'use client'
 
+import React, { useState, useEffect } from 'react'
 import { 
   Building2, GraduationCap, School, FileText, Calendar, 
   Tag, IndianRupee, Receipt, Users, Clock, 
@@ -11,46 +12,63 @@ import {
 } from 'recharts'
 
 export default function AdminDashboardPage() {
+  const [stats, setStats] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/admin/dashboard/stats')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setStats(data.data)
+        }
+        setLoading(false)
+      })
+      .catch(err => {
+        console.error(err)
+        setLoading(false)
+      })
+  }, [])
   const kpiData = [
-    { title: 'School', subtitle: '(Segment)', value: '50', icon: Building2, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { title: 'College', subtitle: '(Segment)', value: '20', icon: GraduationCap, color: 'text-orange-500', bg: 'bg-orange-50' },
-    { title: 'Institute', subtitle: '(Segment)', value: '12', icon: School, color: 'text-red-500', bg: 'bg-red-50' },
-    { title: 'Application', subtitle: '', value: '700', icon: FileText, color: 'text-indigo-500', bg: 'bg-indigo-50' },
-    { title: 'No. of Plan', subtitle: '', value: '20', icon: Calendar, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-    { title: 'No. of Promo Code', subtitle: '', value: '10', icon: Tag, color: 'text-orange-500', bg: 'bg-orange-50' },
-    { title: 'Total Income', subtitle: '', value: '200K', icon: IndianRupee, color: 'text-green-500', bg: 'bg-green-50' },
-    { title: 'Total Expenses', subtitle: '', value: '150K', icon: Receipt, color: 'text-cyan-500', bg: 'bg-cyan-50' },
-    { title: 'Distributers', subtitle: '', value: '10', icon: Users, color: 'text-pink-500', bg: 'bg-pink-50' },
+    { title: 'School', subtitle: '(Segment)', value: stats?.kpiData?.school ?? 0, icon: Building2, color: 'text-blue-500', bg: 'bg-blue-50' },
+    { title: 'College', subtitle: '(Segment)', value: stats?.kpiData?.college ?? 0, icon: GraduationCap, color: 'text-orange-500', bg: 'bg-orange-50' },
+    { title: 'Institute', subtitle: '(Segment)', value: stats?.kpiData?.institute ?? 0, icon: School, color: 'text-red-500', bg: 'bg-red-50' },
+    { title: 'Application', subtitle: '', value: stats?.kpiData?.applications ?? 0, icon: FileText, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+    { title: 'No. of Plan', subtitle: '', value: stats?.kpiData?.plans ?? 0, icon: Calendar, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+    { title: 'No. of Promo Code', subtitle: '', value: stats?.kpiData?.promos ?? 0, icon: Tag, color: 'text-orange-500', bg: 'bg-orange-50' },
+    { title: 'Total Income', subtitle: '', value: `₹${(stats?.kpiData?.totalIncome ?? 0).toLocaleString()}`, icon: IndianRupee, color: 'text-green-500', bg: 'bg-green-50' },
+    { title: 'Total Expenses', subtitle: '', value: `₹${(stats?.kpiData?.totalExpense ?? 0).toLocaleString()}`, icon: Receipt, color: 'text-cyan-500', bg: 'bg-cyan-50' },
+    { title: 'Distributers', subtitle: '', value: stats?.kpiData?.distributers ?? 0, icon: Users, color: 'text-pink-500', bg: 'bg-pink-50' },
   ]
 
   const collectionData = [
-    { name: 'Jan', value: 4000 },
-    { name: 'Feb', value: 5000 },
-    { name: 'Mar', value: 4000 },
-    { name: 'Apr', value: 5500 },
-    { name: 'May', value: 6000 },
-    { name: 'Jun', value: 3500 },
-    { name: 'Jul', value: 5000 },
-    { name: 'Aug', value: 2500 },
-    { name: 'Sep', value: 4000 },
-    { name: 'Oct', value: 5000 },
-    { name: 'Nov', value: 4000 },
-    { name: 'Dec', value: 2000 },
+    { name: 'Jan', value: 0 },
+    { name: 'Feb', value: 0 },
+    { name: 'Mar', value: 0 },
+    { name: 'Apr', value: 0 },
+    { name: 'May', value: 0 },
+    { name: 'Jun', value: 0 },
+    { name: 'Jul', value: 0 },
+    { name: 'Aug', value: 0 },
+    { name: 'Sep', value: 0 },
+    { name: 'Oct', value: 0 },
+    { name: 'Nov', value: 0 },
+    { name: 'Dec', value: 0 },
   ]
 
   const earningsData = [
-    { name: 'Jan', income: 6000, expense: 4000 },
-    { name: 'Feb', income: 7000, expense: 5000 },
-    { name: 'Mar', income: 6500, expense: 4500 },
-    { name: 'Apr', income: 5500, expense: 4000 },
-    { name: 'May', income: 6000, expense: 3500 },
-    { name: 'Jun', income: 7000, expense: 5000 },
-    { name: 'Jul', income: 8000, expense: 5000 },
-    { name: 'Aug', income: 6000, expense: 4500 },
-    { name: 'Sep', income: 6500, expense: 6000 },
-    { name: 'Oct', income: 7000, expense: 4000 },
-    { name: 'Nov', income: 6500, expense: 3500 },
-    { name: 'Dec', income: 7500, expense: 4000 },
+    { name: 'Jan', income: 0, expense: 0 },
+    { name: 'Feb', income: 0, expense: 0 },
+    { name: 'Mar', income: 0, expense: 0 },
+    { name: 'Apr', income: 0, expense: 0 },
+    { name: 'May', income: 0, expense: 0 },
+    { name: 'Jun', income: 0, expense: 0 },
+    { name: 'Jul', income: 0, expense: 0 },
+    { name: 'Aug', income: 0, expense: 0 },
+    { name: 'Sep', income: 0, expense: 0 },
+    { name: 'Oct', income: 0, expense: 0 },
+    { name: 'Nov', income: 0, expense: 0 },
+    { name: 'Dec', income: 0, expense: 0 },
   ]
 
   return (
@@ -101,10 +119,10 @@ export default function AdminDashboardPage() {
 
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: 'Total Income', value: '₹3,500,000', pct: '↑ 15%', gradient: 'from-emerald-500 to-indigo-400', light: 'bg-emerald-50 dark:bg-emerald-950/30' },
-                { label: 'Total Expense', value: '₹1,200,000', pct: '↑ 17%', gradient: 'from-blue-500 to-cyan-400', light: 'bg-blue-50 dark:bg-blue-950/30' },
-                { label: 'Distributor Amt', value: '₹2,000,000', pct: '↑ 12%', gradient: 'from-violet-500 to-purple-400', light: 'bg-violet-50 dark:bg-violet-950/30' },
-                { label: 'Total Due Amt', value: '₹300,000', pct: '↑ 12%', gradient: 'from-rose-500 to-pink-400', light: 'bg-rose-50 dark:bg-rose-950/30' },
+                { label: 'Total Income', value: `₹${(stats?.kpiData?.totalIncome ?? 0).toLocaleString()}`, pct: '↑ 0%', gradient: 'from-emerald-500 to-indigo-400', light: 'bg-emerald-50 dark:bg-emerald-950/30' },
+                { label: 'Total Expense', value: `₹${(stats?.kpiData?.totalExpense ?? 0).toLocaleString()}`, pct: '↑ 0%', gradient: 'from-blue-500 to-cyan-400', light: 'bg-blue-50 dark:bg-blue-950/30' },
+                { label: 'Distributor Amt', value: `₹0`, pct: '↑ 0%', gradient: 'from-violet-500 to-purple-400', light: 'bg-violet-50 dark:bg-violet-950/30' },
+                { label: 'Total Due Amt', value: `₹0`, pct: '↑ 0%', gradient: 'from-rose-500 to-pink-400', light: 'bg-rose-50 dark:bg-rose-950/30' },
               ].map((c, i) => (
                 <div key={i} className={`${c.light} rounded-2xl p-4 relative overflow-hidden`}>
                   <div className="flex justify-between items-start mb-3">
@@ -128,10 +146,10 @@ export default function AdminDashboardPage() {
             <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-4">Lead & Followup</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
-                { label: 'Total Lead', value: '700', Icon: Users, bg: 'bg-emerald-100 dark:bg-emerald-950/40', ic: 'text-emerald-600' },
-                { label: 'Total Application', value: '8000', Icon: FileText, bg: 'bg-pink-100 dark:bg-pink-950/40', ic: 'text-pink-600' },
-                { label: 'Pending Followup', value: '2000', Icon: History, bg: 'bg-amber-100 dark:bg-amber-950/40', ic: 'text-amber-600' },
-                { label: "Today's Followup", value: '25', Icon: Calendar, bg: 'bg-red-100 dark:bg-red-950/40', ic: 'text-red-600' },
+                { label: 'Total Lead', value: stats?.leadFollowup?.totalLead ?? 0, Icon: Users, bg: 'bg-emerald-100 dark:bg-emerald-950/40', ic: 'text-emerald-600' },
+                { label: 'Total Application', value: stats?.leadFollowup?.totalApplication ?? 0, Icon: FileText, bg: 'bg-pink-100 dark:bg-pink-950/40', ic: 'text-pink-600' },
+                { label: 'Pending Followup', value: stats?.leadFollowup?.pendingFollowup ?? 0, Icon: History, bg: 'bg-amber-100 dark:bg-amber-950/40', ic: 'text-amber-600' },
+                { label: "Today's Followup", value: stats?.leadFollowup?.todayFollowup ?? 0, Icon: Calendar, bg: 'bg-red-100 dark:bg-red-950/40', ic: 'text-red-600' },
               ].map(({ label, value, Icon, bg, ic }, j) => (
                 <div key={j} className="bg-white/60 dark:bg-white/5 rounded-2xl p-4 flex items-center justify-between border border-white/60 dark:border-white/10">
                   <div>
@@ -153,7 +171,7 @@ export default function AdminDashboardPage() {
               <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-4 flex items-center justify-between border border-white/60 dark:border-white/10">
                 <div>
                   <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Total Call Time</p>
-                  <p className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">2000</p>
+                  <p className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">{stats?.callLogin?.totalCallTime ?? 0}</p>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-blue-100 dark:bg-blue-950/40 flex items-center justify-center">
                   <PhoneCall className="w-5 h-5 text-blue-600" />
@@ -162,7 +180,7 @@ export default function AdminDashboardPage() {
               <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-4 flex items-center justify-between border border-white/60 dark:border-white/10">
                 <div>
                   <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Total Login Time</p>
-                  <p className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">25</p>
+                  <p className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">{stats?.callLogin?.totalLoginTime ?? 0}</p>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-pink-100 dark:bg-pink-950/40 flex items-center justify-center">
                   <Timer className="w-5 h-5 text-pink-600" />
@@ -171,7 +189,7 @@ export default function AdminDashboardPage() {
               <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-4 flex items-center justify-between border border-white/60 dark:border-white/10">
                 <div>
                   <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Total Login Dur.</p>
-                  <p className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">700</p>
+                  <p className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">{stats?.callLogin?.totalLoginDuration ?? 0}</p>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-cyan-100 dark:bg-cyan-950/40 flex items-center justify-center">
                   <Clock className="w-5 h-5 text-cyan-600" />
@@ -180,7 +198,7 @@ export default function AdminDashboardPage() {
               <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-4 flex items-center justify-between border border-white/60 dark:border-white/10">
                 <div>
                   <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Inactive Time (min.)</p>
-                  <p className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">8000</p>
+                  <p className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">{stats?.callLogin?.inactiveTime ?? 0}</p>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-rose-100 dark:bg-rose-950/40 flex items-center justify-center">
                   <Hourglass className="w-5 h-5 text-rose-600" />
@@ -228,9 +246,9 @@ export default function AdminDashboardPage() {
               </div>
               <div className="flex-1 flex flex-col gap-3">
                 {[
-                  { count: '1,335', label: 'Paid', dot: 'bg-emerald-500', badge: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' },
-                  { count: '4,366', label: 'Pending', dot: 'bg-amber-500', badge: 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400' },
-                  { count: '208', label: 'Overdue', dot: 'bg-red-500', badge: 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400' },
+                  { count: stats?.collectionStatus?.paid ?? 0, label: 'Paid', dot: 'bg-emerald-500', badge: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' },
+                  { count: stats?.collectionStatus?.pending ?? 0, label: 'Pending', dot: 'bg-amber-500', badge: 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400' },
+                  { count: stats?.collectionStatus?.overdue ?? 0, label: 'Overdue', dot: 'bg-red-500', badge: 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400' },
                 ].map((s, i) => (
                   <div key={i} className="flex-1 bg-white/50 dark:bg-white/5 rounded-xl flex items-center justify-between px-5 py-4 border border-white/60 dark:border-white/10">
                     <span className="text-xl font-extrabold text-slate-800 dark:text-slate-100">{s.count}</span>
@@ -303,7 +321,7 @@ export default function AdminDashboardPage() {
                   </div>
                   <span className="bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">↑ 12%</span>
                 </div>
-                <p className="text-3xl font-bold text-indigo-950 dark:text-indigo-100 relative z-10">₹29,545,000</p>
+                <p className="text-3xl font-bold text-indigo-950 dark:text-indigo-100 relative z-10">₹{(stats?.kpiData?.totalIncome ?? 0).toLocaleString()}</p>
                 <p className="text-sm font-medium text-indigo-800 dark:text-indigo-300 mt-1 relative z-10">Total Income</p>
                 {/* Decorative lines */}
                 <div className="absolute right-0 bottom-0 opacity-20 transform translate-x-1/4 translate-y-1/4">
@@ -320,7 +338,7 @@ export default function AdminDashboardPage() {
                   </div>
                   <span className="bg-white dark:bg-slate-700 text-cyan-700 dark:text-cyan-300 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">↑ 0.5%</span>
                 </div>
-                <p className="text-3xl font-bold text-cyan-950 dark:text-cyan-100 relative z-10">₹19,291,266</p>
+                <p className="text-3xl font-bold text-cyan-950 dark:text-cyan-100 relative z-10">₹{(stats?.kpiData?.totalExpense ?? 0).toLocaleString()}</p>
                 <p className="text-sm font-medium text-cyan-800 dark:text-cyan-300 mt-1 relative z-10">Total Expenses</p>
                  {/* Decorative lines */}
                  <div className="absolute right-0 bottom-0 opacity-20 transform translate-x-1/4 translate-y-1/4">

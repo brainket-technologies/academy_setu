@@ -12,10 +12,6 @@ interface StreamRecord {
 }
 
 const INITIAL_STREAMS: StreamRecord[] = [
-  { id: 1, streamName: 'Science', noOfStudents: 6, createdAt: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 2, streamName: 'Commerce', noOfStudents: 10, createdAt: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 3, streamName: 'Arts', noOfStudents: 90, createdAt: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 4, streamName: 'Vocational', noOfStudents: 0, createdAt: '15/09/2025\n11:00 AM', deleted: true },
 ]
 
 export default function StreamsPage() {

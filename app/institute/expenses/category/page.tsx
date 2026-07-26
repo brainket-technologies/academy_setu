@@ -11,11 +11,6 @@ interface CategoryRecord {
 }
 
 const INITIAL_CATEGORIES: CategoryRecord[] = [
-  { id: 1, name: 'Utilities', description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.', createdAt: '15/09/2025 11:00 AM' },
-  { id: 2, name: 'Maintenance', description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.', createdAt: '15/09/2025 11:00 AM' },
-  { id: 3, name: 'Transportation', description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.', createdAt: '15/09/2025 11:00 AM' },
-  { id: 4, name: 'Sports', description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.', createdAt: '15/09/2025 11:00 AM' },
-  { id: 5, name: 'Office Supplies', description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.', createdAt: '15/09/2025 11:00 AM' },
 ]
 
 export default function ExpensesCategoryPage() {

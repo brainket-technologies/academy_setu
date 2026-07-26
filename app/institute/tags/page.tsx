@@ -11,13 +11,6 @@ interface TagRecord {
 }
 
 const INITIAL_TAGS: TagRecord[] = [
-  { id: 1, name: 'Children Caretaker', totalUser: 2, createdAt: '15/09/2025\n11:00 AM' },
-  { id: 2, name: 'Security', totalUser: 2, createdAt: '15/09/2025\n11:00 AM' },
-  { id: 3, name: 'Receptionist', totalUser: 2, createdAt: '15/09/2025\n11:00 AM' },
-  { id: 4, name: 'Accountant', totalUser: 2, createdAt: '15/09/2025\n11:00 AM' },
-  { id: 5, name: 'Assistant Manager', totalUser: 2, createdAt: '15/09/2025\n11:00 AM' },
-  { id: 6, name: 'Peon', totalUser: 2, createdAt: '15/09/2025\n11:00 AM' },
-  { id: 7, name: 'Counsellor', totalUser: 2, createdAt: '15/09/2025\n11:00 AM' },
 ]
 
 export default function TagsPage() {

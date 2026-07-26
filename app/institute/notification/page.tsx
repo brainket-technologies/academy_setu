@@ -12,27 +12,6 @@ interface NotificationRecord {
 }
 
 const INITIAL_NOTIFICATIONS: NotificationRecord[] = [
-  {
-    id: 1,
-    title: 'Lorem ipsum dolor sit amet',
-    message: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-    createdAt: '18/09/2025 11:00 AM',
-    status: 'Sent',
-  },
-  {
-    id: 2,
-    title: 'Lorem ipsum dolor sit amet',
-    message: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-    createdAt: '18/09/2025 11:00 AM',
-    status: 'Archived',
-  },
-  {
-    id: 3,
-    title: 'Lorem ipsum dolor sit amet',
-    message: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-    createdAt: '18/09/2025 11:00 AM',
-    status: 'Sent',
-  },
 ]
 
 export default function NotificationPage() {

@@ -15,10 +15,6 @@ interface VehicleRecord {
 }
 
 const INITIAL_VEHICLES: VehicleRecord[] = [
-  { id: 1, vehicleName: 'Vehicle 1', driverName: 'Rahul', registrationNo: 'UP 12 AB 1234', registrationDate: '01/01/2026', vehicleType: 'Light', gpsNo: '123456', gpsDeviceName: 'Device 1' },
-  { id: 2, vehicleName: 'Vehicle 2', driverName: 'Suraj', registrationNo: 'UP 12 AB 1234', registrationDate: '01/01/2026', vehicleType: 'Light', gpsNo: '123456', gpsDeviceName: 'Device 2' },
-  { id: 3, vehicleName: 'Vehicle 3', driverName: 'Kamal', registrationNo: 'UP 12 AB 1234', registrationDate: '01/01/2026', vehicleType: 'Light', gpsNo: '123456', gpsDeviceName: 'Device 3' },
-  { id: 4, vehicleName: 'Vehicle 4', driverName: 'Aman', registrationNo: 'UP 12 AB 1234', registrationDate: '01/01/2026', vehicleType: 'Heavy', gpsNo: '123456', gpsDeviceName: 'Device 4' },
 ]
 
 export default function TransportVehiclePage() {

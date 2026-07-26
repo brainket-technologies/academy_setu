@@ -15,9 +15,6 @@ interface NoticeRecord {
 }
 
 const INITIAL_NOTICES: NoticeRecord[] = [
-  { id: 1, subjectTitle: 'Lorem ipsum dolor sit amet', sentToUser: 204, message: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt', scheduleAt: '15/09/2025 11:00 AM', files: true, createdAt: '15/09/2025 11:00 AM' },
-  { id: 2, subjectTitle: 'Lorem ipsum dolor sit amet', sentToUser: 204, message: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt', scheduleAt: '15/09/2025 11:00 AM', files: true, createdAt: '15/09/2025 11:00 AM' },
-  { id: 3, subjectTitle: 'Lorem ipsum dolor sit amet', sentToUser: 204, message: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt', scheduleAt: '15/09/2025 11:00 AM', files: true, createdAt: '15/09/2025 11:00 AM' },
 ]
 
 export default function NoticeOnAppPage() {

@@ -12,10 +12,6 @@ interface RouteRecord {
 }
 
 const INITIAL_ROUTES: RouteRecord[] = [
-  { id: 1, routeName: 'Route 1', vehicleName: 'Vehicle 1', firstDestination: 'Location 1', lastDestination: 'Location 5' },
-  { id: 2, routeName: 'Route 2', vehicleName: 'Vehicle 2', firstDestination: 'Location 2', lastDestination: 'Location 5' },
-  { id: 3, routeName: 'Route 3', vehicleName: 'Vehicle 3', firstDestination: 'Location 3', lastDestination: 'Location 7' },
-  { id: 4, routeName: 'Route 4', vehicleName: 'Vehicle 4', firstDestination: 'Location 4', lastDestination: 'Location 8' },
 ]
 
 export default function TransportRoutePage() {

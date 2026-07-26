@@ -17,9 +17,6 @@ interface LectureRecord {
 }
 
 const INITIAL_LECTURES: LectureRecord[] = [
-  { id: 1, title: 'Lorem ipsum dolor sit amet', thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=150', className: 'Class I', subjectName: 'Hindi', noOfContent: 2, createdAt: '15/09/2025\n11:00 AM', youtubeLink: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-  { id: 2, title: 'Lorem ipsum dolor sit amet', thumbnail: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=150', className: 'Class II', subjectName: 'Science', noOfContent: 2, createdAt: '15/09/2025\n11:00 AM', youtubeLink: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-  { id: 3, title: 'Lorem ipsum dolor sit amet', thumbnail: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=150', className: 'Class IV', subjectName: 'English', noOfContent: 1, createdAt: '15/09/2025\n11:00 AM', youtubeLink: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
 ]
 
 export default function VideoLecturePage() {

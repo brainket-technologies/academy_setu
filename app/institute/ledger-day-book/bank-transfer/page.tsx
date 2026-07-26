@@ -14,9 +14,6 @@ interface TransferRecord {
 }
 
 const INITIAL_TRANSFERS: TransferRecord[] = [
-  { id: 1, txnId: '123abc455def', amount: '2000/-', txnType: 'CR', mode: 'Bank Deposit', date: '15/09/2025 11:00 AM' },
-  { id: 2, txnId: '123abc455def', amount: '15000/-', txnType: 'DR', mode: 'Bank Deposit', date: '15/09/2025 11:00 AM' },
-  { id: 3, txnId: '123abc455def', amount: '12000/-', txnType: 'CR', mode: 'Bank Deposit', date: '15/09/2025 11:00 AM' },
 ]
 
 export default function BankTransfersPage() {

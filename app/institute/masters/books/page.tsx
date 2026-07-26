@@ -14,9 +14,6 @@ interface BookRecord {
 }
 
 const INITIAL_BOOKS: BookRecord[] = [
-  { id: 1, bookName: 'Lorem Ipsum Physics VIII', className: 'Class VIII', subjectName: 'Physics', createdAt: '15/09/2025\n11:00 AM', deleted: false, bookImage: 'physics_vol1.png' },
-  { id: 2, bookName: 'Lorem Ipsum Mathematics IX', className: 'Class IX', subjectName: 'Mathematics', createdAt: '15/09/2025\n11:00 AM', deleted: false, bookImage: 'maths_algebra.png' },
-  { id: 3, bookName: 'Lorem Ipsum Commerce VIII', className: 'Class VIII', subjectName: 'Commerce', createdAt: '15/09/2025\n11:00 AM', deleted: false, bookImage: 'accounting.png' },
 ]
 
 export default function BooksPage() {

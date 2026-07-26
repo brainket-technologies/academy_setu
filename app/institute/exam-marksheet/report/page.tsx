@@ -20,11 +20,6 @@ interface StudentMarksheet {
 }
 
 const INITIAL_MARKSHEETS: StudentMarksheet[] = [
-  { id: 1, studentName: 'Alok Kumar', rollNo: '20250512', classGrade: 'Class V', section: 'Section A', exam: 'Final Exam', obtainedMarks: 350, totalMarks: 500, rank: 1, templateType: 'Purple Classic', date: '15/09/2025', time: '11:00 AM' },
-  { id: 2, studentName: 'Shivam Tiwari', rollNo: '20250284', classGrade: 'Class II', section: 'Section B', exam: 'Half Yearly Exam', obtainedMarks: 354, totalMarks: 400, rank: 1, templateType: 'Scholastic Term Split', date: '15/09/2025', time: '11:00 AM' },
-  { id: 3, studentName: 'Komal Singh', rollNo: '20250917', classGrade: 'Class III', section: 'Section B', exam: 'Half Yearly Exam', obtainedMarks: 287, totalMarks: 500, rank: 5, templateType: 'Skills Aspect Grid', date: '15/09/2025', time: '11:00 AM' },
-  { id: 4, studentName: 'Rajesh Sharma', rollNo: '20250441', classGrade: 'Class V', section: 'Section A', exam: 'Final Exam', obtainedMarks: 410, totalMarks: 500, rank: 2, templateType: 'Purple Classic', date: '16/09/2025', time: '02:30 PM' },
-  { id: 5, studentName: 'Sneha Gupta', rollNo: '20250109', classGrade: 'Class II', section: 'Section A', exam: 'Half Yearly Exam', obtainedMarks: 310, totalMarks: 400, rank: 4, templateType: 'Scholastic Term Split', date: '16/09/2025', time: '03:15 PM' },
 ]
 
 export default function AllMarksheetReportPage() {

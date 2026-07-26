@@ -11,9 +11,6 @@ interface StaffAttendanceRecord {
 }
 
 const INITIAL_STAFF: StaffAttendanceRecord[] = [
-  { rollNo: '45', name: 'Suraj', avatar: '🧔', days: ['P', 'P', 'H', 'H', 'P', 'P', 'P', 'P', 'P', 'A', 'F', 'L', 'P', 'P', 'A', 'A', 'P', 'P', 'P', 'P', 'P', 'P', 'H', 'P', 'P'] },
-  { rollNo: '32', name: 'Ravi', avatar: '🧔', days: ['P', 'P', 'H', 'H', 'P', 'P', 'P', 'P', 'P', 'A', 'F', 'L', 'P', 'P', 'A', 'A', 'P', 'P', 'P', 'P', 'P', 'P', 'H', 'P', 'P'] },
-  { rollNo: '12', name: 'Kirti', avatar: '👩', days: ['P', 'P', 'H', 'H', 'P', 'P', 'P', 'P', 'P', 'A', 'F', 'L', 'P', 'P', 'A', 'A', 'P', 'P', 'P', 'P', 'P', 'P', 'H', 'P', 'P'] },
 ]
 
 export default function StaffAttendancePage() {

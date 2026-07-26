@@ -15,16 +15,6 @@ interface LeaveRequestRecord {
 }
 
 const INITIAL_REQUESTS: LeaveRequestRecord[] = [
-  { id: 1, name: 'Shubham Singh', userType: 'Student', applyDate: '08/06/2025', leaveType: 'Casual Leave', dateRange: '08/06/2025 - 10/06/2025', duration: 2, status: 'Reject' },
-  { id: 2, name: 'Rishi Kumar', userType: 'Employee', applyDate: '02/02/2025', leaveType: 'Medical Leave', dateRange: '03/02/2025 - 04/02/2025', duration: 1, status: 'Approved' },
-  { id: 3, name: 'Priya Kumari', userType: 'Student', applyDate: '11/10/2025', leaveType: 'Half Day', dateRange: '11/06/2025 - 11/06/2025', duration: 0.5, status: 'Pending' },
-  { id: 4, name: 'Shubin Tiwari', userType: 'Student', applyDate: '20/11/2025', leaveType: 'Vacation Leave', dateRange: '29/11/2025 - 01/12/2025', duration: 3, status: 'Pending' },
-  { id: 5, name: 'Himesh', userType: 'Student', applyDate: '20/11/2025', leaveType: 'Study Leave', dateRange: '20/11/2025 - 22/11/2025', duration: 3, status: 'Reject' },
-  { id: 6, name: 'Ashok', userType: 'Employee', applyDate: '29/11/2025', leaveType: 'Casual Leave', dateRange: '29/11/2025 - 01/12/2025', duration: 3, status: 'Approved' },
-  { id: 7, name: 'Rahul', userType: 'Teacher', applyDate: '20/11/2025', leaveType: 'Medical Leave', dateRange: '29/11/2025 - 01/12/2025', duration: 3, status: 'Approved' },
-  { id: 8, name: 'Shivam', userType: 'Student', applyDate: '20/11/2025', leaveType: 'Half Day', dateRange: '29/11/2025 - 01/12/2025', duration: 3, status: 'Approved' },
-  { id: 9, name: 'Komal', userType: 'Student', applyDate: '29/11/2025', leaveType: 'Vacation Leave', dateRange: '29/11/2025 - 01/12/2025', duration: 3, status: 'Reject' },
-  { id: 10, name: 'Keshav', userType: 'Teacher', applyDate: '29/11/2025', leaveType: 'Study Leave', dateRange: '29/11/2025 - 01/12/2025', duration: 2, status: 'Pending' },
 ]
 
 export default function LeaveRequestsPage() {

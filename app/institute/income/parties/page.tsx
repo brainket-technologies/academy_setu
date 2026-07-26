@@ -16,11 +16,6 @@ interface PartyRecord {
 }
 
 const INITIAL_PARTIES: PartyRecord[] = [
-  { id: 1, partyName: 'Budget', contactPerson: 'Sudhir Rawat', amount: '3,000/-', mobileNo: '9999999999', email: 'abcd23@gmail.com', gstNo: 'abcd1234/0000', createdAt: '15/09/2025 11:00 AM' },
-  { id: 2, partyName: 'Ranjeet', contactPerson: 'Sudhir Rawat', amount: '3,000/-', mobileNo: '9999999999', email: 'abcd23@gmail.com', gstNo: 'abcd1234/0000', createdAt: '15/09/2025 11:00 AM' },
-  { id: 3, partyName: 'Komal', contactPerson: 'Sudhir Rawat', amount: '3,000/-', mobileNo: '9999999999', email: 'abcd23@gmail.com', gstNo: 'abcd1234/0000', createdAt: '15/09/2025 11:00 AM' },
-  { id: 4, partyName: 'Sohan', contactPerson: 'Sudhir Rawat', amount: '3,000/-', mobileNo: '9999999999', email: 'abcd23@gmail.com', gstNo: 'abcd1234/0000', createdAt: '15/09/2025 11:00 AM' },
-  { id: 5, partyName: 'Vehicle', contactPerson: 'Sudhir Rawat', amount: '3,000/-', mobileNo: '9999999999', email: 'abcd23@gmail.com', gstNo: 'abcd1234/0000', createdAt: '15/09/2025 11:00 AM' },
 ]
 
 export default function IncomePartiesPage() {

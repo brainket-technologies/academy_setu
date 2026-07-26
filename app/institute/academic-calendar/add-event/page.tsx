@@ -14,9 +14,6 @@ interface CalendarEventRecord {
 }
 
 const INITIAL_EVENTS: CalendarEventRecord[] = [
-  { id: 1, name: 'Event Title', type: 'Holiday', date: '28/04/2025', details: 'Confirmed', location: 'Location Name', createdAt: '15/09/2025 11:00 AM' },
-  { id: 2, name: 'Event Title', type: 'Holiday', date: '28/04/2025', details: 'Tentative', location: 'Location Name', createdAt: '15/09/2025 11:00 AM' },
-  { id: 3, name: 'Event Title', type: 'Event', date: '28/04/2025', details: 'Confirmed', location: 'Location Name', createdAt: '15/09/2025 11:00 AM' },
 ]
 
 const CLASSES = ['Class I','Class II','Class III','Class IV','Class V','Class VI','Class VII','Class VIII','Class IX','Class X']

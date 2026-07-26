@@ -14,9 +14,6 @@ interface EventGalleryRecord {
 }
 
 const INITIAL_EVENTS: EventGalleryRecord[] = [
-  { id: 1, title: 'lorem ipsum dolor sit amet', noOfImage: 4, createdAt: '15/09/2025\n11:00 AM', description: 'Annual cultural day events.', images: ['https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300'] },
-  { id: 2, title: 'lorem ipsum dolor sit amet', noOfImage: 2, createdAt: '15/09/2025\n11:00 AM', description: 'Sports day race highlights.', images: ['https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=300'] },
-  { id: 3, title: 'lorem ipsum dolor sit amet', noOfImage: 7, createdAt: '15/09/2025\n11:00 AM', description: 'Science exhibition projects.', images: ['https://images.unsplash.com/photo-1509062522246-3755977927d7?w=300'] },
 ]
 
 export default function AllEventsPage() {

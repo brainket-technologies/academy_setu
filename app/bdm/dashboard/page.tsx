@@ -99,7 +99,7 @@ export default function BdmDashboardPage() {
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-50 dark:border-slate-700/50 flex items-center justify-between">
                 <div>
                   <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Total Call Time</p>
-                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">2000</h3>
+                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">0</h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
                   <Activity className="w-6 h-6 text-indigo-500 dark:text-indigo-400" />
@@ -110,7 +110,7 @@ export default function BdmDashboardPage() {
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-50 dark:border-slate-700/50 flex items-center justify-between">
                 <div>
                   <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Total Login Time</p>
-                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">25</h3>
+                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">0</h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-pink-100 dark:bg-pink-900/40 flex items-center justify-center">
                   <Key className="w-6 h-6 text-pink-500 dark:text-pink-400" />
@@ -121,7 +121,7 @@ export default function BdmDashboardPage() {
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-50 dark:border-slate-700/50 flex items-center justify-between">
                 <div>
                   <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Total Login Duration</p>
-                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">700</h3>
+                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">0</h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
                   <MonitorPlay className="w-6 h-6 text-indigo-500 dark:text-indigo-400" />
@@ -132,7 +132,7 @@ export default function BdmDashboardPage() {
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-50 dark:border-slate-700/50 flex items-center justify-between">
                 <div>
                   <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Inactive Time (in min.)</p>
-                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">8000</h3>
+                  <h3 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">0</h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
                   <Clock className="w-6 h-6 text-red-500 dark:text-red-400" />

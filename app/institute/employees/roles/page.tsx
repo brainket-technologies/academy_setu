@@ -3,17 +3,7 @@
 import React from 'react'
 import { Search, Edit, Trash2, ShieldCheck, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 
-const MOCK_ROLES = [
-  { id: 1, name: 'Children Caretaker', totalEmployees: 2, createdAt: '11/08/2025 11:00 AM' },
-  { id: 2, name: 'Security', totalEmployees: 2, createdAt: '11/08/2025 11:00 AM' },
-  { id: 3, name: 'Receptionist', totalEmployees: 2, createdAt: '11/08/2025 11:00 AM' },
-  { id: 4, name: 'Accountant', totalEmployees: 2, createdAt: '11/08/2025 11:00 AM' },
-  { id: 5, name: 'Assistant Manager', totalEmployees: 2, createdAt: '11/08/2025 11:00 AM' },
-  { id: 6, name: 'Peon', totalEmployees: 2, createdAt: '11/08/2025 11:00 AM' },
-  { id: 7, name: 'Counsellor', totalEmployees: 2, createdAt: '11/08/2025 11:00 AM' },
-  { id: 8, name: 'Team Manager', totalEmployees: 2, createdAt: '11/08/2025 11:00 AM' },
-  { id: 9, name: 'Principal', totalEmployees: 2, createdAt: '11/08/2025 11:00 AM' },
-  { id: 10, name: 'Vice Principal', totalEmployees: 2, createdAt: '11/08/2025 11:00 AM' },
+const MOCK_ROLES: any[] = [
 ]
 
 export default function EmployeeRolesPage() {

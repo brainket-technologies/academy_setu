@@ -13,10 +13,6 @@ interface DocumentTypeRecord {
 }
 
 const INITIAL_DOCUMENTS: DocumentTypeRecord[] = [
-  { id: 1, documentName: 'Transfer Certificate (TC)', applyTo: 'Student', orderNo: 1, createdAt: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 2, documentName: 'Mark Sheet Copy', applyTo: 'Student', orderNo: 2, createdAt: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 3, documentName: 'Joining Agreement', applyTo: 'Teacher', orderNo: 3, createdAt: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 4, documentName: 'Aadhar Card Scan', applyTo: 'Parent', orderNo: 4, createdAt: '15/09/2025\n11:00 AM', deleted: true },
 ]
 
 export default function DocumentTypesPage() {

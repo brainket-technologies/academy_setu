@@ -19,9 +19,6 @@ interface StudentMarksRow {
 }
 
 const INITIAL_ROWS: StudentMarksRow[] = [
-  { id: 1, studentName: 'Alok Kumar', hindi: '82', hindiPrac: '18', english: '78', math: '88', totalMarks: 500, obtMarks: 266, percentage: '53.2%', rank: 1 },
-  { id: 2, studentName: 'Shivam Tiwari', hindi: '70', hindiPrac: '15', english: '74', math: '72', totalMarks: 500, obtMarks: 231, percentage: '46.2%', rank: 3 },
-  { id: 3, studentName: 'Komal Singh', hindi: '65', hindiPrac: '12', english: '60', math: '65', totalMarks: 500, obtMarks: 202, percentage: '40.4%', rank: 5 },
 ]
 
 export default function BulkMarksUpdatePage() {

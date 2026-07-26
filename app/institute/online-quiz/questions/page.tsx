@@ -20,9 +20,6 @@ interface QuestionRecord {
 }
 
 const INITIAL_QUESTIONS: QuestionRecord[] = [
-  { id: 1, className: 'Class I', section: 'Section A', type: 'MCQ', questionText: 'Lorem ipsum dolor sit amet', option1: 'Lorem ipsum', option2: 'Lorem ipsum', option3: 'Lorem ipsum', option4: 'Lorem ipsum', answer: 'Lorem ipsum', createdAt: '15/09/2025\n11:00 AM', subject: 'Hindi', book: 'Bal Bharati' },
-  { id: 2, className: 'Class IV', section: 'Section C', type: 'T&F', questionText: 'Lorem ipsum dolor sit amet', option1: 'True', option2: 'False', answer: 'True', createdAt: '15/09/2025\n11:00 AM', subject: 'Science', book: 'Explore Science' },
-  { id: 3, className: 'Class VIII', section: 'Section D', type: 'MCQ', questionText: 'Lorem ipsum dolor sit amet', option1: 'Lorem ipsum', option2: 'Lorem ipsum', option3: 'Lorem ipsum', option4: 'Lorem ipsum', answer: 'Lorem ipsum', createdAt: '15/09/2025\n11:00 AM', subject: 'English', book: 'Honey Dew' }
 ]
 
 export default function QuestionsPage() {

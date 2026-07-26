@@ -15,9 +15,6 @@ interface ReferralRecord {
 }
 
 const INITIAL_REFERRALS: ReferralRecord[] = [
-  { id: 1, schoolName: 'abcdschool', contactPerson: 'Rahul', mobileNo: '9999999999', state: 'Uttar Pradesh', district: 'Lucknow', createdAt: '15/10/2025\n11:00 AM', status: 'Completed' },
-  { id: 2, schoolName: 'abcdschool', contactPerson: 'Ashish', mobileNo: '8888888888', state: 'Delhi', district: 'Chanakyapuri', createdAt: '15/10/2025\n11:00 AM', status: 'Pending' },
-  { id: 3, schoolName: 'abcdschool', contactPerson: 'Ritu', mobileNo: '8888888888', state: 'Madhya Pradesh', district: 'Bhopal', createdAt: '15/10/2025\n11:00 AM', status: 'Completed' },
 ]
 
 export default function ReferToOtherPage() {

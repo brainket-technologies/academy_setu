@@ -13,27 +13,6 @@ interface SmsRecord {
 }
 
 const INITIAL_SMS: SmsRecord[] = [
-  {
-    id: 1,
-    smsType: 'Lorem ipsum dolor sit amet',
-    template: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt',
-    status: 'Delivered',
-    sentDate: '15/09/2025 11:00 AM',
-  },
-  {
-    id: 2,
-    smsType: 'Lorem ipsum dolor sit amet',
-    template: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt',
-    status: 'Failed',
-    sentDate: '15/09/2025 11:00 AM',
-  },
-  {
-    id: 3,
-    smsType: 'Lorem ipsum dolor sit amet',
-    template: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt',
-    status: 'Delivered',
-    sentDate: '15/09/2025 11:00 AM',
-  },
 ]
 
 export default function TextSmsPage() {

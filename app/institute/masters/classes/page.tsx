@@ -18,11 +18,6 @@ interface ClassRecord {
 }
 
 const INITIAL_CLASSES: ClassRecord[] = [
-  { id: 1, className: 'Class I', order: 1, description: 'Grade 1 primary class.', sections: ['A', 'B', 'C', 'D'], totalStudents: 35, male: 20, female: 15, other: 0, lastUpdate: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 2, className: 'Class II', order: 2, description: 'Grade 2 primary class.', sections: ['A', 'B'], totalStudents: 25, male: 15, female: 10, other: 0, lastUpdate: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 3, className: 'Class III', order: 3, description: 'Grade 3 primary class.', sections: ['A'], totalStudents: 27, male: 15, female: 12, other: 0, lastUpdate: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 4, className: 'Class IV', order: 4, description: 'Grade 4 primary class.', sections: ['A', 'B', 'C'], totalStudents: 30, male: 18, female: 12, other: 0, lastUpdate: '15/09/2025\n11:00 AM', deleted: true },
-  { id: 5, className: 'Class V', order: 5, description: 'Grade 5 primary class.', sections: ['A', 'B'], totalStudents: 24, male: 14, female: 10, other: 0, lastUpdate: '15/09/2025\n11:00 AM', deleted: true },
 ]
 
 export default function ClassesPage() {

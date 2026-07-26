@@ -16,12 +16,6 @@ interface PayrollRecord {
 }
 
 const INITIAL_PAYROLL: PayrollRecord[] = [
-  { id: 1, userType: 'Employee', name: 'Sobhit', paidLeave: 3, nonPaidLeave: 2, leaveDeduction: '1,500/-', netSalary: '17,500/-', status: 'Paid' },
-  { id: 2, userType: 'Employee', name: 'Rohan', paidLeave: 6, nonPaidLeave: 1, leaveDeduction: '2,500/-', netSalary: '16,000/-', status: 'Unpaid' },
-  { id: 3, userType: 'Employee', name: 'Hemant', paidLeave: 2, nonPaidLeave: 0, leaveDeduction: '800/-', netSalary: '14,200/-', status: 'Paid' },
-  { id: 4, userType: 'Teacher', name: 'Rajesh Kumar', paidLeave: 4, nonPaidLeave: 1, leaveDeduction: '1,200/-', netSalary: '20,000/-', status: 'Unpaid' },
-  { id: 5, userType: 'Teacher', name: 'Kirti Sharma', paidLeave: 3, nonPaidLeave: 0, leaveDeduction: '0/-', netSalary: '22,000/-', status: 'Paid' },
-  { id: 6, userType: 'Driver', name: 'Sohan Singh', paidLeave: 2, nonPaidLeave: 2, leaveDeduction: '1,000/-', netSalary: '15,000/-', status: 'Unpaid' },
 ]
 
 export default function PayrollDashboardPage() {

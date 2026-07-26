@@ -17,9 +17,6 @@ interface CustomFormRecord {
 }
 
 const INITIAL_FORMS: CustomFormRecord[] = [
-  { id: 1, title: 'Custom Form 1', totalLeads: 2, linkToLead: 'Linked', receiverEmail: 'abcd@gmail.com', session: '2025-26', status: 'Active', createdAt: '15/09/2025\n11:00 AM', description: 'Admission inquiry form.' },
-  { id: 2, title: 'Custom Form 2', totalLeads: 0, linkToLead: '—', receiverEmail: 'abcd@gmail.com', session: '2024-25', status: 'Inactive', createdAt: '15/09/2025\n11:00 AM', description: 'Parent survey form.' },
-  { id: 3, title: 'Custom Form 3', totalLeads: 1, linkToLead: 'Linked', receiverEmail: 'abcd@gmail.com', session: '2023-24', status: 'Active', createdAt: '15/09/2025\n11:00 AM', description: 'Feedback evaluation form.' },
 ]
 
 export default function AllCustomFormsPage() {

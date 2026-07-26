@@ -10,11 +10,6 @@ interface PartyRecord {
 }
 
 const INITIAL_PARTIES: PartyRecord[] = [
-  { id: 1, partyName: 'budget', createdAt: '15/09/2025 11:00 AM' },
-  { id: 2, partyName: 'Ranjeet', createdAt: '15/09/2025 11:00 AM' },
-  { id: 3, partyName: 'Komal', createdAt: '15/09/2025 11:00 AM' },
-  { id: 4, partyName: 'Sohan', createdAt: '15/09/2025 11:00 AM' },
-  { id: 5, partyName: 'Vehicle', createdAt: '15/09/2025 11:00 AM' },
 ]
 
 export default function ExpensesPartiesPage() {

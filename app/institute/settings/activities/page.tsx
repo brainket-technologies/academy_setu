@@ -13,10 +13,6 @@ interface ActivityRecord {
 }
 
 const INITIAL_ACTIVITIES: ActivityRecord[] = [
-  { id: 1, activityName: 'Football Club', category: 'Sports', instructor: 'Coach Richardson', weeklySchedule: 'Mon, Wed 3:00 PM', deleted: false },
-  { id: 2, activityName: 'School Choir', category: 'Cultural', instructor: 'Ms. Emily Vance', weeklySchedule: 'Tue, Thu 3:30 PM', deleted: false },
-  { id: 3, activityName: 'Robotics & AI Club', category: 'Academic Club', instructor: 'Dr. Alan Turing', weeklySchedule: 'Friday 2:30 PM', deleted: false },
-  { id: 4, activityName: 'Drama & Theatre Group', category: 'Cultural', instructor: 'Mr. Shakespeare', weeklySchedule: 'Wednesday 4:00 PM', deleted: true },
 ]
 
 export default function ActivitiesSettingsPage() {

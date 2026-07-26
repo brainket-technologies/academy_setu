@@ -12,10 +12,6 @@ interface SubjectGroupRecord {
 }
 
 const INITIAL_GROUPS: SubjectGroupRecord[] = [
-  { id: 1, groupName: 'PCM', noOfSubjects: 3, createdAt: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 2, groupName: 'ZBC', noOfSubjects: 4, createdAt: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 3, groupName: 'Accounts', noOfSubjects: 2, createdAt: '15/09/2025\n11:00 AM', deleted: false },
-  { id: 4, groupName: 'Arts', noOfSubjects: 5, createdAt: '15/09/2025\n11:00 AM', deleted: true },
 ]
 
 export default function SubjectGroupsPage() {

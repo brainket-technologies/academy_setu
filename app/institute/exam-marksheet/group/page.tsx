@@ -13,9 +13,6 @@ interface ExamGroup {
 }
 
 const INITIAL_GROUPS: ExamGroup[] = [
-  { id: 1, groupName: 'Exam', description: 'Standard term written examinations', date: '15/09/2025', time: '11:00 AM' },
-  { id: 2, groupName: 'Theory Exam', description: 'Theory paper assessments', date: '15/09/2025', time: '11:00 AM' },
-  { id: 3, groupName: 'Practical Exam', description: 'Practical and laboratory tests', date: '15/09/2025', time: '11:00 AM' },
 ]
 
 export default function CreateGroupPage() {
