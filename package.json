@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "postinstall": "prisma generate",
     "db:init": "node C:\\Users\\fammu\\.gemini\\antigravity-ide\\brain\\7d8fb253-0dc0-4e22-b926-6d93fd222209\\scratch\\init-db.js"
   },
   "dependencies": {
