@@ -419,13 +419,15 @@ function UserRoleContent() {
                             >
                               <Edit3 className="w-4 h-4" />
                             </button>
-                            <button
-                              onClick={() => setDeleteTargetId(row.id)}
-                              className="p-1.5 bg-red-50 dark:bg-red-950/40 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-xl transition-colors cursor-pointer"
-                              title="Delete User"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {row.email !== 'admin@academysetu.com' && (
+                              <button
+                                onClick={() => setDeleteTargetId(row.id)}
+                                className="p-1.5 bg-red-50 dark:bg-red-950/40 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-xl transition-colors cursor-pointer"
+                                title="Delete User"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Search, Plus, Loader2, Filter, ChevronDown, ChevronUp } from 'lucide-react'
+import { Search, Plus, Loader2, Filter, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
@@ -85,6 +85,26 @@ export default function InstitutePage() {
     setFilterDistrict('')
     setSearchText('')
     setCurrentPage(1)
+  }
+
+  const handleDeleteInstitute = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this institute?')) return
+
+    try {
+      const res = await fetch(`/api/admin/institute/${id}`, {
+        method: 'DELETE'
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Institute deleted successfully')
+        fetchInstitutes()
+      } else {
+        toast.error(data.error || 'Failed to delete institute')
+      }
+    } catch (error) {
+      console.error(error)
+      toast.error('Failed to delete institute')
+    }
   }
 
   // Pagination calculation
@@ -227,9 +247,18 @@ export default function InstitutePage() {
                           {formatDate(inst.created_at)}
                         </td>
                         <td className="px-5 py-4 text-center">
-                          <Link href={`/admin/institute/${inst.id}`} className="text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer text-xs font-bold px-3 py-1 bg-indigo-50 rounded-lg inline-block">
-                            Manage
-                          </Link>
+                          <div className="flex items-center justify-center gap-2">
+                            <Link href={`/admin/institute/${inst.id}`} className="text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer text-xs font-bold px-3 py-1 bg-indigo-50 rounded-lg inline-block">
+                              Manage
+                            </Link>
+                            <button
+                              onClick={() => handleDeleteInstitute(inst.id)}
+                              className="p-1.5 bg-red-50 dark:bg-red-950/40 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-xl transition-colors cursor-pointer"
+                              title="Delete Institute"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )

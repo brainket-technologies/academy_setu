@@ -99,3 +99,24 @@ export async function PUT(request: Request, context: any) {
   }
 }
 
+export async function DELETE(request: Request, context: any) {
+  try {
+    const params = await context.params
+    const { id } = params
+    
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'Institute ID is required' }, { status: 400 })
+    }
+
+    const result = await pool.query('DELETE FROM institutions WHERE id = $1 RETURNING id', [id])
+    
+    if (result.rowCount === 0) {
+      return NextResponse.json({ success: false, error: 'Institute not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ success: true, message: 'Institute deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting institute:', error)
+    return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
+  }
+}

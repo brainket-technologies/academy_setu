@@ -43,9 +43,9 @@ export async function GET(request: NextRequest) {
     if (conditions.length > 0) {
       query += ' WHERE ' + conditions.join(' AND ')
     }
-    query += ' ORDER BY created_at DESC'
-
     const countQuery = query.replace('SELECT *', 'SELECT COUNT(*)')
+    
+    query += ' ORDER BY created_at DESC'
     const countResult = await pool.query(countQuery, params)
     const totalCount = parseInt(countResult.rows[0].count, 10)
 

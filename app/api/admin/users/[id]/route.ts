@@ -12,6 +12,11 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: 'Missing ID' }, { status: 400 })
     }
 
+    const checkQuery = await pool.query('SELECT email FROM admins WHERE id = $1', [id])
+    if ((checkQuery.rowCount ?? 0) > 0 && checkQuery.rows[0].email === 'admin@academysetu.com') {
+      return NextResponse.json({ success: false, error: 'Cannot delete Super Admin' }, { status: 403 })
+    }
+
     const query = `DELETE FROM admins WHERE id = $1 RETURNING id`
     const result = await pool.query(query, [id])
 
