@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { Search, Plus, Edit3, Trash2, Filter, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Plus, Edit3, Trash2, Filter, Loader2, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
@@ -42,32 +42,39 @@ export default function AllPlanPage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  const fetchPlans = useCallback(async (page = 1, search = '', segment = '') => {
+  const [showFilters, setShowFilters] = useState(false)
+  const [filterSegment, setFilterSegment] = useState('')
+
+  const fetchPlans = async (page: number, search: string, segment: string) => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
-      if (search) params.append('search', search)
-      if (segment) params.append('segment', segment)
-      const res = await fetch(`/api/admin/plan?${params.toString()}`)
-      const data = await res.json()
-      if (data.success) {
-        setPlans(data.data)
-        setTotalCount(data.meta.totalCount)
-        setTotalPages(data.meta.totalPages)
-        setCurrentPage(data.meta.page)
+      const queryParams = new URLSearchParams()
+      queryParams.append('page', page.toString())
+      queryParams.append('pageSize', pageSize.toString())
+      if (search) queryParams.append('search', search)
+      if (segment) queryParams.append('segment', segment)
+
+      const response = await fetch(`/api/admin/plan?${queryParams.toString()}`)
+      const resData = await response.json()
+      if (resData.success) {
+        setPlans(resData.data)
+        setTotalCount(resData.meta.totalCount)
+        setTotalPages(resData.meta.totalPages)
+        setCurrentPage(page)
       } else {
         toast.error('Failed to load plans')
       }
-    } catch {
-      toast.error('Something went wrong')
+    } catch (error) {
+      console.error('Fetch error:', error)
+      toast.error('Something went wrong loading plans')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }
 
   useEffect(() => {
     fetchPlans(1, '', '')
-  }, [fetchPlans])
+  }, [])
 
   // Fetch distinct segments on mount
   useEffect(() => {
@@ -82,6 +89,20 @@ export default function AllPlanPage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     fetchPlans(1, searchText, segmentFilter)
+  }
+
+  const handleApplyFilters = () => {
+    setSegmentFilter(filterSegment)
+    setCurrentPage(1)
+    fetchPlans(1, searchText, filterSegment)
+  }
+
+  const handleClearFilters = () => {
+    setFilterSegment('')
+    setSegmentFilter('')
+    setSearchText('')
+    setCurrentPage(1)
+    fetchPlans(1, '', '')
   }
 
   const handleDelete = (id: string) => {
@@ -142,31 +163,22 @@ export default function AllPlanPage() {
                 <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search by Segment, Service Name"
+                  placeholder="Search by Segment, Plan Name..."
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
                   className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
               </form>
-              <select
-                value={segmentFilter}
-                onChange={(e) => {
-                  setSegmentFilter(e.target.value)
-                  fetchPlans(1, searchText, e.target.value)
-                }}
-                className="px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
-              >
-                <option value="">All Segment</option>
-                {segments.map((seg) => (
-                  <option key={seg} value={seg}>{seg}</option>
-                ))}
-              </select>
               <button
-                onClick={() => fetchPlans(1, searchText, segmentFilter)}
-                className="p-2.5 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-slate-200 dark:border-slate-600 rounded-xl transition-colors cursor-pointer"
+                onClick={() => setShowFilters(!showFilters)}
+                className={`p-2.5 rounded-xl border transition-all shadow-sm flex items-center justify-center cursor-pointer ${
+                  showFilters || segmentFilter
+                    ? 'bg-indigo-50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400'
+                    : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
+                }`}
                 title="Filter"
               >
-                <Filter className="w-4 h-4" />
+                {showFilters ? <ChevronUp className="w-4 h-4" /> : <Filter className="w-4 h-4" />}
               </button>
             </div>
             <Link
@@ -177,6 +189,41 @@ export default function AllPlanPage() {
               Create Plan
             </Link>
           </div>
+
+          {/* Filter Accordion */}
+          {showFilters && (
+            <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Segment</label>
+                  <select
+                    value={filterSegment}
+                    onChange={(e) => setFilterSegment(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
+                  >
+                    <option value="">All Segments</option>
+                    {segments.map((seg) => (
+                      <option key={seg} value={seg}>{seg}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-end gap-2 md:col-start-3">
+                  <button
+                    onClick={handleApplyFilters}
+                    className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md cursor-pointer"
+                  >
+                    Filter
+                  </button>
+                  <button
+                    onClick={handleClearFilters}
+                    className="flex-1 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 rounded-xl font-bold text-sm transition-all cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Table */}
           <div className="overflow-x-auto border border-slate-100 dark:border-slate-700 rounded-2xl">

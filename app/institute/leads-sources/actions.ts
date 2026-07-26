@@ -4,7 +4,7 @@ import pool from '@/lib/db'
 import { getSession } from '@/lib/session'
 
 export async function fetchLeadSources() {
-  const session = await getSession('admin_session')
+  const session = await getSession('institute_session')
   if (!session?.userId) return { success: false, error: 'Unauthorized' }
   
   try {
@@ -21,7 +21,7 @@ export async function fetchLeadSources() {
 }
 
 export async function saveLeadSource(data: any) {
-  const session = await getSession('admin_session')
+  const session = await getSession('institute_session')
   if (!session?.userId) return { success: false, error: 'Unauthorized' }
 
   try {
@@ -48,7 +48,7 @@ export async function saveLeadSource(data: any) {
 }
 
 export async function deleteLeadSource(sourceId: string) {
-  const session = await getSession('admin_session')
+  const session = await getSession('institute_session')
   if (!session?.userId) return { success: false, error: 'Unauthorized' }
 
   try {

@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Loader2, Trash2, Edit3, Users,
-  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight 
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
+  Plus, X, Search, Filter, ChevronUp
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
@@ -26,6 +27,7 @@ export default function PartiesPage() {
   const [loading, setLoading] = useState(true)
 
   // Form State
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const [partyCategory, setPartyCategory] = useState('Income')
   const [name, setName] = useState('')
   const [gstNo, setGstNo] = useState('')
@@ -38,11 +40,16 @@ export default function PartiesPage() {
   const [submitting, setSubmitting] = useState(false)
 
   // Filter State
+  const [showFilters, setShowFilters] = useState(false)
   const [filterCategory, setFilterCategory] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [searchText, setSearchText] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  // Applied filter values
+  const [appliedCategory, setAppliedCategory] = useState('')
+  const [appliedStartDate, setAppliedStartDate] = useState('')
+  const [appliedEndDate, setAppliedEndDate] = useState('')
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1)
@@ -145,7 +152,7 @@ export default function PartiesPage() {
     setGstNo(p.gst_no || '')
     setAddress(p.address || '')
     setPartyCategory(p.party_category || 'Income')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    setIsModalOpen(true)
   }
 
   const handleCancelEdit = () => {
@@ -158,6 +165,27 @@ export default function PartiesPage() {
     setGstNo('')
     setAddress('')
     setPartyCategory('Income')
+    setIsModalOpen(false)
+  }
+
+  const handleApplyFilters = () => {
+    setSearchText(searchInput)
+    setAppliedCategory(filterCategory)
+    setAppliedStartDate(startDate)
+    setAppliedEndDate(endDate)
+    setCurrentPage(1)
+  }
+
+  const handleClearFilters = () => {
+    setFilterCategory('')
+    setSearchInput('')
+    setSearchText('')
+    setStartDate('')
+    setEndDate('')
+    setAppliedCategory('')
+    setAppliedStartDate('')
+    setAppliedEndDate('')
+    setCurrentPage(1)
   }
 
   const handleDeleteConfirm = async () => {
@@ -213,185 +241,77 @@ export default function PartiesPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-6 p-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Create Parties</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Configure income and expense parties/contacts for tracking payments.</p>
+      <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
+        {/* Header */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm">
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Parties / Contacts</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Configure income and expense parties for tracking payments.</p>
         </div>
 
-        {/* Top: Form to Add/Edit Party (Full Width Card) */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-2xl shadow-sm p-6">
-          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-5 flex items-center gap-2">
-            <Users className="w-5 h-5 text-indigo-600" /> {editingId ? 'Edit Party' : 'Add Party'}
-          </h2>
+        {/* Table Card */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-5">
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-            {/* 3-Column Grid Layout */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-350 mb-1.5 font-medium">Party Category *</label>
-                <select
-                  required
-                  value={partyCategory}
-                  onChange={e => setPartyCategory(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-medium cursor-pointer"
-                >
-                  <option value="Income">Income</option>
-                  <option value="Expense">Expense</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-350 mb-1.5 font-medium">Party Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Enter a Name"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-355 mb-1.5 font-medium">GST No.</label>
-                <input
-                  type="text"
-                  placeholder="Enter GST No."
-                  value={gstNo}
-                  onChange={e => setGstNo(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-355 mb-1.5 font-medium">Party Mobile No.</label>
-                <input
-                  type="tel"
-                  placeholder="Enter Mobile No."
-                  value={mobileNo}
-                  onChange={e => setMobileNo(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-355 mb-1.5 font-medium">Party Email</label>
-                <input
-                  type="email"
-                  placeholder="Enter Email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-355 mb-1.5 font-medium">Contact Person Name</label>
-                <input
-                  type="text"
-                  placeholder="Enter Contact Person name"
-                  value={contactPerson}
-                  onChange={e => setContactPerson(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-medium"
-                />
-              </div>
-            </div>
-
-            {/* Row 3 layout: Address spanning 2 cols, Amount spanning 1 col */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="md:col-span-2">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-355 mb-1.5 font-medium">Address</label>
-                <input
-                  type="text"
-                  placeholder="Enter Address"
-                  value={address}
-                  onChange={e => setAddress(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-355 mb-1.5 font-medium">Amount (₹)</label>
-                <input
-                  type="number"
-                  placeholder="Enter Amount"
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-medium"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2.5 mt-2">
-              {editingId && (
-                <button
-                  type="button"
-                  onClick={handleCancelEdit}
-                  className="px-6 py-2 border border-slate-200 dark:border-slate-750 text-slate-600 dark:text-slate-305 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl font-bold text-sm transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-              )}
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-8 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/10 disabled:opacity-50"
-              >
-                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editingId ? 'Save' : 'Create'}
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Bottom: List Table & Filtering */}
-        <div className="flex flex-col gap-4">
-          {/* Filters: Search, Category, Date Range */}
-          <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-2xl shadow-sm p-5">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-350 mb-1.5">Search</label>
+          {/* Controls Bar */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="relative flex-1 max-w-xs">
+                <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Search name, contact, mobile..."
                   value={searchInput}
                   onChange={e => setSearchInput(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
+                  onKeyDown={e => { if (e.key === 'Enter') handleApplyFilters() }}
+                  className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-350 mb-1.5">Party Category</label>
-                <select
-                  value={filterCategory}
-                  onChange={e => { setFilterCategory(e.target.value); setCurrentPage(1) }}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
-                >
-                  <option value="">Select an Option</option>
-                  <option value="Income">Income</option>
-                  <option value="Expense">Expense</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-350 mb-1.5">From Date</label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={e => setStartDate(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-350 mb-1.5">To Date</label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={e => setEndDate(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
-                />
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`p-2.5 rounded-xl border transition-all shadow-sm flex items-center justify-center cursor-pointer ${
+                  showFilters || appliedCategory || appliedStartDate || appliedEndDate
+                    ? 'bg-indigo-50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400'
+                    : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600'
+                }`}
+              >
+                {showFilters ? <ChevronUp className="w-4 h-4" /> : <Filter className="w-4 h-4" />}
+              </button>
+            </div>
+            <button
+              onClick={() => { handleCancelEdit(); setIsModalOpen(true); }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md transition-colors cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              Add Party
+            </button>
+          </div>
+
+          {/* Filter Accordion */}
+          {showFilters && (
+            <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Party Category</label>
+                  <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200">
+                    <option value="">All</option>
+                    <option value="Income">Income</option>
+                    <option value="Expense">Expense</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">From Date</label>
+                  <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">To Date</label>
+                  <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200" />
+                </div>
+                <div className="flex items-end gap-2">
+                  <button onClick={handleApplyFilters} className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm cursor-pointer">Filter</button>
+                  <button onClick={handleClearFilters} className="flex-1 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 rounded-xl font-bold text-sm cursor-pointer">Clear</button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* List Table */}
           <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-2xl shadow-sm overflow-hidden">
@@ -512,6 +432,59 @@ export default function PartiesPage() {
           </div>
         </div>
       </div>
+
+      {/* Create/Edit Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-2xl p-8 border border-slate-100 dark:border-slate-700 shadow-2xl relative animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            <button onClick={handleCancelEdit} className="absolute top-4 right-4 p-1 rounded-full text-slate-400 hover:bg-slate-50 transition-all cursor-pointer"><X className="w-5 h-5" /></button>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-6 flex items-center gap-2"><Users className="w-5 h-5 text-indigo-600" /> {editingId ? 'Edit Party' : 'Add Party'}</h2>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Party Category <span className="text-red-500">*</span></label>
+                  <select required value={partyCategory} onChange={e => setPartyCategory(e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                    <option value="Income">Income</option>
+                    <option value="Expense">Expense</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Party Name <span className="text-red-500">*</span></label>
+                  <input type="text" required placeholder="Enter a Name" value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Mobile No.</label>
+                  <input type="tel" placeholder="Enter Mobile No." value={mobileNo} onChange={e => setMobileNo(e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Email</label>
+                  <input type="email" placeholder="Enter Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Contact Person</label>
+                  <input type="text" placeholder="Enter Contact Person" value={contactPerson} onChange={e => setContactPerson(e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">GST No.</label>
+                  <input type="text" placeholder="Enter GST No." value={gstNo} onChange={e => setGstNo(e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Amount (₹)</label>
+                  <input type="number" placeholder="Enter Amount" value={amount} onChange={e => setAmount(e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+                </div>
+                <div className="flex flex-col gap-1.5 md:col-span-2">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Address</label>
+                  <input type="text" placeholder="Enter Address" value={address} onChange={e => setAddress(e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+                </div>
+              </div>
+              <button type="submit" disabled={submitting} className="py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-md flex justify-center items-center gap-2">
+                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                {editingId ? 'Update Party' : 'Create Party'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* DELETE CONFIRMATION MODAL */}
       <DeleteConfirmationModal

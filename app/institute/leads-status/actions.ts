@@ -4,7 +4,7 @@ import pool from '@/lib/db'
 import { getSession } from '@/lib/session'
 
 export async function fetchLeadStatuses() {
-  const session = await getSession('admin_session')
+  const session = await getSession('institute_session')
   if (!session?.userId) return { success: false, error: 'Unauthorized' }
   
   try {
@@ -21,7 +21,7 @@ export async function fetchLeadStatuses() {
 }
 
 export async function saveLeadStatus(data: any) {
-  const session = await getSession('admin_session')
+  const session = await getSession('institute_session')
   if (!session?.userId) return { success: false, error: 'Unauthorized' }
 
   try {
@@ -46,7 +46,7 @@ export async function saveLeadStatus(data: any) {
 }
 
 export async function deleteLeadStatus(statusId: string) {
-  const session = await getSession('admin_session')
+  const session = await getSession('institute_session')
   if (!session?.userId) return { success: false, error: 'Unauthorized' }
 
   try {

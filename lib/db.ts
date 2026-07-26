@@ -27,12 +27,10 @@ function createPool(): Pool {
 }
 
 function getPool(): Pool {
-  // Force recreate pool to pick up new DATABASE_URL
-  if (globalThis._pgPool) {
-    globalThis._pgPool.end();
-    globalThis._pgPool = undefined;
+  if (!globalThis._pgPool) {
+    globalThis._pgPool = createPool();
   }
-  return (globalThis._pgPool = createPool());
+  return globalThis._pgPool;
 }
 
 const pool: Pool = getPool();

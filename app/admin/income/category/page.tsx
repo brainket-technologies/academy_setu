@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Loader2, Trash2, Edit3, Tag, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react'
+import { Loader2, Trash2, Edit3, Tag, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Plus, X, Search, Filter, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
@@ -18,6 +18,7 @@ export default function CategoryPage() {
   const [loading, setLoading] = useState(true)
 
   // Form State
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const [categoryType, setCategoryType] = useState('Income')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -25,11 +26,16 @@ export default function CategoryPage() {
   const [submitting, setSubmitting] = useState(false)
 
   // Filter State
+  const [showFilters, setShowFilters] = useState(false)
   const [filterType, setFilterType] = useState('')
   const [searchText, setSearchText] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  // Applied filter values (accordion pattern)
+  const [appliedFilterType, setAppliedFilterType] = useState('')
+  const [appliedStartDate, setAppliedStartDate] = useState('')
+  const [appliedEndDate, setAppliedEndDate] = useState('')
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1)
@@ -109,19 +115,40 @@ export default function CategoryPage() {
     }
   }
 
-  const handleStartEdit = (cat: Category) => {
-    setEditingId(cat.id)
-    setName(cat.name)
-    setDescription(cat.description || '')
-    setCategoryType(cat.category_type || 'Income')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
   const handleCancelEdit = () => {
     setEditingId(null)
     setName('')
-    setDescription('')
     setCategoryType('Income')
+    setDescription('')
+    setIsModalOpen(false)
+  }
+
+  const handleStartEdit = (cat: Category) => {
+    setEditingId(cat.id)
+    setName(cat.name)
+    setCategoryType(cat.category_type)
+    setDescription(cat.description || '')
+    setIsModalOpen(true)
+  }
+
+  const handleApplyFilters = () => {
+    setSearchText(searchInput)
+    setAppliedFilterType(filterType)
+    setAppliedStartDate(startDate)
+    setAppliedEndDate(endDate)
+    setCurrentPage(1)
+  }
+
+  const handleClearFilters = () => {
+    setFilterType('')
+    setSearchInput('')
+    setSearchText('')
+    setStartDate('')
+    setEndDate('')
+    setAppliedFilterType('')
+    setAppliedStartDate('')
+    setAppliedEndDate('')
+    setCurrentPage(1)
   }
 
   const handleDeleteConfirm = async () => {
@@ -174,139 +201,76 @@ export default function CategoryPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-6 p-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Create Category</h1>
+      <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm">
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Income/Expense Categories</h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Configure income and expense categories for sorting revenue flow.</p>
         </div>
 
-        {/* Top Form Section (Full Width Card) */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-2xl shadow-sm p-6">
-          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-5 flex items-center gap-2">
-            <Tag className="w-5 h-5 text-indigo-600" /> {editingId ? 'Edit Category' : 'Add Category'}
-          </h2>
+        {/* Table Card */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-5">
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-350 mb-1.5 font-medium">Category Type *</label>
-                <select
-                  required
-                  value={categoryType}
-                  onChange={e => setCategoryType(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-medium cursor-pointer"
-                >
-                  <option value="Income">Income</option>
-                  <option value="Expense">Expense</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-350 mb-1.5 font-medium">Category Name *</label>
+          {/* Controls Bar */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="relative flex-1 max-w-xs">
+                <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  required
-                  placeholder="Enter Category name"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-medium"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-355 mb-1.5 font-medium">Description</label>
-              <textarea
-                placeholder="Enter Description"
-                rows={3}
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-none font-medium"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2.5 mt-2">
-              {editingId && (
-                <button
-                  type="button"
-                  onClick={handleCancelEdit}
-                  className="px-6 py-2 border border-slate-200 dark:border-slate-750 text-slate-600 dark:text-slate-305 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl font-bold text-sm transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-              )}
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-8 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/10 disabled:opacity-50"
-              >
-                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editingId ? 'Save' : 'Create'}
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Bottom List Section */}
-        <div className="flex flex-col gap-4">
-          {/* Filters */}
-          <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-2xl shadow-sm p-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Category Type */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-350">Category Type</label>
-                <select
-                  value={filterType}
-                  onChange={e => setFilterType(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
-                >
-                  <option value="">All</option>
-                  <option value="Income">Income</option>
-                  <option value="Expense">Expense</option>
-                </select>
-              </div>
-
-              {/* Search */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-350">Search</label>
-                <input
-                  type="text"
-                  placeholder="Search by name or description..."
+                  placeholder="Search categories..."
                   value={searchInput}
                   onChange={e => setSearchInput(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      setSearchText(searchInput)
-                    }
-                  }}
-                  onBlur={() => setSearchText(searchInput)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
+                  onKeyDown={e => { if (e.key === 'Enter') { setSearchText(searchInput); setCurrentPage(1) } }}
+                  className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
                 />
               </div>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`p-2.5 rounded-xl border transition-all shadow-sm flex items-center justify-center cursor-pointer ${
+                  showFilters || appliedFilterType || appliedStartDate || appliedEndDate
+                    ? 'bg-indigo-50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400'
+                    : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600'
+                }`}
+              >
+                {showFilters ? <ChevronUp className="w-4 h-4" /> : <Filter className="w-4 h-4" />}
+              </button>
+            </div>
+            <button
+              onClick={() => { handleCancelEdit(); setIsModalOpen(true); }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md transition-colors cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              Add Category
+            </button>
+          </div>
 
-              {/* From Date */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-350">From Date</label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={e => setStartDate(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
-                />
-              </div>
-
-              {/* To Date */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-350">To Date</label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={e => setEndDate(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
-                />
+          {/* Filter Accordion */}
+          {showFilters && (
+            <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Category Type</label>
+                  <select value={filterType} onChange={e => setFilterType(e.target.value)} className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200">
+                    <option value="">All</option>
+                    <option value="Income">Income</option>
+                    <option value="Expense">Expense</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">From Date</label>
+                  <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">To Date</label>
+                  <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200" />
+                </div>
+                <div className="flex items-end gap-2">
+                  <button onClick={handleApplyFilters} className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm cursor-pointer">Filter</button>
+                  <button onClick={handleClearFilters} className="flex-1 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 rounded-xl font-bold text-sm cursor-pointer">Clear</button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* List Table */}
           <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 rounded-2xl shadow-sm overflow-hidden">
@@ -419,6 +383,37 @@ export default function CategoryPage() {
           </div>
         </div>
       </div>
+
+      {/* Create/Edit Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg p-8 border border-slate-100 dark:border-slate-700 shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <button onClick={handleCancelEdit} className="absolute top-4 right-4 p-1 rounded-full text-slate-400 hover:bg-slate-50 transition-all cursor-pointer"><X className="w-5 h-5" /></button>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-6 flex items-center gap-2"><Tag className="w-5 h-5 text-indigo-600" /> {editingId ? 'Edit Category' : 'Add Category'}</h2>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Category Type <span className="text-red-500">*</span></label>
+                <select required value={categoryType} onChange={e => setCategoryType(e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                  <option value="Income">Income</option>
+                  <option value="Expense">Expense</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Category Name <span className="text-red-500">*</span></label>
+                <input type="text" required placeholder="Enter category name" value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Description</label>
+                <textarea rows={3} placeholder="Enter description" value={description} onChange={e => setDescription(e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none" />
+              </div>
+              <button type="submit" disabled={submitting} className="py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-md flex justify-center items-center gap-2">
+                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                {editingId ? 'Update Category' : 'Create Category'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* DELETE CONFIRMATION MODAL */}
       <DeleteConfirmationModal

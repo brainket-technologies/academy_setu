@@ -368,37 +368,37 @@ export default function AllExpensesPage() {
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Manage, filter, and track all school expenses.</p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <form onSubmit={handleSearch} className="relative w-64">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search by Name, Mobile no."
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all font-medium"
+                className="w-full pl-11 pr-4 py-2.5 text-sm rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm placeholder:text-slate-400"
               />
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
             </form>
 
             <button
               onClick={() => setIsFilterModalOpen(true)}
-              className="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-600/10 transition-colors cursor-pointer"
+              className="p-2.5 border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
               title="Filter Expenses"
             >
-              <Filter className="w-5 h-5" />
+              <Filter className="w-4 h-4" />
             </button>
 
             <button
               onClick={handleExport}
-              className="p-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 hover:text-indigo-650 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              className="p-2.5 border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
               title="Export CSV"
             >
-              <Download className="w-5 h-5" />
+              <Download className="w-4 h-4" />
             </button>
 
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-600/10 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-600/10 transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Add Expenses
             </button>

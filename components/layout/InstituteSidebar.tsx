@@ -89,6 +89,7 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
         { label: 'Exam Fee', href: '/institute/fees-setup/exam-fee' },
         { label: 'Hostel Fee', href: '/institute/fees-setup/hostel-fee' },
         { label: 'Extra Curricular Fee', href: '/institute/fees-setup/extra-curricular-fee' },
+        { label: 'Transportation Fee', href: '/institute/fees-setup/transportation-fee' },
         { label: 'Fee Receipt Design', href: '/institute/fees-setup/fee-receipt-design' },
       ]
     },
@@ -108,21 +109,25 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
       ]
     },
     { 
-      icon: FileText, label: 'Marksheets', href: '#',
+      icon: FileText, label: 'Exam & Marksheets', href: '#',
       subItems: [
-        { label: 'Generate Marksheet', href: '/institute/marksheets' },
+        { label: 'Exam & Marksheet Setup', href: '/institute/exam-marksheet/setup' },
+        { label: 'All Marksheet Report', href: '/institute/exam-marksheet/report' },
+        { label: 'Bulk Mark Update', href: '/institute/exam-marksheet/bulk-update' },
       ]
     },
     { 
       icon: FileCheck, label: 'Admit Cards', href: '#',
       subItems: [
-        { label: 'Issue Admit Cards', href: '/institute/admit-cards' },
+        { label: 'Admit Card', href: '/institute/admit-card' },
+        { label: 'Exam Time Table', href: '/institute/admit-card/time-table' },
       ]
     },
     { 
       icon: FileMinus, label: 'Transfer Certificate', href: '#',
       subItems: [
-        { label: 'Issue TC', href: '/institute/tc' },
+        { label: 'Transfer Certificates', href: '/institute/tc' },
+        { label: 'TC Settings', href: '/institute/tc/settings' },
       ]
     },
     { icon: Cpu, label: 'Device', href: '/institute/device' },
@@ -130,19 +135,26 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
     { 
       icon: Bus, label: 'Transportation', href: '#',
       subItems: [
-        { label: 'Routes & Vehicles', href: '/institute/transport' },
+        { label: 'Driver', href: '/institute/transport/driver' },
+        { label: 'Vehicle', href: '/institute/transport/vehicle' },
+        { label: 'Route', href: '/institute/transport/route' },
       ]
     },
     { 
       icon: ClipboardCheck, label: 'Attendance', href: '#',
       subItems: [
-        { label: 'Mark Attendance', href: '/institute/attendance' },
+        { label: 'Student Attendance', href: '/institute/attendance/student' },
+        { label: 'Staff Attendance', href: '/institute/attendance/staff' },
+        { label: 'Attendance Log', href: '/institute/attendance/log' },
+        { label: 'Biometric Devices', href: '/institute/attendance/biometric' },
       ]
     },
     { 
       icon: CalendarOff, label: 'Leave', href: '#',
       subItems: [
-        { label: 'Leave Requests', href: '/institute/leave' },
+        { label: 'Leave Request', href: '/institute/leave/request' },
+        { label: 'Leave Type', href: '/institute/leave/type' },
+        { label: 'Leave Settings', href: '/institute/leave/settings' },
       ]
     },
     { 
@@ -154,64 +166,86 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
     { 
       icon: TrendingDown, label: 'Expenses', href: '#',
       subItems: [
-        { label: 'Manage Expenses', href: '/institute/expenses' },
+        { label: 'All Expenses', href: '/institute/expenses/all-expenses' },
+        { label: 'Expenses Category', href: '/institute/expenses/category' },
+        { label: 'Expenses Parties', href: '/institute/expenses/parties' },
+        { label: 'Expenses Settings', href: '/institute/expenses/settings' },
       ]
     },
     { 
       icon: TrendingUp, label: 'Income', href: '#',
       subItems: [
-        { label: 'Manage Income', href: '/institute/income' },
+        { label: 'All Income', href: '/institute/income/all-income' },
+        { label: 'Income Category', href: '/institute/income/category' },
+        { label: 'Income Parties', href: '/institute/income/parties' },
       ]
     },
     { 
-      icon: Settings2, label: 'Payment Settings', href: '#',
+      icon: Settings, label: 'Payment Settings', href: '#',
       subItems: [
-        { label: 'Gateway Config', href: '/institute/payment-settings' },
+        { label: 'Offline Payment Setup', href: '/institute/payment-settings/offline' },
+        { label: 'Manual Payment Settings', href: '/institute/payment-settings/manual' },
+        { label: 'Payment Gateway Settings', href: '/institute/payment-settings/gateway' },
       ]
     },
     { 
       icon: BookOpen, label: 'Ledger & Day Book', href: '#',
       subItems: [
-        { label: 'View Ledger', href: '/institute/ledger' },
+        { label: 'Ledger', href: '/institute/ledger-day-book/ledger' },
+        { label: 'Bank Transfer', href: '/institute/ledger-day-book/bank-transfer' },
+        { label: 'Day Book', href: '/institute/ledger-day-book/day-book' },
       ]
     },
     { icon: Book, label: 'Homework', href: '/institute/homework' },
-    { icon: Clock, label: 'Time Table', href: '/institute/timetable' },
-    { icon: Smartphone, label: 'Mobile App User', href: '/institute/app-users' },
+    { icon: Clock, label: 'Time Table', href: '/institute/time-table' },
+    { icon: Smartphone, label: 'Mobile App User', href: '/institute/mobile-app-user' },
     { icon: Bell, label: 'Notification', href: '/institute/notification' },
     { icon: MessageSquare, label: 'Text SMS', href: '/institute/sms' },
     { icon: Megaphone, label: 'Notice on App', href: '/institute/notice' },
     { 
       icon: Mail, label: 'Message Service', href: '#',
       subItems: [
-        { label: 'Send Messages', href: '/institute/messages' },
+        { label: 'App Notification', href: '/institute/message-service/app-notification' },
+        { label: 'SMS', href: '/institute/message-service/sms' },
+        { label: 'WhatsApp', href: '/institute/message-service/whatsapp' },
+        { label: 'Email Setup', href: '/institute/message-service/email-setup' },
       ]
     },
     { 
       icon: Calendar, label: 'Academic Calendar', href: '#',
       subItems: [
-        { label: 'View Calendar', href: '/institute/calendar' },
+        { label: 'Academic Calendar', href: '/institute/academic-calendar' },
+        { label: 'Add Event/Holiday', href: '/institute/academic-calendar/add-event' },
       ]
     },
     { 
       icon: Ticket, label: 'Gate Pass', href: '#',
       subItems: [
-        { label: 'Issue Gate Pass', href: '/institute/gate-pass' },
+        { label: 'All Gate Pass', href: '/institute/gate-pass' },
+        { label: 'Gate Pass Settings', href: '/institute/gate-pass/settings' },
       ]
     },
     { icon: BookOpen, label: 'Lesson Plans', href: '/institute/lesson-plans' },
     { 
       icon: Files, label: 'Study Material', href: '#',
       subItems: [
-        { label: 'Upload Materials', href: '/institute/study-materials' },
+        { label: 'Video Lecture', href: '/institute/study-material/video-lecture' },
+        { label: 'PDF/Image Notes', href: '/institute/study-material/notes' },
       ]
     },
-    { icon: MonitorPlay, label: 'Online Quiz / Test', href: '/institute/online-quiz' },
+    { 
+      icon: MonitorPlay, label: 'Online Quiz / Test', href: '#',
+      subItems: [
+        { label: 'Questions', href: '/institute/online-quiz/questions' },
+        { label: 'Quiz / Test', href: '/institute/online-quiz/quiz-test' },
+      ]
+    },
     { icon: FileText, label: 'Offline / Weekly Test', href: '/institute/offline-test' },
     { 
       icon: Image, label: 'Events Gallery', href: '#',
       subItems: [
-        { label: 'Manage Gallery', href: '/institute/gallery' },
+        { label: 'All Events', href: '/institute/gallery' },
+        { label: 'Create New Events', href: '/institute/gallery/create' },
       ]
     },
     { icon: LifeBuoy, label: 'Support Tickets', href: '/institute/support' },
@@ -220,24 +254,46 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
     { 
       icon: FileSignature, label: 'Custom Forms', href: '#',
       subItems: [
-        { label: 'Form Builder', href: '/institute/forms' },
+        { label: 'All Forms', href: '/institute/custom-forms' },
+        { label: 'Add New Forms', href: '/institute/custom-forms/create' },
       ]
     },
     { 
       icon: Database, label: 'Masters', href: '#',
       subItems: [
-        { label: 'Manage Masters', href: '/institute/masters' },
+        { label: 'All Classes', href: '/institute/masters/classes' },
+        { label: 'All Sections', href: '/institute/masters/sections' },
+        { label: 'All Streams', href: '/institute/masters/streams' },
+        { label: 'Subject Groups', href: '/institute/masters/subject-groups' },
+        { label: 'All Subjects', href: '/institute/masters/subjects' },
+        { label: 'Books', href: '/institute/masters/books' },
+        { label: 'Discount Heads', href: '/institute/masters/discount-heads' },
+        { label: 'Document Types', href: '/institute/masters/document-types' },
+        { label: 'Departments', href: '/institute/masters/departments' },
+        { label: 'Data Settings', href: '/institute/masters/data-settings' },
       ]
     },
+    { icon: ShoppingCart, label: 'Shop', href: '/institute/shop' },
     { 
       icon: Settings, label: 'Settings', href: '#',
       subItems: [
-        { label: 'General Settings', href: '/institute/settings' },
+        { label: 'School', href: '/institute/settings/school' },
+        { label: 'Fees', href: '/institute/settings/fees' },
+        { label: 'Auto Generate', href: '/institute/settings/auto-generate' },
+        { label: 'Attendance', href: '/institute/settings/attendance' },
+        { label: 'Options', href: '/institute/settings/options' },
+        { label: 'Activities', href: '/institute/settings/activities' },
       ]
     },
     { icon: UserCog, label: 'Edit Profile', href: '/institute/profile' },
-    { icon: CreditCard, label: 'Subscription Plans', href: '/institute/subscription' },
-    { icon: ShieldCheck, label: 'Two Authentication', href: '/institute/2fa' },
+    { 
+      icon: CreditCard, label: 'Subscription Menu', href: '#',
+      subItems: [
+        { label: 'Active Plan', href: '/institute/subscription/active-plan' },
+        { label: 'All Plan', href: '/institute/subscription/all-plan' },
+        { label: 'Refer to Other', href: '/institute/subscription/refer-to-other' },
+      ]
+    },
   ]
 
   // Track which expandable menu is open by label

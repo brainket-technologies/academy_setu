@@ -1,21 +1,11 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Search, Download, Upload, Plus, MoreVertical, Eye, Pencil, Trash2, ShieldCheck, X, LayoutGrid } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-// ─── Mock Data ───────────────────────────────────────────────────────────────
-const TEACHERS = [
-  { id: 1, username: 'Teach123', name: 'Sudhir Rawat', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sudhir', contact: '9990990099', email: 'sudhirawat123@gmail.com', assignedClasses: ['1-A', '1-B', '2-B', '2-C', '3-A', '3-C'], status: 'Active', joiningDate: '01/01/2026' },
-  { id: 2, username: 'Teach124', name: 'Priya Sharma', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Priya', contact: '9990990088', email: 'priya.sharma@gmail.com', assignedClasses: ['4-A', '4-B', '5-A'], status: 'Inactive', joiningDate: '01/03/2026' },
-  { id: 3, username: 'Teach125', name: 'Amit Verma', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Amit', contact: '9990990077', email: 'amit.verma@gmail.com', assignedClasses: ['6-A', '7-A', '7-B', '8-A'], status: 'Active', joiningDate: '15/03/2026' },
-  { id: 4, username: 'Teach126', name: 'Neha Singh', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Neha2', contact: '9990990066', email: 'neha.singh@gmail.com', assignedClasses: ['9-A', '9-B', '10-A', '10-B'], status: 'Active', joiningDate: '01/04/2026' },
-]
-
-const DELETED_TEACHERS = [
-  { id: 5, username: 'Teach127', name: 'Raj Kumar', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Raj', contact: '9990990055', email: 'raj.kumar@gmail.com', assignedClasses: ['Class I'], status: 'Deleted', joiningDate: '01/01/2025' },
-]
+import { fetchTeachers, deleteTeacher } from './actions'
 
 // ─── Assigned Classes Popup ───────────────────────────────────────────────────
 function AssignedClassesPopup({ classes, onClose }: { classes: string[]; onClose: () => void }) {
@@ -33,12 +23,12 @@ function AssignedClassesPopup({ classes, onClose }: { classes: string[]; onClose
           </button>
         </div>
         <div className="flex flex-wrap gap-2">
-          {classes.map((cls, i) => (
+          {classes && classes.map((cls, i) => (
             <span key={i} className="px-3 py-1.5 bg-teal-50 dark:bg-teal-900/30 border border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 text-xs font-bold rounded-lg">
               {cls}
             </span>
           ))}
-          {classes.length === 0 && <p className="text-sm text-slate-400">No classes assigned.</p>}
+          {(!classes || classes.length === 0) && <p className="text-sm text-slate-400">No classes assigned.</p>}
         </div>
       </div>
     </div>
@@ -46,7 +36,7 @@ function AssignedClassesPopup({ classes, onClose }: { classes: string[]; onClose
 }
 
 // ─── Action Dropdown ──────────────────────────────────────────────────────────
-function ActionMenu({ teacherId, onDelete }: { teacherId: number; onDelete: (id: number) => void }) {
+function ActionMenu({ teacherId, onDelete }: { teacherId: string; onDelete: (id: string) => void }) {
   const [open, setOpen] = useState(false)
   return (
     <div className="relative">
@@ -91,8 +81,22 @@ function ActionMenu({ teacherId, onDelete }: { teacherId: number; onDelete: (id:
 export default function AllTeachersPage() {
   const pathname = usePathname()
   const [searchTerm, setSearchTerm] = useState('')
-  const [teachers, setTeachers] = useState(TEACHERS)
+  const [teachers, setTeachers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [classesPopup, setClassesPopup] = useState<string[] | null>(null)
+
+  const loadTeachers = async () => {
+    setLoading(true)
+    const res = await fetchTeachers()
+    if (res.success) {
+      setTeachers(res.data || [])
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadTeachers()
+  }, [])
 
   const filtered = teachers.filter(t =>
     t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -100,9 +104,14 @@ export default function AllTeachersPage() {
     t.username.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this teacher?')) {
-      setTeachers(prev => prev.filter(t => t.id !== id))
+      const res = await deleteTeacher(id)
+      if (res.success) {
+        loadTeachers()
+      } else {
+        alert(res.error || 'Failed to delete teacher')
+      }
     }
   }
 
@@ -149,7 +158,7 @@ export default function AllTeachersPage() {
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${pathname === '/institute/teachers/deleted' ? 'bg-red-500 text-white border-red-500 shadow' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-red-400 hover:text-red-500'}`}>
           Deleted Teacher
           <span className={`px-2 py-0.5 rounded-lg text-xs font-black ${pathname === '/institute/teachers/deleted' ? 'bg-white/20 text-white' : 'bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400'}`}>
-            {String(DELETED_TEACHERS.length).padStart(2, '0')}
+            {String(0).padStart(2, '0')}
           </span>
         </Link>
       </div>

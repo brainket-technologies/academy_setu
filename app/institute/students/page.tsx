@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { fetchStudents, moveStudent } from './actions'
+import { fetchStudents, moveStudent, fetchStudentFees } from './actions'
 import { 
   Download, Upload, Filter, Plus, Search, MoreVertical, X, CheckCircle2, Ticket,
   Eye, Edit, Receipt, Banknote, CalendarCheck, FileCheck, FileBadge, RefreshCw, Trash2
@@ -378,13 +378,33 @@ function FilterField({ label, children }: { label: string, children: React.React
 }
 
 function FeeDetailsModal({ student, onClose }: { student: any, onClose: () => void }) {
+  const [feeData, setFeeData] = useState<any>({
+    total_fees: 0,
+    total_paid: 0,
+    total_discount: 0,
+    due_amount: 0,
+    total_balance: 0
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadFees() {
+      const res = await fetchStudentFees(student.id)
+      if (res.success && res.data) {
+        setFeeData(res.data)
+      }
+      setLoading(false)
+    }
+    loadFees()
+  }, [student.id])
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col">
         
         <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-slate-800">
           <div className="flex items-center gap-4 flex-1">
-             <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">Fee Details</h2>
+             <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">Fee Details - {student.first_name}</h2>
              <div className="h-[1px] w-full bg-slate-200 dark:bg-slate-700" />
           </div>
           <button onClick={onClose} className="p-2 ml-4 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-full transition-colors text-slate-500 border border-slate-200 dark:border-slate-600 shadow-sm">
@@ -405,13 +425,19 @@ function FeeDetailsModal({ student, onClose }: { student: any, onClose: () => vo
                  </tr>
                </thead>
                <tbody>
-                 <tr>
-                   <td className="py-4 px-4 text-slate-700 dark:text-slate-300">6536.00</td>
-                   <td className="py-4 px-4 text-slate-700 dark:text-slate-300">1000.00</td>
-                   <td className="py-4 px-4 text-slate-700 dark:text-slate-300">0.00</td>
-                   <td className="py-4 px-4 text-slate-700 dark:text-slate-300">5536.00</td>
-                   <td className="py-4 px-4 text-slate-700 dark:text-slate-300">5536.00</td>
-                 </tr>
+                 {loading ? (
+                   <tr>
+                     <td colSpan={5} className="py-10 text-slate-400">Loading fee data...</td>
+                   </tr>
+                 ) : (
+                   <tr>
+                     <td className="py-4 px-4 text-slate-700 dark:text-slate-300">{feeData.total_fees.toFixed(2)}</td>
+                     <td className="py-4 px-4 text-slate-700 dark:text-slate-300">{feeData.total_paid.toFixed(2)}</td>
+                     <td className="py-4 px-4 text-slate-700 dark:text-slate-300">{feeData.total_discount.toFixed(2)}</td>
+                     <td className="py-4 px-4 text-slate-700 dark:text-slate-300">{feeData.due_amount.toFixed(2)}</td>
+                     <td className="py-4 px-4 text-slate-700 dark:text-slate-300 font-bold">{feeData.total_balance.toFixed(2)}</td>
+                   </tr>
+                 )}
                </tbody>
              </table>
            </div>

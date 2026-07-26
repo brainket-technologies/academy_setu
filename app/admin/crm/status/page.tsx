@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Search, Loader2, Edit3, Trash2, Calendar, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Loader2, Edit3, Trash2, Calendar, Clock, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
@@ -23,6 +23,7 @@ export default function LeadStatusPage() {
   const [searchInput, setSearchInput] = useState('')
 
   // Form states
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const [statusName, setStatusName] = useState('')
   const [textColor, setTextColor] = useState('#10B981')
   const [bgColor, setBgColor] = useState('#E6F4EA')
@@ -115,7 +116,7 @@ export default function LeadStatusPage() {
     setTextColor(status.text_color || '#10B981')
     setBgColor(status.bg_color || '#E6F4EA')
     setShowOnBdm(!!status.show_on_bdm)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    setIsModalOpen(true)
   }
 
   const handleCancelEdit = () => {
@@ -124,6 +125,7 @@ export default function LeadStatusPage() {
     setTextColor('#10B981')
     setBgColor('#E6F4EA')
     setShowOnBdm(true)
+    setIsModalOpen(false)
   }
 
   const handleDeleteClick = (id: string) => {
@@ -183,128 +185,27 @@ export default function LeadStatusPage() {
           <h1 className="text-2xl font-bold text-slate-850 dark:text-slate-100 tracking-tight">Lead Status</h1>
         </div>
 
-        {/* Create Status Form Card */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-6">
-          <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-700 pb-3">
-            {editingId ? 'Edit Status' : 'Create Status'}
-          </h3>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {/* Status Name */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider">Status Name</label>
-                <input
-                  type="text"
-                  placeholder="Enter Status Name"
-                  value={statusName}
-                  onChange={(e) => setStatusName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                  required
-                />
-              </div>
-
-              {/* Text Color HEX & Picker */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider">Text Color</label>
-                <div className="flex gap-2 relative">
-                  <input
-                    type="text"
-                    value={textColor}
-                    onChange={(e) => setTextColor(e.target.value)}
-                    placeholder="Choose a Color"
-                    className="flex-1 px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                  />
-                  <div className="w-11 h-11 rounded-xl border border-slate-200 overflow-hidden shrink-0 relative flex items-center justify-center">
-                    <input
-                      type="color"
-                      value={textColor}
-                      onChange={(e) => setTextColor(e.target.value)}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    />
-                    <div className="w-6 h-6 rounded-md shadow-sm" style={{ backgroundColor: textColor }} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Background Color HEX & Picker */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider">Background Color</label>
-                <div className="flex gap-2 relative">
-                  <input
-                    type="text"
-                    value={bgColor}
-                    onChange={(e) => setBgColor(e.target.value)}
-                    placeholder="Choose Background Color"
-                    className="flex-1 px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                  />
-                  <div className="w-11 h-11 rounded-xl border border-slate-200 overflow-hidden shrink-0 relative flex items-center justify-center">
-                    <input
-                      type="color"
-                      value={bgColor}
-                      onChange={(e) => setBgColor(e.target.value)}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    />
-                    <div className="w-6 h-6 rounded-md shadow-sm" style={{ backgroundColor: bgColor }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Toggle Visibility */}
-            <div className="flex items-center gap-3">
-              <label className="text-sm text-slate-750 dark:text-slate-300 font-bold">Status show on BDM Follow up</label>
-              <button
-                type="button"
-                onClick={() => setShowOnBdm(!showOnBdm)}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  showOnBdm ? 'bg-[#0E9485]' : 'bg-slate-200 dark:bg-slate-700'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    showOnBdm ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* Actions Submit / Cancel */}
-            <div className="flex justify-end gap-3 mt-1">
-              {editingId && (
-                <button
-                  type="button"
-                  onClick={handleCancelEdit}
-                  className="px-6 py-2.5 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-755 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-              )}
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-500/10 cursor-pointer flex items-center gap-2"
-              >
-                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editingId ? 'Update' : 'Create'}
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Bottom Card: Table & Navigation */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-6">
-          <div className="flex items-center justify-between gap-4">
-            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">All Status</h3>
-            <form onSubmit={handleSearch} className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        {/* Table Card */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-5">
+          {/* Controls Bar */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <form onSubmit={handleSearch} className="relative flex-1 max-w-xs">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search by name..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                className="pl-9 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm w-72 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 shadow-sm"
               />
             </form>
+            <button
+              onClick={() => { handleCancelEdit(); setIsModalOpen(true); }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md transition-colors cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              Create Status
+            </button>
           </div>
 
           {/* Statuses Log Table */}
@@ -438,6 +339,56 @@ export default function LeadStatusPage() {
           )}
         </div>
       </div>
+
+      {/* Create/Edit Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-xl p-8 border border-slate-100 dark:border-slate-700 shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <button onClick={handleCancelEdit} className="absolute top-4 right-4 p-1 rounded-full text-slate-400 hover:bg-slate-50 transition-all cursor-pointer">
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-6">{editingId ? 'Edit Status' : 'Create Status'}</h2>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Status Name <span className="text-red-500">*</span></label>
+                  <input type="text" placeholder="Enter Status Name" value={statusName} onChange={(e) => setStatusName(e.target.value)} required className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Text Color</label>
+                  <div className="flex gap-2">
+                    <input type="text" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="flex-1 px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+                    <div className="w-11 h-11 rounded-xl border border-slate-200 overflow-hidden shrink-0 relative flex items-center justify-center">
+                      <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                      <div className="w-6 h-6 rounded-md shadow-sm" style={{ backgroundColor: textColor }} />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Background Color</label>
+                  <div className="flex gap-2">
+                    <input type="text" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="flex-1 px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+                    <div className="w-11 h-11 rounded-xl border border-slate-200 overflow-hidden shrink-0 relative flex items-center justify-center">
+                      <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                      <div className="w-6 h-6 rounded-md shadow-sm" style={{ backgroundColor: bgColor }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+                <button type="button" onClick={() => setShowOnBdm(!showOnBdm)} className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${showOnBdm ? 'bg-[#0E9485]' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                  <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${showOnBdm ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+                <label className="text-sm text-slate-700 dark:text-slate-300 font-medium">Show on BDM Follow Up</label>
+              </div>
+              <button type="submit" disabled={submitting} className="py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-md flex justify-center items-center gap-2">
+                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                {editingId ? 'Update Status' : 'Create Status'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       <DeleteConfirmationModal
         isOpen={deleteTargetId !== null}

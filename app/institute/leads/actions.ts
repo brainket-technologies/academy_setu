@@ -4,7 +4,7 @@ import pool from '@/lib/db'
 import { getSession } from '@/lib/session'
 
 export async function fetchLeads(filters?: any) {
-  const session = await getSession('admin_session')
+  const session = await getSession('institute_session')
   if (!session?.userId) return { success: false, error: 'Unauthorized' }
   
   try {
@@ -23,7 +23,7 @@ export async function fetchLeads(filters?: any) {
 }
 
 export async function saveLead(data: any) {
-  const session = await getSession('admin_session')
+  const session = await getSession('institute_session')
   if (!session?.userId) return { success: false, error: 'Unauthorized' }
 
   try {
@@ -65,7 +65,7 @@ export async function saveLead(data: any) {
 }
 
 export async function addFollowup(leadId: string, data: any) {
-  const session = await getSession('admin_session')
+  const session = await getSession('institute_session')
   if (!session?.userId) return { success: false, error: 'Unauthorized' }
 
   try {
@@ -90,7 +90,7 @@ export async function addFollowup(leadId: string, data: any) {
 }
 
 export async function deleteLead(leadId: string) {
-  const session = await getSession('admin_session')
+  const session = await getSession('institute_session')
   if (!session?.userId) return { success: false, error: 'Unauthorized' }
 
   try {

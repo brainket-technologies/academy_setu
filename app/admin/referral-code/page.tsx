@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Search, Loader2, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react'
+import { Search, Loader2, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Filter, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Referral {
@@ -23,6 +23,11 @@ export default function ReferralCodePage() {
   const [searchInput, setSearchInput] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
+  // Applied filter values
+  const [appliedStatus, setAppliedStatus] = useState('')
+  const [appliedStartDate, setAppliedStartDate] = useState('')
+  const [appliedEndDate, setAppliedEndDate] = useState('')
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -71,8 +76,27 @@ export default function ReferralCodePage() {
   }, [])
 
   useEffect(() => {
-    fetchReferrals(currentPage, filterStatus, searchText, startDate, endDate)
-  }, [currentPage, filterStatus, searchText, startDate, endDate, fetchReferrals])
+    fetchReferrals(currentPage, appliedStatus, searchText, appliedStartDate, appliedEndDate)
+  }, [currentPage, appliedStatus, searchText, appliedStartDate, appliedEndDate, fetchReferrals])
+
+  const handleApplyFilters = () => {
+    setAppliedStatus(filterStatus)
+    setAppliedStartDate(startDate)
+    setAppliedEndDate(endDate)
+    setCurrentPage(1)
+  }
+
+  const handleClearFilters = () => {
+    setFilterStatus('')
+    setStartDate('')
+    setEndDate('')
+    setAppliedStatus('')
+    setAppliedStartDate('')
+    setAppliedEndDate('')
+    setSearchInput('')
+    setSearchText('')
+    setCurrentPage(1)
+  }
 
   const handleConvertLead = async (id: string) => {
     setConvertingId(id)
@@ -123,71 +147,67 @@ export default function ReferralCodePage() {
 
         {/* Filter and Table Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-6">
-          {/* Search Input */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              setSearchText(searchInput)
-              setCurrentPage(1)
-            }}
-            className="relative max-w-xs"
-          >
-            <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search by name, mobile, address..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-            />
-          </form>
-
-          {/* Filters Row */}
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* Status Filter Dropdown */}
-            <div className="flex flex-col gap-1.5 shrink-0 w-44">
-              <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider">Status</label>
-              <select
-                value={filterStatus}
-                onChange={(e) => {
-                  setFilterStatus(e.target.value)
+          {/* Search + Filter Controls */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  setSearchText(searchInput)
                   setCurrentPage(1)
                 }}
-                className="px-3.5 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 cursor-pointer font-semibold shadow-sm"
+                className="relative flex-1 max-w-xs"
               >
-                <option value="">All</option>
-                <option value="Onboarded">Onboarded</option>
-              </select>
-            </div>
-
-            {/* From Date */}
-            <div className="flex flex-col gap-1.5 shrink-0 w-44">
-              <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider">From Date</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value)
-                  setCurrentPage(1)
-                }}
-                className="px-3.5 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
-              />
-            </div>
-
-            {/* To Date */}
-            <div className="flex flex-col gap-1.5 shrink-0 w-44">
-              <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider">To Date</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value)
-                  setCurrentPage(1)
-                }}
-                className="px-3.5 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
-              />
+                <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search by name, mobile, address..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                />
+              </form>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`p-2.5 rounded-xl border transition-all shadow-sm flex items-center justify-center cursor-pointer ${
+                  showFilters || appliedStatus || appliedStartDate || appliedEndDate
+                    ? 'bg-indigo-50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400'
+                    : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600'
+                }`}
+                title="Filter"
+              >
+                {showFilters ? <ChevronUp className="w-4 h-4" /> : <Filter className="w-4 h-4" />}
+              </button>
             </div>
           </div>
+
+          {/* Filter Accordion */}
+          {showFilters && (
+
+            <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Status</label>
+                  <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200">
+                    <option value="">All</option>
+                    <option value="Onboarded">Onboarded</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">From Date</label>
+                  <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">To Date</label>
+                  <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200" />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4 justify-end">
+                <button onClick={handleApplyFilters} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md cursor-pointer">Filter</button>
+                <button onClick={handleClearFilters} className="px-6 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 rounded-xl font-bold text-sm transition-all cursor-pointer">Clear</button>
+              </div>
+            </div>
+          )}
 
           {/* Data Table */}
           <div className="overflow-x-auto border border-slate-100 dark:border-slate-700 rounded-2xl">

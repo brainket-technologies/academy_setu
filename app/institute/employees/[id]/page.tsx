@@ -331,7 +331,7 @@ function LeaveTab() {
   )
 }
 
-function PayrollTab() {
+function PayrollTab({ employee }: { employee: any }) {
   const summary = [
     { num: '20,000', label: 'Total Net Salary', col: 'text-emerald-500', bg: 'border-emerald-200' },
     { num: '5,000', label: 'Total Gross Salary', col: 'text-teal-500', bg: 'border-teal-200' },
@@ -378,7 +378,11 @@ function PayrollTab() {
             <td className="px-4 py-3"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${r.sCol}`}>● {r.status}</span></td>
             <td className="px-4 py-3">{r.status === 'Paid' ? <FileText className="w-4 h-4 text-teal-600"/> : '-'}</td>
             <td className="px-4 py-3">
-              {r.status === 'Unpaid' && <button className="px-3 py-1 rounded bg-teal-600 text-white text-xs font-bold">Pay Now</button>}
+              {r.status === 'Unpaid' && (
+                <Link href={`/institute/payroll/pay?name=${encodeURIComponent(employee.name)}&type=Employee&salary=20000`} className="px-3 py-1 rounded bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold inline-block">
+                  Pay Now
+                </Link>
+              )}
             </td>
           </tr>
         ))}
@@ -399,8 +403,10 @@ function PayrollTab() {
       <div className="flex flex-col items-center">
         <span className="text-sm font-bold text-slate-800 mb-2">Total Payment Amount</span>
         <div className="flex items-center p-1 rounded-xl border border-slate-300 w-64 bg-white shadow-sm">
-          <input type="text" value="66000/-" readOnly className="flex-1 bg-transparent px-3 outline-none font-bold text-slate-700" />
-          <button className="px-4 py-1.5 rounded-lg bg-teal-600 text-white font-bold text-sm shadow">Pay</button>
+          <input type="text" value="40000/-" readOnly className="flex-1 bg-transparent px-3 outline-none font-bold text-slate-700" />
+          <Link href={`/institute/payroll/pay?name=${encodeURIComponent(employee.name)}&type=Employee&salary=40000`} className="px-6 py-1.5 rounded-lg bg-teal-600 text-white font-bold text-sm inline-block">
+            Pay
+          </Link>
         </div>
       </div>
     </div>
@@ -513,7 +519,7 @@ export default function EmployeeProfilePage() {
         {activeTab === 'Employee Details' && <EmployeeDetailsTab employee={employee} />}
         {activeTab === 'Attendance' && <AttendanceTab />}
         {activeTab === 'Leave' && <LeaveTab />}
-        {activeTab === 'Payroll' && <PayrollTab />}
+        {activeTab === 'Payroll' && <PayrollTab employee={employee} />}
         {activeTab === 'Login Details' && <LoginDetailsTab />}
         {activeTab === 'Documents' && <DocumentsTab />}
       </div>

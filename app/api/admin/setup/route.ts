@@ -6,6 +6,42 @@ export async function GET() {
   try {
     // 1. Drop existing tables
     await pool.query(`
+      DROP TABLE IF EXISTS institute_lesson_plans CASCADE;
+      DROP TABLE IF EXISTS institute_study_materials CASCADE;
+      DROP TABLE IF EXISTS institute_online_quizzes CASCADE;
+      DROP TABLE IF EXISTS institute_offline_tests CASCADE;
+      DROP TABLE IF EXISTS institute_gallery CASCADE;
+      DROP TABLE IF EXISTS institute_support_tickets CASCADE;
+      DROP TABLE IF EXISTS institute_houses CASCADE;
+      DROP TABLE IF EXISTS institute_tags CASCADE;
+      DROP TABLE IF EXISTS institute_custom_forms CASCADE;
+      DROP TABLE IF EXISTS institute_payment_settings CASCADE;
+      DROP TABLE IF EXISTS institute_ledger CASCADE;
+      DROP TABLE IF EXISTS institute_homework CASCADE;
+      DROP TABLE IF EXISTS institute_timetable CASCADE;
+      DROP TABLE IF EXISTS institute_app_users CASCADE;
+      DROP TABLE IF EXISTS institute_notifications CASCADE;
+      DROP TABLE IF EXISTS institute_notices CASCADE;
+      DROP TABLE IF EXISTS institute_messages CASCADE;
+      DROP TABLE IF EXISTS institute_academic_calendar CASCADE;
+      DROP TABLE IF EXISTS institute_gate_passes CASCADE;
+      DROP TABLE IF EXISTS institute_income CASCADE;
+      DROP TABLE IF EXISTS institute_expenses CASCADE;
+      DROP TABLE IF EXISTS institute_payroll CASCADE;
+      DROP TABLE IF EXISTS institute_leave CASCADE;
+      DROP TABLE IF EXISTS institute_attendance CASCADE;
+      DROP TABLE IF EXISTS institute_transportation CASCADE;
+      DROP TABLE IF EXISTS institute_transfer_certificates CASCADE;
+      DROP TABLE IF EXISTS institute_admit_cards CASCADE;
+      DROP TABLE IF EXISTS institute_marksheets CASCADE;
+      DROP TABLE IF EXISTS institute_certificates CASCADE;
+      DROP TABLE IF EXISTS institute_id_cards CASCADE;
+      DROP TABLE IF EXISTS institute_fees_collection CASCADE;
+      DROP TABLE IF EXISTS institute_fees_setup CASCADE;
+      DROP TABLE IF EXISTS institute_parents CASCADE;
+      DROP TABLE IF EXISTS institute_employees CASCADE;
+      DROP TABLE IF EXISTS institute_teachers CASCADE;
+      DROP TABLE IF EXISTS institute_students CASCADE;
       DROP TABLE IF EXISTS device_recharge_requests CASCADE;
       DROP TABLE IF EXISTS device_plans CASCADE;
       DROP TABLE IF EXISTS device_types CASCADE;
@@ -82,6 +118,42 @@ export async function GET() {
       CREATE TABLE states_districts ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), state_name VARCHAR(255) UNIQUE NOT NULL, districts TEXT[] DEFAULT '{}', created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW() );
       CREATE TABLE queries ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name VARCHAR(255) NOT NULL, mobile_no VARCHAR(50) NOT NULL, email VARCHAR(255) NOT NULL DEFAULT '', query_for VARCHAR(255) NOT NULL DEFAULT '', message TEXT NOT NULL DEFAULT '', response_message TEXT DEFAULT '', status VARCHAR(50) DEFAULT 'Pending', created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW() );
       CREATE TABLE messages ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), sender_id UUID REFERENCES admins(id) ON DELETE CASCADE, receiver_id UUID REFERENCES admins(id) ON DELETE CASCADE, message TEXT NOT NULL DEFAULT '', is_read BOOLEAN NOT NULL DEFAULT false, created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_students ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, admission_no VARCHAR(100) NOT NULL, roll_no VARCHAR(50) DEFAULT '', name VARCHAR(255) NOT NULL, fee NUMERIC(10,2) DEFAULT 0, remark TEXT DEFAULT '', status VARCHAR(50) DEFAULT 'Active', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_teachers ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, username VARCHAR(100) NOT NULL, name VARCHAR(255) NOT NULL, contact VARCHAR(50), email VARCHAR(255), assigned_classes TEXT[], status VARCHAR(50) DEFAULT 'Active', joining_date DATE, created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_employees ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, username VARCHAR(100) NOT NULL, name VARCHAR(255) NOT NULL, contact VARCHAR(50), role VARCHAR(100), status VARCHAR(50) DEFAULT 'Active', joining_date DATE, created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_parents ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, username VARCHAR(100) NOT NULL, name VARCHAR(255) NOT NULL, contact VARCHAR(50), student_count INTEGER DEFAULT 1, fees VARCHAR(100), status VARCHAR(50) DEFAULT 'Active', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_fees_setup ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, fee_head VARCHAR(255) NOT NULL, fee_class VARCHAR(100), amount NUMERIC(10,2) NOT NULL, frequency VARCHAR(100) DEFAULT 'Monthly', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_fees_collection ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, student_name VARCHAR(255) NOT NULL, fee_class VARCHAR(100), paid_amount NUMERIC(10,2) NOT NULL, due_amount NUMERIC(10,2) NOT NULL, payment_date DATE DEFAULT CURRENT_DATE, payment_mode VARCHAR(100), status VARCHAR(50) DEFAULT 'Paid', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_id_cards ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, template_name VARCHAR(255), name VARCHAR(255) NOT NULL, roll_no VARCHAR(100), card_class VARCHAR(100), status VARCHAR(50) DEFAULT 'Active', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_certificates ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, template_name VARCHAR(255), student_name VARCHAR(255) NOT NULL, issue_date DATE DEFAULT CURRENT_DATE, status VARCHAR(50) DEFAULT 'Active', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_marksheets ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, exam_name VARCHAR(255) NOT NULL, class_name VARCHAR(100), student_name VARCHAR(255) NOT NULL, total_marks VARCHAR(100), status VARCHAR(50) DEFAULT 'Declared', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_admit_cards ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, exam_name VARCHAR(255) NOT NULL, class_name VARCHAR(100), student_name VARCHAR(255) NOT NULL, roll_no VARCHAR(100), status VARCHAR(50) DEFAULT 'Generated', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_transfer_certificates ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, tc_no VARCHAR(100) UNIQUE NOT NULL, student_name VARCHAR(255) NOT NULL, issue_date DATE DEFAULT CURRENT_DATE, status VARCHAR(50) DEFAULT 'Issued', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_transportation ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, route_name VARCHAR(255) NOT NULL, vehicle_no VARCHAR(100) NOT NULL, driver_name VARCHAR(255), driver_mobile VARCHAR(50), rent NUMERIC(10,2) DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_attendance ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, student_name VARCHAR(255) NOT NULL, roll_no VARCHAR(100), attendance_date DATE DEFAULT CURRENT_DATE, status VARCHAR(50) DEFAULT 'Present', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_leave ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, name VARCHAR(255) NOT NULL, role VARCHAR(100), leave_from DATE, leave_to DATE, reason TEXT, status VARCHAR(50) DEFAULT 'Approved', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_payroll ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, employee_name VARCHAR(255) NOT NULL, month_year VARCHAR(100) NOT NULL, net_salary NUMERIC(10,2) NOT NULL, status VARCHAR(50) DEFAULT 'Paid', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_expenses ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, category VARCHAR(255) NOT NULL, amount NUMERIC(10,2) NOT NULL, expense_date DATE DEFAULT CURRENT_DATE, status VARCHAR(50) DEFAULT 'Approved', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_income ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, category VARCHAR(255) NOT NULL, amount NUMERIC(10,2) NOT NULL, income_date DATE DEFAULT CURRENT_DATE, status VARCHAR(50) DEFAULT 'Received', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_payment_settings ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, gateway_name VARCHAR(100), api_key VARCHAR(255), api_secret VARCHAR(255), status VARCHAR(50) DEFAULT 'Active', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_ledger ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, date DATE DEFAULT CURRENT_DATE, description VARCHAR(255), debit NUMERIC(10,2) DEFAULT 0, credit NUMERIC(10,2) DEFAULT 0, balance NUMERIC(10,2) DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_homework ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, class_name VARCHAR(100), section VARCHAR(100), subject VARCHAR(100), assigned_date DATE, submission_date DATE, description TEXT, status VARCHAR(50) DEFAULT 'Active', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_timetable ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, class_name VARCHAR(100), section VARCHAR(100), day VARCHAR(50), subject VARCHAR(100), teacher_name VARCHAR(255), start_time VARCHAR(50), end_time VARCHAR(50), room_no VARCHAR(50), created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_app_users ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, user_type VARCHAR(100), name VARCHAR(255), contact VARCHAR(50), last_login TIMESTAMPTZ, status VARCHAR(50) DEFAULT 'Active', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_notifications ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, title VARCHAR(255), message TEXT, target_audience VARCHAR(100), sent_date TIMESTAMPTZ DEFAULT NOW(), status VARCHAR(50) DEFAULT 'Sent', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_notices ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, title VARCHAR(255), description TEXT, publish_date DATE, valid_until DATE, target_audience VARCHAR(100), status VARCHAR(50) DEFAULT 'Active', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_messages ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, sender VARCHAR(100), receiver VARCHAR(100), message TEXT, sent_at TIMESTAMPTZ DEFAULT NOW(), status VARCHAR(50) DEFAULT 'Sent', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_academic_calendar ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, event_title VARCHAR(255), start_date DATE, end_date DATE, event_type VARCHAR(100), description TEXT, created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_lesson_plans ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, class_name VARCHAR(100), subject VARCHAR(100), topic VARCHAR(255), date DATE, status VARCHAR(50) DEFAULT 'Active', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_study_materials ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, class_name VARCHAR(100), subject VARCHAR(100), title VARCHAR(255), file_url TEXT, status VARCHAR(50) DEFAULT 'Active', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_online_quizzes ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, title VARCHAR(255), class_name VARCHAR(100), subject VARCHAR(100), quiz_date DATE, duration VARCHAR(50), status VARCHAR(50) DEFAULT 'Active', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_offline_tests ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, title VARCHAR(255), class_name VARCHAR(100), subject VARCHAR(100), test_date DATE, marks VARCHAR(50), status VARCHAR(50) DEFAULT 'Active', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_gallery ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, event_name VARCHAR(255), event_date DATE, image_url TEXT, status VARCHAR(50) DEFAULT 'Active', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_support_tickets ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, ticket_no VARCHAR(100), subject VARCHAR(255), description TEXT, priority VARCHAR(50), status VARCHAR(50) DEFAULT 'Open', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_houses ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, name VARCHAR(100), color VARCHAR(50), description TEXT, status VARCHAR(50) DEFAULT 'Active', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_tags ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, name VARCHAR(100), color VARCHAR(50), status VARCHAR(50) DEFAULT 'Active', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_custom_forms ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, form_name VARCHAR(255), description TEXT, link TEXT, status VARCHAR(50) DEFAULT 'Active', created_at TIMESTAMPTZ DEFAULT NOW() );
+      CREATE TABLE institute_gate_passes ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE, visitor_name VARCHAR(255), contact VARCHAR(50), purpose VARCHAR(255), to_meet VARCHAR(255), check_in TIMESTAMPTZ, check_out TIMESTAMPTZ, status VARCHAR(50) DEFAULT 'Active', created_at TIMESTAMPTZ DEFAULT NOW() );
     `)
 
     // 3. SEEDING LOGIC
@@ -293,6 +365,148 @@ export async function GET() {
     await pool.query(`INSERT INTO states_districts (state_name, districts) VALUES ('Delhi', ARRAY['New Delhi', 'North Delhi']), ('Maharashtra', ARRAY['Mumbai', 'Pune'])`)
     await pool.query(`INSERT INTO queries (name, mobile_no, message) VALUES ('Test User', '9999999999', 'How to join?'), ('User 2', '8888888888', 'Pricing details?')`)
     await pool.query(`INSERT INTO messages (sender_id, receiver_id, message) VALUES ($1, $2, 'Hello Ashok'), ($2, $1, 'Hi Super Admin')`, [superAdminId, ashokId])
+
+    // Seeding new institute tables (with instIds[0] as target institution)
+    await pool.query(`INSERT INTO institute_students (institution_id, admission_no, roll_no, name, fee, remark, status) VALUES
+      ($1, '0423', '21', 'Sohan Singh', 7500, 'Misconduct', 'Suspended'),
+      ($1, '0424', '10', 'Rohit Sharma', 7500, 'Attendance Issue', 'Suspended'),
+      ($1, '0425', '8', 'Priya Patel', 7500, 'Fee Default', 'Suspended'),
+      ($1, '0426', '12', 'Arjun Kumar', 7500, 'Regular student', 'Active')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_teachers (institution_id, username, name, contact, email, assigned_classes, status, joining_date) VALUES
+      ($1, 'Teach123', 'Sudhir Rawat', '9990990099', 'sudhirawat123@gmail.com', ARRAY['1-A', '1-B', '2-B'], 'Active', '2026-01-01'),
+      ($1, 'Teach124', 'Priya Sharma', '9990990088', 'priya.sharma@gmail.com', ARRAY['4-A', '4-B', '5-A'], 'Inactive', '2026-03-01'),
+      ($1, 'Teach125', 'Amit Verma', '9990990077', 'amit.verma@gmail.com', ARRAY['6-A', '7-A', '7-B'], 'Active', '2026-03-15')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_employees (institution_id, username, name, contact, role, status, joining_date) VALUES
+      ($1, 'Emp101', 'Ravi Shankar', '9991112223', 'Accountant', 'Active', '2025-05-10'),
+      ($1, 'Emp102', 'Sunita Rao', '9992223334', 'Receptionist', 'Active', '2025-08-15'),
+      ($1, 'Emp103', 'Madan Lal', '9993334445', 'Security Guard', 'Inactive', '2024-11-20')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_parents (institution_id, username, name, contact, student_count, fees, status) VALUES
+      ($1, 'Par123', 'Sudhir Rawat', '9999999999', 1, '241000/-', 'Active'),
+      ($1, 'Par124', 'Rajesh Gupta', '9999999998', 2, '180000/-', 'Inactive'),
+      ($1, 'Par125', 'Mahesh Sen', '9999999997', 1, '120000/-', 'Active')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_fees_setup (institution_id, fee_head, fee_class, amount, frequency) VALUES
+      ($1, 'Tuition Fee', 'Class 5', 5000, 'Monthly'),
+      ($1, 'Admission Fee', 'Class 1', 15000, 'One-time'),
+      ($1, 'Library Fee', 'Class 8', 1200, 'Annual')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_fees_collection (institution_id, student_name, fee_class, paid_amount, due_amount, payment_mode, status) VALUES
+      ($1, 'Sohan Singh', 'Class 5', 5000, 0, 'UPI', 'Paid'),
+      ($1, 'Rohit Sharma', 'Class 5', 4000, 1000, 'Cash', 'Partial'),
+      ($1, 'Priya Patel', 'Class 8', 0, 1200, 'None', 'Unpaid')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_id_cards (institution_id, template_name, name, roll_no, card_class, status) VALUES
+      ($1, 'Modern Theme', 'Arjun Kumar', '12', 'Class 5', 'Active'),
+      ($1, 'Classic Theme', 'Sohan Singh', '21', 'Class 5', 'Active')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_certificates (institution_id, template_name, student_name, status) VALUES
+      ($1, 'Transfer Certificate Template', 'Sohan Singh', 'Active'),
+      ($1, 'Character Certificate Template', 'Rohit Sharma', 'Active')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_marksheets (institution_id, exam_name, class_name, student_name, total_marks, status) VALUES
+      ($1, 'Final Exam 2025', 'Class 5', 'Arjun Kumar', '450/500', 'Declared'),
+      ($1, 'Final Exam 2025', 'Class 5', 'Sohan Singh', '380/500', 'Declared')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_admit_cards (institution_id, exam_name, class_name, student_name, roll_no, status) VALUES
+      ($1, 'Half Yearly Exam', 'Class 5', 'Arjun Kumar', '12', 'Generated'),
+      ($1, 'Half Yearly Exam', 'Class 5', 'Sohan Singh', '21', 'Generated')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_transfer_certificates (institution_id, tc_no, student_name, status) VALUES
+      ($1, 'TC-2026-001', 'Sohan Singh', 'Issued'),
+      ($1, 'TC-2026-002', 'Rohit Sharma', 'Pending')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_transportation (institution_id, route_name, vehicle_no, driver_name, driver_mobile, rent) VALUES
+      ($1, 'Route A (Noida)', 'UP-16-AT-9999', 'Ramesh Kumar', '9998887776', 2500),
+      ($1, 'Route B (Greater Noida)', 'UP-16-BT-8888', 'Suresh Kumar', '9998887775', 3000)`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_attendance (institution_id, student_name, roll_no, status) VALUES
+      ($1, 'Arjun Kumar', '12', 'Present'),
+      ($1, 'Sohan Singh', '21', 'Absent'),
+      ($1, 'Rohit Sharma', '10', 'Present')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_leave (institution_id, name, role, reason, status) VALUES
+      ($1, 'Priya Sharma', 'Teacher', 'Medical Leave', 'Approved'),
+      ($1, 'Ravi Shankar', 'Employee', 'Personal Work', 'Pending')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_payroll (institution_id, employee_name, month_year, net_salary, status) VALUES
+      ($1, 'Ravi Shankar', 'January 2026', 25000, 'Paid'),
+      ($1, 'Sunita Rao', 'January 2026', 18000, 'Paid')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_expenses (institution_id, category, amount, status) VALUES
+      ($1, 'Stationery', 4500, 'Approved'),
+      ($1, 'Electricity Bill', 12000, 'Approved')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_income (institution_id, category, amount, status) VALUES
+      ($1, 'Admission Fee Collection', 75000, 'Received'),
+      ($1, 'Donation Received', 150000, 'Received')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_payment_settings (institution_id, gateway_name, api_key, api_secret, status) VALUES
+      ($1, 'Razorpay', 'rzp_test_123', 'secret_123', 'Active'),
+      ($1, 'Paytm', 'paytm_test_456', 'secret_456', 'Inactive')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_ledger (institution_id, description, debit, credit, balance) VALUES
+      ($1, 'Opening Balance', 0, 100000, 100000),
+      ($1, 'Stationery Purchase', 5000, 0, 95000)`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_homework (institution_id, class_name, section, subject, assigned_date, submission_date, description, status) VALUES
+      ($1, 'Class 5', 'A', 'Maths', CURRENT_DATE, CURRENT_DATE + INTERVAL '2 days', 'Complete Chapter 4 Exercises', 'Active'),
+      ($1, 'Class 5', 'B', 'Science', CURRENT_DATE, CURRENT_DATE + INTERVAL '1 day', 'Draw Plant Cell', 'Active')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_timetable (institution_id, class_name, section, day, subject, teacher_name, start_time, end_time, room_no) VALUES
+      ($1, 'Class 5', 'A', 'Monday', 'Maths', 'Sudhir Rawat', '09:00 AM', '09:45 AM', 'Room 101'),
+      ($1, 'Class 5', 'A', 'Monday', 'Science', 'Amit Verma', '09:45 AM', '10:30 AM', 'Room 102')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_app_users (institution_id, user_type, name, contact, last_login, status) VALUES
+      ($1, 'Student', 'Arjun Kumar', '9999999991', NOW(), 'Active'),
+      ($1, 'Parent', 'Sudhir Rawat', '9999999999', NOW(), 'Active')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_notifications (institution_id, title, message, target_audience, status) VALUES
+      ($1, 'Holiday Notice', 'School will remain closed tomorrow.', 'All', 'Sent'),
+      ($1, 'Fee Reminder', 'Please pay the pending dues by 10th.', 'Parents', 'Sent')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_notices (institution_id, title, description, publish_date, valid_until, target_audience, status) VALUES
+      ($1, 'Annual Sports Day', 'Sports day will be held on 15th.', CURRENT_DATE, CURRENT_DATE + INTERVAL '15 days', 'All', 'Active')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_messages (institution_id, sender, receiver, message, status) VALUES
+      ($1, 'Admin', 'Sudhir Rawat', 'Please submit the syllabus plan.', 'Sent')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_academic_calendar (institution_id, event_title, start_date, end_date, event_type, description) VALUES
+      ($1, 'Mid Term Exams', CURRENT_DATE + INTERVAL '30 days', CURRENT_DATE + INTERVAL '40 days', 'Examination', 'Half yearly exams for all classes')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_gate_passes (institution_id, visitor_name, contact, purpose, to_meet, check_in, status) VALUES
+      ($1, 'Ramesh Gupta', '9876543210', 'Admissions', 'Principal', NOW(), 'Active')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_lesson_plans (institution_id, class_name, subject, topic, date, status) VALUES
+      ($1, 'Class 5', 'Science', 'Plant Cells', CURRENT_DATE, 'Active')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_study_materials (institution_id, class_name, subject, title, file_url, status) VALUES
+      ($1, 'Class 5', 'Science', 'Chapter 4 Notes', 'https://example.com/notes.pdf', 'Active')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_online_quizzes (institution_id, title, class_name, subject, quiz_date, duration, status) VALUES
+      ($1, 'Science Mid Quiz', 'Class 5', 'Science', CURRENT_DATE + INTERVAL '5 days', '30 Mins', 'Active')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_offline_tests (institution_id, title, class_name, subject, test_date, marks, status) VALUES
+      ($1, 'Maths Unit Test', 'Class 5', 'Maths', CURRENT_DATE + INTERVAL '10 days', '50', 'Active')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_gallery (institution_id, event_name, event_date, image_url, status) VALUES
+      ($1, 'Annual Function 2025', CURRENT_DATE - INTERVAL '10 days', 'https://example.com/gallery1.jpg', 'Active')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_support_tickets (institution_id, ticket_no, subject, description, priority, status) VALUES
+      ($1, 'TKT-2026-001', 'Smartboard not working', 'Room 101 smartboard is blank', 'High', 'Open')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_houses (institution_id, name, color, description, status) VALUES
+      ($1, 'Red House', 'Red', 'Courage and Bravery', 'Active'),
+      ($1, 'Blue House', 'Blue', 'Peace and Truth', 'Active')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_tags (institution_id, name, color, status) VALUES
+      ($1, 'New Admission', 'Green', 'Active'),
+      ($1, 'Defaulter', 'Red', 'Active')`, [instIds[0]])
+
+    await pool.query(`INSERT INTO institute_custom_forms (institution_id, form_name, description, link, status) VALUES
+      ($1, 'Transport Opt-In Form', 'For students applying for school transport', 'https://forms.example.com/123', 'Active')`, [instIds[0]])
 
     return NextResponse.json({ success: true, message: 'Seeded 5 rows across tables.' })
   } catch (error) {

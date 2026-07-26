@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { createStudent } from '@/app/institute/students/actions'
 import { X, Check, Paperclip, Plus, Camera, Percent, Search, Eye, Edit2 } from 'lucide-react'
 import { 
   PersonalDetailsCard, PreviousSchoolCard, MedicalDetailsCard, TCDetailsCard, EducationTableCard,
@@ -40,6 +41,35 @@ export default function AddStudentWizard({ onClose }: { onClose: () => void }) {
     regFeeEnabled: true, admFeeEnabled: true, classFeeEnabled: true, libFeeEnabled: true,
     examFeeEnabled: true, hostelFeeEnabled: true, extraFeeEnabled: true, transFeeEnabled: true,
   })
+
+  const [masters, setMasters] = useState({
+    classes: ['Select a Class'],
+    sections: ['Select a Section'],
+    streams: ['Select Stream'],
+    tags: ['Select Tag'],
+    discounts: ['Select Discount Head']
+  })
+
+  React.useEffect(() => {
+    const loadMaster = (key: string, defaultOpt: string, nameField: string) => {
+       const data = localStorage.getItem(key)
+       if (data) {
+         try {
+           const arr = JSON.parse(data)
+           return [defaultOpt, ...arr.map((item: any) => item[nameField] || item.name)]
+         } catch {}
+       }
+       return [defaultOpt]
+    }
+
+    setMasters({
+      classes: loadMaster('school_masters_classes', 'Select a Class', 'className'),
+      sections: loadMaster('school_masters_sections', 'Select a Section', 'sectionName'),
+      streams: loadMaster('school_masters_streams', 'Select Stream', 'streamName'),
+      tags: loadMaster('school_masters_tags', 'Select Tag', 'tagName'),
+      discounts: loadMaster('school_masters_discounts', 'Select Discount Head', 'headName')
+    })
+  }, [])
 
   const [showPromoModal, setShowPromoModal] = useState(false)
 
@@ -105,7 +135,7 @@ export default function AddStudentWizard({ onClose }: { onClose: () => void }) {
 
           {/* Form Content Area */}
           <div className="mt-4">
-             {currentStep === 1 && <Step1 formData={formData} updateForm={updateForm} onNext={handleNext} onCancel={onClose} />}
+             {currentStep === 1 && <Step1 formData={formData} masters={masters} updateForm={updateForm} onNext={handleNext} onCancel={onClose} />}
              {currentStep === 2 && <Step2 formData={formData} updateForm={updateForm} onNext={handleNext} onBack={handleBack} onCancel={onClose} />}
              {currentStep === 3 && <Step3 formData={formData} updateForm={updateForm} onNext={handleNext} onBack={handleBack} onCancel={onClose} />}
              {currentStep === 4 && <Step4 formData={formData} updateForm={updateForm} onNext={handleNext} onBack={handleBack} onCancel={onClose} />}
@@ -194,22 +224,22 @@ function PromoCodeField({ label, placeholder, onClick }: any) {
 // ---------------------------------------------------------
 // STEP 1: PERSONAL DETAILS
 // ---------------------------------------------------------
-function Step1({ formData, updateForm, onNext, onCancel }: any) {
+function Step1({ formData, masters, updateForm, onNext, onCancel }: any) {
   return (
     <div className="flex flex-col gap-8 animate-in fade-in duration-300">
       
       <div>
         <SectionHeader title="Personal Details" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-           <SelectField label="Academic Year" required options={['Select a Year', '2023-24', '2024-25']} />
-           <SelectField label="Class" required options={['Select a Class', 'Class I', 'Class II', 'Class III']} />
-           <SelectField label="Section" required options={['Select a Section', 'A', 'B', 'C']} />
-           <InputField label="Roll No." required placeholder="Enter Roll No." />
-           <InputField label="Admission No." placeholder="Enter Admission No." />
-           <InputField label="Admission Date" required type="date" />
-           <SelectField label="Stream" options={['Select Stream', 'Science', 'Commerce', 'Arts']} />
-           <SelectField label="Medium" options={['Select Medium', 'English', 'Hindi']} />
-           <SelectField label="House/Block" options={['Select House/Block', 'Red', 'Blue', 'Green', 'Yellow']} />
+           <SelectField label="Academic Year" required options={['Select a Year', '2023-24', '2024-25', '2025-26']} value={formData.academicYear} onChange={(e: any) => updateForm('academicYear', e.target.value)} />
+           <SelectField label="Class" required options={masters.classes} value={formData.class} onChange={(e: any) => updateForm('class', e.target.value)} />
+           <SelectField label="Section" required options={masters.sections} value={formData.section} onChange={(e: any) => updateForm('section', e.target.value)} />
+           <InputField label="Roll No." required placeholder="Enter Roll No." value={formData.rollNo} onChange={(e: any) => updateForm('rollNo', e.target.value)} />
+           <InputField label="Admission No." placeholder="Enter Admission No." value={formData.admissionNo} onChange={(e: any) => updateForm('admissionNo', e.target.value)} />
+           <InputField label="Admission Date" required type="date" value={formData.admissionDate} onChange={(e: any) => updateForm('admissionDate', e.target.value)} />
+           <SelectField label="Stream" options={masters.streams} value={formData.stream} onChange={(e: any) => updateForm('stream', e.target.value)} />
+           <SelectField label="Medium" options={['Select Medium', 'English', 'Hindi']} value={formData.medium} onChange={(e: any) => updateForm('medium', e.target.value)} />
+           <SelectField label="House/Block" options={['Select House/Block', 'Red', 'Blue', 'Green', 'Yellow']} value={formData.houseBlock} onChange={(e: any) => updateForm('houseBlock', e.target.value)} />
         </div>
       </div>
 
@@ -551,14 +581,22 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
 // ---------------------------------------------------------
 function Step6({ formData, onBack, onCancel }: any) {
   
+  const [submitting, setSubmitting] = useState(false)
+
   const handlePrint = () => {
     window.print()
   }
 
-  const handleSubmit = () => {
-    console.log('FINAL SUBMIT:', formData)
-    alert('Student successfully added!')
-    onCancel()
+  const handleSubmit = async () => {
+    setSubmitting(true)
+    const res = await createStudent(formData)
+    if (res.success) {
+      alert('Student successfully added!')
+      onCancel()
+    } else {
+      alert('Failed to add student: ' + res.error)
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -620,10 +658,12 @@ function Step6({ formData, onBack, onCancel }: any) {
          </div>
       </div>
 
-      <div className="flex justify-center gap-4 pt-8 border-t border-slate-200 mt-4">
-        <button onClick={onBack} className="px-10 py-2.5 bg-white border border-slate-200 text-teal-600 font-bold rounded-xl hover:bg-slate-50 transition-all shadow-sm">Back</button>
-        <button onClick={handlePrint} className="px-10 py-2.5 bg-white border border-slate-200 text-teal-600 font-bold rounded-xl hover:bg-slate-50 transition-all shadow-sm">Print</button>
-        <button onClick={handleSubmit} className="px-10 py-2.5 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 transition-all shadow-sm">Final Submit</button>
+      <div className="flex justify-center gap-4 pt-8 border-t border-slate-100 dark:border-slate-700">
+        <button onClick={onBack} disabled={submitting} className="px-10 py-2.5 bg-white border border-slate-200 text-teal-600 font-bold rounded-xl hover:bg-slate-50 transition-all shadow-sm">Back</button>
+        <button onClick={handleSubmit} disabled={submitting} className="px-10 py-2.5 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 transition-all shadow-sm flex items-center gap-2">
+          {submitting ? 'Submitting...' : <><Check className="w-4 h-4" /> Final Submit</>}
+        </button>
+        <button onClick={handlePrint} disabled={submitting} className="px-10 py-2.5 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-all shadow-sm">Print / Save as PDF</button>
       </div>
 
     </div>

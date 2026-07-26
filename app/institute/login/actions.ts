@@ -47,7 +47,7 @@ export async function loginAction(
       role: 'institution',
       name: institute.name,
       email: institute.email_id,
-    })
+    }, 'institute_session')
   } catch (err) {
     console.error('Institute Login error:', err)
     return { error: 'Something went wrong. Please try again.' }
@@ -57,6 +57,6 @@ export async function loginAction(
 }
 
 export async function logoutAction() {
-  await deleteSession()
+  await deleteSession('institute_session')
   redirect('/institute/login')
 }
