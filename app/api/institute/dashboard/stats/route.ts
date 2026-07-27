@@ -4,13 +4,18 @@ import { prisma } from '../../../../../lib/prisma'
 export async function GET() {
   try {
     // For now, aggregate simple DB queries
-    const students = await prisma.application.count()
-    const teachers = await prisma.user.count({ where: { role: 'INSTITUTE' } }) // Dummy representation
-    const incomeAgg = await prisma.transaction.aggregate({ _sum: { amount: true }, where: { type: 'INCOME' } })
-    const expenseAgg = await prisma.transaction.aggregate({ _sum: { amount: true }, where: { type: 'EXPENSE' } })
+    const [
+      students,
+      teachers,
+      transactionSums
+    ] = await Promise.all([
+      prisma.application.count(),
+      prisma.user.count({ where: { role: 'INSTITUTE' } }),
+      prisma.transaction.groupBy({ by: ['type'], _sum: { amount: true } })
+    ]);
 
-    const totalIncome = incomeAgg._sum.amount || 0
-    const totalExpense = expenseAgg._sum.amount || 0
+    const totalIncome = transactionSums.find((t: any) => t.type === 'INCOME')?._sum.amount || 0;
+    const totalExpense = transactionSums.find((t: any) => t.type === 'EXPENSE')?._sum.amount || 0;
 
     return NextResponse.json({
       success: true,

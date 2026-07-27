@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { Search, Upload, Filter, MoreVertical, Receipt, Tag, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Plus, Calendar as CalendarIcon, Pencil, Trash2, X } from 'lucide-react'
+import { useClasses } from '@/lib/mastersData'
 
 const APPLICABLE_STUDENTS = Array(10).fill({
   admissionNo: 'Sch10654',
@@ -26,6 +27,7 @@ const CLASS_FEE_CHART = [
 
 export default function ClassFeePage() {
   const [activeTab, setActiveTab] = useState('Class Fee Chart')
+  const classesData = useClasses()
   const [showForm, setShowForm] = useState(true)
   const [showFilter, setShowFilter] = useState(false)
   const [isRteEnabled, setIsRteEnabled] = useState(false)
@@ -52,6 +54,9 @@ export default function ClassFeePage() {
               <label className="text-[11px] font-bold text-slate-700">Class <span className="text-red-500">*</span></label>
               <select className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
                 <option>Select Multiple Class</option>
+                {classesData.map((c: any) => (
+                  <option key={c.className} value={c.className}>{c.className}</option>
+                ))}
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
@@ -352,6 +357,9 @@ export default function ClassFeePage() {
                   <label className="text-xs font-bold text-slate-800">Class</label>
                   <select className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 w-full">
                     <option>Select Class</option>
+                    {classesData.map((c: any) => (
+                      <option key={c.className} value={c.className}>{c.className}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="flex flex-col gap-2">

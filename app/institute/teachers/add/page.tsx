@@ -1,9 +1,11 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Plus, Trash2, Upload, Calendar, ChevronDown, Check } from 'lucide-react'
 import Link from 'next/link'
+import { X, Plus, Trash2, Upload, Calendar, ChevronDown, Check } from 'lucide-react'
+import { fetchStatesDistricts } from '../../actions'
+import { useClasses, useDepartments, useSubjects } from '@/lib/mastersData'
 
 // ─── Step Config ──────────────────────────────────────────────────────────────
 const STEPS = [
@@ -14,13 +16,6 @@ const STEPS = [
   'Payroll & Leave',
   'Payment Details',
 ]
-
-const STATES = ['Delhi', 'Maharashtra', 'Karnataka', 'Tamil Nadu', 'Uttar Pradesh', 'Rajasthan', 'Gujarat']
-const DISTRICTS: Record<string, string[]> = {
-  Delhi: ['Central Delhi', 'East Delhi', 'New Delhi', 'North Delhi', 'South Delhi', 'West Delhi'],
-  Maharashtra: ['Mumbai', 'Pune', 'Nagpur', 'Nashik', 'Aurangabad'],
-  Karnataka: ['Bangalore', 'Mysore', 'Hubli', 'Mangalore'],
-}
 const CLASSES = [
   { class: '1', sections: ['A', 'B', 'C'] },
   { class: '2', sections: ['A', 'B', 'C'] },
@@ -84,7 +79,7 @@ function FileUploadField({ label, value, onChange }: { label: string; value: str
 }
 
 // ─── Step 1: Personal Details ─────────────────────────────────────────────────
-function PersonalDetailsStep({ data, setData }: { data: any; setData: (d: any) => void }) {
+function PersonalDetailsStep({ data, setData, departments }: { data: any; setData: (d: any) => void; departments: any[] }) {
   const set = (k: string, v: string) => setData({ ...data, [k]: v })
   return (
     <div className="space-y-6">
@@ -118,7 +113,7 @@ function PersonalDetailsStep({ data, setData }: { data: any; setData: (d: any) =
         </Field>
         <SelectField label="Gender" required value={data.gender || ''} onChange={v => set('gender', v)} options={['Male', 'Female', 'Other']} />
         <SelectField label="Blood Group" value={data.bloodGroup || ''} onChange={v => set('bloodGroup', v)} options={['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']} />
-        <SelectField label="Department" required value={data.department || ''} onChange={v => set('department', v)} options={['Science', 'Arts', 'Commerce', 'Humanities', 'Sports', 'Admin']} />
+        <SelectField label="Department" required value={data.department || ''} onChange={v => set('department', v)} options={departments.map((d: any) => d.departmentName)} />
         <Field label="Designation" required>
           <input className={inputCls} placeholder="Enter Designation" value={data.designation || ''} onChange={e => set('designation', e.target.value)} />
         </Field>
@@ -299,9 +294,12 @@ function QualificationDetailsStep({ data, setData }: { data: any; setData: (d: a
 }
 
 // ─── Step 3: Address Details ──────────────────────────────────────────────────
-function AddressDetailsStep({ data, setData }: { data: any; setData: (d: any) => void }) {
+function AddressDetailsStep({ data, setData, statesData }: { data: any; setData: (d: any) => void; statesData: any[] }) {
   const set = (k: string, v: string) => setData({ ...data, [k]: v })
-  const districts = DISTRICTS[data.state] || []
+  
+  const states = statesData.map(s => s.state)
+  const selectedStateObj = statesData.find(s => s.state === data.state)
+  const districts = selectedStateObj ? selectedStateObj.districts : []
 
   return (
     <div className="space-y-6">
@@ -311,7 +309,7 @@ function AddressDetailsStep({ data, setData }: { data: any; setData: (d: any) =>
           <input className={inputCls} placeholder="Enter Address" value={data.address || ''} onChange={e => set('address', e.target.value)} />
         </Field>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <SelectField label="State" required value={data.state || ''} onChange={v => { set('state', v); set('district', '') }} options={STATES} placeholder="Select State" />
+          <SelectField label="State" required value={data.state || ''} onChange={v => { set('state', v); set('district', '') }} options={states} placeholder="Select State" />
           <SelectField label="District" required value={data.district || ''} onChange={v => set('district', v)} options={districts} placeholder="Select District" />
           <Field label="Pincode">
             <input className={inputCls} placeholder="Enter Pincode" value={data.pincode || ''} onChange={e => set('pincode', e.target.value)} maxLength={6} />
@@ -334,7 +332,7 @@ function AddressDetailsStep({ data, setData }: { data: any; setData: (d: any) =>
 }
 
 // ─── Step 4: Assign Class & Section ──────────────────────────────────────────
-function AssignClassStep({ data, setData }: { data: any; setData: (d: any) => void }) {
+function AssignClassStep({ data, setData, classesData, subjectsData }: { data: any; setData: (d: any) => void; classesData: any[]; subjectsData: any[] }) {
   const [assigned, setAssigned] = useState<any[]>(data.assignedClasses || [{ class: '', section: '', subject: '' }])
   const [classTeacher, setClassTeacher] = useState<any>(data.classTeacher || { class: '', section: '', subject: '' })
 
@@ -355,9 +353,16 @@ function AssignClassStep({ data, setData }: { data: any; setData: (d: any) => vo
     setClassTeacher(n); setData({ ...data, classTeacher: n })
   }
 
-  const classOptions = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
-  const sectionOptions = ['A', 'B', 'C', 'D']
-  const subjectOptions = ['Mathematics', 'Science', 'English', 'Hindi', 'Social Studies']
+  const classOptions = classesData.map((c: any) => c.className)
+  const subjectOptions = subjectsData.map((s: any) => s.subjectName)
+  
+  // Get sections based on the selected class for the first row (simplification)
+  // To handle row-specific sections correctly, we map over rows below, 
+  // but for class teacher we just use the first class selected.
+  const getClassSections = (clsName: string) => {
+    const cls = classesData.find((c: any) => c.className === clsName)
+    return cls ? cls.sections : []
+  }
 
   return (
     <div className="space-y-8">
@@ -367,7 +372,7 @@ function AssignClassStep({ data, setData }: { data: any; setData: (d: any) => vo
           {assigned.map((row, i) => (
             <div key={i} className="flex flex-col sm:flex-row items-end gap-4 relative">
               <div className="flex-1 w-full"><SelectField label="Class" value={row.class} onChange={v => updateAssigned(i, 'class', v)} options={classOptions} placeholder="Select Class" /></div>
-              <div className="flex-1 w-full"><SelectField label="Section" value={row.section} onChange={v => updateAssigned(i, 'section', v)} options={sectionOptions} placeholder="Select Section" /></div>
+              <div className="flex-1 w-full"><SelectField label="Section" value={row.section} onChange={v => updateAssigned(i, 'section', v)} options={getClassSections(row.class)} placeholder="Select Section" /></div>
               <div className="flex-1 w-full"><SelectField label="Subject" value={row.subject} onChange={v => updateAssigned(i, 'subject', v)} options={subjectOptions} placeholder="Select Subject" /></div>
               <div className="pb-1">
                 {assigned.length > 1 && (
@@ -389,7 +394,7 @@ function AssignClassStep({ data, setData }: { data: any; setData: (d: any) => vo
         <SectionTitle>Assign as a Class Teacher</SectionTitle>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mt-4">
           <SelectField label="Class" value={classTeacher.class} onChange={v => updateClassTeacher('class', v)} options={classOptions} placeholder="Select Class" />
-          <SelectField label="Section" value={classTeacher.section} onChange={v => updateClassTeacher('section', v)} options={sectionOptions} placeholder="Select Section" />
+          <SelectField label="Section" value={classTeacher.section} onChange={v => updateClassTeacher('section', v)} options={getClassSections(classTeacher.class)} placeholder="Select Section" />
           <SelectField label="Subject" value={classTeacher.subject} onChange={v => updateClassTeacher('subject', v)} options={subjectOptions} placeholder="Select Subject" />
         </div>
       </div>
@@ -522,6 +527,18 @@ export default function AddTeacherPage() {
   const router = useRouter()
   const [step, setStep] = useState(0)
   const [formData, setFormData] = useState<Record<string, any>>({})
+  const [statesData, setStatesData] = useState<any[]>([])
+
+  const departments = useDepartments()
+  const classesData = useClasses()
+  const subjectsData = useSubjects()
+
+  useEffect(() => {
+    fetchStatesDistricts().then(res => {
+      if (res.success) setStatesData((res.data as any[]) || [])
+    })
+  }, [])
+
   const updateStep = (key: string, d: any) => setFormData(prev => ({ ...prev, [key]: d }))
 
   const handleNext = () => { if (step < STEPS.length - 1) setStep(s => s + 1) }
@@ -576,10 +593,10 @@ export default function AddTeacherPage() {
 
         {/* Step Content */}
         <div className="p-6 min-h-[400px]">
-          {step === 0 && <PersonalDetailsStep data={formData.personal || {}} setData={d => updateStep('personal', d)} />}
+          {step === 0 && <PersonalDetailsStep data={formData.personal || {}} setData={d => updateStep('personal', d)} departments={departments} />}
           {step === 1 && <QualificationDetailsStep data={formData.qualification || {}} setData={d => updateStep('qualification', d)} />}
-          {step === 2 && <AddressDetailsStep data={formData.address || {}} setData={d => updateStep('address', d)} />}
-          {step === 3 && <AssignClassStep data={formData.classes || {}} setData={d => updateStep('classes', d)} />}
+          {step === 2 && <AddressDetailsStep data={formData.address || {}} setData={d => updateStep('address', d)} statesData={statesData} />}
+          {step === 3 && <AssignClassStep data={formData.classes || {}} setData={d => updateStep('classes', d)} classesData={classesData} subjectsData={subjectsData} />}
           {step === 4 && <PayrollLeaveStep data={formData.payroll || {}} setData={d => updateStep('payroll', d)} />}
           {step === 5 && <PaymentDetailsStep data={formData.payment || {}} setData={d => updateStep('payment', d)} />}
         </div>

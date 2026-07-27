@@ -3,7 +3,8 @@ import pool from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
-    const contacts = ['Manager', 'BDM', 'Admin']
+    const usersRes = await pool.query('SELECT name FROM admins WHERE name != $1', ['Super Admin'])
+    const contacts = usersRes.rows.map((row: any) => row.name)
     const data = []
 
     for (const contact of contacts) {

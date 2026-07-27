@@ -58,6 +58,11 @@ export async function ensureShopDb() {
     `)
 
     // Add columns dynamically if table already existed
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS images TEXT[] DEFAULT '{}'`)
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS colors TEXT[] DEFAULT '{}'`)
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sizes TEXT[] DEFAULT '{}'`)
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS features TEXT[] DEFAULT '{}'`)
+
     await pool.query(`ALTER TABLE product_dispatches ADD COLUMN IF NOT EXISTS product_description TEXT DEFAULT ''`)
     await pool.query(`ALTER TABLE product_dispatches ADD COLUMN IF NOT EXISTS size VARCHAR(50) DEFAULT ''`)
     await pool.query(`ALTER TABLE product_dispatches ADD COLUMN IF NOT EXISTS price NUMERIC(10,2) DEFAULT 0`)

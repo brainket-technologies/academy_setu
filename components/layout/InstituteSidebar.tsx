@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   LayoutDashboard, UserPlus, Users, UserCheck, UserCog, 
   IndianRupee, Wallet, CreditCard, Award, FileText, FileCheck, 
@@ -33,6 +33,23 @@ interface MenuItem {
 
 export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname()
+  const [allowedMenus, setAllowedMenus] = useState<string[] | null>(null)
+
+  useEffect(() => {
+    fetch('/api/institute/my-menus')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.menus) {
+          setAllowedMenus(data.menus)
+        } else {
+          setAllowedMenus([])
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load menus', err)
+        setAllowedMenus([])
+      })
+  }, [])
 
   const menuItems: MenuItem[] = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/institute/dashboard' },
@@ -270,6 +287,7 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
         { label: 'Discount Heads', href: '/institute/masters/discount-heads' },
         { label: 'Document Types', href: '/institute/masters/document-types' },
         { label: 'Departments', href: '/institute/masters/departments' },
+        { label: 'Lead Sources', href: '/institute/leads-sources' },
         { label: 'Data Settings', href: '/institute/masters/data-settings' },
       ]
     },
@@ -374,7 +392,7 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {menuItems.map((item, i) => {
+          {(!allowedMenus ? [] : (allowedMenus.length > 0 ? menuItems.filter(item => allowedMenus.includes(item.label) || ['Settings', 'Dashboard', 'Edit Profile', 'Custom Forms', 'Masters', 'Tags', 'Payment Settings', 'Device', 'Shop', 'Ledger & Day Book', 'Subscription Menu'].includes(item.label)) : menuItems)).map((item, i) => {
             const Icon = item.icon
             const hasSubItems = item.subItems && item.subItems.length > 0
             const parentActive = isParentActive(item)

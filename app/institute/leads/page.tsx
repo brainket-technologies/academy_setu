@@ -17,6 +17,7 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<any[]>([])
   const [sources, setSources] = useState<any[]>([])
   const [statuses, setStatuses] = useState<any[]>([])
+  const [classes, setClasses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   
   // Selection/Update State
@@ -41,6 +42,11 @@ export default function LeadsPage() {
     if (res.success) setLeads(res.data || [])
     if (srcRes.success) setSources(srcRes.data || [])
     if (statRes.success) setStatuses(statRes.data || [])
+    
+    try {
+      const cls = localStorage.getItem('school_masters_classes')
+      if (cls) setClasses(JSON.parse(cls))
+    } catch(e) {}
     
     setLoading(false)
   }
@@ -126,6 +132,9 @@ export default function LeadsPage() {
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Class</label>
               <select className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 outline-none">
                 <option>Select Class</option>
+                {classes.map(c => (
+                  <option key={c.id} value={c.className}>{c.className}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -242,14 +251,14 @@ export default function LeadsPage() {
       </div>
 
       {/* OVERLAYS */}
-      {view === 'CREATE_LEAD' && <CreateLeadModal onClose={handleCloseModal} sources={sources} statuses={statuses} />}
+      {view === 'CREATE_LEAD' && <CreateLeadModal onClose={handleCloseModal} sources={sources} statuses={statuses} classes={classes} />}
       {view === 'UPDATE_LEAD' && <UpdateLeadModal lead={selectedLead} onClose={handleCloseModal} statuses={statuses} />}
 
     </div>
   )
 }
 
-function CreateLeadModal({ onClose, sources, statuses }: { onClose: () => void, sources: any[], statuses: any[] }) {
+function CreateLeadModal({ onClose, sources, statuses, classes = [] }: { onClose: () => void, sources: any[], statuses: any[], classes?: any[] }) {
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState<any>({})
   const [submitting, setSubmitting] = useState(false)
@@ -313,7 +322,12 @@ function CreateLeadModal({ onClose, sources, statuses }: { onClose: () => void, 
                 <Section title="Admission Details">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Field label="Admission Class" required>
-                      <select name="admissionClass" value={formData.admissionClass || ''} onChange={handleChange} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"><option>Select Class</option><option>Class V</option></select>
+                      <select name="admissionClass" value={formData.admissionClass || ''} onChange={handleChange} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all">
+                        <option value="">Select Class</option>
+                        {classes.map(c => (
+                          <option key={c.id} value={c.className}>{c.className}</option>
+                        ))}
+                      </select>
                     </Field>
                     <Field label="Source" required>
                       <select name="source" value={formData.source || ''} onChange={handleChange} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all">
@@ -381,7 +395,12 @@ function CreateLeadModal({ onClose, sources, statuses }: { onClose: () => void, 
                       <input name="prevSchoolName" value={formData.prevSchoolName || ''} onChange={handleChange} type="text" placeholder="Enter School Name & Address" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"/>
                     </Field>
                     <Field label="Attended Class">
-                      <select name="prevClass" value={formData.prevClass || ''} onChange={handleChange} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"><option>Select an Option</option></select>
+                      <select name="prevClass" value={formData.prevClass || ''} onChange={handleChange} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all">
+                        <option value="">Select an Option</option>
+                        {classes.map(c => (
+                          <option key={c.id} value={c.className}>{c.className}</option>
+                        ))}
+                      </select>
                     </Field>
                     <Field label="Last School Affiliated To">
                       <select name="prevAffiliation" value={formData.prevAffiliation || ''} onChange={handleChange} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"><option>Select an Option</option></select>

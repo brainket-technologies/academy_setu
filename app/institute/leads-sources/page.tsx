@@ -11,9 +11,6 @@ export default function LeadsSourcesPage() {
 
   // Form State
   const [categoryName, setCategoryName] = useState('')
-  const [isUserRole, setIsUserRole] = useState('Select Option') // Yes / No
-  const [userRole, setUserRole] = useState('Select Option') // Principal, Teacher, etc
-  const [options, setOptions] = useState<string[]>(['']) // Dynamic options array
 
   useEffect(() => {
     loadSources()
@@ -31,26 +28,17 @@ export default function LeadsSourcesPage() {
   const handleCreate = async () => {
     if (!categoryName) return alert('Category Name is required')
     
-    const isRole = isUserRole === 'Yes'
-    if (isRole && userRole === 'Select Option') return alert('Please select a User Role')
-    
-    // Clean up empty options if manual
-    const finalOptions = isRole ? [] : options.filter(o => o.trim() !== '')
-
     setSubmitting(true)
     const data = {
       categoryName,
-      isUserRole: isRole,
-      userRole: isRole ? userRole : null,
-      options: finalOptions
+      isUserRole: false,
+      userRole: null,
+      options: []
     }
     
     const res = await saveLeadSource(data)
     if (res.success) {
       setCategoryName('')
-      setIsUserRole('Select Option')
-      setUserRole('Select Option')
-      setOptions([''])
       loadSources()
     } else {
       alert('Error creating source')
@@ -87,60 +75,7 @@ export default function LeadsSourcesPage() {
             />
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 ml-1">This Category is on User Role</label>
-            <select 
-              value={isUserRole} onChange={(e) => setIsUserRole(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
-            >
-              <option>Select Option</option>
-              <option value="Yes">Yes</option>
-              <option value="No">No</option>
-            </select>
-          </div>
-
-          {isUserRole === 'Yes' && (
-            <div className="flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-200">
-              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 ml-1">User Role</label>
-              <select 
-                value={userRole} onChange={(e) => setUserRole(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
-              >
-                <option>Select Option</option>
-                <option value="Principal">Principal</option>
-                <option value="Teacher">Teacher</option>
-                <option value="Office Staff">Office Staff</option>
-                <option value="Management">Management</option>
-                <option value="Driver">Driver</option>
-                <option value="Parents">Parents</option>
-                <option value="Student">Student</option>
-              </select>
-            </div>
-          )}
-
-          {isUserRole === 'No' && options.map((opt, i) => (
-             <div key={i} className="flex flex-col gap-1.5 animate-in fade-in zoom-in-95 duration-200">
-               <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 ml-1">Option {i + 1}</label>
-               <div className="flex items-center gap-2">
-                 <input 
-                   value={opt} onChange={(e) => {
-                     const newOpts = [...options]
-                     newOpts[i] = e.target.value
-                     setOptions(newOpts)
-                   }}
-                   type="text" placeholder={`Enter Option ${i+1}`} 
-                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
-                 />
-                 {i === options.length - 1 ? (
-                   <button onClick={() => setOptions([...options, ''])} className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"><Plus className="w-4 h-4"/></button>
-                 ) : (
-                   <button onClick={() => setOptions(options.filter((_, index) => index !== i))} className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50 transition-colors"><X className="w-4 h-4"/></button>
-                 )}
-               </div>
-             </div>
-          ))}
-          
-          <div className="lg:col-span-1 lg:ml-auto">
+          <div className="lg:col-span-1 flex items-end">
              <button onClick={handleCreate} disabled={submitting} className="px-10 py-2 bg-teal-600 text-white text-sm font-bold rounded-lg hover:bg-teal-700 transition-colors w-full sm:w-auto h-[38px]">
                {submitting ? 'Saving...' : 'Create'}
              </button>
@@ -173,7 +108,6 @@ export default function LeadsSourcesPage() {
                       <td className="py-4 px-4 text-center font-semibold text-slate-600">{i + 1}.</td>
                       <td className="py-4 px-4 text-center text-slate-600 font-medium">
                          {source.category_name}
-                         {source.is_user_role && source.user_role && <span className="ml-2 text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded">({source.user_role})</span>}
                       </td>
                       <td className="py-4 px-4 text-center text-slate-500 text-[11px]">
                          {new Date(source.created_at).toLocaleDateString()} <br/>

@@ -98,8 +98,8 @@ export function ProductModal({ isOpen, onClose, onSuccess, product }: ProductMod
   }
 
   // Tags actions
-  const addColor = (e: React.FormEvent) => {
-    e.preventDefault()
+  const addColor = (e?: React.SyntheticEvent) => {
+    if (e) e.preventDefault()
     if (!colorInput.trim()) return
     if (colors.includes(colorInput.trim())) {
       toast.error('Color already added')
@@ -113,8 +113,8 @@ export function ProductModal({ isOpen, onClose, onSuccess, product }: ProductMod
     setColors(prev => prev.filter(c => c !== color))
   }
 
-  const addSize = (e: React.FormEvent) => {
-    e.preventDefault()
+  const addSize = (e?: React.SyntheticEvent) => {
+    if (e) e.preventDefault()
     if (!sizeInput.trim()) return
     if (sizes.includes(sizeInput.trim())) {
       toast.error('Size already added')
@@ -304,6 +304,12 @@ export function ProductModal({ isOpen, onClose, onSuccess, product }: ProductMod
                       placeholder="Enter Color Name"
                       value={colorInput}
                       onChange={e => setColorInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          addColor(e)
+                        }
+                      }}
                       className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 dark:text-slate-200"
                     />
                     <button
@@ -340,6 +346,12 @@ export function ProductModal({ isOpen, onClose, onSuccess, product }: ProductMod
                       placeholder="Enter Size"
                       value={sizeInput}
                       onChange={e => setSizeInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          addSize(e)
+                        }
+                      }}
                       className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 dark:text-slate-200"
                     />
                     <button

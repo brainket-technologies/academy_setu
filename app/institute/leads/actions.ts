@@ -28,7 +28,28 @@ export async function saveLead(data: any) {
 
   try {
     if (data.id) {
-       // For future edit functionality of the entire lead
+       const res = await pool.query(`
+         UPDATE institute_enquiries SET
+           admission_class = $2, source = $3, referred_by = $4,
+           first_name = $5, last_name = $6, mobile_no = $7, email_id = $8, dob = $9, gender = $10,
+           nationality = $11, religion = $12, category = $13, aadhar_no = $14,
+           father_name = $15, father_contact_no = $16, father_occupation = $17, father_annual_income = $18,
+           mother_name = $19, mother_contact_no = $20, mother_occupation = $21, mother_annual_income = $22,
+           address = $23, state = $24, district = $25, pincode = $26, remark = $27,
+           previous_school_name = $28, previous_attended_class = $29, previous_school_affiliated_to = $30,
+           other_qualifications = $31
+         WHERE id = $32 AND institution_id = $1
+       `, [
+         session.userId, data.admissionClass, data.source, data.referredBy,
+         data.firstName, data.lastName, data.mobileNo, data.emailId, data.dob || null, data.gender,
+         data.nationality, data.religion, data.category, data.aadharNo,
+         data.fatherName, data.fatherContact, data.fatherOccupation, data.fatherIncome,
+         data.motherName, data.motherContact, data.motherOccupation, data.motherIncome,
+         data.address, data.state, data.district, data.pincode, data.remark,
+         data.prevSchoolName, data.prevClass, data.prevAffiliation,
+         JSON.stringify(data.otherQualifications || []),
+         data.id
+       ])
        return { success: true }
     } else {
        const res = await pool.query(`

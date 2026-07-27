@@ -1,14 +1,12 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Trash2, X, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const SEGMENT_OPTIONS = ['School', 'College', 'Coaching', 'Student', 'Teacher', 'Principal', 'Staff', 'Manager', 'Parents', 'Influencer']
-const APPLIED_BY_OPTIONS = ['Website Purchase', 'Only Admin', 'BDM', 'Manager']
+const APPLIED_BY_OPTIONS = ['Only Admin', 'BDM', 'Manager']
 
 interface BillingItem {
   serial_no: number
@@ -99,102 +97,119 @@ function BillingTable({ items, onChange, onRemove, onAdd }: {
 }) {
   const { price, taxPct, taxPrice, total } = calcTotals(items)
   return (
-    <div className="space-y-6">
-      <div className="overflow-x-auto border border-slate-200 dark:border-slate-600 rounded-xl shadow-sm">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="bg-slate-100 dark:bg-slate-700">
-              <th className="px-4 py-3 text-left font-bold text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-600 w-16">S.No.</th>
-              <th className="px-4 py-3 text-left font-bold text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-600">Item Description <span className="text-red-500">*</span></th>
-              <th className="px-4 py-3 text-left font-bold text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-600 w-36">Price <span className="text-red-500">*</span></th>
-              <th className="px-4 py-3 text-left font-bold text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-600 w-36">Tax (%) <span className="text-red-500">*</span></th>
-              <th className="px-4 py-3 text-left font-bold text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-600 w-36">Tax Price</th>
-              <th className="px-4 py-3 text-center font-bold text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-600 w-16">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-            {items.map((item, idx) => {
-              const taxPrice = calcTaxPrice(item.price, item.tax_percentage)
-              return (
-                <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
-                  <td className="px-4 py-2.5 align-middle">
-                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">{item.serial_no}</span>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <input
-                      type="text"
-                      value={item.item_description}
-                      onChange={e => onChange(idx, 'item_description', e.target.value)}
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                      placeholder="Enter item description"
-                    />
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <input
-                      type="number"
-                      value={item.price}
-                      onChange={e => onChange(idx, 'price', e.target.value)}
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                      placeholder="0.00"
-                    />
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <input
-                      type="number"
-                      value={item.tax_percentage}
-                      onChange={e => onChange(idx, 'tax_percentage', e.target.value)}
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                      placeholder="0"
-                    />
-                  </td>
-                  <td className="px-4 py-2.5 align-middle">
-                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">
-                      {taxPrice !== '0.00' ? taxPrice : '-'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5 text-center">
-                    {items.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => onRemove(idx)}
-                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/40 rounded-lg transition-colors cursor-pointer"
-                        title="Remove item"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+    <div className="space-y-5">
+      {/* Header Row for Desktop */}
+      <div className="hidden md:flex items-center gap-4 px-4 pb-2">
+        <div className="w-8 shrink-0"></div>
+        <div className="flex-1 min-w-[250px]"><span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Item Description <span className="text-red-500">*</span></span></div>
+        <div className="w-40 shrink-0"><span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Price <span className="text-red-500">*</span></span></div>
+        <div className="w-32 shrink-0"><span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tax (%) <span className="text-red-500">*</span></span></div>
+        <div className="w-32 shrink-0 text-right pr-4"><span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tax Price</span></div>
+        <div className="w-10 shrink-0"></div>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3">
+        {items.map((item, idx) => {
+          const calculatedTaxPrice = calcTaxPrice(item.price, item.tax_percentage)
+          return (
+            <div key={idx} className="flex flex-col md:flex-row md:items-center gap-4 p-4 md:p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 md:border-transparent md:dark:border-transparent rounded-2xl md:rounded-xl shadow-sm md:shadow-none hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group relative">
+              
+              {/* Serial Number */}
+              <div className="hidden md:flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-bold text-xs shrink-0">
+                {item.serial_no}
+              </div>
+
+              {/* Item Description */}
+              <div className="flex-1 min-w-[250px]">
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 md:hidden">Item Description <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={item.item_description}
+                  onChange={e => onChange(idx, 'item_description', e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 md:bg-white md:dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                  placeholder="Enter item description"
+                />
+              </div>
+
+              {/* Price */}
+              <div className="w-full md:w-40 shrink-0">
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 md:hidden">Price <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">₹</span>
+                  <input
+                    type="number"
+                    value={item.price}
+                    onChange={e => onChange(idx, 'price', e.target.value)}
+                    className="w-full pl-8 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 md:bg-white md:dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              {/* Tax */}
+              <div className="w-full md:w-32 shrink-0">
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 md:hidden">Tax (%) <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={item.tax_percentage}
+                    onChange={e => onChange(idx, 'tax_percentage', e.target.value)}
+                    className="w-full pr-8 pl-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 md:bg-white md:dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                    placeholder="0"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">%</span>
+                </div>
+              </div>
+
+              {/* Tax Price (Display only) */}
+              <div className="hidden md:block w-32 shrink-0 text-right pr-4">
+                <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                  {calculatedTaxPrice !== '0.00' ? `₹${calculatedTaxPrice}` : '-'}
+                </span>
+              </div>
+
+              {/* Action */}
+              <div className="absolute -top-2 -right-2 md:static md:top-auto md:right-auto w-10 shrink-0 flex justify-end">
+                {items.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => onRemove(idx)}
+                    className="p-2 bg-red-50 dark:bg-red-900/30 text-red-500 hover:text-white hover:bg-red-500 rounded-full md:rounded-xl transition-all shadow-sm md:opacity-0 md:group-hover:opacity-100"
+                    title="Remove item"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pt-4 mt-4 border-t border-slate-100 dark:border-slate-700/50">
         <button
           type="button"
           onClick={onAdd}
-          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 border border-dashed border-indigo-300 dark:border-indigo-700 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors cursor-pointer"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-indigo-200 dark:hover:border-indigo-700"
         >
           <Plus className="w-4 h-4" />
           Add Line Item
         </button>
 
-        <div className="flex items-center gap-6 bg-slate-50 dark:bg-slate-700/50 rounded-xl px-5 py-2.5 border border-slate-200 dark:border-slate-600">
-          <div className="text-right">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 block leading-tight">Subtotal</span>
-            <span className="text-sm font-bold text-slate-800 dark:text-slate-100">₹{price}</span>
+        <div className="flex items-center gap-6 bg-slate-800 dark:bg-slate-900 rounded-2xl px-6 py-4 shadow-xl text-white w-full sm:w-auto overflow-x-auto">
+          <div className="text-right shrink-0">
+            <span className="text-xs font-medium text-slate-400 block leading-tight">Subtotal</span>
+            <span className="text-sm font-bold">₹{price}</span>
           </div>
-          <div className="w-px h-6 bg-slate-200 dark:bg-slate-600" />
-          <div className="text-right">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 block leading-tight">Tax @{taxPct}%</span>
-            <span className="text-sm font-bold text-slate-800 dark:text-slate-100">₹{taxPrice}</span>
+          <div className="w-px h-8 bg-slate-600 shrink-0" />
+          <div className="text-right shrink-0">
+            <span className="text-xs font-medium text-slate-400 block leading-tight">Tax @{taxPct}%</span>
+            <span className="text-sm font-bold">₹{taxPrice}</span>
           </div>
-          <div className="w-px h-6 bg-slate-200 dark:bg-slate-600" />
-          <div className="text-right">
-            <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400 block leading-tight font-bold">Total</span>
-            <span className="text-base font-extrabold text-indigo-700 dark:text-indigo-300">₹{total}</span>
+          <div className="w-px h-8 bg-slate-600 shrink-0" />
+          <div className="text-right shrink-0">
+            <span className="text-xs font-medium text-indigo-300 block leading-tight uppercase tracking-wider">Total</span>
+            <span className="text-xl font-extrabold text-white">₹{total}</span>
           </div>
         </div>
       </div>
@@ -207,6 +222,16 @@ function BillingTable({ items, onChange, onRemove, onAdd }: {
 export default function CreatePlanPage() {
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
+  const [availableSegments, setAvailableSegments] = useState<string[]>([])
+
+  useEffect(() => {
+    fetch('/api/admin/segment')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setAvailableSegments(data.data.map((s: any) => s.name))
+      })
+      .catch(console.error)
+  }, [])
 
   // Plan Details
   const [segment, setSegment] = useState('')
@@ -308,7 +333,7 @@ export default function CreatePlanPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full pb-10">
+      <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full pb-10">
 
         {/* Title Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm flex items-center justify-between">
@@ -335,7 +360,7 @@ export default function CreatePlanPage() {
                 <CustomSelect
                   label="Segment"
                   required
-                  options={SEGMENT_OPTIONS}
+                  options={availableSegments}
                   value={segment}
                   onChange={setSegment}
                   placeholder="Select Segment"

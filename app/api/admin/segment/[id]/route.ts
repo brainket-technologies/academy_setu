@@ -8,15 +8,15 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
-    const { name, services, description } = body
+    const { name, menus, description } = body
 
-    if (!name || !services || !Array.isArray(services) || services.length === 0) {
-      return NextResponse.json({ success: false, error: 'Name and services are required.' }, { status: 400 })
+    if (!name) {
+      return NextResponse.json({ success: false, error: 'Name is required.' }, { status: 400 })
     }
 
     const result = await pool.query(
-      'UPDATE segments SET name = $1, services = $2, description = $3, updated_at = NOW() WHERE id = $4 RETURNING *',
-      [name, services, description || '', id]
+      'UPDATE segments SET name = $1, menus = $2, description = $3, updated_at = NOW() WHERE id = $4 RETURNING *',
+      [name, menus || [], description || '', id]
     )
 
     if (result.rows.length === 0) {

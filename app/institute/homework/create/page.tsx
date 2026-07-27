@@ -4,9 +4,14 @@ import React, { useState } from 'react'
 import { ArrowLeft, CheckCircle2, Upload } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useClasses, useSections, useSubjects } from '@/lib/mastersData'
 
 export default function CreateHomeworkPage() {
   const router = useRouter()
+
+  const classesData = useClasses()
+  const sectionsData = useSections()
+  const subjectsData = useSubjects()
 
   // Form states
   const [title, setTitle] = useState('')
@@ -101,10 +106,9 @@ export default function CreateHomeworkPage() {
             <label className="text-slate-500 font-bold">Select Class *</label>
             <select value={classes} onChange={e => setClasses(e.target.value)} className="w-full px-4 py-2.5 border rounded-lg bg-white outline-none font-semibold">
               <option value="">Select a Class</option>
-              <option value="Class V">Class V</option>
-              <option value="Class VII">Class VII</option>
-              <option value="Class VIII">Class VIII</option>
-              <option value="Class XII">Class XII</option>
+              {classesData.map((c: any) => (
+                <option key={c.className} value={c.className}>{c.className}</option>
+              ))}
             </select>
           </div>
 
@@ -112,9 +116,9 @@ export default function CreateHomeworkPage() {
             <label className="text-slate-500 font-bold">Select Section *</label>
             <select value={section} onChange={e => setSection(e.target.value)} className="w-full px-4 py-2.5 border rounded-lg bg-white outline-none font-semibold">
               <option value="">Select a Section</option>
-              <option value="Section A">Section A</option>
-              <option value="Section B">Section B</option>
-              <option value="Section D">Section D</option>
+              {sectionsData.map((s: any) => (
+                <option key={s.sectionName} value={s.sectionName}>{s.sectionName}</option>
+              ))}
             </select>
           </div>
 
@@ -122,10 +126,9 @@ export default function CreateHomeworkPage() {
             <label className="text-slate-500 font-bold">Subject *</label>
             <select value={subject} onChange={e => setSubject(e.target.value)} className="w-full px-4 py-2.5 border rounded-lg bg-white outline-none font-semibold">
               <option value="">Select Subject</option>
-              <option value="Math">Math</option>
-              <option value="Science">Science</option>
-              <option value="English">English</option>
-              <option value="Social Studies">Social Studies</option>
+              {subjectsData.map((s: any) => (
+                <option key={s.subjectName} value={s.subjectName}>{s.subjectName}</option>
+              ))}
             </select>
           </div>
 

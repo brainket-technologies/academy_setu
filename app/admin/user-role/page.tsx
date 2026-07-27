@@ -58,7 +58,7 @@ function UserRoleContent() {
     name: '',
     email: '',
     phone: '',
-    role: 'Admin',
+    role: 'Manager',
     id_no: '',
     status: 'Active',
     password: '',
@@ -126,7 +126,7 @@ function UserRoleContent() {
       name: '',
       email: '',
       phone: '',
-      role: 'Admin',
+      role: 'Manager',
       id_no: '',
       status: 'Active',
       password: '',
@@ -142,7 +142,7 @@ function UserRoleContent() {
       name: user.name || '',
       email: user.email || '',
       phone: user.phone || '',
-      role: user.role || 'Admin',
+      role: user.role || 'Manager',
       id_no: user.id_no || '',
       status: user.is_active ? 'Active' : 'Inactive',
       password: '',
@@ -588,7 +588,7 @@ function UserRoleContent() {
                     onChange={e => setUserForm(prev => ({ ...prev, role: e.target.value }))}
                     className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                   >
-                    <option value="Admin">Admin</option>
+                    {userForm.role === 'Admin' && <option value="Admin">Admin</option>}
                     <option value="Manager">Manager</option>
                     <option value="BDM">BDM</option>
                     <option value="Support Team">Support Team</option>

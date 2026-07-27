@@ -11,8 +11,8 @@ const pool = new Pool({
 
 async function run() {
   try {
-    await pool.query('ALTER TABLE institutions ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) DEFAULT \'\'');
-    console.log('Added password_hash to institutions');
+    await pool.query('ALTER TABLE segments ADD COLUMN IF NOT EXISTS menus TEXT[] DEFAULT \'{}\'');
+    console.log('Added menus to segments');
   } catch (err) {
     console.error('Error adding column:', err);
   } finally {

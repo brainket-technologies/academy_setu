@@ -8,22 +8,21 @@ import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 interface Segment {
   id: string
   name: string
-  services: string[]
+  menus: string[]
   description: string
   created_at: string
 }
 
-const AVAILABLE_SERVICES = [
-  'Student Service',
-  'Teacher Service',
-  'Employee Service',
-  'Certificate Service',
-  'ID Card Service',
-  'Admit Card Service',
-  'Worksheet Service',
-  'Gate Pass Service',
-  'Transport Service',
-  'Other Service'
+
+
+const AVAILABLE_MENUS = [
+  "Leads / Enquiry", "Students", "Teachers", "Employee", "Parents / Siblings", 
+  "Fees Setup", "Fees Collection", "ID Card", "Certificate", "Exam & Marksheets", "Admit Cards", 
+  "Transfer Certificate", "Transportation", "Attendance", "Leave", "Payroll", 
+  "Expenses", "Income", "Homework", "Time Table", 
+  "Mobile App User", "Notification", "Text SMS", "Notice on App", "Message Service", 
+  "Academic Calendar", "Gate Pass", "Lesson Plans", "Study Material", "Online Quiz / Test", 
+  "Offline / Weekly Test", "Events Gallery", "Support Tickets", "House / Blocks"
 ]
 
 export default function SegmentPage() {
@@ -34,16 +33,15 @@ export default function SegmentPage() {
   const [searchText, setSearchText] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [filterSegmentName, setFilterSegmentName] = useState('')
-  const [filterService, setFilterService] = useState('')
-  const [appliedFilters, setAppliedFilters] = useState({ name: '', service: '' })
+  const [appliedFilters, setAppliedFilters] = useState({ name: '' })
 
   // Form (Modal) states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [segmentName, setSegmentName] = useState('')
-  const [selectedServices, setSelectedServices] = useState<string[]>([])
+  const [selectedMenus, setSelectedMenus] = useState<string[]>([])
   const [description, setDescription] = useState('')
-  const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false)
+  const [isMenuDropdownOpen, setIsMenuDropdownOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
 
   // Pagination states
@@ -54,7 +52,7 @@ export default function SegmentPage() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  const serviceDropdownRef = useRef<HTMLDivElement>(null)
+  const menuDropdownRef = useRef<HTMLDivElement>(null)
 
   const fetchSegments = async () => {
     setLoading(true)
@@ -62,7 +60,6 @@ export default function SegmentPage() {
       const queryParams = new URLSearchParams()
       if (searchText) queryParams.append('search', searchText)
       if (appliedFilters.name) queryParams.append('search', appliedFilters.name)
-      if (appliedFilters.service) queryParams.append('service', appliedFilters.service)
 
       const response = await fetch(`/api/admin/segment?${queryParams.toString()}`)
       const resData = await response.json()
@@ -90,36 +87,35 @@ export default function SegmentPage() {
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (serviceDropdownRef.current && !serviceDropdownRef.current.contains(event.target as Node)) {
-        setIsServiceDropdownOpen(false)
+      if (menuDropdownRef.current && !menuDropdownRef.current.contains(event.target as Node)) {
+        setIsMenuDropdownOpen(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
-  const toggleServiceSelection = (service: string) => {
-    setSelectedServices(prev => 
-      prev.includes(service) ? prev.filter(s => s !== service) : [...prev, service]
+  const toggleMenuSelection = (menu: string) => {
+    setSelectedMenus(prev => 
+      prev.includes(menu) ? prev.filter(m => m !== menu) : [...prev, menu]
     )
   }
 
   const handleApplyFilters = () => {
-    setAppliedFilters({ name: filterSegmentName, service: filterService })
+    setAppliedFilters({ name: filterSegmentName })
     setCurrentPage(1)
   }
 
   const handleClearFilters = () => {
     setFilterSegmentName('')
-    setFilterService('')
-    setAppliedFilters({ name: '', service: '' })
+    setAppliedFilters({ name: '' })
     setSearchText('')
     setCurrentPage(1)
   }
 
   const resetForm = () => {
     setSegmentName('')
-    setSelectedServices([])
+    setSelectedMenus([])
     setDescription('')
     setEditingId(null)
     setIsCreateModalOpen(false)
@@ -131,10 +127,6 @@ export default function SegmentPage() {
       toast.error('Segment name is required')
       return
     }
-    if (selectedServices.length === 0) {
-      toast.error('At least one service is required')
-      return
-    }
     setSubmitting(true)
     try {
       const url = editingId ? `/api/admin/segment/${editingId}` : '/api/admin/segment'
@@ -142,7 +134,7 @@ export default function SegmentPage() {
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: segmentName.trim(), services: selectedServices, description: description.trim() })
+        body: JSON.stringify({ name: segmentName.trim(), menus: selectedMenus, description: description.trim() })
       })
       const resData = await response.json()
       if (resData.success) {
@@ -163,7 +155,7 @@ export default function SegmentPage() {
   const handleEdit = (segment: Segment) => {
     setEditingId(segment.id)
     setSegmentName(segment.name)
-    setSelectedServices(segment.services || [])
+    setSelectedMenus(segment.menus || [])
     setDescription(segment.description || '')
     setIsCreateModalOpen(true)
   }
@@ -224,7 +216,7 @@ export default function SegmentPage() {
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className={`p-2.5 rounded-xl border transition-all shadow-sm flex items-center justify-center cursor-pointer ${
-                  showFilters || appliedFilters.name || appliedFilters.service
+                  showFilters || appliedFilters.name
                     ? 'bg-indigo-50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400'
                     : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
                 }`}
@@ -244,7 +236,7 @@ export default function SegmentPage() {
 
           {showFilters && (
             <div className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Segment Name</label>
                   <input
@@ -254,17 +246,6 @@ export default function SegmentPage() {
                     onChange={(e) => setFilterSegmentName(e.target.value)}
                     className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
                   />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Service</label>
-                  <select
-                    value={filterService}
-                    onChange={(e) => setFilterService(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
-                  >
-                    <option value="">All Services</option>
-                    {AVAILABLE_SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
                 </div>
                 <div className="flex items-end gap-2">
                   <button
@@ -290,7 +271,6 @@ export default function SegmentPage() {
                 <tr>
                   <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">S.No.</th>
                   <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Segment Name</th>
-                  <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Service Name</th>
                   <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Created At</th>
                   <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 text-center">Action</th>
                 </tr>
@@ -298,11 +278,11 @@ export default function SegmentPage() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td>
+                    <td colSpan={4} className="px-6 py-10 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td>
                   </tr>
                 ) : paginatedSegments.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-slate-400">No segments found.</td>
+                    <td colSpan={4} className="px-6 py-10 text-center text-slate-400">No segments found.</td>
                   </tr>
                 ) : (
                   paginatedSegments.map((segment, index) => {
@@ -312,13 +292,6 @@ export default function SegmentPage() {
                       <tr key={segment.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
                         <td className="px-6 py-4 font-medium text-slate-500">{sNo}.</td>
                         <td className="px-6 py-4 font-bold text-slate-700 dark:text-slate-200">{segment.name}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-wrap gap-1">
-                            {segment.services.map(srv => (
-                              <span key={srv} className="inline-block bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs px-2.5 py-0.5 rounded-full font-medium">{srv}</span>
-                            ))}
-                          </div>
-                        </td>
                         <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs leading-relaxed">📅 {date}<br/>🕒 {time}</td>
                         <td className="px-6 py-4">
                           <div className="flex justify-center items-center gap-2">
@@ -356,7 +329,7 @@ export default function SegmentPage() {
 
       {isCreateModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-xl p-8 border border-slate-100 dark:border-slate-700 shadow-2xl relative animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-xl p-8 border border-slate-100 dark:border-slate-700 shadow-2xl relative animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <button onClick={resetForm} className="absolute top-4 right-4 p-1 rounded-full text-slate-400 hover:bg-slate-50 transition-all cursor-pointer"><X className="w-5 h-5" /></button>
             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-6">{editingId ? 'Edit Segment' : 'Create Segment'}</h2>
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -364,24 +337,26 @@ export default function SegmentPage() {
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Segment Name <span className="text-red-500">*</span></label>
                 <input type="text" value={segmentName} onChange={(e) => setSegmentName(e.target.value)} required className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" />
               </div>
-              <div className="flex flex-col gap-2 relative" ref={serviceDropdownRef}>
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Service <span className="text-slate-400 font-normal text-xs">(Select Multiple)</span></label>
-                <div onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)} className="min-h-[46px] w-full px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm cursor-pointer flex items-center justify-between">
+
+              
+              <div className="flex flex-col gap-2 relative" ref={menuDropdownRef}>
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Menus <span className="text-slate-400 font-normal text-xs">(Select Multiple)</span></label>
+                <div onClick={() => setIsMenuDropdownOpen(!isMenuDropdownOpen)} className="min-h-[46px] w-full px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm cursor-pointer flex items-center justify-between">
                   <div className="flex flex-wrap gap-1.5">
-                    {selectedServices.length === 0 ? <span className="text-slate-400 pl-1 py-1">Select Services</span> : selectedServices.map(service => (
-                      <span key={service} onClick={(e) => { e.stopPropagation(); toggleServiceSelection(service) }} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs font-medium px-2 py-0.5 rounded-full">
-                        {service} <X className="w-3 h-3 hover:text-indigo-900" />
+                    {selectedMenus.length === 0 ? <span className="text-slate-400 pl-1 py-1">Select Menus</span> : selectedMenus.map(menu => (
+                      <span key={menu} onClick={(e) => { e.stopPropagation(); toggleMenuSelection(menu) }} className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs font-medium px-2 py-0.5 rounded-full">
+                        {menu} <X className="w-3 h-3 hover:text-emerald-900" />
                       </span>
                     ))}
                   </div>
                   <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
                 </div>
-                {isServiceDropdownOpen && (
+                {isMenuDropdownOpen && (
                   <div className="absolute top-[80px] left-0 w-full bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl shadow-xl z-20 max-h-60 overflow-y-auto py-1">
-                    {AVAILABLE_SERVICES.map(service => (
-                      <div key={service} onClick={() => toggleServiceSelection(service)} className="flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 cursor-pointer">
-                        <span>{service}</span>
-                        {selectedServices.includes(service) && <Check className="w-4 h-4 text-indigo-600" />}
+                    {AVAILABLE_MENUS.map(menu => (
+                      <div key={menu} onClick={() => toggleMenuSelection(menu)} className="flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 cursor-pointer text-slate-700 dark:text-slate-200">
+                        <span>{menu}</span>
+                        {selectedMenus.includes(menu) && <Check className="w-4 h-4 text-emerald-600" />}
                       </div>
                     ))}
                   </div>

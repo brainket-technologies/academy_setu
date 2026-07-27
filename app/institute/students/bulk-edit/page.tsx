@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Save, Loader2, CheckSquare } from 'lucide-react'
 import { fetchStudents } from '../actions'
+import { useClasses } from '@/lib/mastersData'
 
 const PAGE_SIZE = 20
 
@@ -13,6 +14,8 @@ export default function BulkEditPage() {
   const [rows, setRows] = useState<any[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [currentPage, setCurrentPage] = useState(1)
+
+  const classesData = useClasses()
 
   useEffect(() => { loadStudents() }, [])
 
@@ -215,9 +218,14 @@ export default function BulkEditPage() {
                             className={inputClass} placeholder="--" />
                         </td>
                         <td className="py-3 px-2">
-                          <input type="text" value={row.className}
+                          <select value={row.className}
                             onChange={(e) => handleInputChange(globalIndex, 'className', e.target.value)}
-                            className={inputClass} placeholder="--" />
+                            className={selectClass}>
+                            <option value="">--</option>
+                            {classesData.map((c: any) => (
+                              <option key={c.className} value={c.className}>{c.className}</option>
+                            ))}
+                          </select>
                         </td>
                         <td className="py-3 px-2">
                           <select value={row.feesStatus}

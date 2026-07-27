@@ -3,8 +3,10 @@ import { prisma } from '../../../../../lib/prisma'
 
 export async function GET() {
   try {
-    const leads = await prisma.application.count({ where: { isLead: true } })
-    const applications = await prisma.application.count()
+    const applicationCounts = await prisma.application.groupBy({ by: ['isLead'], _count: true });
+    
+    const leads = applicationCounts.find((a: any) => a.isLead === true)?._count || 0;
+    const applications = applicationCounts.reduce((acc: number, curr: any) => acc + curr._count, 0);
 
     return NextResponse.json({
       success: true,

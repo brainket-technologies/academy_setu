@@ -8,15 +8,15 @@ import {
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
-const STAFF_LIST = ['Riya', 'Amit', 'Amit B', 'Ankit', 'Priya', 'Rahul']
-
+// No hardcoded STAFF_LIST
 interface Ticket {
   id: string
   ticket_no: string
   assigned_to: string
   segment: string
   school_name: string
-  ticket_category: string
+  category_id: string
+  category_name: string
   sub_category: string
   priority: 'Low' | 'Medium' | 'High'
   complainer_name: string
@@ -88,6 +88,7 @@ export default function AllTicketPage() {
   const [segments, setSegments] = useState<Segment[]>([])
   const [schools, setSchools] = useState<string[]>([])
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
+  const [staffList, setStaffList] = useState<{ id: string; name: string }[]>([])
 
   // Form states
   const [formSegment, setFormSegment] = useState('')
@@ -173,6 +174,13 @@ export default function AllTicketPage() {
       const catRes = await fetch('/api/admin/ticket-category')
       const catData = await catRes.json()
       if (catData.success) setCategories(catData.data)
+
+      // 4. Load staff from users section
+      const staffRes = await fetch('/api/admin/users?pageSize=100')
+      const staffData = await staffRes.json()
+      if (staffData.success) {
+        setStaffList(staffData.data.map((u: any) => ({ id: u.id, name: u.name })))
+      }
     } catch (e) {
       console.error('Failed to load validation reference data', e)
     }
@@ -248,7 +256,7 @@ export default function AllTicketPage() {
     setFormSchoolName(ticket.school_name)
     setIsValidated(true) // already validated segment & school
     setTicketNo(ticket.ticket_no)
-    setTicketCategory(ticket.ticket_category)
+    setTicketCategory(ticket.category_id || '')
     setSubCategory(ticket.sub_category || '')
     setPriority(ticket.priority || 'Low')
     setComplainerName(ticket.complainer_name || '')
@@ -289,7 +297,7 @@ export default function AllTicketPage() {
         segment: formSegment,
         school_name: formSchoolName,
         ticket_no: ticketNo,
-        ticket_category: ticketCategory,
+        category_id: ticketCategory,
         sub_category: subCategory,
         priority,
         complainer_name: complainerName,
@@ -490,7 +498,7 @@ export default function AllTicketPage() {
                       >
                         <option value="">Select Category</option>
                         {categories.map(cat => (
-                          <option key={cat.id} value={cat.name}>{cat.name}</option>
+                          <option key={cat.id} value={cat.id}>{cat.name}</option>
                         ))}
                       </select>
                     </div>
@@ -763,8 +771,8 @@ export default function AllTicketPage() {
                               className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-750 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
                             >
                               <option value="">Assign Staff</option>
-                              {STAFF_LIST.map(staff => (
-                                <option key={staff} value={staff}>{staff}</option>
+                              {staffList.map(staff => (
+                                <option key={staff.id} value={staff.name}>{staff.name}</option>
                               ))}
                             </select>
                           </td>

@@ -3,22 +3,31 @@ import { prisma } from '../../../../../lib/prisma'
 
 export async function GET() {
   try {
-    const schools = await prisma.institution.count({ where: { segment: 'SCHOOL' } })
-    const colleges = await prisma.institution.count({ where: { segment: 'COLLEGE' } })
-    const institutes = await prisma.institution.count({ where: { segment: 'INSTITUTE' } })
-    
-    const applications = await prisma.application.count()
-    const leads = await prisma.application.count({ where: { isLead: true } })
-    
-    const plans = await prisma.plan.count()
-    const promos = await prisma.promoCode.count()
-    
-    const incomeAgg = await prisma.transaction.aggregate({ _sum: { amount: true }, where: { type: 'INCOME' } })
-    const expenseAgg = await prisma.transaction.aggregate({ _sum: { amount: true }, where: { type: 'EXPENSE' } })
-    const distributers = await prisma.distributor.count()
+    const [
+      institutionCounts,
+      applicationCounts,
+      plans,
+      promos,
+      transactionSums,
+      distributers
+    ] = await Promise.all([
+      prisma.institution.groupBy({ by: ['segment'], _count: true }),
+      prisma.application.groupBy({ by: ['isLead'], _count: true }),
+      prisma.plan.count(),
+      prisma.promoCode.count(),
+      prisma.transaction.groupBy({ by: ['type'], _sum: { amount: true } }),
+      prisma.distributor.count()
+    ]);
 
-    const totalIncome = incomeAgg._sum.amount || 0
-    const totalExpense = expenseAgg._sum.amount || 0
+    const schools = institutionCounts.find((i: any) => i.segment === 'SCHOOL')?._count || 0;
+    const colleges = institutionCounts.find((i: any) => i.segment === 'COLLEGE')?._count || 0;
+    const institutes = institutionCounts.find((i: any) => i.segment === 'INSTITUTE')?._count || 0;
+
+    const leads = applicationCounts.find((a: any) => a.isLead === true)?._count || 0;
+    const applications = applicationCounts.reduce((acc: number, curr: any) => acc + curr._count, 0);
+
+    const totalIncome = transactionSums.find((t: any) => t.type === 'INCOME')?._sum.amount || 0;
+    const totalExpense = transactionSums.find((t: any) => t.type === 'EXPENSE')?._sum.amount || 0;
 
     return NextResponse.json({
       success: true,

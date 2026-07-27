@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Search, Plus, Calendar, Clock, Trash2, X, Download, CheckCircle2 } from 'lucide-react'
+import { useClasses, useSections, useSubjects } from '@/lib/mastersData'
 
 interface TimeSlot {
   id: number
@@ -89,6 +90,10 @@ const PASTEL_COLORS = [
 ]
 
 export default function TimeTablePage() {
+  const classesData = useClasses()
+  const sectionsData = useSections()
+  const subjectsData = useSubjects()
+  
   const [records, setRecords] = useState<TimetableRecord[]>([])
   const [selectedClass, setSelectedClass] = useState('Class V')
   const [selectedSection, setSelectedSection] = useState('Section A')
@@ -96,17 +101,12 @@ export default function TimeTablePage() {
   // Modal states
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [activeModalDay, setActiveModalDay] = useState('Monday')
-
-  // Modal form states
   const [modalClass, setModalClass] = useState('')
   const [modalSection, setModalSection] = useState('')
-  
-  // Custom slots logged in creation wizard
-  const [modalSlots, setModalSlots] = useState<Record<string, TimeSlot[]>>({
-    'Sunday': [],
-    'Monday': [
-      { id: 1, timeFrom: '09:00 AM', timeTo: '09:45 AM', subject: 'Maths', teacher: 'Teacher Name' }
-    ],
+
+  // Modal form states
+  const [modalSlots, setModalSlots] = useState<Record<string, any[]>>({
+    'Monday': [],
     'Tuesday': [],
     'Wednesday': [],
     'Thursday': [],
@@ -254,19 +254,20 @@ export default function TimeTablePage() {
           <div className="flex flex-col gap-1 w-44">
             <label className="text-slate-500 font-bold">Class</label>
             <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className="w-full px-4 py-2.5 border rounded-lg bg-white outline-none">
-              <option value="Class V">Class V</option>
-              <option value="Class VII">Class VII</option>
-              <option value="Class VIII">Class VIII</option>
-              <option value="Class XII">Class XII</option>
+              <option value="">Select a Class</option>
+              {classesData.map((c: any) => (
+                <option key={c.className} value={c.className}>{c.className}</option>
+              ))}
             </select>
           </div>
 
           <div className="flex flex-col gap-1 w-44">
             <label className="text-slate-500 font-bold">Section</label>
             <select value={selectedSection} onChange={e => setSelectedSection(e.target.value)} className="w-full px-4 py-2.5 border rounded-lg bg-white outline-none">
-              <option value="Section A">Section A</option>
-              <option value="Section B">Section B</option>
-              <option value="Section D">Section D</option>
+              <option value="">Select a Section</option>
+              {sectionsData.map((s: any) => (
+                <option key={s.sectionName} value={s.sectionName}>{s.sectionName}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -376,10 +377,9 @@ export default function TimeTablePage() {
                   <label className="text-slate-500 font-bold">Class *</label>
                   <select value={modalClass} onChange={e => setModalClass(e.target.value)} className="w-full px-4 py-2.5 border rounded-lg bg-white outline-none font-semibold" required>
                     <option value="">Select Class</option>
-                    <option value="Class V">Class V</option>
-                    <option value="Class VII">Class VII</option>
-                    <option value="Class VIII">Class VIII</option>
-                    <option value="Class XII">Class XII</option>
+                    {classesData.map((c: any) => (
+                      <option key={c.className} value={c.className}>{c.className}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -387,9 +387,9 @@ export default function TimeTablePage() {
                   <label className="text-slate-500 font-bold">Section *</label>
                   <select value={modalSection} onChange={e => setModalSection(e.target.value)} className="w-full px-4 py-2.5 border rounded-lg bg-white outline-none font-semibold" required>
                     <option value="">Select Section</option>
-                    <option value="Section A">Section A</option>
-                    <option value="Section B">Section B</option>
-                    <option value="Section D">Section D</option>
+                    {sectionsData.map((s: any) => (
+                      <option key={s.sectionName} value={s.sectionName}>{s.sectionName}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -454,14 +454,17 @@ export default function TimeTablePage() {
                       
                       <div className="flex flex-col gap-1.5 col-span-1">
                         <label className="text-slate-500 font-bold">Subject *</label>
-                        <input 
-                          type="text" 
-                          placeholder="Enter Subject" 
+                        <select 
                           value={slot.subject} 
                           onChange={e => handleSlotFieldChange(idx, 'subject', e.target.value)} 
                           className="w-full px-4 py-2 border rounded-lg outline-none font-bold" 
                           required 
-                        />
+                        >
+                          <option value="">Select Subject</option>
+                          {subjectsData.map((s: any) => (
+                            <option key={s.subjectName} value={s.subjectName}>{s.subjectName}</option>
+                          ))}
+                        </select>
                       </div>
 
                       <div className="flex flex-col gap-1.5 col-span-1">
