@@ -3,6 +3,34 @@ import pool from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'promo_codes' AND column_name = 'segment' AND data_type IN ('character varying', 'text')
+        ) THEN
+          ALTER TABLE promo_codes ALTER COLUMN segment TYPE TEXT[] USING string_to_array(segment, ',');
+        END IF;
+        
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'promo_codes' AND column_name = 'applicable_by' AND data_type IN ('character varying', 'text')
+        ) THEN
+          ALTER TABLE promo_codes ALTER COLUMN applicable_by DROP DEFAULT;
+          ALTER TABLE promo_codes ALTER COLUMN applicable_by TYPE TEXT[] USING string_to_array(applicable_by, ',');
+          ALTER TABLE promo_codes ALTER COLUMN applicable_by SET DEFAULT '{}';
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'promo_codes' AND column_name = 'min_applicable_amount'
+        ) THEN
+          ALTER TABLE promo_codes ADD COLUMN min_applicable_amount NUMERIC(10,2) DEFAULT 0;
+        END IF;
+      END $$;
+    `).catch(err => console.error("Database migration promo_codes error:", err));
+
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
     const segment = searchParams.get('segment') || ''
@@ -24,7 +52,7 @@ export async function GET(request: NextRequest) {
 
     if (segment) {
       params.push(segment)
-      conditions.push(`segment = $${params.length}`)
+      conditions.push(`$${params.length} = ANY(segment)`)
     }
 
     if (status) {
@@ -68,22 +96,43 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'promo_codes' AND column_name = 'segment' AND data_type IN ('character varying', 'text')
+        ) THEN
+          ALTER TABLE promo_codes ALTER COLUMN segment TYPE TEXT[] USING string_to_array(segment, ',');
+        END IF;
+        
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'promo_codes' AND column_name = 'applicable_by' AND data_type IN ('character varying', 'text')
+        ) THEN
+          ALTER TABLE promo_codes ALTER COLUMN applicable_by DROP DEFAULT;
+          ALTER TABLE promo_codes ALTER COLUMN applicable_by TYPE TEXT[] USING string_to_array(applicable_by, ',');
+          ALTER TABLE promo_codes ALTER COLUMN applicable_by SET DEFAULT '{}';
+        END IF;
+      END $$;
+    `).catch(err => console.error("Database migration promo_codes error:", err));
+
     const body = await request.json()
-    const { code, description, segment, applicable_by, applicable_one, discount_name, discount_type, discount_value, max_uses, start_date, has_expiry, expiry_date } = body
+    const { code, description, segment, applicable_by, applicable_one, discount_name, discount_type, discount_value, max_uses, start_date, has_expiry, expiry_date, min_applicable_amount } = body
 
     if (!code || !discount_type || discount_value == null) {
       return NextResponse.json({ success: false, error: 'Code, Discount Type, and Discount Value are required' }, { status: 400 })
     }
 
     const result = await pool.query(
-      `INSERT INTO promo_codes (code, description, segment, applicable_by, applicable_one, discount_name, discount_type, discount_value, max_uses, start_date, has_expiry, expiry_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `INSERT INTO promo_codes (code, description, segment, applicable_by, applicable_one, discount_name, discount_type, discount_value, max_uses, start_date, has_expiry, expiry_date, min_applicable_amount)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING *`,
       [
         code.toUpperCase(),
         description || '',
-        segment || '',
-        applicable_by || '',
+        segment || [],
+        applicable_by || [],
         applicable_one || false,
         discount_name || '',
         discount_type,
@@ -91,7 +140,8 @@ export async function POST(request: NextRequest) {
         max_uses || 0,
         start_date || null,
         has_expiry || false,
-        has_expiry ? (expiry_date || null) : null
+        has_expiry ? (expiry_date || null) : null,
+        min_applicable_amount || 0
       ]
     )
 

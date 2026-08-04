@@ -72,6 +72,29 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           [parseFloat(transaction_amount || currentReq.amount), currentReq.transaction_id]
         )
       }
+    } else if (status === 'Reject') {
+      const billCheck = await pool.query('SELECT id FROM bills WHERE transaction_id = $1 LIMIT 1', [currentReq.transaction_id])
+      if (billCheck.rows.length > 0) {
+        await pool.query(
+          `UPDATE bills SET status = 'Failed' WHERE transaction_id = $1`,
+          [currentReq.transaction_id]
+        )
+      } else {
+        const planRes = await pool.query('SELECT segment FROM plans WHERE plan_name = $1 LIMIT 1', [currentReq.plan_name])
+        const segment = planRes.rows.length > 0 ? planRes.rows[0].segment : 'School'
+        await pool.query(
+          `INSERT INTO bills (segment, school_name, plan_name, payment_mode, payment_date, amount, transaction_id, status)
+           VALUES ($1, $2, $3, $4, CURRENT_DATE, $5, $6, 'Failed')`,
+          [
+            segment,
+            currentReq.school_name,
+            currentReq.plan_name,
+            currentReq.payment_mode,
+            parseFloat(transaction_amount || currentReq.amount),
+            currentReq.transaction_id
+          ]
+        )
+      }
     }
 
     return NextResponse.json({ success: true, data: updatedReq })

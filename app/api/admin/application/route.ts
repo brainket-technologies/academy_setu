@@ -180,15 +180,26 @@ export async function POST(request: Request) {
     const count = parseInt(countResult.rows[0].count) + 125
     const applicationNo = `AS2026${count}`
 
+    let planId = null
+    if (plan) {
+      const planRes = await pool.query(
+        'SELECT id FROM plans WHERE id::text = $1 OR plan_name = $1 LIMIT 1',
+        [plan]
+      )
+      if (planRes.rows.length > 0) {
+        planId = planRes.rows[0].id
+      }
+    }
+
     const result = await pool.query(
       `INSERT INTO applications (
         application_no, institution_id,
-        status, enquiry_status, promo_code, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6)
+        status, enquiry_status, promo_code, plan_id, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
       [
         applicationNo, institutionId,
-        status || 'Applied', enquiry_status || 'Applied', promo_code || '', userId
+        status || 'Applied', enquiry_status || 'Applied', promo_code || '', planId, userId
       ]
     )
 

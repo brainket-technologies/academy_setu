@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 interface Contact {
   contact: string
+  type: string
   latest_message: string
   latest_timestamp: string | null
   unread_count: number
@@ -44,26 +45,30 @@ const formatMsgTime = (timestampStr: string | null) => {
   }
 }
 
-// Custom decorative SVG Avatar icons matching Manager, BDM, Admin styles
-const ContactAvatar = ({ name, size = '12' }: { name: string; size?: string }) => {
-  let bgColor = 'bg-indigo-600'
-  let textColor = 'text-indigo-100'
-  let initials = name.substring(0, 2).toUpperCase()
+const CONTACT_TYPE_COLORS: Record<string, { bg: string; text: string }> = {
+  Admin: { bg: 'bg-purple-600', text: 'text-purple-50' },
+  Manager: { bg: 'bg-indigo-500', text: 'text-indigo-50' },
+  BDM: { bg: 'bg-blue-600', text: 'text-blue-50' },
+  Institute: { bg: 'bg-emerald-600', text: 'text-emerald-50' },
+  Distributor: { bg: 'bg-orange-500', text: 'text-orange-50' },
+}
 
-  if (name === 'Manager') {
-    bgColor = 'bg-indigo-500'
-    textColor = 'text-indigo-50'
-  } else if (name === 'BDM') {
-    bgColor = 'bg-blue-600'
-    textColor = 'text-blue-50'
-  } else if (name === 'Admin') {
-    bgColor = 'bg-purple-600'
-    textColor = 'text-purple-50'
-  }
+const TYPE_BADGE_COLORS: Record<string, string> = {
+  Admin: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300',
+  Manager: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300',
+  BDM: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+  Institute: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300',
+  Distributor: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
+}
+
+const ContactAvatar = ({ name, type, size = '12' }: { name: string; type?: string; size?: string }) => {
+  const resolved = type || name
+  const colors = CONTACT_TYPE_COLORS[resolved] || { bg: 'bg-slate-500', text: 'text-slate-50' }
+  const initials = name.substring(0, 2).toUpperCase()
 
   return (
-    <div className={`w-${size} h-${size} rounded-full ${bgColor} flex items-center justify-center font-bold text-xs shrink-0 border border-slate-100 dark:border-slate-700 shadow-sm`}>
-      <span className={textColor}>{initials}</span>
+    <div className={`w-${size} h-${size} rounded-full ${colors.bg} flex items-center justify-center font-bold text-xs shrink-0 border border-slate-100 dark:border-slate-700 shadow-sm`}>
+      <span className={colors.text}>{initials}</span>
     </div>
   )
 }
@@ -75,6 +80,7 @@ export default function AllConversationPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [typeFilter, setTypeFilter] = useState<string>('All')
   
   // Message input
   const [inputMessage, setInputMessage] = useState('')
@@ -229,11 +235,14 @@ export default function AllConversationPage() {
     }
   }
 
-  // Filter contacts by search input
-  const filteredContacts = contacts.filter(c => 
-    c.contact.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.latest_message.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Filter contacts by search input and type filter
+  const activeContactObj = contacts.find(c => c.contact === activeContact)
+  const filteredContacts = contacts.filter(c => {
+    const matchSearch = c.contact.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.latest_message.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchType = typeFilter === 'All' || c.type === typeFilter
+    return matchSearch && matchType
+  })
 
   return (
     <>
@@ -262,9 +271,28 @@ export default function AllConversationPage() {
               </div>
             </div>
 
+            {/* Type Filter Tabs */}
+            <div className="px-3 pb-3 shrink-0 flex gap-1.5 flex-wrap border-b border-slate-100 dark:border-slate-700">
+              {['All', 'Admin', 'Manager', 'BDM', 'Institute', 'Distributor'].map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setTypeFilter(tab)}
+                  className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer border ${
+                    typeFilter === tab
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                      : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-600 hover:border-indigo-400'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
             {/* People title */}
             <div className="px-5 py-3 border-b border-slate-50 dark:border-slate-700/50 shrink-0">
-              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 tracking-tight">People</h2>
+              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 tracking-tight">
+                People <span className="text-slate-400 font-normal text-xs">({filteredContacts.length})</span>
+              </h2>
             </div>
 
             {/* Scrollable list */}
@@ -291,7 +319,7 @@ export default function AllConversationPage() {
                           : 'bg-transparent border-transparent hover:bg-slate-100/40 dark:hover:bg-slate-800/40'
                       }`}
                     >
-                      <ContactAvatar name={c.contact} size="10" />
+                      <ContactAvatar name={c.contact} type={c.type} size="10" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1 mb-0.5">
                           <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm tracking-tight truncate">
@@ -299,6 +327,11 @@ export default function AllConversationPage() {
                           </h4>
                           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold shrink-0">
                             {c.latest_timestamp ? formatMsgTime(c.latest_timestamp).split(', ')[0] : ''}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${TYPE_BADGE_COLORS[c.type] || 'bg-slate-100 text-slate-500'}`}>
+                            {c.type}
                           </span>
                         </div>
                         <p className="text-slate-500 dark:text-slate-400 text-xs font-medium truncate leading-normal pr-4">
@@ -331,12 +364,19 @@ export default function AllConversationPage() {
               <>
                 {/* Active contact header */}
                 <div className="px-6 py-4 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3 shrink-0">
-                  <ContactAvatar name={activeContact} size="10" />
+                  <ContactAvatar name={activeContact} type={activeContactObj?.type} size="10" />
                   <div>
                     <h3 className="font-bold text-slate-850 dark:text-slate-100 text-base leading-tight tracking-tight">
                       {activeContact}
                     </h3>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mt-0.5">Active Session</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {activeContactObj?.type && (
+                        <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${TYPE_BADGE_COLORS[activeContactObj.type] || 'bg-slate-100 text-slate-500'}`}>
+                          {activeContactObj.type}
+                        </span>
+                      )}
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Active Session</p>
+                    </div>
                   </div>
                 </div>
 

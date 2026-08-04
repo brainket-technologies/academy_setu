@@ -57,16 +57,32 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await pool.query(`
+      ALTER TABLE plans ADD COLUMN IF NOT EXISTS segment_id UUID;
+      ALTER TABLE plans ADD COLUMN IF NOT EXISTS menus TEXT[] DEFAULT '{}';
+      ALTER TABLE plans ADD COLUMN IF NOT EXISTS brochure_url TEXT DEFAULT '';
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'plans' AND column_name = 'applied_by' AND data_type IN ('character varying', 'text')
+        ) THEN
+          ALTER TABLE plans ALTER COLUMN applied_by TYPE TEXT[] USING string_to_array(applied_by, ',');
+        END IF;
+      END $$;
+    `).catch(err => console.error("Database migration error:", err));
+
     const body = await request.json()
     const {
       segment, applied_by, plan_for, plan_name, description,
       no_of_students, students_fee_relaxation, additional_charge_per_student,
       first_billing_duration, first_billing_items,
       renewal_billing_duration, renewal_pre_bill_generate_days,
-      renewal_payment_relaxation, renewal_billing_items
+      renewal_payment_relaxation, renewal_billing_items,
+      menus, brochure_url
     } = body
 
-    if (!segment || !applied_by || !plan_name) {
+    if (!segment || !applied_by || (Array.isArray(applied_by) && applied_by.length === 0) || !plan_name) {
       return NextResponse.json({ success: false, error: 'Segment, Applied By, and Plan Name are required' }, { status: 400 })
     }
 
@@ -76,15 +92,17 @@ export async function POST(request: NextRequest) {
         no_of_students, students_fee_relaxation, additional_charge_per_student,
         first_billing_duration,
         renewal_billing_duration, renewal_pre_bill_generate_days,
-        renewal_payment_relaxation
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+        renewal_payment_relaxation,
+        menus, brochure_url
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
       RETURNING *`,
       [
         segment, applied_by, plan_for || 'All User', plan_name, description || '',
         no_of_students || null, students_fee_relaxation || null, additional_charge_per_student || null,
         first_billing_duration || null,
         renewal_billing_duration || null, renewal_pre_bill_generate_days || null,
-        renewal_payment_relaxation || null
+        renewal_payment_relaxation || null,
+        menus || [], brochure_url || ''
       ]
     )
 

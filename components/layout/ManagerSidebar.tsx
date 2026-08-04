@@ -48,11 +48,7 @@ export function ManagerSidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?
       icon: Users, label: 'Lead', href: '/manager/lead', requiredPermission: 'Lead Permission'
     },
     { 
-      icon: FileText, label: 'Application', href: '#', requiredPermission: 'Application Permission',
-      subItems: [
-        { label: 'All Application', href: '/manager/application' },
-        { label: 'Create Application', href: '/manager/application/create' },
-      ]
+      icon: FileText, label: 'Application', href: '/manager/application', requiredPermission: 'Application Permission'
     },
     { icon: MessagesSquare, label: 'All Conversation', href: '/manager/conversation', requiredPermission: 'Conversation Permission' },
     { icon: Edit, label: 'Edit Profile', href: '/manager/edit-profile' },

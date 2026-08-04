@@ -1,14 +1,28 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, Camera, Check, ArrowLeft, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function CreateApplicationPage() {
   const router = useRouter()
-  const [step, setStep] = useState(1) // 1 = Personal Details, 2 = Status
   const [submitting, setSubmitting] = useState(false)
+
+  // State and District dynamic settings state
+  const [statesData, setStatesData] = useState<any[]>([])
+  const [districtsList, setDistrictsList] = useState<string[]>([])
+
+  useEffect(() => {
+    fetch('/api/admin/settings/state-city')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setStatesData(data.data)
+        }
+      })
+      .catch(err => console.error('Failed to load states/cities', err))
+  }, [])
 
   // Step 1: Personal Details State
   const [schoolName, setSchoolName] = useState('')
@@ -33,11 +47,23 @@ export default function CreateApplicationPage() {
   const [directorSign, setDirectorSign] = useState('')
   const [directorPhoto, setDirectorPhoto] = useState<string | null>(null)
 
-  // Step 2: Status State
-  const [status, setStatus] = useState<'Applied' | 'Paid' | 'Unpaid' | 'Active' | 'Inactive'>('Applied')
-  const [enquiryStatus, setEnquiryStatus] = useState<string>('Applied')
-  const [plan, setPlan] = useState('')
-  const [promoCode, setPromoCode] = useState('')
+  // Status State - defaults to 'Applied'
+  const [status] = useState<'Applied' | 'Paid' | 'Unpaid' | 'Active' | 'Inactive'>('Applied')
+  const [enquiryStatus] = useState<string>('Applied')
+  const [plan] = useState('')
+  const [promoCode] = useState('')
+
+  const handleStateChange = (stateVal: string) => {
+    setStateName(stateVal)
+    const stateObj = statesData.find(s => s.state_name === stateVal)
+    if (stateObj) {
+      setDistrictsList(stateObj.districts || [])
+      setDistrictName('')
+    } else {
+      setDistrictsList([])
+      setDistrictName('')
+    }
+  }
 
   // Simulated image uploading to base64
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'principal' | 'director') => {
@@ -56,6 +82,22 @@ export default function CreateApplicationPage() {
     reader.readAsDataURL(file)
   }
 
+  const handleSignUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'principal' | 'director') => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      if (target === 'principal') {
+        setPrincipalSign(reader.result as string)
+      } else {
+        setDirectorSign(reader.result as string)
+      }
+      toast.success('Signature uploaded successfully')
+    }
+    reader.readAsDataURL(file)
+  }
+
   // Validate Step 1
   const validateStep1 = () => {
     if (!schoolName.trim()) return 'School Name is required.'
@@ -70,29 +112,15 @@ export default function CreateApplicationPage() {
     return null
   }
 
-  const handleNext = (e: React.FormEvent) => {
-    e.preventDefault()
-    const error = validateStep1()
-    if (error) {
-      toast.error(error)
-      return
-    }
-    setStep(2)
-  }
-
-  const handleBack = () => {
-    setStep(1)
-  }
-
   const handleCancel = () => {
     router.push('/admin/application')
   }
 
-  const handleCreate = async () => {
+  const handleCreate = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
     const error = validateStep1()
     if (error) {
       toast.error(error)
-      setStep(1)
       return
     }
 
@@ -161,72 +189,11 @@ export default function CreateApplicationPage() {
         {/* Outer step wizard card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-8">
           
-          {/* Stepper Tabs Selector (Image 1 / Image 4 layout) */}
-          <div className="border border-slate-200 dark:border-slate-600 rounded-xl overflow-hidden flex shadow-sm">
-            <div 
-              className={`flex-1 py-3 text-center font-bold text-sm transition-all ${
-                step === 1 
-                  ? 'bg-indigo-600 text-white' 
-                  : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-600'
-              }`}
-            >
-              Personal Details
+          <form onSubmit={handleCreate} className="flex flex-col gap-8">
+            
+            <div className="border-b border-slate-100 dark:border-slate-700 pb-3">
+              <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Personal Details</h3>
             </div>
-            <div 
-              className={`flex-1 py-3 text-center font-bold text-sm transition-all ${
-                step === 2 
-                  ? 'bg-indigo-600 text-white' 
-                  : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-600'
-              }`}
-            >
-              Status
-            </div>
-          </div>
-
-          {/* Stepper Line indicators (Image 1 / Image 4 layout) */}
-          <div className="px-12 py-3 flex items-center justify-center relative">
-            <div className="w-full bg-slate-200 dark:bg-slate-600 h-0.5 absolute top-1/2 left-0 -translate-y-1/2 z-0" />
-            <div 
-              className="bg-indigo-500 h-0.5 absolute top-1/2 left-0 -translate-y-1/2 z-0 transition-all duration-300"
-              style={{ width: step === 1 ? '50%' : '100%' }}
-            />
-
-            <div className="w-full flex justify-between relative z-10">
-              {/* Circle step 1 */}
-              <div 
-                className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${
-                  step === 2 
-                    ? 'bg-indigo-500 border-indigo-500 text-white' 
-                    : 'bg-white dark:bg-slate-700 border-indigo-500 text-indigo-600'
-                }`}
-              >
-                {step === 2 ? (
-                  <Check className="w-3.5 h-3.5" />
-                ) : (
-                  <span className="w-2 h-2 rounded-full bg-indigo-500" />
-                )}
-              </div>
-
-              {/* Circle step 2 */}
-            <div 
-                className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${
-                  step === 2 
-                    ? 'bg-white dark:bg-slate-700 border-indigo-500 text-indigo-600' 
-                    : 'bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500'
-                }`}
-              >
-                {step === 2 && <span className="w-2 h-2 rounded-full bg-indigo-500" />}
-              </div>
-            </div>
-          </div>
-
-          {/* Step 1: Personal Details Forms */}
-          {step === 1 && (
-            <form onSubmit={handleNext} className="flex flex-col gap-8">
-              
-              <div className="border-b border-slate-100 dark:border-slate-700 pb-3">
-                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Personal Details</h3>
-              </div>
 
               <div className="flex flex-col gap-5">
                 {/* School Name */}
@@ -339,27 +306,38 @@ export default function CreateApplicationPage() {
                     <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                       State <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      placeholder="Enter State"
+                    <select
                       value={stateName}
-                      onChange={(e) => setStateName(e.target.value)}
-                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                      onChange={(e) => handleStateChange(e.target.value)}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
                       required
-                    />
+                    >
+                      <option value="">Select State</option>
+                      {statesData.map((s: any) => (
+                        <option key={s.id} value={s.state_name}>
+                          {s.state_name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                       District <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      placeholder="Enter District"
+                    <select
                       value={districtName}
                       onChange={(e) => setDistrictName(e.target.value)}
-                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
                       required
-                    />
+                      disabled={!stateName}
+                    >
+                      <option value="">Select District</option>
+                      {districtsList.map((dist: string) => (
+                        <option key={dist} value={dist}>
+                          {dist}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -417,13 +395,24 @@ export default function CreateApplicationPage() {
 
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Principal Sign.</label>
-                        <input
-                          type="text"
-                          placeholder="Upload Principal Sign."
-                          value={principalSign}
-                          onChange={(e) => setPrincipalSign(e.target.value)}
-                          className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                        />
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Upload or type Principal Sign."
+                            value={principalSign.startsWith('data:') ? 'Signature Image Uploaded' : principalSign}
+                            onChange={(e) => setPrincipalSign(e.target.value)}
+                            className="flex-1 px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                          />
+                          <label className="px-3 py-2 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-500 dark:text-slate-400 transition-colors cursor-pointer shrink-0 shadow-sm">
+                            Upload
+                            <input 
+                              type="file" 
+                              accept="image/*"
+                              onChange={(e) => handleSignUpload(e, 'principal')}
+                              className="hidden" 
+                            />
+                          </label>
+                        </div>
                       </div>
                     </div>
 
@@ -490,13 +479,24 @@ export default function CreateApplicationPage() {
 
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Director Sign.</label>
-                        <input
-                          type="text"
-                          placeholder="Upload Director Sign."
-                          value={directorSign}
-                          onChange={(e) => setDirectorSign(e.target.value)}
-                          className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                        />
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Upload or type Director Sign."
+                            value={directorSign.startsWith('data:') ? 'Signature Image Uploaded' : directorSign}
+                            onChange={(e) => setDirectorSign(e.target.value)}
+                            className="flex-1 px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                          />
+                          <label className="px-3 py-2 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-500 dark:text-slate-400 transition-colors cursor-pointer shrink-0 shadow-sm">
+                            Upload
+                            <input 
+                              type="file" 
+                              accept="image/*"
+                              onChange={(e) => handleSignUpload(e, 'director')}
+                              className="hidden" 
+                            />
+                          </label>
+                        </div>
                       </div>
                     </div>
 
@@ -540,106 +540,6 @@ export default function CreateApplicationPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-10 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
-                >
-                  Save & Next
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* Step 2: Status Forms */}
-          {step === 2 && (
-            <div className="flex flex-col gap-8">
-              
-              <div className="border-b border-slate-100 dark:border-slate-700 pb-3">
-                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Status</h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Status Dropdown */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Status</label>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value as any)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer text-slate-800 dark:text-slate-200"
-                  >
-                    <option value="Applied">Applied</option>
-                    <option value="Paid">Paid</option>
-                    <option value="Unpaid">Unpaid</option>
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
-
-                {/* Enquiry Status Dropdown */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Enquiry Status</label>
-                  <select
-                    value={enquiryStatus}
-                    onChange={(e) => setEnquiryStatus(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer text-slate-800 dark:text-slate-200"
-                  >
-                    <option value="Applied">Applied</option>
-                    <option value="In Review">In Review</option>
-                    <option value="Verification Completed">Verification Completed</option>
-                    <option value="Payment Pending">Payment Pending</option>
-                    <option value="Successfully Onboarded">Successfully Onboarded</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Plan and Promo Code Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                {/* Plan Dropdown */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Plan</label>
-                  <select
-                    value={plan}
-                    onChange={(e) => setPlan(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer text-slate-800 dark:text-slate-200"
-                  >
-                    <option value="">Select Plan</option>
-                    <option value="Premium Plan">Premium Plan</option>
-                    <option value="Basic Plan">Basic Plan</option>
-                    <option value="Standard Plan">Standard Plan</option>
-                  </select>
-                </div>
-
-                {/* Promo Code Dropdown */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Promo Code</label>
-                  <div className="relative">
-                    <select
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value)}
-                      className="w-full pl-4 pr-12 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer appearance-none text-slate-800 dark:text-slate-200"
-                    >
-                      <option value="">Select Promo Code</option>
-                      <option value="WELCOME10">WELCOME10</option>
-                      <option value="FESTIVE20">FESTIVE20</option>
-                      <option value="SCHOOLDISCOUNT">SCHOOLDISCOUNT</option>
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-800 rounded-lg p-1 px-2 pointer-events-none">
-                      <span className="text-xs font-bold leading-none">%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Step 2 Actions */}
-              <div className="flex justify-center gap-4 border-t border-slate-100 dark:border-slate-700 pt-6 mt-4">
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="px-8 py-2.5 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm cursor-pointer flex items-center gap-2"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back
-                </button>
-                <button
-                  onClick={handleCreate}
                   disabled={submitting}
                   className="px-10 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center justify-center gap-2"
                 >
@@ -647,9 +547,7 @@ export default function CreateApplicationPage() {
                   Create
                 </button>
               </div>
-
-            </div>
-          )}
+            </form>
 
         </div>
       </div>

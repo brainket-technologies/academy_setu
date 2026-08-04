@@ -87,7 +87,7 @@ export default function AllTicketPage() {
   // Reference lists
   const [segments, setSegments] = useState<Segment[]>([])
   const [schools, setSchools] = useState<string[]>([])
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
+  const [categories, setCategories] = useState<{ id: string; name: string; parent_category: string; low_timeline: string; medium_timeline: string; high_timeline: string }[]>([])
   const [staffList, setStaffList] = useState<{ id: string; name: string }[]>([])
 
   // Form states
@@ -95,8 +95,10 @@ export default function AllTicketPage() {
   const [formSchoolName, setFormSchoolName] = useState('')
   const [isValidated, setIsValidated] = useState(false)
   const [ticketNo, setTicketNo] = useState('')
+  const [ticketParentCategory, setTicketParentCategory] = useState('')
   const [ticketCategory, setTicketCategory] = useState('')
   const [subCategory, setSubCategory] = useState('')
+  const [selectedTimelines, setSelectedTimelines] = useState<{ low: string; medium: string; high: string } | null>(null)
   const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>('Low')
   const [complainerName, setComplainerName] = useState('')
   const [complainerMobile, setComplainerMobile] = useState('')
@@ -239,8 +241,10 @@ export default function AllTicketPage() {
     setFormSchoolName('')
     setIsValidated(false)
     setTicketNo(`Tick${Math.floor(100000 + Math.random() * 900000)}`)
+    setTicketParentCategory('')
     setTicketCategory('')
     setSubCategory('')
+    setSelectedTimelines(null)
     setPriority('Low')
     setComplainerName('')
     setComplainerMobile('')
@@ -254,10 +258,17 @@ export default function AllTicketPage() {
     setEditingId(ticket.id)
     setFormSegment(ticket.segment)
     setFormSchoolName(ticket.school_name)
-    setIsValidated(true) // already validated segment & school
+    setIsValidated(true)
     setTicketNo(ticket.ticket_no)
+    const catMatch = categories.find(c => c.id === ticket.category_id)
+    setTicketParentCategory(catMatch?.parent_category || '')
     setTicketCategory(ticket.category_id || '')
     setSubCategory(ticket.sub_category || '')
+    if (catMatch) {
+      setSelectedTimelines({ low: catMatch.low_timeline, medium: catMatch.medium_timeline, high: catMatch.high_timeline })
+    } else {
+      setSelectedTimelines(null)
+    }
     setPriority(ticket.priority || 'Low')
     setComplainerName(ticket.complainer_name || '')
     setComplainerMobile(ticket.complainer_mobile || '')
@@ -485,33 +496,56 @@ export default function AllTicketPage() {
                         className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-sm font-mono font-bold text-slate-500 dark:text-slate-400 focus:outline-none cursor-not-allowed"
                       />
                     </div>
-                    {/* Ticket Category */}
+                    {/* Category (Parent) */}
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                        Ticket Category<span className="text-red-500 ml-0.5">*</span>
+                        Category<span className="text-red-500 ml-0.5">*</span>
                       </label>
                       <select
-                        value={ticketCategory}
-                        onChange={(e) => setTicketCategory(e.target.value)}
+                        value={ticketParentCategory}
+                        onChange={(e) => {
+                          setTicketParentCategory(e.target.value)
+                          setTicketCategory('')
+                          setSubCategory('')
+                          setSelectedTimelines(null)
+                        }}
                         className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                         required
                       >
                         <option value="">Select Category</option>
-                        {categories.map(cat => (
-                          <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        {Array.from(new Set(categories.map(c => c.parent_category).filter(Boolean))).map(parent => (
+                          <option key={parent} value={parent}>{parent}</option>
                         ))}
                       </select>
                     </div>
-                    {/* Sub Category */}
+                    {/* Subcategory (filtered by parent) */}
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Sub Category</label>
-                      <input
-                        type="text"
-                        value={subCategory}
-                        onChange={(e) => setSubCategory(e.target.value)}
-                        placeholder="e.g. Password Reset"
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                      />
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                        Sub Category<span className="text-red-500 ml-0.5">*</span>
+                      </label>
+                      <select
+                        value={ticketCategory}
+                        onChange={(e) => {
+                          setTicketCategory(e.target.value)
+                          const found = categories.find(c => c.id === e.target.value)
+                          setSubCategory(found?.name || '')
+                          if (found) {
+                            setSelectedTimelines({ low: found.low_timeline, medium: found.medium_timeline, high: found.high_timeline })
+                          } else {
+                            setSelectedTimelines(null)
+                          }
+                        }}
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        required
+                        disabled={!ticketParentCategory}
+                      >
+                        <option value="">Select Sub Category</option>
+                        {categories
+                          .filter(c => c.parent_category === ticketParentCategory)
+                          .map(cat => (
+                            <option key={cat.id} value={cat.id}>{cat.name}</option>
+                          ))}
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -555,24 +589,35 @@ export default function AllTicketPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {/* Priority and Condition Banner */}
+                  {/* Priority and Timeline display */}
                   <div className="flex flex-col gap-3">
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-2">
                       <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Priority</label>
-                      <div className="flex items-center gap-6 mt-1.5">
-                        {(['Low', 'Medium', 'High'] as const).map(prio => (
-                          <label key={prio} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 font-medium cursor-pointer">
-                            <input
-                              type="radio"
-                              name="priority"
-                              value={prio}
-                              checked={priority === prio}
-                              onChange={() => setPriority(prio)}
-                              className="text-indigo-600 focus:ring-indigo-500 w-4 h-4"
-                            />
-                            {prio}
-                          </label>
-                        ))}
+                      <div className="flex items-center gap-5 mt-1">
+                        {(['Low', 'Medium', 'High'] as const).map(prio => {
+                          const timelineVal = prio === 'Low' ? selectedTimelines?.low : prio === 'Medium' ? selectedTimelines?.medium : selectedTimelines?.high
+                          const badgeColor = prio === 'Low' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : prio === 'Medium' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-rose-100 text-rose-700 border-rose-200'
+                          return (
+                            <label key={prio} className="flex flex-col items-start gap-1 cursor-pointer">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  name="priority"
+                                  value={prio}
+                                  checked={priority === prio}
+                                  onChange={() => setPriority(prio)}
+                                  className="text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                                />
+                                <span className="text-sm text-slate-700 dark:text-slate-300 font-semibold">{prio}</span>
+                              </div>
+                              {timelineVal && (
+                                <span className={`ml-6 text-[10px] font-bold px-2 py-0.5 rounded-full border ${badgeColor}`}>
+                                  ⏱ {timelineVal}
+                                </span>
+                              )}
+                            </label>
+                          )
+                        })}
                       </div>
                     </div>
 
@@ -580,7 +625,13 @@ export default function AllTicketPage() {
                     {(priority === 'Medium' || priority === 'High') && (
                       <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-xl p-4 flex items-center gap-3 text-red-600 dark:text-red-400 animate-in fade-in duration-200">
                         <AlertCircle className="w-5 h-5 shrink-0" />
-                        <span className="text-xs font-bold uppercase tracking-wider">Your Problem solve within 24 hours.</span>
+                        <span className="text-xs font-bold uppercase tracking-wider">
+                          {priority === 'High' && selectedTimelines?.high
+                            ? `Your problem will be solved within ${selectedTimelines.high}.`
+                            : priority === 'Medium' && selectedTimelines?.medium
+                            ? `Your problem will be solved within ${selectedTimelines.medium}.`
+                            : 'Your Problem solve within 24 hours.'}
+                        </span>
                       </div>
                     )}
                   </div>

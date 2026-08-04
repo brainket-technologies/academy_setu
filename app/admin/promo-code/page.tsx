@@ -24,6 +24,7 @@ interface PromoCode {
   has_expiry: boolean
   expiry_date: string | null
   status: string
+  min_applicable_amount: number
   created_at: string
 }
 
@@ -50,6 +51,114 @@ const formatDateOnly = (dateStr: string | null) => {
   } catch {
     return dateStr
   }
+}
+
+const formatPgArray = (val: any): string => {
+  if (!val) return '—'
+  if (Array.isArray(val)) return val.join(', ')
+  if (typeof val === 'string') {
+    if (val.startsWith('{') && val.endsWith('}')) {
+      const cleaned = val.slice(1, -1)
+      if (!cleaned.trim()) return '—'
+      return cleaned
+        .split(',')
+        .map(item => item.trim().replace(/^"|"$/g, ''))
+        .filter(Boolean)
+        .join(', ')
+    }
+    return val
+  }
+  return String(val)
+}
+
+const parsePgArray = (val: any): string[] => {
+  if (!val) return []
+  if (Array.isArray(val)) return val
+  if (typeof val === 'string') {
+    if (val.startsWith('{') && val.endsWith('}')) {
+      const cleaned = val.slice(1, -1)
+      if (!cleaned.trim()) return []
+      return cleaned
+        .split(',')
+        .map(item => item.trim().replace(/^"|"$/g, ''))
+        .filter(Boolean)
+    }
+    return val.split(',').map(s => s.trim()).filter(Boolean)
+  }
+  return []
+}
+
+function CustomMultiSelect({ label, required, options, value, onChange, placeholder }: {
+  label: string
+  required?: boolean
+  options: string[]
+  value: string[]
+  onChange: (v: string[]) => void
+  placeholder?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const containerRef = React.useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [])
+
+  const toggleOption = (opt: string) => {
+    if (value.includes(opt)) {
+      onChange(value.filter(x => x !== opt))
+    } else {
+      onChange([...value, opt])
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5 relative" ref={containerRef}>
+      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer"
+      >
+        <span className={value.length > 0 ? 'text-slate-700 dark:text-slate-200 font-medium' : 'text-slate-400 dark:text-slate-500'}>
+          {value.length > 0 ? value.join(', ') : (placeholder ?? 'Select')}
+        </span>
+        <svg className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl shadow-2xl z-50 py-1.5 animate-in fade-in slide-in-from-top-1 duration-150 max-h-60 overflow-y-auto">
+          {options.map(opt => {
+            const isChecked = value.includes(opt)
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => toggleOption(opt)}
+                className="w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-600 cursor-pointer flex items-center justify-between text-slate-700 dark:text-slate-300"
+              >
+                <span>{opt}</span>
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  readOnly
+                  className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                />
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function AllPromoCodePage() {
@@ -81,8 +190,8 @@ export default function AllPromoCodePage() {
   const [editingId, setEditingId] = useState<string | null>(null)
 
   // Form states
-  const [formSegment, setFormSegment] = useState('')
-  const [applicableBy, setApplicableBy] = useState('')
+  const [formSegment, setFormSegment] = useState<string[]>([])
+  const [applicableBy, setApplicableBy] = useState<string[]>([])
   const [applicableOne, setApplicableOne] = useState(false)
   const [discountName, setDiscountName] = useState('')
   const [code, setCode] = useState('')
@@ -91,6 +200,7 @@ export default function AllPromoCodePage() {
   const [startDate, setStartDate] = useState('')
   const [hasExpiry, setHasExpiry] = useState(false)
   const [expiryDate, setExpiryDate] = useState('')
+  const [minApplicableAmount, setMinApplicableAmount] = useState('')
 
   // Delete modal states
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
@@ -164,8 +274,8 @@ export default function AllPromoCodePage() {
 
   const resetForm = () => {
     setEditingId(null)
-    setFormSegment('')
-    setApplicableBy('')
+    setFormSegment([])
+    setApplicableBy([])
     setApplicableOne(false)
     setDiscountName('')
     setCode('')
@@ -174,6 +284,7 @@ export default function AllPromoCodePage() {
     setStartDate('')
     setHasExpiry(false)
     setExpiryDate('')
+    setMinApplicableAmount('')
     setIsModalOpen(false)
   }
 
@@ -204,8 +315,8 @@ export default function AllPromoCodePage() {
   const handleStartEdit = (item: PromoCode) => {
     setEditingId(item.id)
     setCode(item.code || '')
-    setFormSegment(item.segment || '')
-    setApplicableBy(item.applicable_by || '')
+    setFormSegment(parsePgArray(item.segment))
+    setApplicableBy(parsePgArray(item.applicable_by))
     setApplicableOne(!!item.applicable_one)
     setDiscountName(item.discount_name || '')
     setDiscountAmount(item.discount_type || 'Percentage')
@@ -213,6 +324,7 @@ export default function AllPromoCodePage() {
     setStartDate(item.start_date ? item.start_date.substring(0, 10) : '')
     setHasExpiry(!!item.has_expiry)
     setExpiryDate(item.expiry_date ? item.expiry_date.substring(0, 10) : '')
+    setMinApplicableAmount(item.min_applicable_amount != null ? String(item.min_applicable_amount) : '')
     setIsModalOpen(true)
   }
 
@@ -241,6 +353,7 @@ export default function AllPromoCodePage() {
           start_date: startDate || null,
           has_expiry: hasExpiry,
           expiry_date: hasExpiry ? (expiryDate || null) : null,
+          min_applicable_amount: minApplicableAmount ? parseFloat(minApplicableAmount) : 0,
         })
       })
       const data = await res.json()
@@ -255,6 +368,30 @@ export default function AllPromoCodePage() {
       toast.error('Something went wrong')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleToggleStatus = async (item: PromoCode) => {
+    const newStatus = item.status === 'Active' ? 'Inactive' : 'Active'
+    // Optimistic update
+    setItems(prev => prev.map(p => p.id === item.id ? { ...p, status: newStatus } : p))
+    try {
+      const res = await fetch(`/api/admin/promo-code/${item.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+      const data = await res.json()
+      if (!data.success) {
+        // Revert on failure
+        setItems(prev => prev.map(p => p.id === item.id ? { ...p, status: item.status } : p))
+        toast.error(data.error || 'Failed to update status')
+      } else {
+        toast.success(`Promo code ${newStatus === 'Active' ? 'activated' : 'deactivated'}`)
+      }
+    } catch {
+      setItems(prev => prev.map(p => p.id === item.id ? { ...p, status: item.status } : p))
+      toast.error('Something went wrong')
     }
   }
 
@@ -363,6 +500,7 @@ export default function AllPromoCodePage() {
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">S.No.</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Code</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Discount</th>
+                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Min. Amount</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Segment</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Applicable By</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Uses</th>
@@ -402,8 +540,15 @@ export default function AllPromoCodePage() {
                           </span>
                         </td>
                         <td className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-200">{discountLabel}</td>
-                        <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-sm">{item.segment || '—'}</td>
-                        <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-sm">{item.applicable_by || '—'}</td>
+                        <td className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-200">
+                          {item.min_applicable_amount > 0 ? `₹${item.min_applicable_amount}` : '—'}
+                        </td>
+                        <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-sm">
+                          {formatPgArray(item.segment)}
+                        </td>
+                        <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-sm">
+                          {formatPgArray(item.applicable_by)}
+                        </td>
                         <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-sm">
                           {item.current_uses}/{item.max_uses || '∞'}
                         </td>
@@ -412,13 +557,19 @@ export default function AllPromoCodePage() {
                           {item.has_expiry && item.expiry_date ? <>Till: {formatDateOnly(item.expiry_date)}</> : item.has_expiry && !item.expiry_date ? 'Expiry set' : 'No expiry'}
                         </td>
                         <td className="px-5 py-4">
-                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
-                            item.status === 'Active'
-                              ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400'
-                              : 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'
-                          }`}>
-                            {item.status}
-                          </span>
+                          <button
+                            onClick={() => handleToggleStatus(item)}
+                            title={item.status === 'Active' ? 'Click to deactivate' : 'Click to activate'}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none cursor-pointer ${
+                              item.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${
+                                item.status === 'Active' ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center justify-center gap-2">
@@ -498,20 +649,20 @@ export default function AllPromoCodePage() {
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Discount Name</label>
                   <input type="text" value={discountName} onChange={e => setDiscountName(e.target.value)} placeholder="E.g. Summer Sale" className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Segment</label>
-                  <select value={formSegment} onChange={e => setFormSegment(e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
-                    <option value="">Select Segment</option>
-                    {segments.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Applicable By</label>
-                  <select value={applicableBy} onChange={e => setApplicableBy(e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
-                    <option value="">Select Option</option>
-                    {APPLICABLE_BY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                </div>
+                <CustomMultiSelect
+                  label="Segment"
+                  options={segments.map(s => s.name)}
+                  value={formSegment}
+                  onChange={setFormSegment}
+                  placeholder="Select Segments"
+                />
+                <CustomMultiSelect
+                  label="Applicable By"
+                  options={APPLICABLE_BY_OPTIONS}
+                  value={applicableBy}
+                  onChange={setApplicableBy}
+                  placeholder="Select Options"
+                />
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Discount Type</label>
                   <select value={discountAmount} onChange={e => setDiscountAmount(e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
@@ -521,6 +672,10 @@ export default function AllPromoCodePage() {
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Discount Value <span className="text-red-500">*</span></label>
                   <input type="number" value={discountValue} onChange={e => setDiscountValue(e.target.value)} required min="0" step="0.01" placeholder={discountAmount === 'Percentage' ? '20' : '500'} className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Min. Applicable Amount</label>
+                  <input type="number" value={minApplicableAmount} onChange={e => setMinApplicableAmount(e.target.value)} min="0" step="0.01" placeholder="e.g. 500" className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Start Date</label>

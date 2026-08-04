@@ -292,6 +292,7 @@ function RequestDashboardContent() {
                     className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-100 font-semibold shadow-sm"
                   >
                     <option value="Accept">Accept</option>
+                    <option value="Reject">Reject</option>
                     <option value="Pending">Pending</option>
                   </select>
                 </div>
@@ -341,6 +342,7 @@ function RequestDashboardContent() {
               >
                 <option value="">All Status</option>
                 <option value="Accept">Accept</option>
+                <option value="Reject">Reject</option>
                 <option value="Pending">Pending</option>
               </select>
             </div>
@@ -395,10 +397,15 @@ function RequestDashboardContent() {
                         <td className="px-5 py-4 font-mono text-xs">{req.transaction_id || '—'}</td>
                         <td className="px-5 py-4 font-semibold">₹{Number(req.amount).toFixed(2)}</td>
                         <td className="px-5 py-4">
-                          {isAccept ? (
+                          {req.status === 'Accept' ? (
                             <span className="bg-[#DCFCE7] dark:bg-green-950/20 text-[#15803D] dark:text-green-400 text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-green-200 dark:border-green-900/30 flex items-center gap-1.5 shrink-0 shadow-sm w-fit">
                               <span className="w-1.5 h-1.5 rounded-full bg-green-600" />
                               Accept
+                            </span>
+                          ) : req.status === 'Reject' ? (
+                            <span className="bg-[#FEE2E2] dark:bg-red-950/20 text-[#B91C1C] dark:text-red-400 text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-red-200 dark:border-red-900/30 flex items-center gap-1.5 shrink-0 shadow-sm w-fit">
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
+                              Reject
                             </span>
                           ) : (
                             <span className="bg-[#FEF9C3] dark:bg-yellow-950/20 text-[#A16207] dark:text-yellow-400 text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-yellow-250 dark:border-yellow-900/30 flex items-center gap-1.5 shrink-0 shadow-sm w-fit">

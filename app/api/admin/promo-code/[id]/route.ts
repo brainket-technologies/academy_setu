@@ -22,7 +22,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
     const body = await request.json()
-    const { code, description, segment, applicable_by, applicable_one, discount_name, discount_type, discount_value, max_uses, start_date, has_expiry, expiry_date, status } = body
+    const { code, description, segment, applicable_by, applicable_one, discount_name, discount_type, discount_value, max_uses, start_date, has_expiry, expiry_date, status, min_applicable_amount } = body
 
     const result = await pool.query(
       `UPDATE promo_codes SET
@@ -39,8 +39,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         has_expiry = COALESCE($11, has_expiry),
         expiry_date = CASE WHEN $12::boolean THEN $13 ELSE expiry_date END,
         status = COALESCE($14, status),
+        min_applicable_amount = COALESCE($15, min_applicable_amount),
         updated_at = NOW()
-      WHERE id = $15
+      WHERE id = $16
       RETURNING *`,
       [
         code ? code.toUpperCase() : undefined,
@@ -57,6 +58,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         has_expiry,
         has_expiry ? (expiry_date || null) : null,
         status,
+        min_applicable_amount != null ? min_applicable_amount : undefined,
         id
       ]
     )

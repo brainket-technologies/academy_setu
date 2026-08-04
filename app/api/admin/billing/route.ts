@@ -23,16 +23,19 @@ export async function GET(request: NextRequest) {
       if (dateRange === 'Last Week') conditions.push(`b.payment_date >= CURRENT_DATE - INTERVAL '7 days'`)
       else if (dateRange === 'Last 15 Days') conditions.push(`b.payment_date >= CURRENT_DATE - INTERVAL '15 days'`)
 
-      const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : ''
+      conditions.push("b.status = 'Paid'")
+      const where = ' WHERE ' + conditions.join(' AND ')
 
       const query = `
         SELECT b.*, 
           i.name as school_name, i.state, i.district,
           p.plan_name,
+          COALESCE(p.segment, s.name) as segment,
           COUNT(*) OVER()::int AS _total_count
         FROM bills b
         LEFT JOIN institutions i ON b.institution_id = i.id
         LEFT JOIN plans p ON b.plan_id = p.id
+        LEFT JOIN segments s ON i.segment_id = s.id
         ${where}
         ORDER BY b.payment_date DESC, b.created_at DESC
         LIMIT $${params.length + 1} OFFSET $${params.length + 2}
@@ -81,6 +84,16 @@ export async function POST(request: NextRequest) {
       finalPlanId = planRes.rows[0]?.id || null
     }
 
+    if (finalPlanId && finalInstitutionId) {
+      const planInfo = await pool.query('SELECT segment_id FROM plans WHERE id = $1', [finalPlanId])
+      if (planInfo.rows.length > 0 && planInfo.rows[0].segment_id) {
+        await pool.query('UPDATE institutions SET segment_id = $1 WHERE id = $2 AND segment_id IS NULL', [
+          planInfo.rows[0].segment_id,
+          finalInstitutionId
+        ])
+      }
+    }
+
     const result = await pool.query(
       `INSERT INTO bills (institution_id, plan_id, payment_mode, payment_date, amount, transaction_id, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -93,6 +106,20 @@ export async function POST(request: NextRequest) {
         parseFloat(amount),
         transaction_id || '',
         status || 'Paid'
+      ]
+    )
+
+    // Insert into requests so it shows up in the Request menu
+    await pool.query(
+      `INSERT INTO requests (institution_id, plan_id, school_name, plan_name, payment_mode, transaction_id, amount, status)
+       VALUES ($1, $2, (SELECT name FROM institutions WHERE id = $1 LIMIT 1), (SELECT plan_name FROM plans WHERE id = $2 LIMIT 1), $3, $4, $5, $6)`,
+      [
+        finalInstitutionId,
+        finalPlanId,
+        payment_mode,
+        transaction_id || '',
+        parseFloat(amount),
+        status === 'Paid' ? 'Accept' : (status === 'Failed' ? 'Reject' : 'Pending')
       ]
     )
 

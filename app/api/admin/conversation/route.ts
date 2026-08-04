@@ -3,11 +3,18 @@ import pool from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
-    const usersRes = await pool.query('SELECT name FROM admins WHERE name != $1', ['Super Admin'])
-    const contacts = usersRes.rows.map((row: any) => row.name)
+    // Gather all potential contacts from admins (managers/bdm/admin), institutions, and distributors
+    const allContactsRes = await pool.query(`
+      SELECT name, role as type FROM admins WHERE name != 'Super Admin' AND is_active = true
+      UNION ALL
+      SELECT name, 'Institute' as type FROM institutions WHERE status = 'Active'
+      UNION ALL
+      SELECT name, 'Distributor' as type FROM distributors WHERE status = 'Active'
+    `)
+    const allContacts = allContactsRes.rows // [{ name, type }]
     const data = []
 
-    for (const contact of contacts) {
+    for (const { name: contact, type } of allContacts) {
       // Fetch latest message between Super Admin and this contact
       const latestRes = await pool.query(
         `SELECT * FROM messages 
@@ -24,31 +31,25 @@ export async function GET(request: NextRequest) {
         [contact]
       )
 
-      if (latestRes.rows.length > 0) {
-        const msg = latestRes.rows[0]
-        data.push({
-          contact,
-          latest_message: msg.message,
-          latest_timestamp: msg.created_at,
-          unread_count: unreadRes.rows[0].count,
-          latest_sender: msg.sender
-        })
-      } else {
-        data.push({
-          contact,
-          latest_message: '',
-          latest_timestamp: null,
-          unread_count: 0,
-          latest_sender: ''
-        })
-      }
+      const msg = latestRes.rows[0]
+      data.push({
+        contact,
+        type,
+        latest_message: msg?.message || '',
+        latest_timestamp: msg?.created_at || null,
+        unread_count: unreadRes.rows[0].count,
+        latest_sender: msg?.sender || ''
+      })
     }
 
-    // Sort contacts: those with messages first, ordered by latest message timestamp DESC
+    // Sort contacts: those with messages first, ordered by latest message timestamp DESC, rest alphabetically
     data.sort((a, b) => {
-      if (!a.latest_timestamp) return 1
-      if (!b.latest_timestamp) return -1
-      return new Date(b.latest_timestamp).getTime() - new Date(a.latest_timestamp).getTime()
+      if (a.latest_timestamp && !b.latest_timestamp) return -1
+      if (!a.latest_timestamp && b.latest_timestamp) return 1
+      if (a.latest_timestamp && b.latest_timestamp) {
+        return new Date(b.latest_timestamp).getTime() - new Date(a.latest_timestamp).getTime()
+      }
+      return a.contact.localeCompare(b.contact)
     })
 
     return NextResponse.json({ success: true, data })

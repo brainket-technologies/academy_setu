@@ -26,13 +26,13 @@ interface MetaCounts {
 }
 
 const PARENT_OPTIONS = ['Students', 'Teacher', 'Employee', 'Billing', 'Technical', 'Account', 'Other']
-const SEGMENT_OPTIONS = ['School', 'College', 'Coaching', '10/01/2026', 'Other']
 
 export default function TicketCategoryPage() {
   const [categories, setCategories] = useState<TicketCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'all' | 'deleted'>('all')
   const [counts, setCounts] = useState<MetaCounts>({ active: 0, deleted: 0 })
+  const [segments, setSegments] = useState<{ id: string; name: string }[]>([])
 
   // Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -95,6 +95,14 @@ export default function TicketCategoryPage() {
   useEffect(() => {
     fetchCategories(activeTab)
   }, [fetchCategories, activeTab])
+
+  // Fetch real segments from DB on mount
+  useEffect(() => {
+    fetch('/api/admin/segment')
+      .then(r => r.json())
+      .then(data => { if (data.success) setSegments(data.data) })
+      .catch(() => {})
+  }, [])
 
   const handleApplyFilters = () => {
     setAppliedStartDate(filterStartDate)
@@ -311,7 +319,7 @@ export default function TicketCategoryPage() {
                 className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-600/10 transition-colors cursor-pointer shrink-0"
               >
                 <Plus className="w-4 h-4" />
-                Create Category
+                Create Subcategory
               </button>
             )}
           </div>
@@ -471,7 +479,7 @@ export default function TicketCategoryPage() {
             <button onClick={resetForm} className="absolute top-4 right-4 p-1 rounded-full text-slate-400 hover:bg-slate-50 transition-all cursor-pointer">
               <X className="w-5 h-5" />
             </button>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-6">{editingId ? 'Edit Category' : 'Create Category'}</h2>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-6">{editingId ? 'Edit Subcategory' : 'Create Subcategory'}</h2>
             
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -490,7 +498,7 @@ export default function TicketCategoryPage() {
                   <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Segment <span className="text-red-500">*</span></label>
                   <select value={segment} onChange={(e) => setSegment(e.target.value)} required className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
                     <option value="">Select an Option</option>
-                    {SEGMENT_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    {segments.map(seg => <option key={seg.id} value={seg.name}>{seg.name}</option>)}
                   </select>
                 </div>
               </div>
@@ -515,7 +523,7 @@ export default function TicketCategoryPage() {
 
               <button type="submit" disabled={submitting} className="mt-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-md flex justify-center items-center gap-2">
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editingId ? 'Update Category' : 'Create Category'}
+                {editingId ? 'Update Subcategory' : 'Create Subcategory'}
               </button>
             </form>
           </div>

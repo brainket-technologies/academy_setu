@@ -29,14 +29,8 @@ export function AdminSidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: 
   const menuItems: MenuItem[] = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/admin/dashboard' },
     { icon: Users, label: 'Segment', href: '/admin/segment' },
-    { 
-      icon: FileText, label: 'Application', href: '/admin/application',
-      subItems: [
-        { label: 'All Application', href: '/admin/application' },
-        { label: 'Create Application', href: '/admin/application/create' },
-      ]
-    },
-    { icon: School, label: 'Institute', href: '/admin/institute' },
+    { icon: FileText, label: 'Application', href: '/admin/application' },
+    { icon: School, label: 'Institutions', href: '/admin/institute' },
     { 
       icon: Calendar, label: 'Plan', href: '/admin/plan',
       subItems: [

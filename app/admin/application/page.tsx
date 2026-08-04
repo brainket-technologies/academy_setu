@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Search, Plus, Eye, Edit3, RefreshCw, X, MoreVertical, Loader2, Filter, ChevronDown, ChevronUp, UserCheck } from 'lucide-react'
+import { Search, Plus, Eye, Edit3, RefreshCw, X, MoreVertical, Loader2, Filter, ChevronDown, ChevronUp, UserCheck, Camera } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
@@ -47,6 +47,8 @@ export default function ApplicationPage() {
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isUpdateStatusModalOpen, setIsUpdateStatusModalOpen] = useState(false)
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
+  const [viewingApp, setViewingApp] = useState<any | null>(null)
 
   // Selected Record
   const [selectedApp, setSelectedApp] = useState<Application | null>(null)
@@ -59,12 +61,89 @@ export default function ApplicationPage() {
   const [isAssigning, setIsAssigning] = useState(false)
   const [filterAssignRole, setFilterAssignRole] = useState<'All' | 'Manager' | 'BDM'>('All')
 
+  // States and Districts for Dynamic Dropdowns
+  const [statesData, setStatesData] = useState<any[]>([])
+  const [districtsList, setDistrictsList] = useState<string[]>([])
+
+  useEffect(() => {
+    fetch('/api/admin/settings/state-city')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setStatesData(data.data)
+        }
+      })
+      .catch(err => console.error('Failed to load states/cities', err))
+  }, [])
+
+  const handleStateChange = (stateVal: string) => {
+    setStateName(stateVal)
+    const stateObj = statesData.find(s => s.state_name === stateVal)
+    if (stateObj) {
+      setDistrictsList(stateObj.districts || [])
+      setDistrictName('')
+    } else {
+      setDistrictsList([])
+      setDistrictName('')
+    }
+  }
+
   // Form States (Create & Edit)
   const [schoolName, setSchoolName] = useState('')
+  const [schoolCode, setSchoolCode] = useState('')
+  const [affiliatedTo, setAffiliatedTo] = useState('')
+  const [affiliationCode, setAffiliationCode] = useState('')
   const [contactPerson, setContactPerson] = useState('')
+  const [mobileNo, setMobileNo] = useState('')
+  const [emailId, setEmailId] = useState('')
+  const [address, setAddress] = useState('')
   const [stateName, setStateName] = useState('')
   const [districtName, setDistrictName] = useState('')
+  const [pincode, setPincode] = useState('')
+
+  const [principalName, setPrincipalName] = useState('')
+  const [principalGender, setPrincipalGender] = useState<'Male' | 'Female' | 'Others'>('Male')
+  const [principalSign, setPrincipalSign] = useState('')
+  const [principalPhoto, setPrincipalPhoto] = useState<string | null>(null)
+
+  const [directorName, setDirectorName] = useState('')
+  const [directorGender, setDirectorGender] = useState<'Male' | 'Female' | 'Others'>('Male')
+  const [directorSign, setDirectorSign] = useState('')
+  const [directorPhoto, setDirectorPhoto] = useState<string | null>(null)
+
   const [appStatus, setAppStatus] = useState<Application['status']>('Applied')
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'principal' | 'director') => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      if (target === 'principal') {
+        setPrincipalPhoto(reader.result as string)
+      } else {
+        setDirectorPhoto(reader.result as string)
+      }
+      toast.success('Photo uploaded successfully')
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleSignUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'principal' | 'director') => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      if (target === 'principal') {
+        setPrincipalSign(reader.result as string)
+      } else {
+        setDirectorSign(reader.result as string)
+      }
+      toast.success('Signature uploaded successfully')
+    }
+    reader.readAsDataURL(file)
+  }
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -148,7 +227,7 @@ export default function ApplicationPage() {
       fetchApplications()
     }, 500)
     return () => clearTimeout(timer)
-  }, [filterStatus, filterAssignedTo, filterState, filterDistrict, filterFromDate, filterToDate])
+  }, [searchText, filterStatus, filterAssignedTo, filterState, filterDistrict, filterFromDate, filterToDate])
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -182,10 +261,15 @@ export default function ApplicationPage() {
   // Create Application Action
   const handleCreateApplication = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!schoolName.trim() || !contactPerson.trim() || !stateName.trim() || !districtName.trim()) {
-      toast.error('Please fill in all fields')
-      return
-    }
+    if (!schoolName.trim()) { toast.error('School Name is required.'); return; }
+    if (!contactPerson.trim()) { toast.error('Contact Person Name is required.'); return; }
+    if (!mobileNo.trim()) { toast.error('Mobile Number is required.'); return; }
+    if (!address.trim()) { toast.error('Address is required.'); return; }
+    if (!stateName.trim()) { toast.error('State is required.'); return; }
+    if (!districtName.trim()) { toast.error('District is required.'); return; }
+    if (!pincode.trim()) { toast.error('Pincode is required.'); return; }
+    if (!principalName.trim()) { toast.error('Principal Name is required.'); return; }
+    if (!directorName.trim()) { toast.error('Director Name is required.'); return; }
 
     setSubmitting(true)
     try {
@@ -194,9 +278,24 @@ export default function ApplicationPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           school_name: schoolName.trim(),
+          school_code: schoolCode.trim(),
+          affiliated_to: affiliatedTo.trim(),
+          affiliation_code: affiliationCode.trim(),
           contact_person: contactPerson.trim(),
+          mobile_no: mobileNo.trim(),
+          email_id: emailId.trim(),
+          address: address.trim(),
           state: stateName.trim(),
           district: districtName.trim(),
+          pincode: pincode.trim(),
+          principal_name: principalName.trim(),
+          principal_gender: principalGender,
+          principal_sign: principalSign.trim(),
+          principal_photo: principalPhoto,
+          director_name: directorName.trim(),
+          director_gender: directorGender,
+          director_sign: directorSign.trim(),
+          director_photo: directorPhoto,
           status: appStatus
         })
       })
@@ -207,9 +306,24 @@ export default function ApplicationPage() {
         setIsCreateModalOpen(false)
         // Reset form
         setSchoolName('')
+        setSchoolCode('')
+        setAffiliatedTo('')
+        setAffiliationCode('')
         setContactPerson('')
+        setMobileNo('')
+        setEmailId('')
+        setAddress('')
         setStateName('')
         setDistrictName('')
+        setPincode('')
+        setPrincipalName('')
+        setPrincipalGender('Male')
+        setPrincipalSign('')
+        setPrincipalPhoto(null)
+        setDirectorName('')
+        setDirectorGender('Male')
+        setDirectorSign('')
+        setDirectorPhoto(null)
         setAppStatus('Applied')
         fetchApplications()
       } else {
@@ -223,15 +337,114 @@ export default function ApplicationPage() {
     }
   }
 
+  const handleCloseModal = () => {
+    setIsCreateModalOpen(false)
+    setSelectedApp(null)
+    setSchoolName('')
+    setSchoolCode('')
+    setAffiliatedTo('')
+    setAffiliationCode('')
+    setContactPerson('')
+    setMobileNo('')
+    setEmailId('')
+    setAddress('')
+    setStateName('')
+    setDistrictName('')
+    setPincode('')
+    setPrincipalName('')
+    setPrincipalGender('Male')
+    setPrincipalSign('')
+    setPrincipalPhoto(null)
+    setDirectorName('')
+    setDirectorGender('Male')
+    setDirectorSign('')
+    setDirectorPhoto(null)
+    setAppStatus('Applied')
+  }
+
+  const openEditModal = async (appId: string) => {
+    setActiveMenuId(null)
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/admin/application/${appId}`)
+      const data = await res.json()
+      if (data.success) {
+        const app = data.data
+        setSelectedApp(app)
+        setSchoolName(app.school_name || '')
+        setSchoolCode(app.school_code || '')
+        setAffiliatedTo(app.affiliated_to || '')
+        setAffiliationCode(app.affiliation_code || '')
+        setContactPerson(app.contact_person || '')
+        setMobileNo(app.mobile_no || '')
+        setEmailId(app.email_id || '')
+        setAddress(app.address || '')
+        setStateName(app.state || '')
+        
+        // Load districts for this state
+        const stateObj = statesData.find((s: any) => s.state_name === app.state)
+        if (stateObj) {
+          setDistrictsList(stateObj.districts || [])
+        } else {
+          setDistrictsList([])
+        }
+        setDistrictName(app.district || '')
+        setPincode(app.pincode || '')
+        setPrincipalName(app.principal_name || '')
+        setPrincipalGender(app.principal_gender || 'Male')
+        setPrincipalSign(app.principal_sign || '')
+        setPrincipalPhoto(app.principal_photo || null)
+        setDirectorName(app.director_name || '')
+        setDirectorGender(app.director_gender || 'Male')
+        setDirectorSign(app.director_sign || '')
+        setDirectorPhoto(app.director_photo || null)
+        setAppStatus(app.status)
+        setIsCreateModalOpen(true)
+      } else {
+        toast.error('Failed to load application details')
+      }
+    } catch (err) {
+      console.error('Failed to load application details', err)
+      toast.error('Something went wrong loading details')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const openViewModal = async (appId: string) => {
+    setActiveMenuId(null)
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/admin/application/${appId}`)
+      const data = await res.json()
+      if (data.success) {
+        setViewingApp(data.data)
+        setIsViewModalOpen(true)
+      } else {
+        toast.error('Failed to load application details')
+      }
+    } catch (err) {
+      console.error('Failed to load application details', err)
+      toast.error('Something went wrong loading details')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Edit Application Action
   const handleEditApplication = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedApp) return
 
-    if (!schoolName.trim() || !contactPerson.trim() || !stateName.trim() || !districtName.trim()) {
-      toast.error('Please fill in all fields')
-      return
-    }
+    if (!schoolName.trim()) { toast.error('School Name is required.'); return; }
+    if (!contactPerson.trim()) { toast.error('Contact Person Name is required.'); return; }
+    if (!mobileNo.trim()) { toast.error('Mobile Number is required.'); return; }
+    if (!address.trim()) { toast.error('Address is required.'); return; }
+    if (!stateName.trim()) { toast.error('State is required.'); return; }
+    if (!districtName.trim()) { toast.error('District is required.'); return; }
+    if (!pincode.trim()) { toast.error('Pincode is required.'); return; }
+    if (!principalName.trim()) { toast.error('Principal Name is required.'); return; }
+    if (!directorName.trim()) { toast.error('Director Name is required.'); return; }
 
     setSubmitting(true)
     try {
@@ -240,9 +453,24 @@ export default function ApplicationPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           school_name: schoolName.trim(),
+          school_code: schoolCode.trim(),
+          affiliated_to: affiliatedTo.trim(),
+          affiliation_code: affiliationCode.trim(),
           contact_person: contactPerson.trim(),
+          mobile_no: mobileNo.trim(),
+          email_id: emailId.trim(),
+          address: address.trim(),
           state: stateName.trim(),
           district: districtName.trim(),
+          pincode: pincode.trim(),
+          principal_name: principalName.trim(),
+          principal_gender: principalGender,
+          principal_sign: principalSign.trim(),
+          principal_photo: principalPhoto,
+          director_name: directorName.trim(),
+          director_gender: directorGender,
+          director_sign: directorSign.trim(),
+          director_photo: directorPhoto,
           status: appStatus
         })
       })
@@ -250,8 +478,7 @@ export default function ApplicationPage() {
       const resData = await response.json()
       if (resData.success) {
         toast.success('Application updated successfully')
-        setIsCreateModalOpen(false)
-        setSelectedApp(null)
+        handleCloseModal()
         fetchApplications()
       } else {
         toast.error(resData.error || 'Failed to update application')
@@ -448,13 +675,13 @@ export default function ApplicationPage() {
             >
               {showFilters ? <ChevronUp className="w-5 h-5" /> : <Filter className="w-5 h-5" />}
             </button>
-            <Link 
-              href="/admin/application/create"
+            <button 
+              onClick={() => setIsCreateModalOpen(true)}
               className="w-10 h-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center justify-center shadow-md shadow-indigo-600/10 cursor-pointer transition-colors shrink-0"
               title="Add Application"
             >
               <Plus className="w-5 h-5" />
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -681,20 +908,41 @@ export default function ApplicationPage() {
                             {app.status}
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-slate-600 dark:text-slate-300 text-xs font-semibold">
-                          {app.assigned_user_name ? (
-                            <span className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg w-fit">
-                              <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
-                              {app.assigned_user_name}
-                              {app.assigned_user_role && (
-                                <span className="ml-1 text-[10px] uppercase bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-500 dark:text-slate-400">
-                                  {app.assigned_user_role}
-                                </span>
-                              )}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 italic">Unassigned</span>
-                          )}
+                        <td className="px-5 py-4">
+                          <select
+                            value={app.assigned_to || ''}
+                            onChange={async (e) => {
+                              const userId = e.target.value;
+                              try {
+                                const res = await fetch('/api/admin/application/assign', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    application_ids: [app.id],
+                                    assigned_to: userId || null
+                                  })
+                                })
+                                const data = await res.json()
+                                if (data.success) {
+                                  toast.success('Successfully updated assignment')
+                                  fetchApplications()
+                                } else {
+                                  toast.error(data.error || 'Failed to assign application')
+                                }
+                              } catch (err) {
+                                console.error('Inline assign error:', err)
+                                toast.error('Error during assignment')
+                              }
+                            }}
+                            className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-xs font-semibold outline-none cursor-pointer text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm w-36 hover:bg-slate-100 dark:hover:bg-slate-600/50"
+                          >
+                            <option value="">Unassigned</option>
+                            {assignableUsers.map((user: any) => (
+                              <option key={user.id} value={user.id}>
+                                {user.name} ({user.role})
+                              </option>
+                            ))}
+                          </select>
                         </td>
                         <td className="px-5 py-4 text-center relative">
                           <button
@@ -732,14 +980,14 @@ export default function ApplicationPage() {
                                 Assign Application
                               </button>
                               <button
-                                onClick={() => goToDetailsPage(app)}
+                                onClick={() => openViewModal(app.id)}
                                 className="w-full px-4 py-2.5 hover:bg-[#f0f9ff] dark:hover:bg-slate-600 text-blue-600 dark:text-blue-400 font-bold text-xs flex items-center gap-2.5 transition-colors cursor-pointer"
                               >
                                 <Eye className="w-4 h-4 shrink-0 text-blue-500" />
                                 View Details
                               </button>
                               <button
-                                onClick={() => goToDetailsPage(app)}
+                                onClick={() => openEditModal(app.id)}
                                 className="w-full px-4 py-2.5 hover:bg-[#f0f9ff] dark:hover:bg-slate-600 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center gap-2.5 transition-colors cursor-pointer"
                               >
                                 <Edit3 className="w-4 h-4 shrink-0 text-emerald-500" />
@@ -830,91 +1078,414 @@ export default function ApplicationPage() {
 
       {/* Modal 1: Create Application */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg p-6 border border-slate-100 dark:border-slate-700 shadow-2xl relative animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-4xl p-8 border border-slate-100 dark:border-slate-700 shadow-2xl relative my-8 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <button 
-              onClick={() => setIsCreateModalOpen(false)}
-              className="absolute top-4 right-4 p-1 rounded-full text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-all cursor-pointer"
+              onClick={handleCloseModal}
+              className="absolute top-5 right-5 p-1.5 rounded-full text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-all cursor-pointer border border-slate-200 dark:border-slate-600"
             >
               <X className="w-5 h-5" />
             </button>
-            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-6">New Application</h3>
-            <form onSubmit={handleCreateApplication} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">School Name</label>
-                <input
-                  type="text"
-                  placeholder="Enter School Name"
-                  value={schoolName}
-                  onChange={(e) => setSchoolName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                  required
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Contact Person</label>
-                <input
-                  type="text"
-                  placeholder="Enter Contact Person"
-                  value={contactPerson}
-                  onChange={(e) => setContactPerson(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">State</label>
+            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-6 border-b border-slate-100 dark:border-slate-700 pb-3">
+              {selectedApp ? 'Edit Application' : 'New Application'}
+            </h3>
+            <form onSubmit={selectedApp ? handleEditApplication : handleCreateApplication} className="flex flex-col gap-6">
+              <div className="flex flex-col gap-5">
+                {/* School Name */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    School Name <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
-                    placeholder="Enter State"
-                    value={stateName}
-                    onChange={(e) => setStateName(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                    placeholder="Enter School Name"
+                    value={schoolName}
+                    onChange={(e) => setSchoolName(e.target.value)}
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     required
                   />
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">District</label>
+
+                {/* Code grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">School Code</label>
+                    <input
+                      type="text"
+                      placeholder="Enter School Code"
+                      value={schoolCode}
+                      onChange={(e) => setSchoolCode(e.target.value)}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Affiliated To</label>
+                    <input
+                      type="text"
+                      placeholder="Enter Affiliated to"
+                      value={affiliatedTo}
+                      onChange={(e) => setAffiliatedTo(e.target.value)}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Affiliation Code</label>
+                    <input
+                      type="text"
+                      placeholder="Enter Affiliation Code"
+                      value={affiliationCode}
+                      onChange={(e) => setAffiliationCode(e.target.value)}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Contact grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      Contact Person Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Enter Contact Person Name"
+                      value={contactPerson}
+                      onChange={(e) => setContactPerson(e.target.value)}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                      required
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      Mobile No. <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Enter Mobile No."
+                      value={mobileNo}
+                      onChange={(e) => setMobileNo(e.target.value)}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                      required
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Email ID</label>
+                    <input
+                      type="email"
+                      placeholder="Enter Email ID"
+                      value={emailId}
+                      onChange={(e) => setEmailId(e.target.value)}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Address */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    Address <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
-                    placeholder="Enter District"
-                    value={districtName}
-                    onChange={(e) => setDistrictName(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                    placeholder="Enter School Address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     required
                   />
                 </div>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Status</label>
-                <select
-                  value={appStatus}
-                  onChange={(e) => setAppStatus(e.target.value as Application['status'])}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
-                >
-                  <option value="Applied">Applied</option>
-                  <option value="Generate">Generate</option>
-                  <option value="Requested">Requested</option>
-                  <option value="Completed">Completed</option>
-                </select>
+
+                {/* Location Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      State <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={stateName}
+                      onChange={(e) => handleStateChange(e.target.value)}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
+                      required
+                    >
+                      <option value="">Select State</option>
+                      {statesData.map((s: any) => (
+                        <option key={s.id} value={s.state_name}>
+                          {s.state_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      District <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={districtName}
+                      onChange={(e) => setDistrictName(e.target.value)}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
+                      required
+                      disabled={!stateName}
+                    >
+                      <option value="">Select District</option>
+                      {districtsList.map((dist: string) => (
+                        <option key={dist} value={dist}>
+                          {dist}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      Pincode <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Enter Pincode"
+                      value={pincode}
+                      onChange={(e) => setPincode(e.target.value)}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Professional Signatures / Photo blocks */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                  {/* Principal Details Panel */}
+                  <div className="bg-slate-50/50 dark:bg-slate-700/30 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 flex gap-4">
+                    <div className="flex-1 flex flex-col gap-3">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                          Principal Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Enter Principal Name"
+                          value={principalName}
+                          onChange={(e) => setPrincipalName(e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                          required
+                        />
+                      </div>
+                      
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Gender</span>
+                        <div className="flex gap-4 mt-1">
+                          {['Male', 'Female', 'Others'].map(g => (
+                            <label key={g} className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer">
+                              <input 
+                                type="radio" 
+                                name="principal_gender" 
+                                value={g}
+                                checked={principalGender === g}
+                                onChange={() => setPrincipalGender(g as any)}
+                                className="text-indigo-600 focus:ring-indigo-500"
+                              />
+                              {g}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Principal Sign.</span>
+                        <div className="h-16 bg-white dark:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-600 flex items-center justify-center relative overflow-hidden shadow-inner group">
+                          {principalSign ? (
+                            <>
+                              <img src={principalSign} alt="Principal Signature" className="h-full object-contain" />
+                              <button
+                                type="button"
+                                onClick={() => setPrincipalSign('')}
+                                className="absolute top-1 right-1 p-1 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors z-10 cursor-pointer shadow-sm"
+                                title="Remove Signature"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">No signature uploaded</span>
+                          )}
+                        </div>
+                        <label className="w-full py-1.5 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-[10px] font-bold text-slate-500 dark:text-slate-400 text-center transition-colors cursor-pointer block shadow-sm">
+                          Upload Signature
+                          <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={(e) => handleSignUpload(e, 'principal')}
+                            className="hidden" 
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Principal Photo Card */}
+                    <div className="w-32 flex flex-col gap-2 shrink-0">
+                      <div className="h-32 bg-white dark:bg-slate-700 rounded-2xl border border-slate-200 dark:border-slate-600 flex flex-col items-center justify-center relative overflow-hidden shadow-inner group">
+                        {principalPhoto ? (
+                          <>
+                            <img src={principalPhoto} alt="Principal" className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => setPrincipalPhoto(null)}
+                              className="absolute top-1.5 right-1.5 p-1 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors z-10 cursor-pointer shadow-sm"
+                              title="Remove Photo"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center gap-1 text-slate-400">
+                            <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/40 rounded-xl text-indigo-600 dark:text-indigo-400">
+                              <Camera className="w-5 h-5" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <label className="w-full py-1.5 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-[10px] font-bold text-slate-500 dark:text-slate-400 text-center transition-colors cursor-pointer block shadow-sm">
+                        Upload Photo
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={(e) => handlePhotoUpload(e, 'principal')}
+                          className="hidden" 
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Director Details Panel */}
+                  <div className="bg-slate-50/50 dark:bg-slate-700/30 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 flex gap-4">
+                    <div className="flex-1 flex flex-col gap-3">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                          Director Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Enter Director Name"
+                          value={directorName}
+                          onChange={(e) => setDirectorName(e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                          required
+                        />
+                      </div>
+                      
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Gender</span>
+                        <div className="flex gap-4 mt-1">
+                          {['Male', 'Female', 'Others'].map(g => (
+                            <label key={g} className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer">
+                              <input 
+                                type="radio" 
+                                name="director_gender" 
+                                value={g}
+                                checked={directorGender === g}
+                                onChange={() => setDirectorGender(g as any)}
+                                className="text-indigo-600 focus:ring-indigo-500"
+                              />
+                              {g}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Director Sign.</span>
+                        <div className="h-16 bg-white dark:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-600 flex items-center justify-center relative overflow-hidden shadow-inner group">
+                          {directorSign ? (
+                            <>
+                              <img src={directorSign} alt="Director Signature" className="h-full object-contain" />
+                              <button
+                                type="button"
+                                onClick={() => setDirectorSign('')}
+                                className="absolute top-1 right-1 p-1 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors z-10 cursor-pointer shadow-sm"
+                                title="Remove Signature"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">No signature uploaded</span>
+                          )}
+                        </div>
+                        <label className="w-full py-1.5 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-[10px] font-bold text-slate-500 dark:text-slate-400 text-center transition-colors cursor-pointer block shadow-sm">
+                          Upload Signature
+                          <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={(e) => handleSignUpload(e, 'director')}
+                            className="hidden" 
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Director Photo Card */}
+                    <div className="w-32 flex flex-col gap-2 shrink-0">
+                      <div className="h-32 bg-white dark:bg-slate-700 rounded-2xl border border-slate-200 dark:border-slate-600 flex flex-col items-center justify-center relative overflow-hidden shadow-inner group">
+                        {directorPhoto ? (
+                          <>
+                            <img src={directorPhoto} alt="Director" className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => setDirectorPhoto(null)}
+                              className="absolute top-1.5 right-1.5 p-1 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors z-10 cursor-pointer shadow-sm"
+                              title="Remove Photo"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center gap-1 text-slate-400">
+                            <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/40 rounded-xl text-indigo-600 dark:text-indigo-400">
+                              <Camera className="w-5 h-5" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <label className="w-full py-1.5 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-[10px] font-bold text-slate-500 dark:text-slate-400 text-center transition-colors cursor-pointer block shadow-sm">
+                        Upload Photo
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={(e) => handlePhotoUpload(e, 'director')}
+                          className="hidden" 
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Status</label>
+                  <select
+                    value={appStatus}
+                    onChange={(e) => setAppStatus(e.target.value as Application['status'])}
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
+                  >
+                    <option value="Applied">Applied</option>
+                    <option value="Generate">Generate</option>
+                    <option value="Requested">Requested</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="flex gap-3 mt-4">
+              <div className="flex gap-4 border-t border-slate-100 dark:border-slate-700 pt-6 mt-4 justify-end">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="px-8 py-2.5 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm cursor-pointer"
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center justify-center gap-2"
+                  className="px-10 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center justify-center gap-2"
                 >
                   {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Save Application
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsCreateModalOpen(false)}
-                  className="flex-1 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 rounded-xl font-bold text-sm transition-all cursor-pointer"
-                >
-                  Cancel
+                  {selectedApp ? 'Save' : 'Create'}
                 </button>
               </div>
             </form>
@@ -1006,29 +1577,6 @@ export default function ApplicationPage() {
             </div>
             
             <form onSubmit={handleBulkAssign} className="p-6 flex flex-col gap-5">
-              <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-4">
-                <span className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Filter by Role:</span>
-                <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
-                  {['All', 'Manager', 'BDM'].map(role => (
-                    <button
-                      key={role}
-                      type="button"
-                      onClick={() => {
-                        setFilterAssignRole(role as 'All' | 'Manager' | 'BDM')
-                        setSelectedAssignee('')
-                      }}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${
-                        filterAssignRole === role
-                          ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-                      }`}
-                    >
-                      {role}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
                   Select User
@@ -1039,9 +1587,7 @@ export default function ApplicationPage() {
                   className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                 >
                   <option value="">-- Unassign / Select a User --</option>
-                  {assignableUsers
-                    .filter(u => filterAssignRole === 'All' || u.role === filterAssignRole)
-                    .map(user => (
+                  {assignableUsers.map(user => (
                     <option key={user.id} value={user.id}>
                       {user.name} ({user.role})
                     </option>
@@ -1073,6 +1619,176 @@ export default function ApplicationPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 4: View Application Details */}
+      {isViewModalOpen && viewingApp && (
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-4xl p-8 border border-slate-100 dark:border-slate-700 shadow-2xl relative my-8 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            <button 
+              onClick={() => {
+                setIsViewModalOpen(false)
+                setViewingApp(null)
+              }}
+              className="absolute top-5 right-5 p-1.5 rounded-full text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-all cursor-pointer border border-slate-200 dark:border-slate-600"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-6 border-b border-slate-100 dark:border-slate-700 pb-3">
+              Application Details - <span className="text-indigo-600 dark:text-indigo-400">{viewingApp.application_no}</span>
+            </h3>
+
+            <div className="flex flex-col gap-6 text-sm">
+              {/* Section 1: Institution Info */}
+              <div className="bg-slate-50/50 dark:bg-slate-900/40 rounded-xl p-5 border border-slate-100 dark:border-slate-700 flex flex-col gap-4">
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 border-b border-slate-200/60 dark:border-slate-700/60 pb-2">School & Contact Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 uppercase">School Name</span>
+                    <p className="font-semibold text-slate-700 dark:text-slate-200">{viewingApp.school_name || '-'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 uppercase">School Code</span>
+                    <p className="font-semibold text-slate-700 dark:text-slate-200">{viewingApp.school_code || '-'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 uppercase">Affiliated To</span>
+                    <p className="font-semibold text-slate-700 dark:text-slate-200">{viewingApp.affiliated_to || '-'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 uppercase">Affiliation Code</span>
+                    <p className="font-semibold text-slate-700 dark:text-slate-200">{viewingApp.affiliation_code || '-'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 uppercase">Contact Person</span>
+                    <p className="font-semibold text-slate-700 dark:text-slate-200">{viewingApp.contact_person || '-'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 uppercase">Mobile No.</span>
+                    <p className="font-semibold text-slate-700 dark:text-slate-200">{viewingApp.mobile_no || '-'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 uppercase">Email ID</span>
+                    <p className="font-semibold text-slate-700 dark:text-slate-200">{viewingApp.email_id || '-'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 uppercase">Address</span>
+                    <p className="font-semibold text-slate-700 dark:text-slate-200">{viewingApp.address || '-'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 uppercase">State</span>
+                    <p className="font-semibold text-slate-700 dark:text-slate-200">{viewingApp.state || '-'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 uppercase">District</span>
+                    <p className="font-semibold text-slate-700 dark:text-slate-200">{viewingApp.district || '-'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 uppercase">Pincode</span>
+                    <p className="font-semibold text-slate-700 dark:text-slate-200">{viewingApp.pincode || '-'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 uppercase">Status</span>
+                    <p className="font-semibold text-slate-700 dark:text-slate-200 uppercase tracking-wider">{viewingApp.status || '-'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Principal & Director Details */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Principal Info */}
+                <div className="bg-slate-50/50 dark:bg-slate-900/40 rounded-xl p-5 border border-slate-100 dark:border-slate-700 flex flex-col gap-4">
+                  <h4 className="font-bold text-slate-800 dark:text-slate-200 border-b border-slate-200/60 dark:border-slate-700/60 pb-2">Principal Details</h4>
+                  <div className="flex gap-4">
+                    <div className="flex-1 flex flex-col gap-3">
+                      <div>
+                        <span className="text-xs font-bold text-slate-400 uppercase">Name</span>
+                        <p className="font-semibold text-slate-700 dark:text-slate-200">{viewingApp.principal_name || '-'}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-slate-400 uppercase">Gender</span>
+                        <p className="font-semibold text-slate-700 dark:text-slate-200">{viewingApp.principal_gender || '-'}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-slate-400 uppercase">Signature</span>
+                        <div className="h-16 mt-1 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 flex items-center justify-center overflow-hidden">
+                          {viewingApp.principal_sign ? (
+                            <img src={viewingApp.principal_sign} alt="Principal Signature" className="h-full object-contain" />
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">No signature uploaded</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="w-24 shrink-0 flex flex-col gap-1.5">
+                      <span className="text-xs font-bold text-slate-400 uppercase">Photo</span>
+                      <div className="h-24 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 flex items-center justify-center overflow-hidden">
+                        {viewingApp.principal_photo ? (
+                          <img src={viewingApp.principal_photo} alt="Principal" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">No Photo</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Director Info */}
+                <div className="bg-slate-50/50 dark:bg-slate-900/40 rounded-xl p-5 border border-slate-100 dark:border-slate-700 flex flex-col gap-4">
+                  <h4 className="font-bold text-slate-800 dark:text-slate-200 border-b border-slate-200/60 dark:border-slate-700/60 pb-2">Director Details</h4>
+                  <div className="flex gap-4">
+                    <div className="flex-1 flex flex-col gap-3">
+                      <div>
+                        <span className="text-xs font-bold text-slate-400 uppercase">Name</span>
+                        <p className="font-semibold text-slate-700 dark:text-slate-200">{viewingApp.director_name || '-'}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-slate-400 uppercase">Gender</span>
+                        <p className="font-semibold text-slate-700 dark:text-slate-200">{viewingApp.director_gender || '-'}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-slate-400 uppercase">Signature</span>
+                        <div className="h-16 mt-1 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 flex items-center justify-center overflow-hidden">
+                          {viewingApp.director_sign ? (
+                            <img src={viewingApp.director_sign} alt="Director Signature" className="h-full object-contain" />
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">No signature uploaded</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="w-24 shrink-0 flex flex-col gap-1.5">
+                      <span className="text-xs font-bold text-slate-400 uppercase">Photo</span>
+                      <div className="h-24 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 flex items-center justify-center overflow-hidden">
+                        {viewingApp.director_photo ? (
+                          <img src={viewingApp.director_photo} alt="Director" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">No Photo</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-4 border-t border-slate-100 dark:border-slate-700 pt-6 mt-6">
+              <button
+                onClick={() => {
+                  setIsViewModalOpen(false)
+                  setViewingApp(null)
+                }}
+                className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-colors cursor-pointer shadow-md shadow-indigo-600/10"
+              >
+                Close
+              </button>
+            </div>
+
           </div>
         </div>
       )}

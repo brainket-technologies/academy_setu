@@ -57,7 +57,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       no_of_students, students_fee_relaxation, additional_charge_per_student,
       first_billing_duration, first_billing_items,
       renewal_billing_duration, renewal_pre_bill_generate_days,
-      renewal_payment_relaxation, renewal_billing_items, status
+      renewal_payment_relaxation, renewal_billing_items, status,
+      menus, brochure_url
     } = body
 
     const result = await pool.query(
@@ -75,15 +76,17 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         renewal_pre_bill_generate_days = COALESCE($11, renewal_pre_bill_generate_days),
         renewal_payment_relaxation = COALESCE($12, renewal_payment_relaxation),
         status = COALESCE($13, status),
+        menus = COALESCE($14, menus),
+        brochure_url = COALESCE($15, brochure_url),
         updated_at = NOW()
-      WHERE id = $14
+      WHERE id = $16
       RETURNING *`,
       [
         segment, applied_by, plan_for, plan_name, description,
         no_of_students, students_fee_relaxation, additional_charge_per_student,
         first_billing_duration,
         renewal_billing_duration, renewal_pre_bill_generate_days,
-        renewal_payment_relaxation, status, id
+        renewal_payment_relaxation, status, menus, brochure_url, id
       ]
     )
 

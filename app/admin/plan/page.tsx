@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { Search, Plus, Edit3, Trash2, Filter, Loader2, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react'
+import { Search, Plus, Edit3, Trash2, Filter, Loader2, ChevronLeft, ChevronRight, ChevronUp, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
+import { CopyPlanModal } from '@/components/CopyPlanModal'
 
 interface Plan {
   id: string
@@ -41,6 +42,11 @@ export default function AllPlanPage() {
   // Delete modal states
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+
+  // Copy modal states
+  const [copyTargetId, setCopyTargetId] = useState<string | null>(null)
+  const [copyTargetName, setCopyTargetName] = useState('')
+  const [copyLoading, setCopyLoading] = useState(false)
 
   const [showFilters, setShowFilters] = useState(false)
   const [filterSegment, setFilterSegment] = useState('')
@@ -126,6 +132,32 @@ export default function AllPlanPage() {
     } finally {
       setDeleteLoading(false)
       setDeleteTargetId(null)
+    }
+  }
+
+  const handleConfirmCopy = async (newName: string) => {
+    if (!copyTargetId) return
+    setCopyLoading(true)
+    try {
+      const res = await fetch(`/api/admin/plan/${copyTargetId}/copy`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ new_plan_name: newName })
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Plan copied successfully')
+        fetchPlans(currentPage, searchText, segmentFilter)
+      } else {
+        toast.error(data.error || 'Failed to copy plan')
+      }
+    } catch {
+      toast.error('Something went wrong')
+    } finally {
+      setCopyLoading(false)
+      setCopyTargetId(null)
     }
   }
 
@@ -232,7 +264,7 @@ export default function AllPlanPage() {
                 <tr>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">S.No.</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Plan Name</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Service Name</th>
+                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Segment Name</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Created At</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 text-center">Action</th>
                 </tr>
@@ -267,6 +299,16 @@ export default function AllPlanPage() {
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => {
+                                setCopyTargetId(plan.id)
+                                setCopyTargetName(plan.plan_name)
+                              }}
+                              className="w-7 h-7 flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/40 hover:bg-indigo-200 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 rounded-lg transition-colors cursor-pointer"
+                              title="Copy Plan"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
                             <Link
                               href={`/admin/plan/${plan.id}/edit`}
                               className="w-7 h-7 flex items-center justify-center bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 rounded-lg transition-colors cursor-pointer"
@@ -352,6 +394,14 @@ export default function AllPlanPage() {
         loading={deleteLoading}
         title="Delete Plan"
         description="Are you sure you want to delete this plan? This action cannot be undone."
+      />
+
+      <CopyPlanModal
+        isOpen={copyTargetId !== null}
+        onClose={() => setCopyTargetId(null)}
+        onConfirm={handleConfirmCopy}
+        originalPlanName={copyTargetName}
+        loading={copyLoading}
       />
     </>
   )

@@ -27,10 +27,10 @@ interface Segment {
   name: string
 }
 
-interface Application {
+interface InstituteOption {
   id: string
-  school_name: string
-  plan: string
+  name: string
+  segment_name?: string | null
 }
 
 interface Plan {
@@ -136,7 +136,7 @@ function BillingDashboardContent() {
 
   // Options States
   const [segments, setSegments] = useState<Segment[]>([])
-  const [schools, setSchools] = useState<Application[]>([])
+  const [schools, setSchools] = useState<InstituteOption[]>([])
   const [plans, setPlans] = useState<Plan[]>([])
 
   // Inline editing inside History
@@ -148,7 +148,7 @@ function BillingDashboardContent() {
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().substring(0, 10))
   const [amount, setAmount] = useState('')
   const [transactionId, setTransactionId] = useState('')
-  const [status, setStatus] = useState('Paid')
+  const [status, setStatus] = useState('Pending')
   const [submitting, setSubmitting] = useState(false)
 
   // Delete modal states
@@ -196,7 +196,7 @@ function BillingDashboardContent() {
         setSegments(segmentData.data)
       }
 
-      const schoolRes = await fetch('/api/admin/application')
+      const schoolRes = await fetch('/api/admin/institute')
       const schoolData = await schoolRes.json()
       if (schoolData.success) {
         setSchools(schoolData.data)
@@ -389,7 +389,7 @@ function BillingDashboardContent() {
 
       const finalVal = paymentModeOption === 'gateway' ? getFinalAmount() : parseFloat(manualAmount)
       const finalTxn = paymentModeOption === 'gateway' ? `TXN${Math.floor(100000 + Math.random() * 900000)}` : txnId
-      const finalStatus = paymentModeOption === 'gateway' ? 'Pending' : 'Paid'
+      const finalStatus = 'Pending'
 
       const res = await fetch('/api/admin/billing', {
         method: 'POST',
@@ -551,11 +551,6 @@ function BillingDashboardContent() {
     toast.info(`Generating checkout link for ${gatewayName}...`)
   }
 
-  const filteredSchools = schools.filter(app => {
-    if (!formSegment) return true
-    const appPlan = plans.find(p => p.plan_name === app.plan)
-    return appPlan ? appPlan.segment === formSegment : true
-  })
 
   const filteredPlans = plans.filter(p => !formSegment || p.segment === formSegment)
 
@@ -651,20 +646,26 @@ function BillingDashboardContent() {
                       <select
                         value={selectedSchool}
                         onChange={e => {
-                          setSelectedSchool(e.target.value)
+                          const val = e.target.value
+                          setSelectedSchool(val)
                           setIsSubmitted(false)
+                          const found = schools.find(s => s.name === val)
+                          if (found && found.segment_name) {
+                            setSelectedSegment(found.segment_name)
+                          }
                         }}
                         className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
                         required
-                        disabled={!selectedSegment}
                       >
                         <option value="">Select School</option>
-                        {Array.from(new Set(schools.filter(s => {
-                          const appPlan = plans.find(p => p.plan_name === s.plan)
-                          return !selectedSegment || (appPlan ? appPlan.segment === selectedSegment : true)
-                        }).map(s => s.school_name))).map(name => (
-                          <option key={name} value={name}>{name}</option>
-                        ))}
+                        {schools
+                          .filter(s => !selectedSegment || s.segment_name === selectedSegment || !s.segment_name)
+                          .map(s => (
+                            <option key={s.id} value={s.name}>
+                              {s.name} {s.segment_name ? `(${s.segment_name})` : '(No Segment)'}
+                            </option>
+                          ))
+                        }
                       </select>
                     </div>
                   </div>
@@ -1234,9 +1235,12 @@ function BillingDashboardContent() {
                       required
                     >
                       <option value="">Select School</option>
-                      {Array.from(new Set(filteredSchools.map(s => s.school_name))).map(name => (
-                        <option key={name} value={name}>{name}</option>
-                      ))}
+                      {schools
+                        .filter(s => !formSegment || s.segment_name === formSegment || !s.segment_name)
+                        .map(s => (
+                          <option key={s.id} value={s.name}>{s.name}</option>
+                        ))
+                      }
                     </select>
                   </div>
 
@@ -1379,7 +1383,7 @@ function BillingDashboardContent() {
                     className="w-full px-4 py-2.5 bg-slate-55 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
                   >
                     <option value="">Select School</option>
-                    {Array.from(new Set(schools.map(s => s.school_name))).map(name => (
+                    {Array.from(new Set(schools.map(s => s.name))).map(name => (
                       <option key={name} value={name}>{name}</option>
                     ))}
                   </select>

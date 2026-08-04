@@ -7,15 +7,47 @@ export async function GET(request: Request) {
   const search = searchParams.get('search') || ''
   const state = searchParams.get('state') || ''
   const district = searchParams.get('district') || ''
+  const segment = searchParams.get('segment') || ''
+  const plan = searchParams.get('plan') || ''
+  const planStatus = searchParams.get('plan_status') || '' // active | expired | expiring_soon
 
   try {
     let query = `
       SELECT 
         i.id, i.name, i.code, i.contact_person, i.mobile_no, i.email_id,
-        i.state, i.district, i.status, i.created_at,
-        u.name as assigned_user_name
+        i.state, i.district, i.status, i.created_at, i.segment_id,
+        u.name as assigned_user_name,
+        COALESCE(s.name, p_bill.segment, p_app.segment, p_seg.segment) as segment_name,
+        COALESCE(p_bill.plan_name, p_app.plan_name) as active_plan_name,
+        p_bill.plan_expiry_date as plan_expiry_date
       FROM institutions i
       LEFT JOIN admins u ON i.assigned_to = u.id
+      LEFT JOIN segments s ON i.segment_id = s.id
+      LEFT JOIN LATERAL (
+        SELECT b.plan_name, pl.segment,
+          (b.payment_date + (COALESCE(pl.first_billing_duration, 365) || ' days')::interval)::date AS plan_expiry_date
+        FROM bills b 
+        LEFT JOIN plans pl ON b.plan_id = pl.id
+        WHERE b.institution_id = i.id AND b.status = 'Paid' 
+        ORDER BY b.created_at DESC 
+        LIMIT 1
+      ) p_bill ON true
+      LEFT JOIN LATERAL (
+        SELECT pl.plan_name, pl.segment 
+        FROM applications ap 
+        JOIN plans pl ON ap.plan_id = pl.id 
+        WHERE ap.institution_id = i.id AND ap.status = 'Completed' 
+        ORDER BY ap.created_at DESC 
+        LIMIT 1
+      ) p_app ON true
+      LEFT JOIN LATERAL (
+        SELECT pl.segment 
+        FROM applications ap 
+        JOIN plans pl ON ap.plan_id = pl.id 
+        WHERE ap.institution_id = i.id
+        ORDER BY ap.created_at DESC 
+        LIMIT 1
+      ) p_seg ON true
       WHERE i.status = 'Active'
     `
     const values: any[] = []
@@ -30,9 +62,28 @@ export async function GET(request: Request) {
       query += ` AND i.district ILIKE $${values.length}`
     }
 
+    if (segment) {
+      values.push(segment)
+      query += ` AND i.segment_id = $${values.length}`
+    }
+
+    if (plan) {
+      values.push(plan)
+      query += ` AND (p_bill.plan_name = $${values.length} OR p_app.plan_name = $${values.length})`
+    }
+
     if (search) {
       values.push(`%${search}%`)
       query += ` AND (i.name ILIKE $${values.length} OR i.contact_person ILIKE $${values.length} OR i.email_id ILIKE $${values.length})`
+    }
+
+    // Plan status filter (uses computed expiry)
+    if (planStatus === 'active') {
+      query += ` AND p_bill.plan_expiry_date IS NOT NULL AND p_bill.plan_expiry_date >= CURRENT_DATE`
+    } else if (planStatus === 'expired') {
+      query += ` AND p_bill.plan_expiry_date IS NOT NULL AND p_bill.plan_expiry_date < CURRENT_DATE`
+    } else if (planStatus === 'expiring_soon') {
+      query += ` AND p_bill.plan_expiry_date IS NOT NULL AND p_bill.plan_expiry_date >= CURRENT_DATE AND p_bill.plan_expiry_date <= (CURRENT_DATE + INTERVAL '30 days')`
     }
 
     query += ' ORDER BY i.created_at DESC'
