@@ -14,7 +14,10 @@ interface Application {
   contact_person: string
   state: string
   district: string
-  status: 'Applied' | 'Generate' | 'Requested' | 'Completed'
+  status: 'Applied' | 'Pending' | 'Paid' | 'Unpaid' | 'Active' | 'Inactive' | 'Generate' | 'Requested' | 'Completed'
+  enquiry_status?: string | null
+  plan_id?: string | null
+  promo_code?: string | null
   created_at: string
   assigned_to?: string | null
   assigned_user_name?: string | null
@@ -112,6 +115,11 @@ export default function ApplicationPage() {
   const [directorPhoto, setDirectorPhoto] = useState<string | null>(null)
 
   const [appStatus, setAppStatus] = useState<Application['status']>('Applied')
+  const [enquiryStatus, setEnquiryStatus] = useState<string>('Applied')
+  const [plan, setPlan] = useState<string>('')
+  const [promoCode, setPromoCode] = useState<string>('')
+  const [plans, setPlans] = useState<any[]>([])
+  const [promoCodes, setPromoCodes] = useState<any[]>([])
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'principal' | 'director') => {
     const file = e.target.files?.[0]
@@ -215,9 +223,25 @@ export default function ApplicationPage() {
     }
   }
 
+  const fetchPlansAndPromoCodes = async () => {
+    try {
+      const [planRes, promoRes] = await Promise.all([
+        fetch('/api/admin/plan?pageSize=100'),
+        fetch('/api/admin/promo-code?pageSize=100')
+      ])
+      const planData = await planRes.json()
+      const promoData = await promoRes.json()
+      if (planData.success) setPlans(planData.data)
+      if (promoData.success) setPromoCodes(promoData.data)
+    } catch (err) {
+      console.error('Failed to load plans or promo codes', err)
+    }
+  }
+
   useEffect(() => {
     fetchApplications()
     fetchAssignableUsers()
+    fetchPlansAndPromoCodes()
   }, [activeTab])
 
   // Auto-apply filters when they change (with a small debounce for text inputs)
@@ -296,7 +320,10 @@ export default function ApplicationPage() {
           director_gender: directorGender,
           director_sign: directorSign.trim(),
           director_photo: directorPhoto,
-          status: appStatus
+          status: appStatus,
+          enquiry_status: enquiryStatus,
+          plan: plan,
+          promo_code: promoCode
         })
       })
 
@@ -360,8 +387,11 @@ export default function ApplicationPage() {
     setDirectorSign('')
     setDirectorPhoto(null)
     setAppStatus('Applied')
+    setEnquiryStatus('Applied')
+    setPlan('')
+    setPromoCode('')
   }
-
+ 
   const openEditModal = async (appId: string) => {
     setActiveMenuId(null)
     setLoading(true)
@@ -398,7 +428,10 @@ export default function ApplicationPage() {
         setDirectorGender(app.director_gender || 'Male')
         setDirectorSign(app.director_sign || '')
         setDirectorPhoto(app.director_photo || null)
-        setAppStatus(app.status)
+        setAppStatus(app.status || 'Applied')
+        setEnquiryStatus(app.enquiry_status || 'Applied')
+        setPlan(app.plan_id || '')
+        setPromoCode(app.promo_code || '')
         setIsCreateModalOpen(true)
       } else {
         toast.error('Failed to load application details')
@@ -471,7 +504,10 @@ export default function ApplicationPage() {
           director_gender: directorGender,
           director_sign: directorSign.trim(),
           director_photo: directorPhoto,
-          status: appStatus
+          status: appStatus,
+          enquiry_status: enquiryStatus,
+          plan_id: plan || null,
+          promo_code: promoCode
         })
       })
 
@@ -501,7 +537,12 @@ export default function ApplicationPage() {
       const response = await fetch(`/api/admin/application/${selectedApp.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: appStatus })
+        body: JSON.stringify({ 
+          status: appStatus,
+          enquiry_status: enquiryStatus,
+          plan_id: appStatus === 'Pending' ? (plan || null) : null,
+          promo_code: appStatus === 'Pending' ? promoCode : ''
+        })
       })
 
       const resData = await response.json()
@@ -591,6 +632,9 @@ export default function ApplicationPage() {
   const openUpdateStatusModal = (app: Application) => {
     setSelectedApp(app)
     setAppStatus(app.status)
+    setEnquiryStatus(app.enquiry_status || 'Applied')
+    setPlan(app.plan_id || '')
+    setPromoCode(app.promo_code || '')
     setIsUpdateStatusModalOpen(true)
     setActiveMenuId(null)
   }
@@ -600,15 +644,26 @@ export default function ApplicationPage() {
     switch (status) {
       case 'Applied':
         return 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800'
+      case 'Pending':
+        return 'bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800'
+      case 'Paid':
+        return 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800'
+      case 'Unpaid':
+        return 'bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800'
+      case 'Active':
+        return 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800'
+      case 'Inactive':
+        return 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-700'
       case 'Generate':
         return 'bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800'
       case 'Requested':
         return 'bg-pink-50 dark:bg-pink-900/40 text-pink-600 dark:text-pink-400 border border-pink-100 dark:border-pink-800'
-      case 'Requested': return 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400'
-    case 'Completed': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-    default: return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+      case 'Completed':
+        return 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800'
+      default:
+        return 'bg-slate-50 dark:bg-slate-850 text-slate-650 dark:text-slate-350 border border-slate-150 dark:border-slate-750'
+    }
   }
-}
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
@@ -761,6 +816,11 @@ export default function ApplicationPage() {
                 >
                   <option value="">All</option>
                   <option value="Applied">Applied</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Unpaid">Unpaid</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
                   <option value="Generate">Generate</option>
                   <option value="Requested">Requested</option>
                   <option value="Completed">Completed</option>
@@ -944,68 +1004,40 @@ export default function ApplicationPage() {
                             ))}
                           </select>
                         </td>
-                        <td className="px-5 py-4 text-center relative">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setActiveMenuId(activeMenuId === app.id ? null : app.id)
-                            }}
-                            className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
-                          >
-                            <MoreVertical className="w-5 h-5" />
-                          </button>
-
-                          {/* Context Action Menu Dropdown */}
-                          {activeMenuId === app.id && (
-                            <div 
-                              ref={menuRef}
-                              className="absolute right-12 top-2 bg-white dark:bg-slate-700 border border-slate-200/80 dark:border-slate-600/80 rounded-xl shadow-2xl z-30 w-44 py-1.5 animate-in fade-in slide-in-from-top-1 duration-150 text-left"
+                        <td className="px-5 py-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => openUpdateStatusModal(app)}
+                              className="p-1.5 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition-colors cursor-pointer"
+                              title="Update Status"
                             >
-                              <button
-                                onClick={() => openUpdateStatusModal(app)}
-                                className="w-full px-4 py-2.5 hover:bg-[#f0f9ff] dark:hover:bg-slate-600 text-amber-600 dark:text-amber-400 font-bold text-xs flex items-center gap-2.5 transition-colors cursor-pointer"
-                              >
-                                <RefreshCw className="w-4 h-4 shrink-0 text-amber-500" />
-                                Update Status
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedApps([app.id])
-                                  setIsAssignModalOpen(true)
-                                  setActiveMenuId(null)
-                                }}
-                                className="w-full px-4 py-2.5 hover:bg-[#f0f9ff] dark:hover:bg-slate-600 text-purple-600 dark:text-purple-400 font-bold text-xs flex items-center gap-2.5 transition-colors cursor-pointer"
-                              >
-                                <UserCheck className="w-4 h-4 shrink-0 text-purple-500" />
-                                Assign Application
-                              </button>
-                              <button
-                                onClick={() => openViewModal(app.id)}
-                                className="w-full px-4 py-2.5 hover:bg-[#f0f9ff] dark:hover:bg-slate-600 text-blue-600 dark:text-blue-400 font-bold text-xs flex items-center gap-2.5 transition-colors cursor-pointer"
-                              >
-                                <Eye className="w-4 h-4 shrink-0 text-blue-500" />
-                                View Details
-                              </button>
-                              <button
-                                onClick={() => openEditModal(app.id)}
-                                className="w-full px-4 py-2.5 hover:bg-[#f0f9ff] dark:hover:bg-slate-600 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center gap-2.5 transition-colors cursor-pointer"
-                              >
-                                <Edit3 className="w-4 h-4 shrink-0 text-emerald-500" />
-                                Edit Details
-                              </button>
-                              <hr className="border-slate-100 dark:border-slate-600 my-1" />
-                              <button
-                                onClick={() => {
-                                  setActiveMenuId(null)
-                                  handleDeleteApplication(app.id)
-                                }}
-                                className="w-full px-4 py-2.5 hover:bg-red-50 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-bold text-xs flex items-center gap-2.5 transition-colors cursor-pointer"
-                              >
-                                <X className="w-4 h-4 shrink-0 text-red-500" />
-                                Delete
-                              </button>
-                            </div>
-                          )}
+                              <RefreshCw className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedApps([app.id])
+                                setIsAssignModalOpen(true)
+                              }}
+                              className="p-1.5 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 rounded-lg transition-colors cursor-pointer"
+                              title="Assign Application"
+                            >
+                              <UserCheck className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => openEditModal(app.id)}
+                              className="p-1.5 text-emerald-650 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg transition-colors cursor-pointer"
+                              title="Edit Details"
+                            >
+                              <Edit3 className="w-4 h-4 text-emerald-650" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteApplication(app.id)}
+                              className="p-1.5 text-red-650 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer"
+                              title="Delete"
+                            >
+                              <X className="w-4 h-4 text-red-500" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -1456,19 +1488,91 @@ export default function ApplicationPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Status</label>
-                  <select
-                    value={appStatus}
-                    onChange={(e) => setAppStatus(e.target.value as Application['status'])}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
-                  >
-                    <option value="Applied">Applied</option>
-                    <option value="Generate">Generate</option>
-                    <option value="Requested">Requested</option>
-                    <option value="Completed">Completed</option>
-                  </select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Status Dropdown */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Status</label>
+                    <select
+                      value={appStatus}
+                      onChange={(e) => {
+                        const val = e.target.value as Application['status']
+                        setAppStatus(val)
+                        if (val === 'Pending') {
+                          setEnquiryStatus('Payment Pending')
+                        }
+                      }}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
+                    >
+                      <option value="Applied">Applied</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Generate">Generate</option>
+                      <option value="Requested">Requested</option>
+                      <option value="Completed">Completed</option>
+                    </select>
+                  </div>
+
+                  {/* Enquiry Status Dropdown */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Enquiry Status</label>
+                    <select
+                      value={enquiryStatus}
+                      onChange={(e) => setEnquiryStatus(e.target.value)}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
+                    >
+                      <option value="Applied">Applied</option>
+                      <option value="In Review">In Review</option>
+                      <option value="Verification Completed">Verification Completed</option>
+                      <option value="Payment Pending">Payment Pending</option>
+                      <option value="Successfully Onboarded">Successfully Onboarded</option>
+                    </select>
+                  </div>
                 </div>
+
+                {appStatus === 'Pending' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4 animate-in fade-in duration-200">
+                    {/* Plan Dropdown */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                        Plan <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={plan}
+                        onChange={(e) => setPlan(e.target.value)}
+                        className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
+                        required={appStatus === 'Pending'}
+                      >
+                        <option value="">Select Plan</option>
+                        {plans.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.plan_name} ({p.segment})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Promo Code Dropdown */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Promo Code</label>
+                      <div className="relative">
+                        <select
+                          value={promoCode}
+                          onChange={(e) => setPromoCode(e.target.value)}
+                          className="w-full pl-4 pr-12 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer appearance-none"
+                        >
+                          <option value="">Select Promo Code</option>
+                          {promoCodes.map((pc) => (
+                            <option key={pc.id} value={pc.code}>
+                              {pc.code} ({pc.discount_name})
+                            </option>
+                          ))}
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-800 rounded-lg p-1 px-2 pointer-events-none">
+                          <span className="text-xs font-bold leading-none">%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-4 border-t border-slate-100 dark:border-slate-700 pt-6 mt-4 justify-end">
@@ -1497,8 +1601,8 @@ export default function ApplicationPage() {
 
       {/* Modal 3: Update Status */}
       {isUpdateStatusModalOpen && selectedApp && (
-        <div className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-sm p-6 border border-slate-100 dark:border-slate-700 shadow-2xl relative animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg p-6 border border-slate-100 dark:border-slate-700 shadow-2xl relative animate-in zoom-in-95 duration-200">
             <button 
               onClick={() => {
                 setIsUpdateStatusModalOpen(false)
@@ -1517,19 +1621,91 @@ export default function ApplicationPage() {
                 Changing status for application <strong className="text-slate-700 dark:text-slate-200">{selectedApp.application_no}</strong> ({selectedApp.school_name})
               </p>
               
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Select New Status</label>
-                <select
-                  value={appStatus}
-                  onChange={(e) => setAppStatus(e.target.value as Application['status'])}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
-                >
-                  <option value="Applied">Applied</option>
-                  <option value="Generate">Generate</option>
-                  <option value="Requested">Requested</option>
-                  <option value="Completed">Completed</option>
-                </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Status Dropdown */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Status</label>
+                  <select
+                    value={appStatus}
+                    onChange={(e) => {
+                      const val = e.target.value as Application['status']
+                      setAppStatus(val)
+                      if (val === 'Pending') {
+                        setEnquiryStatus('Payment Pending')
+                      }
+                    }}
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
+                  >
+                    <option value="Applied">Applied</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Generate">Generate</option>
+                    <option value="Requested">Requested</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+
+                {/* Enquiry Status Dropdown */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Enquiry Status</label>
+                  <select
+                    value={enquiryStatus}
+                    onChange={(e) => setEnquiryStatus(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
+                  >
+                    <option value="Applied">Applied</option>
+                    <option value="In Review">In Review</option>
+                    <option value="Verification Completed">Verification Completed</option>
+                    <option value="Payment Pending">Payment Pending</option>
+                    <option value="Successfully Onboarded">Successfully Onboarded</option>
+                  </select>
+                </div>
               </div>
+
+              {appStatus === 'Pending' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-200">
+                  {/* Plan Dropdown */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                      Plan <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={plan}
+                      onChange={(e) => setPlan(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
+                      required={appStatus === 'Pending'}
+                    >
+                      <option value="">Select Plan</option>
+                      {plans.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.plan_name} ({p.segment})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Promo Code Dropdown */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Promo Code</label>
+                    <div className="relative">
+                      <select
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value)}
+                        className="w-full pl-4 pr-12 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer appearance-none"
+                      >
+                        <option value="">Select Promo Code</option>
+                        {promoCodes.map((pc) => (
+                          <option key={pc.id} value={pc.code}>
+                            {pc.code} ({pc.discount_name})
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-800 rounded-lg p-1 px-2 pointer-events-none">
+                        <span className="text-xs font-bold leading-none">%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-3 mt-4">
                 <button

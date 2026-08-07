@@ -86,7 +86,7 @@ export default function AllTicketPage() {
 
   // Reference lists
   const [segments, setSegments] = useState<Segment[]>([])
-  const [schools, setSchools] = useState<string[]>([])
+  const [schools, setSchools] = useState<any[]>([])
   const [categories, setCategories] = useState<{ id: string; name: string; parent_category: string; low_timeline: string; medium_timeline: string; high_timeline: string }[]>([])
   const [staffList, setStaffList] = useState<{ id: string; name: string }[]>([])
 
@@ -162,14 +162,11 @@ export default function AllTicketPage() {
       const segData = await segRes.json()
       if (segData.success) setSegments(segData.data)
 
-      // 2. Load school names from applications
-      const appRes = await fetch('/api/admin/application')
-      const appData = await appRes.json()
-      if (appData.success) {
-        const uniqueSchools = Array.from(
-          new Set(appData.data.map((app: Application) => app.school_name))
-        ) as string[]
-        setSchools(uniqueSchools)
+      // 2. Load school names from institutions
+      const instRes = await fetch('/api/admin/institute?simple=true')
+      const instData = await instRes.json()
+      if (instData.success) {
+        setSchools(instData.data)
       }
 
       // 3. Load ticket categories
@@ -231,6 +228,27 @@ export default function AllTicketPage() {
       }
     } catch {
       toast.error('An error occurred while updating assignment')
+    }
+  }
+
+  // Inline status update from table dropdown
+  const handleStatusChange = async (ticketId: string, newStatus: string) => {
+    const dbStatus = formToDbStatus(newStatus)
+    try {
+      const res = await fetch(`/api/admin/ticket/${ticketId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: dbStatus })
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(`Status updated to "${dbStatus}"`)
+        setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: dbStatus as 'Pending' | 'Requested' | 'Completed' } : t))
+      } else {
+        toast.error(data.error || 'Failed to update status')
+      }
+    } catch {
+      toast.error('An error occurred while updating status')
     }
   }
 
@@ -447,17 +465,29 @@ export default function AllTicketPage() {
                   <select
                     value={formSchoolName}
                     onChange={(e) => {
-                      setFormSchoolName(e.target.value)
+                      const val = e.target.value
+                      setFormSchoolName(val)
                       setIsValidated(false)
+                      const found = schools.find(s => s.name === val)
+                      if (found) {
+                        if (found.segment_name) setFormSegment(found.segment_name)
+                        if (found.contact_person) setComplainerName(found.contact_person)
+                        if (found.mobile_no) setComplainerMobile(found.mobile_no)
+                      }
                     }}
                     disabled={editingId !== null}
                     className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200"
                     required
                   >
                     <option value="">Select School</option>
-                    {schools.map(name => (
-                      <option key={name} value={name}>{name}</option>
-                    ))}
+                    {schools
+                      .filter(s => !formSegment || s.segment_name === formSegment)
+                      .map(s => (
+                        <option key={s.id} value={s.name}>
+                          {s.name} {s.segment_name ? `(${s.segment_name})` : '(No Segment)'}
+                        </option>
+                      ))
+                    }
                   </select>
                 </div>
                 <div>
@@ -486,6 +516,28 @@ export default function AllTicketPage() {
                   </h3>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    {/* Complainer Name */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Complainer Name</label>
+                      <input
+                        type="text"
+                        value={complainerName}
+                        onChange={(e) => setComplainerName(e.target.value)}
+                        placeholder="e.g. John Doe"
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                      />
+                    </div>
+                    {/* Complainer Mobile */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Complainer Mobile</label>
+                      <input
+                        type="tel"
+                        value={complainerMobile}
+                        onChange={(e) => setComplainerMobile(e.target.value)}
+                        placeholder="e.g. 9876543210"
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                      />
+                    </div>
                     {/* Ticket No */}
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Ticket Number</label>
@@ -496,6 +548,9 @@ export default function AllTicketPage() {
                         className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-sm font-mono font-bold text-slate-500 dark:text-slate-400 focus:outline-none cursor-not-allowed"
                       />
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-5">
                     {/* Category (Parent) */}
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
@@ -547,44 +602,19 @@ export default function AllTicketPage() {
                           ))}
                       </select>
                     </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  {/* Complainer Name */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Complainer Name</label>
-                    <input
-                      type="text"
-                      value={complainerName}
-                      onChange={(e) => setComplainerName(e.target.value)}
-                      placeholder="e.g. John Doe"
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                    />
-                  </div>
-                  {/* Complainer Mobile */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Complainer Mobile</label>
-                    <input
-                      type="tel"
-                      value={complainerMobile}
-                      onChange={(e) => setComplainerMobile(e.target.value)}
-                      placeholder="e.g. 9876543210"
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                    />
-                  </div>
-                  {/* Complaint Status dropdown */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Complaint Status</label>
-                    <select
-                      value={complaintStatus}
-                      onChange={(e) => setComplaintStatus(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
-                    >
-                      <option value="Created">Created</option>
-                      <option value="Working">Working</option>
-                      <option value="Issue Resolve">Issue Resolve</option>
-                    </select>
+                    {/* Complaint Status dropdown */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Complaint Status</label>
+                      <select
+                        value={complaintStatus}
+                        onChange={(e) => setComplaintStatus(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                      >
+                        <option value="Created">Created</option>
+                        <option value="Working">Working</option>
+                        <option value="Issue Resolve">Issue Resolve</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
@@ -838,16 +868,25 @@ export default function AllTicketPage() {
                             {t.description || '—'}
                           </td>
                           <td className="px-5 py-4">
-                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black ${
-                              t.status === 'Completed'
-                                ? 'bg-green-50 dark:bg-green-950/20 text-green-700'
-                                : t.status === 'Requested'
-                                ? 'bg-pink-50 dark:bg-pink-950/20 text-pink-700'
-                                : 'bg-amber-50 dark:bg-amber-950/20 text-amber-600'
-                            }`}>
-                              <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                              {t.status}
-                            </span>
+                            <select
+                              value={
+                                t.status === 'Completed' ? 'Issue Resolve'
+                                : t.status === 'Requested' ? 'Working'
+                                : 'Created'
+                              }
+                              onChange={(e) => handleStatusChange(t.id, e.target.value)}
+                              className={`px-2.5 py-1.5 border rounded-full text-xs font-black focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer appearance-none text-center ${
+                                t.status === 'Completed'
+                                  ? 'bg-green-50 dark:bg-green-950/20 text-green-700 border-green-200 dark:border-green-800'
+                                  : t.status === 'Requested'
+                                  ? 'bg-pink-50 dark:bg-pink-950/20 text-pink-700 border-pink-200 dark:border-pink-800'
+                                  : 'bg-amber-50 dark:bg-amber-950/20 text-amber-600 border-amber-200 dark:border-amber-800'
+                              }`}
+                            >
+                              <option value="Created">● Pending</option>
+                              <option value="Working">● Working</option>
+                              <option value="Issue Resolve">● Completed</option>
+                            </select>
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-center gap-2">

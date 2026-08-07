@@ -2,565 +2,425 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { Camera, ArrowLeft, Loader2, Eye, EyeOff } from 'lucide-react'
+import { ArrowLeft, Loader2, Eye, EyeOff, Calendar, CreditCard, Shield, User, MapPin, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
-export default function EditInstitutePage() {
+interface InstituteData {
+  id: string
+  school_name: string
+  school_code: string
+  affiliated_to: string
+  affiliation_code: string
+  contact_person: string
+  mobile_no: string
+  email_id: string
+  address: string
+  state: string
+  district: string
+  pincode: string
+  plain_password?: string
+  principal_name: string
+  principal_gender: string
+  principal_sign?: string
+  principal_photo?: string | null
+  director_name: string
+  director_gender: string
+  director_sign?: string
+  director_photo?: string | null
+  status: string
+}
+
+export default function InstituteDetailPage() {
   const router = useRouter()
   const params = useParams()
-  const instituteId = params?.id
+  const id = params?.id as string
 
   const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-
-  // Personal Details State
-  const [schoolName, setSchoolName] = useState('')
-  const [schoolCode, setSchoolCode] = useState('')
-  const [affiliatedTo, setAffiliatedTo] = useState('')
-  const [affiliationCode, setAffiliationCode] = useState('')
-  const [contactPerson, setContactPerson] = useState('')
-  const [mobileNo, setMobileNo] = useState('')
-  const [emailId, setEmailId] = useState('')
-  const [address, setAddress] = useState('')
-  const [stateName, setStateName] = useState('')
-  const [districtName, setDistrictName] = useState('')
-  const [pincode, setPincode] = useState('')
-  const [password, setPassword] = useState('')
+  const [inst, setInst] = useState<InstituteData | null>(null)
   
-  const [principalName, setPrincipalName] = useState('')
-  const [principalGender, setPrincipalGender] = useState<'Male' | 'Female' | 'Others'>('Male')
-  const [principalSign, setPrincipalSign] = useState('')
-  const [principalPhoto, setPrincipalPhoto] = useState<string | null>(null)
+  // Plan states
+  const [activePlan, setActivePlan] = useState<any>(null)
+  const [upcomingPlans, setUpcomingPlans] = useState<any[]>([])
+  const [planHistory, setPlanHistory] = useState<any[]>([])
+  
+  const [showPassword, setShowPassword] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  const [directorName, setDirectorName] = useState('')
-  const [directorGender, setDirectorGender] = useState<'Male' | 'Female' | 'Others'>('Male')
-  const [directorSign, setDirectorSign] = useState('')
-  const [directorPhoto, setDirectorPhoto] = useState<string | null>(null)
-
-  const [status, setStatus] = useState<'Active' | 'Inactive'>('Active')
+  const formatDateOnly = (dateStr: string | null) => {
+    if (!dateStr) return '—'
+    try {
+      return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    } catch {
+      return dateStr
+    }
+  }
 
   useEffect(() => {
-    if (instituteId) {
-      fetchInstitute()
+    if (id) {
+      loadAllData()
     }
-  }, [instituteId])
+  }, [id])
 
-  const fetchInstitute = async () => {
+  const loadAllData = async () => {
+    setLoading(true)
     try {
-      const res = await fetch(`/api/admin/institute/${instituteId}`, { cache: 'no-store' })
-      const data = await res.json()
-      if (data.success && data.data) {
-        const inst = data.data
-        setSchoolName(inst.school_name || '')
-        setSchoolCode(inst.school_code || '')
-        setAffiliatedTo(inst.affiliated_to || '')
-        setAffiliationCode(inst.affiliation_code || '')
-        setContactPerson(inst.contact_person || '')
-        setMobileNo(inst.mobile_no || '')
-        setEmailId(inst.email_id || '')
-        setAddress(inst.address || '')
-        setStateName(inst.state || '')
-        setDistrictName(inst.district || '')
-        setPincode(inst.pincode || '')
-        setPassword(inst.plain_password || '')
-        
-        setPrincipalName(inst.principal_name || '')
-        setPrincipalGender(inst.principal_gender || 'Male')
-        setPrincipalSign(inst.principal_sign || '')
-        setPrincipalPhoto(inst.principal_photo || null)
-
-        setDirectorName(inst.director_name || '')
-        setDirectorGender(inst.director_gender || 'Male')
-        setDirectorSign(inst.director_sign || '')
-        setDirectorPhoto(inst.director_photo || null)
-
-        setStatus(inst.status || 'Active')
+      // 1. Fetch Institute Info
+      const instRes = await fetch(`/api/admin/institute/${id}`, { cache: 'no-store' })
+      const instResult = await instRes.json()
+      if (instResult.success && instResult.data) {
+        setInst(instResult.data)
       } else {
-        toast.error(`Failed to load institute: ${data.error || 'Unknown error'}`)
+        toast.error('Failed to load institute profile')
         router.push('/admin/institute')
+        return
       }
-    } catch (err: any) {
-      console.error(err)
-      toast.error(`Error fetching institute details: ${err.message}`)
-      router.push('/admin/institute')
+
+      // 2. Fetch Plan subscriptions
+      await loadPlans()
+    } catch (error) {
+      console.error(error)
+      toast.error('Error fetching data')
     } finally {
       setLoading(false)
     }
   }
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'principal' | 'director') => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      if (target === 'principal') {
-        setPrincipalPhoto(reader.result as string)
-      } else {
-        setDirectorPhoto(reader.result as string)
-      }
-      toast.success('Photo uploaded successfully')
-    }
-    reader.readAsDataURL(file)
-  }
-
-  const validateForm = () => {
-    if (!schoolName.trim()) return 'Institute Name is required.'
-    if (!contactPerson.trim()) return 'Contact Person Name is required.'
-    if (!mobileNo.trim()) return 'Mobile Number is required.'
-    if (!address.trim()) return 'Address is required.'
-    if (!stateName.trim()) return 'State is required.'
-    if (!districtName.trim()) return 'District is required.'
-    if (!pincode.trim()) return 'Pincode is required.'
-    if (!principalName.trim()) return 'Principal Name is required.'
-    if (!directorName.trim()) return 'Director Name is required.'
-    return null
-  }
-
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const error = validateForm()
-    if (error) {
-      toast.error(error)
-      return
-    }
-
-    setSubmitting(true)
+  const loadPlans = async () => {
     try {
-      const response = await fetch(`/api/admin/institute/${instituteId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          school_name: schoolName.trim(),
-          school_code: schoolCode.trim(),
-          affiliated_to: affiliatedTo.trim(),
-          affiliation_code: affiliationCode.trim(),
-          contact_person: contactPerson.trim(),
-          mobile_no: mobileNo.trim(),
-          email_id: emailId.trim(),
-          address: address.trim(),
-          state: stateName.trim(),
-          district: districtName.trim(),
-          pincode: pincode.trim(),
-          principal_name: principalName.trim(),
-          principal_gender: principalGender,
-          principal_sign: principalSign.trim(),
-          principal_photo: principalPhoto,
-          director_name: directorName.trim(),
-          director_gender: directorGender,
-          director_sign: directorSign.trim(),
-          director_photo: directorPhoto,
-          password: password.trim(), // Optional
-          status
-        })
-      })
-
-      const resData = await response.json()
-      if (resData.success) {
-        toast.success('Institute updated successfully!')
-        router.push('/admin/institute')
-      } else {
-        toast.error(resData.error || 'Failed to update institute.')
+      const planRes = await fetch(`/api/admin/billing/institute-plans?institution_id=${id}`)
+      const planResult = await planRes.json()
+      if (planResult.success) {
+        setActivePlan(planResult.activePlan)
+        setUpcomingPlans(planResult.upcomingPlans || [])
+        setPlanHistory(planResult.planHistory || [])
       }
-    } catch (err) {
-      console.error('Update error:', err)
-      toast.error('Something went wrong. Please try again.')
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  const handleDeletePlan = async (billId: string, planName: string) => {
+    if (!confirm(`Are you sure you want to delete the plan "${planName}"? This action cannot be undone.`)) return
+
+    setDeletingId(billId)
+    try {
+      const res = await fetch(`/api/admin/billing/${billId}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(`Plan "${planName}" deleted successfully`)
+        // Reload plans after deletion
+        await loadPlans()
+      } else {
+        toast.error(data.error || 'Failed to delete plan')
+      }
+    } catch {
+      toast.error('Error deleting plan')
     } finally {
-      setSubmitting(false)
+      setDeletingId(null)
     }
   }
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
+      <div className="min-h-[60vh] flex items-center justify-center flex-col gap-2">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-        <p className="text-slate-500 font-medium">Loading institute details...</p>
+        <p className="text-sm font-semibold text-slate-500">Loading institute dashboard...</p>
+      </div>
+    )
+  }
+
+  if (!inst) {
+    return (
+      <div className="p-8 text-center text-slate-500">
+        Institute not found.
       </div>
     )
   }
 
   return (
-    <>
-      <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full pb-10">
-        
-        {/* Title Card */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link 
-              href="/admin/institute"
-              className="p-1.5 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors border border-slate-200"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Edit Institute</h1>
+    <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full pb-12 animate-in fade-in duration-200">
+      
+      {/* Back link & Top summary card */}
+      <div className="flex flex-col gap-4">
+        <Link
+          href="/admin/institute"
+          className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline self-start cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" /> Back to Institutes List
+        </Link>
+
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">{inst.school_name}</h1>
+            <p className="text-xs text-slate-450 dark:text-slate-400 font-semibold mt-1">Code: {inst.school_code || '—'}</p>
           </div>
-        </div>
-
-        {/* Form Card */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-8">
-          
-          <form onSubmit={handleUpdate} className="flex flex-col gap-8">
-            
-            <div className="border-b border-slate-100 dark:border-slate-700 pb-3 flex justify-between items-center">
-              <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Institute Details</h3>
-              <div className="flex items-center gap-3">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Status</label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as any)}
-                  className="px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer text-slate-800 dark:text-slate-200"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-5">
-              {/* School Name & Login Password */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    Institute Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter Institute Name"
-                    value={schoolName}
-                    onChange={(e) => setSchoolName(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                    required
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Login Password</label>
-                  <div className="relative w-full">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Set or update password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-4 pr-11 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 transition-colors"
-                      title={showPassword ? "Hide Password" : "Show Password"}
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Code grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Institute Code</label>
-                  <input
-                    type="text"
-                    placeholder="Enter Code"
-                    value={schoolCode}
-                    onChange={(e) => setSchoolCode(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Affiliated To</label>
-                  <input
-                    type="text"
-                    placeholder="Enter Affiliated to"
-                    value={affiliatedTo}
-                    onChange={(e) => setAffiliatedTo(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Affiliation Code</label>
-                  <input
-                    type="text"
-                    placeholder="Enter Affiliation Code"
-                    value={affiliationCode}
-                    onChange={(e) => setAffiliationCode(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                  />
-                </div>
-              </div>
-
-              {/* Contact grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    Contact Person <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter Contact Person"
-                    value={contactPerson}
-                    onChange={(e) => setContactPerson(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                    required
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    Mobile No. <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter Mobile No."
-                    value={mobileNo}
-                    onChange={(e) => setMobileNo(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                    required
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Email ID</label>
-                  <input
-                    type="email"
-                    placeholder="Enter Email ID"
-                    value={emailId}
-                    onChange={(e) => setEmailId(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                  />
-                </div>
-              </div>
-
-              {/* Address */}
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Address <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Enter Address"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                  required
-                />
-              </div>
-
-              {/* Location Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    State <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter State"
-                    value={stateName}
-                    onChange={(e) => setStateName(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                    required
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    District <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter District"
-                    value={districtName}
-                    onChange={(e) => setDistrictName(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                    required
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    Pincode <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter Pincode"
-                    value={pincode}
-                    onChange={(e) => setPincode(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Professional Signatures / Photo blocks */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                 
-                {/* Principal Details Panel */}
-                <div className="bg-slate-50/50 dark:bg-slate-700/30 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 flex gap-4">
-                  <div className="flex-1 flex flex-col gap-3">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400">
-                        Principal Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Enter Principal Name"
-                        value={principalName}
-                        onChange={(e) => setPrincipalName(e.target.value)}
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Gender</span>
-                      <div className="flex gap-4 mt-1">
-                        {['Male', 'Female', 'Others'].map(g => (
-                          <label key={g} className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer">
-                            <input 
-                              type="radio" 
-                              name="principal_gender" 
-                              value={g}
-                              checked={principalGender === g}
-                              onChange={() => setPrincipalGender(g as any)}
-                              className="text-indigo-600 focus:ring-indigo-500"
-                            />
-                            {g}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Principal Sign.</label>
-                      <input
-                        type="text"
-                        placeholder="Upload Principal Sign."
-                        value={principalSign}
-                        onChange={(e) => setPrincipalSign(e.target.value)}
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Principal Photo Card */}
-                  <div className="w-32 flex flex-col gap-2 shrink-0">
-                    <div className="h-32 bg-white dark:bg-slate-700 rounded-2xl border border-slate-200 dark:border-slate-600 flex flex-col items-center justify-center relative overflow-hidden shadow-inner group">
-                      {principalPhoto ? (
-                        <img src={principalPhoto} alt="Principal" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="flex flex-col items-center gap-1 text-slate-400">
-                          <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/40 rounded-xl text-indigo-600 dark:text-indigo-400">
-                            <Camera className="w-5 h-5" />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <label className="w-full py-1.5 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-[10px] font-bold text-slate-500 dark:text-slate-400 text-center transition-colors cursor-pointer block shadow-sm">
-                      Upload Photo
-                      <input 
-                        type="file" 
-                        accept="image/*"
-                        onChange={(e) => handlePhotoUpload(e, 'principal')}
-                        className="hidden" 
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                {/* Director Details Panel */}
-                <div className="bg-slate-50/50 dark:bg-slate-700/30 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 flex gap-4">
-                  <div className="flex-1 flex flex-col gap-3">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400">
-                        Director Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Enter Director Name"
-                        value={directorName}
-                        onChange={(e) => setDirectorName(e.target.value)}
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Gender</span>
-                      <div className="flex gap-4 mt-1">
-                        {['Male', 'Female', 'Others'].map(g => (
-                          <label key={g} className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer">
-                            <input 
-                              type="radio" 
-                              name="director_gender" 
-                              value={g}
-                              checked={directorGender === g}
-                              onChange={() => setDirectorGender(g as any)}
-                              className="text-indigo-600 focus:ring-indigo-500"
-                            />
-                            {g}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Director Sign.</label>
-                      <input
-                        type="text"
-                        placeholder="Upload Director Sign."
-                        value={directorSign}
-                        onChange={(e) => setDirectorSign(e.target.value)}
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Director Photo Card */}
-                  <div className="w-32 flex flex-col gap-2 shrink-0">
-                    <div className="h-32 bg-white dark:bg-slate-700 rounded-2xl border border-slate-200 dark:border-slate-600 flex flex-col items-center justify-center relative overflow-hidden shadow-inner group">
-                      {directorPhoto ? (
-                        <img src={directorPhoto} alt="Director" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="flex flex-col items-center gap-1 text-slate-400">
-                          <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/40 rounded-xl text-indigo-600 dark:text-indigo-400">
-                            <Camera className="w-5 h-5" />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <label className="w-full py-1.5 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-[10px] font-bold text-slate-500 dark:text-slate-400 text-center transition-colors cursor-pointer block shadow-sm">
-                      Upload Photo
-                      <input 
-                        type="file" 
-                        accept="image/*"
-                        onChange={(e) => handlePhotoUpload(e, 'director')}
-                        className="hidden" 
-                      />
-                    </label>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex justify-center gap-4 border-t border-slate-100 dark:border-slate-700 pt-6">
-              <Link
-                href="/admin/institute"
-                className="px-8 py-2.5 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm cursor-pointer"
-              >
-                Cancel
-              </Link>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-10 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center justify-center gap-2"
-              >
-                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                Update Institute
-              </button>
-            </div>
-          </form>
-
+          <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
+            inst.status === 'Active'
+              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800'
+              : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+          }`}>
+            {inst.status}
+          </span>
         </div>
       </div>
-    </>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        {/* Left Side: General Profile Card */}
+        <div className="lg:col-span-7 flex flex-col gap-6">
+          
+          {/* General Metadata */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700/60 p-6 shadow-sm flex flex-col gap-5">
+            <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-2">
+              <Shield className="w-4 h-4 text-indigo-650" /> General Details
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Affiliated To</span>
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{inst.affiliated_to || '—'} {inst.affiliation_code ? `(${inst.affiliation_code})` : ''}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Contact Person</span>
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{inst.contact_person || '—'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Mobile Number</span>
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{inst.mobile_no || '—'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Email Address</span>
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{inst.email_id || '—'}</span>
+              </div>
+              
+              <div className="md:col-span-2">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block flex items-center gap-1"><MapPin className="w-3 h-3 text-slate-400" /> Address Details</span>
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 block mt-0.5">
+                  {inst.address}, {inst.district}, {inst.state} - {inst.pincode}
+                </span>
+              </div>
+
+              {inst.plain_password && (
+                <div className="md:col-span-2 p-3 bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800 rounded-xl flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Login Password</span>
+                    <span className="text-sm font-mono font-bold text-slate-700 dark:text-slate-200 mt-0.5 select-all">
+                      {showPassword ? inst.plain_password : '••••••••'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="p-2 text-slate-400 hover:text-slate-650 cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Authority (Principal / Director) Details */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700/60 p-6 shadow-sm flex flex-col gap-6">
+            <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-2">
+              <User className="w-4 h-4 text-indigo-650" /> Authority Profile
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Principal profile */}
+              <div className="flex flex-col gap-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-1.5">Principal Details</h4>
+                <div className="flex items-center gap-4">
+                  {inst.principal_photo ? (
+                    <img src={inst.principal_photo} alt="Principal Photo" className="w-14 h-14 rounded-full object-cover border border-slate-100 dark:border-slate-700" />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-500 font-bold uppercase">P</div>
+                  )}
+                  <div>
+                    <h5 className="text-sm font-bold text-slate-800 dark:text-slate-200">{inst.principal_name || '—'}</h5>
+                    <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5">Gender: {inst.principal_gender}</p>
+                  </div>
+                </div>
+                {inst.principal_sign && (
+                  <div className="mt-1">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">Signature</span>
+                    <img src={inst.principal_sign} alt="Principal Signature" className="max-h-12 object-contain bg-slate-50 dark:bg-slate-700 rounded-lg p-1.5 border border-slate-100 dark:border-slate-700" />
+                  </div>
+                )}
+              </div>
+
+              {/* Director profile */}
+              <div className="flex flex-col gap-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-1.5">Director Details</h4>
+                <div className="flex items-center gap-4">
+                  {inst.director_photo ? (
+                    <img src={inst.director_photo} alt="Director Photo" className="w-14 h-14 rounded-full object-cover border border-slate-100 dark:border-slate-700" />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-500 font-bold uppercase">D</div>
+                  )}
+                  <div>
+                    <h5 className="text-sm font-bold text-slate-800 dark:text-slate-200">{inst.director_name || '—'}</h5>
+                    <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5">Gender: {inst.director_gender}</p>
+                  </div>
+                </div>
+                {inst.director_sign && (
+                  <div className="mt-1">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">Signature</span>
+                    <img src={inst.director_sign} alt="Director Signature" className="max-h-12 object-contain bg-slate-50 dark:bg-slate-700 rounded-lg p-1.5 border border-slate-100 dark:border-slate-700" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Right Side: Subscription Dashboard */}
+        <div className="lg:col-span-5 flex flex-col gap-6">
+          
+          {/* Active Plan */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700/60 p-6 shadow-sm">
+            <div className="border-b border-slate-100 dark:border-slate-700 pb-3 mb-4 flex items-center justify-between">
+              <h4 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-indigo-650" /> Active Plan
+              </h4>
+              {activePlan ? (
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                    Active
+                  </span>
+                  <button
+                    onClick={() => handleDeletePlan(activePlan.id, activePlan.plan_name)}
+                    disabled={deletingId === activePlan.id}
+                    className="p-1.5 bg-red-50 dark:bg-red-950/30 text-red-500 hover:bg-red-100 dark:hover:bg-red-950/60 border border-red-100 dark:border-red-900 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                    title="Delete this plan"
+                  >
+                    {deletingId === activePlan.id
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <Trash2 className="w-3.5 h-3.5" />
+                    }
+                  </button>
+                </div>
+              ) : (
+                <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                  No Active Plan
+                </span>
+              )}
+            </div>
+
+            {activePlan ? (
+              <div className="flex flex-col gap-5">
+                <div>
+                  <h3 className="text-xl font-black text-slate-800 dark:text-slate-100">{activePlan.plan_name}</h3>
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div className="p-2.5 bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800 rounded-xl">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">Start Date</span>
+                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-350">{formatDateOnly(activePlan.start_date)}</span>
+                    </div>
+                    <div className="p-2.5 bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800 rounded-xl">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">End Date</span>
+                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-350">{formatDateOnly(activePlan.end_date)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-gradient-to-br from-indigo-500 to-indigo-650 text-white rounded-xl flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] font-bold text-indigo-100 uppercase tracking-wider">Amount Paid</span>
+                    <h4 className="text-2xl font-black">₹{activePlan.amount}</h4>
+                  </div>
+                  <div className="text-right text-[10px] text-indigo-100 leading-normal border-l border-white/20 pl-4">
+                    <div>Mode: <span className="text-white uppercase font-bold">{activePlan.payment_mode}</span></div>
+                    <div className="max-w-[120px] truncate">Txn: <span className="text-white font-mono">{activePlan.transaction_id || '—'}</span></div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="py-6 text-center text-slate-400 dark:text-slate-500 text-xs font-medium">
+                This institute has no active subscription.
+              </div>
+            )}
+          </div>
+
+          {/* Upcoming Plans */}
+          {upcomingPlans.length > 0 && (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700/60 p-6 shadow-sm">
+              <h4 className="text-sm font-extrabold text-slate-850 dark:text-slate-150 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-3 mb-4 flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-indigo-650" /> Upcoming Plans ({upcomingPlans.length})
+              </h4>
+              <div className="flex flex-col gap-3">
+                {upcomingPlans.map((plan: any) => (
+                  <div key={plan.id} className="p-3 bg-slate-50 dark:bg-slate-900/30 border border-slate-150 dark:border-slate-700/80 rounded-xl flex items-center justify-between gap-3 text-xs">
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-slate-800 dark:text-slate-150 truncate">{plan.plan_name}</h4>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        Start: {formatDateOnly(plan.start_date)} | End: {formatDateOnly(plan.end_date)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900 rounded-full text-[9px] font-bold uppercase tracking-wider">
+                        ₹{plan.amount}
+                      </span>
+                      <button
+                        onClick={() => handleDeletePlan(plan.id, plan.plan_name)}
+                        disabled={deletingId === plan.id}
+                        className="p-1.5 bg-red-50 dark:bg-red-950/30 text-red-500 hover:bg-red-100 dark:hover:bg-red-950/60 border border-red-100 dark:border-red-900 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                        title="Delete this plan"
+                      >
+                        {deletingId === plan.id
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <Trash2 className="w-3.5 h-3.5" />
+                        }
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* History plans */}
+          {planHistory.length > 0 && (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700/60 p-6 shadow-sm">
+              <h4 className="text-sm font-extrabold text-slate-850 dark:text-slate-150 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-3 mb-4 flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-indigo-650" /> Plan History
+              </h4>
+              <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-1">
+                {planHistory.map((h: any) => (
+                  <div key={h.id} className="p-3 bg-slate-50/50 dark:bg-slate-900/10 border border-slate-100 dark:border-slate-800 rounded-xl flex items-center justify-between gap-3 text-xs leading-normal">
+                    <div className="min-w-0">
+                      <h5 className="font-bold text-slate-700 dark:text-slate-350 truncate">{h.plan_name}</h5>
+                      <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">
+                        {formatDateOnly(h.start_date)} - {formatDateOnly(h.end_date)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="text-right">
+                        <span className="font-bold text-slate-750 dark:text-slate-300 block">₹{h.amount}</span>
+                        <span className="text-[9px] font-mono text-slate-400">{h.transaction_id || '—'}</span>
+                      </div>
+                      <button
+                        onClick={() => handleDeletePlan(h.id, h.plan_name)}
+                        disabled={deletingId === h.id}
+                        className="p-1.5 bg-red-50 dark:bg-red-950/30 text-red-500 hover:bg-red-100 dark:hover:bg-red-950/60 border border-red-100 dark:border-red-900 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                        title="Delete this plan"
+                      >
+                        {deletingId === h.id
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <Trash2 className="w-3.5 h-3.5" />
+                        }
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+        </div>
+
+      </div>
+
+    </div>
   )
 }

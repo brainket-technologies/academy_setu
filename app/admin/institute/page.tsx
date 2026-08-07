@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { Search, Plus, Loader2, Filter, ChevronDown, ChevronUp, Trash2, X, Eye, EyeOff, Camera } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { ActivatePlanModal } from '@/components/ActivatePlanModal'
 
 interface Institute {
@@ -23,7 +24,10 @@ interface Institute {
   plan_expiry_date?: string | null
 }
 
-export default function InstitutePage() {
+export function InstitutePageContent() {
+  const searchParams = useSearchParams()
+  const segmentId = searchParams?.get('segment_id') || ''
+
   const [institutes, setInstitutes] = useState<Institute[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -32,10 +36,10 @@ export default function InstitutePage() {
 
   // Search & Filtering
   const [searchText, setSearchText] = useState('')
-  const [showFilters, setShowFilters] = useState(false)
+  const [showFilters, setShowFilters] = useState(!!segmentId)
   const [filterState, setFilterState] = useState('')
   const [filterDistrict, setFilterDistrict] = useState('')
-  const [filterSegment, setFilterSegment] = useState('')
+  const [filterSegment, setFilterSegment] = useState(segmentId)
   const [filterPlan, setFilterPlan] = useState('')
   const [filterPlanStatus, setFilterPlanStatus] = useState('')
   const [segments, setSegments] = useState<any[]>([])
@@ -136,6 +140,15 @@ export default function InstitutePage() {
     fetchInstitutes()
     fetchFilterOptions()
   }, [])
+
+  useEffect(() => {
+    if (segmentId) {
+      setFilterSegment(segmentId)
+      setShowFilters(true)
+    } else {
+      setFilterSegment('')
+    }
+  }, [segmentId])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -592,17 +605,12 @@ export default function InstitutePage() {
                         </td>
                         <td className="px-5 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => {
-                                setActivateTargetId(inst.id)
-                                setActivateTargetName(inst.name)
-                                setActivateTargetCurrentPlan(inst.active_plan_name || null)
-                                setIsActivateModalOpen(true)
-                              }}
-                              className="text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer text-xs font-bold px-3 py-1 bg-indigo-50 rounded-lg inline-block"
+                            <Link
+                              href={`/admin/institute/${inst.id}`}
+                              className="text-slate-655 hover:text-slate-850 dark:text-slate-300 dark:hover:text-slate-100 transition-colors cursor-pointer text-xs font-bold px-3 py-1 bg-slate-50 dark:bg-slate-700/60 rounded-lg inline-block border border-slate-100 dark:border-slate-650"
                             >
-                              Activate Plan
-                            </button>
+                              View Details
+                            </Link>
                             <button
                               onClick={() => openEditModal(inst.id)}
                               className="text-emerald-600 hover:text-emerald-800 transition-colors cursor-pointer text-xs font-bold px-3 py-1 bg-emerald-50 rounded-lg inline-block"
@@ -1127,6 +1135,18 @@ export default function InstitutePage() {
         currentActivePlan={activateTargetCurrentPlan}
       />
     </>
+  )
+}
+
+export default function InstitutePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      </div>
+    }>
+      <InstitutePageContent />
+    </Suspense>
   )
 }
 

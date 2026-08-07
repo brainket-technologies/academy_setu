@@ -48,7 +48,7 @@ export async function PUT(
       contact_person, mobile_no, email_id, address, state, district, pincode,
       principal_name, principal_gender, principal_sign, principal_photo,
       director_name, director_gender, director_sign, director_photo,
-      status, enquiry_status, plan_id, assigned_to 
+      status, enquiry_status, plan_id, promo_code, assigned_to 
     } = body
 
     // First, update the institution with address/personal details
@@ -126,6 +126,7 @@ export async function PUT(
     addAppField('status', status)
     addAppField('enquiry_status', enquiry_status)
     addAppField('plan_id', plan_id)
+    addAppField('promo_code', promo_code)
 
     appUpdates.push('updated_at = NOW()')
     appValues.push(id)

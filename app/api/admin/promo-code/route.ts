@@ -118,15 +118,15 @@ export async function POST(request: NextRequest) {
     `).catch(err => console.error("Database migration promo_codes error:", err));
 
     const body = await request.json()
-    const { code, description, segment, applicable_by, applicable_one, discount_name, discount_type, discount_value, max_uses, start_date, has_expiry, expiry_date, min_applicable_amount } = body
+    const { code, description, segment, applicable_by, applicable_one, discount_name, discount_type, discount_value, max_uses, start_date, has_expiry, expiry_date, min_applicable_amount, plan_id } = body
 
     if (!code || !discount_type || discount_value == null) {
       return NextResponse.json({ success: false, error: 'Code, Discount Type, and Discount Value are required' }, { status: 400 })
     }
 
     const result = await pool.query(
-      `INSERT INTO promo_codes (code, description, segment, applicable_by, applicable_one, discount_name, discount_type, discount_value, max_uses, start_date, has_expiry, expiry_date, min_applicable_amount)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      `INSERT INTO promo_codes (code, description, segment, applicable_by, applicable_one, discount_name, discount_type, discount_value, max_uses, start_date, has_expiry, expiry_date, min_applicable_amount, plan_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
       [
         code.toUpperCase(),
@@ -141,7 +141,8 @@ export async function POST(request: NextRequest) {
         start_date || null,
         has_expiry || false,
         has_expiry ? (expiry_date || null) : null,
-        min_applicable_amount || 0
+        min_applicable_amount || 0,
+        plan_id || null
       ]
     )
 

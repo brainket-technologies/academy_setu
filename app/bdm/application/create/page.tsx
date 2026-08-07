@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, Camera, Check, ArrowLeft, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -34,10 +34,30 @@ export default function CreateApplicationPage() {
   const [directorPhoto, setDirectorPhoto] = useState<string | null>(null)
 
   // Step 2: Status State
-  const [status, setStatus] = useState<'Applied' | 'Paid' | 'Unpaid' | 'Active' | 'Inactive'>('Applied')
+  const [status, setStatus] = useState<'Applied' | 'Pending' | 'Paid' | 'Unpaid' | 'Active' | 'Inactive'>('Applied')
   const [enquiryStatus, setEnquiryStatus] = useState<string>('Applied')
   const [plan, setPlan] = useState('')
   const [promoCode, setPromoCode] = useState('')
+  const [plans, setPlans] = useState<any[]>([])
+  const [promoCodes, setPromoCodes] = useState<any[]>([])
+
+  useEffect(() => {
+    const fetchPlansAndPromo = async () => {
+      try {
+        const [planRes, promoRes] = await Promise.all([
+          fetch('/api/admin/plan?pageSize=100'),
+          fetch('/api/admin/promo-code?pageSize=100')
+        ])
+        const planData = await planRes.json()
+        const promoData = await promoRes.json()
+        if (planData.success) setPlans(planData.data)
+        if (promoData.success) setPromoCodes(promoData.data)
+      } catch (err) {
+        console.error('Failed to load plans or promo codes', err)
+      }
+    }
+    fetchPlansAndPromo()
+  }, [])
 
   // Simulated image uploading to base64
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'principal' | 'director') => {
@@ -562,10 +582,17 @@ export default function CreateApplicationPage() {
                   <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Status</label>
                   <select
                     value={status}
-                    onChange={(e) => setStatus(e.target.value as any)}
+                    onChange={(e) => {
+                      const val = e.target.value as any
+                      setStatus(val)
+                      if (val === 'Pending') {
+                        setEnquiryStatus('Payment Pending')
+                      }
+                    }}
                     className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer text-slate-800 dark:text-slate-200"
                   >
                     <option value="Applied">Applied</option>
+                    <option value="Pending">Pending</option>
                     <option value="Paid">Paid</option>
                     <option value="Unpaid">Unpaid</option>
                     <option value="Active">Active</option>
@@ -601,9 +628,11 @@ export default function CreateApplicationPage() {
                     className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer text-slate-800 dark:text-slate-200"
                   >
                     <option value="">Select Plan</option>
-                    <option value="Premium Plan">Premium Plan</option>
-                    <option value="Basic Plan">Basic Plan</option>
-                    <option value="Standard Plan">Standard Plan</option>
+                    {plans.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.plan_name} ({p.segment})
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -617,9 +646,11 @@ export default function CreateApplicationPage() {
                       className="w-full pl-4 pr-12 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer appearance-none text-slate-800 dark:text-slate-200"
                     >
                       <option value="">Select Promo Code</option>
-                      <option value="WELCOME10">WELCOME10</option>
-                      <option value="FESTIVE20">FESTIVE20</option>
-                      <option value="SCHOOLDISCOUNT">SCHOOLDISCOUNT</option>
+                      {promoCodes.map((pc) => (
+                        <option key={pc.id} value={pc.code}>
+                          {pc.code} ({pc.discount_name})
+                        </option>
+                      ))}
                     </select>
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-800 rounded-lg p-1 px-2 pointer-events-none">
                       <span className="text-xs font-bold leading-none">%</span>

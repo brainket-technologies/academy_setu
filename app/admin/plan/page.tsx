@@ -161,6 +161,26 @@ export default function AllPlanPage() {
     }
   }
 
+  const togglePlanStatus = async (plan: Plan) => {
+    const newStatus = plan.status === 'Active' ? 'Inactive' : 'Active'
+    try {
+      const res = await fetch(`/api/admin/plan/${plan.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(`Plan set to ${newStatus}`)
+        setPlans(prev => prev.map(p => p.id === plan.id ? { ...p, status: newStatus } : p))
+      } else {
+        toast.error(data.error || 'Failed to update plan status')
+      }
+    } catch {
+      toast.error('Something went wrong')
+    }
+  }
+
   const startEntry = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1
   const endEntry = Math.min(currentPage * pageSize, totalCount)
 
@@ -266,13 +286,14 @@ export default function AllPlanPage() {
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Plan Name</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Segment Name</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Created At</th>
+                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 text-center">Status</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">
+                    <td colSpan={6} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
                         Loading plans...
@@ -281,7 +302,7 @@ export default function AllPlanPage() {
                   </tr>
                 ) : plans.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-medium">
+                    <td colSpan={6} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-medium">
                       No plans found.
                     </td>
                   </tr>
@@ -296,6 +317,28 @@ export default function AllPlanPage() {
                         <td className="px-5 py-4 text-slate-600 dark:text-slate-400">{plan.segment}</td>
                         <td className="px-5 py-4 text-slate-500 dark:text-slate-400 text-xs font-semibold leading-relaxed">
                           📅 {date}<br />🕒 {time}
+                        </td>
+                        <td className="px-5 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => togglePlanStatus(plan)}
+                              className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                              style={{
+                                backgroundColor: plan.status === 'Active' ? '#4f46e5' : '#cbd5e1'
+                              }}
+                            >
+                              <span className="sr-only">Toggle Status</span>
+                              <span
+                                className="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                                style={{
+                                  transform: plan.status === 'Active' ? 'translateX(20px)' : 'translateX(0px)'
+                                }}
+                              />
+                            </button>
+                            <span className="text-xs font-semibold text-slate-550 min-w-[48px] text-left">
+                              {plan.status === 'Active' ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center justify-center gap-2">

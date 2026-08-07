@@ -14,7 +14,7 @@ interface Application {
   contact_person: string
   state: string
   district: string
-  status: 'Applied' | 'Generate' | 'Requested' | 'Completed'
+  status: 'Applied' | 'Pending' | 'Paid' | 'Unpaid' | 'Active' | 'Inactive' | 'Generate' | 'Requested' | 'Completed'
   created_at: string
 }
 
@@ -310,6 +310,16 @@ export default function ApplicationPage() {
     switch (status) {
       case 'Applied':
         return 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800'
+      case 'Pending':
+        return 'bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800'
+      case 'Paid':
+        return 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800'
+      case 'Unpaid':
+        return 'bg-red-50 dark:bg-red-900/40 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800'
+      case 'Active':
+        return 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800'
+      case 'Inactive':
+        return 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-700'
       case 'Generate':
         return 'bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800'
       case 'Requested':
@@ -317,7 +327,7 @@ export default function ApplicationPage() {
       case 'Completed':
         return 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800'
       default:
-        return 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-700'
+        return 'bg-slate-50 dark:bg-slate-850 text-slate-650 dark:text-slate-350 border border-slate-150 dark:border-slate-750'
     }
   }
 
@@ -440,6 +450,11 @@ export default function ApplicationPage() {
                 >
                   <option value="">All</option>
                   <option value="Applied">Applied</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Unpaid">Unpaid</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
                   <option value="Generate">Generate</option>
                   <option value="Requested">Requested</option>
                   <option value="Completed">Completed</option>
@@ -554,69 +569,38 @@ export default function ApplicationPage() {
                             {app.status}
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-center relative">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setActiveMenuId(activeMenuId === app.id ? null : app.id)
-                            }}
-                            className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
-                          >
-                            <MoreVertical className="w-5 h-5" />
-                          </button>
-
-                          {/* Context Action Menu Dropdown */}
-                          {activeMenuId === app.id && (
-                            <div 
-                              ref={menuRef}
-                              className="absolute right-12 top-2 bg-white dark:bg-slate-700 border border-slate-200/80 dark:border-slate-600/80 rounded-xl shadow-2xl z-30 w-44 py-1.5 animate-in fade-in slide-in-from-top-1 duration-150 text-left"
+                        <td className="px-5 py-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => openUpdateStatusModal(app)}
+                              className="p-1.5 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition-colors cursor-pointer"
+                              title="Update Status"
                             >
-                              <button
-                                onClick={() => openUpdateStatusModal(app)}
-                                className="w-full px-4 py-2.5 hover:bg-[#f0f9ff] dark:hover:bg-slate-600 text-amber-600 dark:text-amber-400 font-bold text-xs flex items-center gap-2.5 transition-colors cursor-pointer"
-                              >
-                                <RefreshCw className="w-4 h-4 shrink-0 text-amber-500" />
-                                Update Status
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setActiveMenuId(null)
-                                  toast.info('View Details modal coming soon')
-                                }}
-                                className="w-full px-4 py-2.5 hover:bg-[#f0f9ff] dark:hover:bg-slate-600 text-blue-600 dark:text-blue-400 font-bold text-xs flex items-center gap-2.5 transition-colors cursor-pointer"
-                              >
-                                <Eye className="w-4 h-4 shrink-0 text-blue-500" />
-                                View Details
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setActiveMenuId(null)
-                                  setSelectedApp(app)
-                                  setSchoolName(app.school_name)
-                                  setContactPerson(app.contact_person)
-                                  setStateName(app.state)
-                                  setDistrictName(app.district)
-                                  setAppStatus(app.status)
-                                  setIsCreateModalOpen(true)
-                                }}
-                                className="w-full px-4 py-2.5 hover:bg-[#f0f9ff] dark:hover:bg-slate-600 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center gap-2.5 transition-colors cursor-pointer"
-                              >
-                                <Edit3 className="w-4 h-4 shrink-0 text-emerald-500" />
-                                Edit Details
-                              </button>
-                              <hr className="border-slate-100 dark:border-slate-600 my-1" />
-                              <button
-                                onClick={() => {
-                                  setActiveMenuId(null)
-                                  handleDeleteApplication(app.id)
-                                }}
-                                className="w-full px-4 py-2.5 hover:bg-red-50 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-bold text-xs flex items-center gap-2.5 transition-colors cursor-pointer"
-                              >
-                                <X className="w-4 h-4 shrink-0 text-red-500" />
-                                Delete
-                              </button>
-                            </div>
-                          )}
+                              <RefreshCw className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedApp(app)
+                                setSchoolName(app.school_name)
+                                setContactPerson(app.contact_person)
+                                setStateName(app.state)
+                                setDistrictName(app.district)
+                                setAppStatus(app.status)
+                                setIsCreateModalOpen(true)
+                              }}
+                              className="p-1.5 text-emerald-650 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg transition-colors cursor-pointer"
+                              title="Edit Details"
+                            >
+                              <Edit3 className="w-4 h-4 text-emerald-650" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteApplication(app.id)}
+                              className="p-1.5 text-red-650 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer"
+                              title="Delete"
+                            >
+                              <X className="w-4 h-4 text-red-500" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )

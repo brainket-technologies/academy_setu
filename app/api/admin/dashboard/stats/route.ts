@@ -24,17 +24,41 @@ export async function GET() {
     ] = await Promise.all([
       // 1. Dynamic segments with subscribed institution counts
       pool.query(`
-        SELECT s.id, s.name,
-               COUNT(DISTINCT sub.institution_id)::int AS institution_count
+        WITH active_insts AS (
+          SELECT 
+            i.id,
+            COALESCE(s.name, p_bill.segment, p_app.segment, p_seg.segment) as segment_name
+          FROM institutions i
+          LEFT JOIN segments s ON i.segment_id = s.id
+          LEFT JOIN LATERAL (
+            SELECT pl.segment
+            FROM bills b 
+            LEFT JOIN plans pl ON b.plan_id = pl.id
+            WHERE b.institution_id = i.id AND b.status = 'Paid' 
+            ORDER BY b.created_at DESC 
+            LIMIT 1
+          ) p_bill ON true
+          LEFT JOIN LATERAL (
+            SELECT pl.segment 
+            FROM applications ap 
+            JOIN plans pl ON ap.plan_id = pl.id 
+            WHERE ap.institution_id = i.id AND ap.status = 'Completed' 
+            ORDER BY ap.created_at DESC 
+            LIMIT 1
+          ) p_app ON true
+          LEFT JOIN LATERAL (
+            SELECT pl.segment 
+            FROM applications ap 
+            JOIN plans pl ON ap.plan_id = pl.id 
+            WHERE ap.institution_id = i.id
+            ORDER BY ap.created_at DESC 
+            LIMIT 1
+          ) p_seg ON true
+          WHERE i.status = 'Active'
+        )
+        SELECT s.id, s.name, COUNT(ai.id)::int AS institution_count
         FROM segments s
-        LEFT JOIN plans p ON p.segment_id = s.id OR p.segment ILIKE s.name
-        LEFT JOIN (
-          SELECT institution_id, plan_id, plan_name, NULL::uuid AS segment_id FROM bills
-          UNION
-          SELECT institution_id, plan_id, NULL as plan_name, NULL::uuid AS segment_id FROM applications
-          UNION
-          SELECT id AS institution_id, NULL::uuid AS plan_id, NULL as plan_name, segment_id FROM institutions
-        ) sub ON sub.plan_id = p.id OR sub.plan_name = p.plan_name OR sub.segment_id = s.id
+        LEFT JOIN active_insts ai ON ai.segment_name = s.name
         GROUP BY s.id, s.name
         ORDER BY s.created_at ASC
       `),

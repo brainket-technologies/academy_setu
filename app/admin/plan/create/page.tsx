@@ -6,7 +6,7 @@ import { Plus, Trash2, X, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const APPLIED_BY_OPTIONS = ['Only Admin', 'BDM', 'Manager']
+const APPLIED_BY_OPTIONS = ['Website Only', 'Website Purchase', 'Only Admin', 'BDM', 'Manager']
 
 interface BillingItem {
   serial_no: number

@@ -25,6 +25,7 @@ interface PromoCode {
   expiry_date: string | null
   status: string
   min_applicable_amount: number
+  plan_id?: string | null
   created_at: string
 }
 
@@ -201,6 +202,8 @@ export default function AllPromoCodePage() {
   const [hasExpiry, setHasExpiry] = useState(false)
   const [expiryDate, setExpiryDate] = useState('')
   const [minApplicableAmount, setMinApplicableAmount] = useState('')
+  const [plans, setPlans] = useState<any[]>([])
+  const [formPlan, setFormPlan] = useState('')
 
   // Delete modal states
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
@@ -244,13 +247,26 @@ export default function AllPromoCodePage() {
     }
   }, [])
 
+  const fetchPlans = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/plan?pageSize=100')
+      const data = await res.json()
+      if (data.success) {
+        setPlans(data.data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch plans', err)
+    }
+  }, [])
+
   useEffect(() => {
     fetchItems(1, searchText)
   }, [appliedFilters])
 
   useEffect(() => {
     fetchSegments()
-  }, [fetchSegments])
+    fetchPlans()
+  }, [fetchSegments, fetchPlans])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -285,6 +301,7 @@ export default function AllPromoCodePage() {
     setHasExpiry(false)
     setExpiryDate('')
     setMinApplicableAmount('')
+    setFormPlan('')
     setIsModalOpen(false)
   }
 
@@ -325,6 +342,7 @@ export default function AllPromoCodePage() {
     setHasExpiry(!!item.has_expiry)
     setExpiryDate(item.expiry_date ? item.expiry_date.substring(0, 10) : '')
     setMinApplicableAmount(item.min_applicable_amount != null ? String(item.min_applicable_amount) : '')
+    setFormPlan(item.plan_id || '')
     setIsModalOpen(true)
   }
 
@@ -354,6 +372,7 @@ export default function AllPromoCodePage() {
           has_expiry: hasExpiry,
           expiry_date: hasExpiry ? (expiryDate || null) : null,
           min_applicable_amount: minApplicableAmount ? parseFloat(minApplicableAmount) : 0,
+          plan_id: formPlan || null,
         })
       })
       const data = await res.json()
@@ -680,6 +699,21 @@ export default function AllPromoCodePage() {
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Start Date</label>
                   <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Applicable Plan (Optional)</label>
+                  <select
+                    value={formPlan}
+                    onChange={e => setFormPlan(e.target.value)}
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 cursor-pointer outline-none"
+                  >
+                    <option value="">All Plans (No restriction)</option>
+                    {plans.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.plan_name} ({p.segment})
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2">

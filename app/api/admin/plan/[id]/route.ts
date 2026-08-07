@@ -94,28 +94,29 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ success: false, error: 'Plan not found' }, { status: 404 })
     }
 
-    // Replace billing items: delete old, insert new
-    await pool.query('DELETE FROM plan_billing_items WHERE plan_id = $1', [id])
-
-    const insertItem = async (items: Record<string, unknown>[], billingType: string) => {
-      for (const item of items) {
-        await pool.query(
-          `INSERT INTO plan_billing_items (plan_id, billing_type, serial_no, item_description, price, tax_percentage, tax_price)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [
-            id, billingType,
-            item.serial_no, item.item_description,
-            item.price, item.tax_percentage, item.tax_price ?? 0
-          ]
-        )
-      }
-    }
-
     const fItems = first_billing_items !== undefined ? first_billing_items : null
     const rItems = renewal_billing_items !== undefined ? renewal_billing_items : null
 
-    if (fItems !== null) await insertItem(fItems, 'first')
-    if (rItems !== null) await insertItem(rItems, 'renewal')
+    if (fItems !== null || rItems !== null) {
+      await pool.query('DELETE FROM plan_billing_items WHERE plan_id = $1', [id])
+
+      const insertItem = async (items: Record<string, unknown>[], billingType: string) => {
+        for (const item of items) {
+          await pool.query(
+            `INSERT INTO plan_billing_items (plan_id, billing_type, serial_no, item_description, price, tax_percentage, tax_price)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+              id, billingType,
+              item.serial_no, item.item_description,
+              item.price, item.tax_percentage, item.tax_price ?? 0
+            ]
+          )
+        }
+      }
+
+      if (fItems !== null) await insertItem(fItems, 'first')
+      if (rItems !== null) await insertItem(rItems, 'renewal')
+    }
 
     return NextResponse.json({ success: true, data: result.rows[0] })
   } catch (error) {

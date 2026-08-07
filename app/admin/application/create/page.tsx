@@ -48,10 +48,31 @@ export default function CreateApplicationPage() {
   const [directorPhoto, setDirectorPhoto] = useState<string | null>(null)
 
   // Status State - defaults to 'Applied'
-  const [status] = useState<'Applied' | 'Paid' | 'Unpaid' | 'Active' | 'Inactive'>('Applied')
-  const [enquiryStatus] = useState<string>('Applied')
-  const [plan] = useState('')
-  const [promoCode] = useState('')
+  const [status, setStatus] = useState<'Applied' | 'Pending' | 'Paid' | 'Unpaid' | 'Active' | 'Inactive'>('Applied')
+  const [enquiryStatus, setEnquiryStatus] = useState<string>('Applied')
+  const [plan, setPlan] = useState('')
+  const [promoCode, setPromoCode] = useState('')
+  const [plans, setPlans] = useState<any[]>([])
+  const [promoCodes, setPromoCodes] = useState<any[]>([])
+
+  useEffect(() => {
+    // Fetch plans and promo codes
+    const fetchPlansAndPromo = async () => {
+      try {
+        const [planRes, promoRes] = await Promise.all([
+          fetch('/api/admin/plan?pageSize=100'),
+          fetch('/api/admin/promo-code?pageSize=100')
+        ])
+        const planData = await planRes.json()
+        const promoData = await promoRes.json()
+        if (planData.success) setPlans(planData.data)
+        if (promoData.success) setPromoCodes(promoData.data)
+      } catch (err) {
+        console.error('Failed to load plans or promo codes', err)
+      }
+    }
+    fetchPlansAndPromo()
+  }, [])
 
   const handleStateChange = (stateVal: string) => {
     setStateName(stateVal)
@@ -527,6 +548,97 @@ export default function CreateApplicationPage() {
 
                 </div>
 
+              </div>
+
+              {/* Status Details */}
+              <div className="border-t border-slate-100 dark:border-slate-700 pt-6 mt-6 flex flex-col gap-6">
+                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Status & Plan Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Status Dropdown */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Status</label>
+                    <select
+                      value={status}
+                      onChange={(e) => {
+                        const val = e.target.value as any
+                        setStatus(val)
+                        if (val === 'Pending') {
+                          setEnquiryStatus('Payment Pending')
+                        }
+                      }}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
+                    >
+                      <option value="Applied">Applied</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Paid">Paid</option>
+                      <option value="Unpaid">Unpaid</option>
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+
+                  {/* Enquiry Status Dropdown */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Enquiry Status</label>
+                    <select
+                      value={enquiryStatus}
+                      onChange={(e) => setEnquiryStatus(e.target.value)}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
+                    >
+                      <option value="Applied">Applied</option>
+                      <option value="In Review">In Review</option>
+                      <option value="Verification Completed">Verification Completed</option>
+                      <option value="Payment Pending">Payment Pending</option>
+                      <option value="Successfully Onboarded">Successfully Onboarded</option>
+                    </select>
+                  </div>
+                </div>
+
+                {status === 'Pending' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4 animate-in fade-in duration-200">
+                    {/* Plan Dropdown */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                        Plan <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={plan}
+                        onChange={(e) => setPlan(e.target.value)}
+                        className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
+                        required={status === 'Pending'}
+                      >
+                        <option value="">Select Plan</option>
+                        {plans.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.plan_name} ({p.segment})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Promo Code Dropdown */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Promo Code</label>
+                      <div className="relative">
+                        <select
+                          value={promoCode}
+                          onChange={(e) => setPromoCode(e.target.value)}
+                          className="w-full pl-4 pr-12 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer appearance-none"
+                        >
+                          <option value="">Select Promo Code</option>
+                          {promoCodes.map((pc) => (
+                            <option key={pc.id} value={pc.code}>
+                              {pc.code} ({pc.discount_name})
+                            </option>
+                          ))}
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-800 rounded-lg p-1 px-2 pointer-events-none">
+                          <span className="text-xs font-bold leading-none">%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Step 1 Actions */}

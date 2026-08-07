@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SEGMENT_OPTIONS = ['School', 'College', 'Coaching', 'Student', 'Teacher', 'Principal', 'Staff', 'Manager', 'Parents', 'Influencer']
-const APPLIED_BY_OPTIONS = ['Website Purchase', 'Only Admin', 'BDM', 'Manager']
+const APPLIED_BY_OPTIONS = ['Website Only', 'Website Purchase', 'Only Admin', 'BDM', 'Manager']
 
 interface BillingItem {
   serial_no: number

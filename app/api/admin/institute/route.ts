@@ -12,6 +12,44 @@ export async function GET(request: Request) {
   const planStatus = searchParams.get('plan_status') || '' // active | expired | expiring_soon
 
   try {
+    const simple = searchParams.get('simple') === 'true'
+    if (simple) {
+      const result = await pool.query(`
+        SELECT 
+          i.id, 
+          i.name,
+          i.contact_person,
+          i.mobile_no,
+          COALESCE(s.name, p_bill.segment, p_app.segment, p_seg.segment) as segment_name
+        FROM institutions i
+        LEFT JOIN segments s ON i.segment_id = s.id
+        LEFT JOIN LATERAL (
+          SELECT pl.segment FROM bills b 
+          LEFT JOIN plans pl ON b.plan_id = pl.id
+          WHERE b.institution_id = i.id AND b.status = 'Paid' 
+          ORDER BY b.created_at DESC LIMIT 1
+        ) p_bill ON true
+        LEFT JOIN LATERAL (
+          SELECT pl.segment FROM applications ap 
+          JOIN plans pl ON ap.plan_id = pl.id 
+          WHERE ap.institution_id = i.id AND ap.status = 'Completed' 
+          ORDER BY ap.created_at DESC LIMIT 1
+        ) p_app ON true
+        LEFT JOIN LATERAL (
+          SELECT pl.segment FROM applications ap 
+          JOIN plans pl ON ap.plan_id = pl.id 
+          WHERE ap.institution_id = i.id
+          ORDER BY ap.created_at DESC LIMIT 1
+        ) p_seg ON true
+        WHERE i.status = 'Active'
+        ORDER BY i.name ASC
+      `)
+      return NextResponse.json({
+        success: true,
+        data: result.rows
+      })
+    }
+
     let query = `
       SELECT 
         i.id, i.name, i.code, i.contact_person, i.mobile_no, i.email_id,
@@ -64,7 +102,12 @@ export async function GET(request: Request) {
 
     if (segment) {
       values.push(segment)
-      query += ` AND i.segment_id = $${values.length}`
+      query += ` AND (
+        i.segment_id = $${values.length} OR 
+        COALESCE(s.name, p_bill.segment, p_app.segment, p_seg.segment) = (
+          SELECT name FROM segments WHERE id = $${values.length}::uuid
+        )
+      )`
     }
 
     if (plan) {
