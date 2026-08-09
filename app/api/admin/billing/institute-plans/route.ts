@@ -76,7 +76,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, activePlan, upcomingPlans, planHistory })
+    const pendingCheck = await pool.query(
+      `SELECT id FROM bills WHERE institution_id = $1 AND status = 'Pending' LIMIT 1`,
+      [institutionId]
+    )
+    const hasPendingRenewal = pendingCheck.rows.length > 0
+
+    return NextResponse.json({ success: true, activePlan, upcomingPlans, planHistory, hasPendingRenewal })
   } catch (error) {
     console.error('Fetch institute plans error:', error)
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })

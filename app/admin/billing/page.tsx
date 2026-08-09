@@ -52,6 +52,7 @@ interface Plan {
     tax_price: number
     tax_percentage: number
   }>
+  menus?: string[]
 }
 
 interface DBPromoCode {
@@ -148,6 +149,7 @@ function BillingDashboardContent() {
   const [instActivePlan, setInstActivePlan] = useState<any>(null)
   const [instUpcomingPlans, setInstUpcomingPlans] = useState<any[]>([])
   const [instPlanHistory, setInstPlanHistory] = useState<any[]>([])
+  const [instHasPendingRenewal, setInstHasPendingRenewal] = useState<boolean>(false)
   const [showAllPlansOverride, setShowAllPlansOverride] = useState(false)
   const [purchaseMode, setPurchaseMode] = useState<'new' | 'renew' | 'change' | 'upcoming'>('new')
 
@@ -278,6 +280,7 @@ function BillingDashboardContent() {
           setInstActivePlan(data.activePlan)
           setInstUpcomingPlans(data.upcomingPlans || [])
           setInstPlanHistory(data.planHistory || [])
+          setInstHasPendingRenewal(data.hasPendingRenewal || false)
         }
       } catch (err) {
         console.error('Failed to load institute plans', err)
@@ -359,7 +362,7 @@ function BillingDashboardContent() {
     if (!plan || !promo) return 0
     const price = getPlanPrice(plan)
     if (promo.discount_type === 'Percentage') {
-      return Math.round((price * Number(promo.discount_value)) / 100)
+      return (price * Number(promo.discount_value)) / 100
     }
     return Number(promo.discount_value)
   }
@@ -421,7 +424,8 @@ function BillingDashboardContent() {
           amount: finalVal,
           transaction_id: finalTxn,
           status: finalStatus,
-          promo_code_id: appliedPromo?.id || null
+          promo_code_id: appliedPromo?.id || null,
+          is_renewal: purchaseMode === 'renew'
         })
       })
 
@@ -455,6 +459,7 @@ function BillingDashboardContent() {
             setInstActivePlan(plData.activePlan)
             setInstUpcomingPlans(plData.upcomingPlans || [])
             setInstPlanHistory(plData.planHistory || [])
+            setInstHasPendingRenewal(plData.hasPendingRenewal || false)
           }
           setInstPlansLoading(false)
           setIsSubmitted(true)
@@ -587,8 +592,137 @@ function BillingDashboardContent() {
     toast.success('Exporting transactions to CSV log...')
   }
 
-  const handleDownloadPDF = (bill: Bill) => {
-    toast.success(`Downloading PDF invoice for ${bill.school_name}...`)
+  const handleDownloadPDF = (schoolName: string, amount: number, planName: string, date: string, txnId: string, paymentMode: string) => {
+    toast.success(`Preparing invoice for ${schoolName}...`)
+    
+    const fullPlan = plans.find(p => p.plan_name === planName) || filteredPlansList.find(p => p.plan_name === planName);
+    const planDesc = fullPlan?.description || '';
+    const planMenus = fullPlan?.menus || [];
+
+    const invoiceHTML = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Tax Invoice - ${schoolName}</title>
+        <style>
+          @page { size: A4 portrait; margin: 10mm; }
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; background: #fff; margin: 0; padding: 20px; }
+          .invoice-container { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border: 2px solid #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); min-height: 270mm; display: flex; flex-direction: column; box-sizing: border-box; }
+          .header { display: flex; justify-content: space-between; border-bottom: 3px solid #4f46e5; padding-bottom: 20px; margin-bottom: 30px; }
+          .brand h1 { margin: 0; color: #4f46e5; font-size: 32px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+          .brand p { margin: 5px 0 0; color: #6b7280; font-size: 13px; }
+          .invoice-meta { text-align: right; }
+          .invoice-meta h2 { margin: 0 0 10px; color: #111827; font-size: 22px; font-weight: 800; text-transform: uppercase; }
+          .meta-row { font-size: 13px; color: #4b5563; margin-bottom: 4px; }
+          .meta-row strong { color: #111827; }
+          .billing-section { display: flex; justify-content: space-between; margin-bottom: 30px; }
+          .billing-box { width: 100%; }
+          .billing-box h3 { font-size: 13px; text-transform: uppercase; color: #9ca3af; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 12px; }
+          .billing-box p { margin: 4px 0; font-size: 14px; color: #1f2937; font-weight: 500; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+          th { background: #f9fafb; text-align: left; padding: 10px 14px; font-size: 13px; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; }
+          td { padding: 14px; border-bottom: 1px solid #e5e7eb; color: #1f2937; font-size: 14px; vertical-align: top; }
+          .amount-col { text-align: right; }
+          .summary-section { display: flex; justify-content: flex-end; margin-top: auto; }
+          .summary-box { width: 320px; }
+          .summary-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; color: #4b5563; }
+          .summary-row.total { border-top: 2px solid #e5e7eb; margin-top: 10px; padding-top: 15px; font-size: 18px; font-weight: 800; color: #111827; }
+          .footer { margin-top: 30px; text-align: center; padding-top: 15px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px; }
+          @media print { 
+            body { padding: 0; background: #fff; } 
+            .invoice-container { box-shadow: none; border: 2px solid #cbd5e1 !important; padding: 25px; max-width: 100%; height: 97vh; min-height: 97vh; margin: 0; page-break-after: avoid; page-break-inside: avoid; } 
+          }
+        </style>
+      </head>
+      <body>
+        <div class="invoice-container">
+          <div class="header">
+            <div class="brand">
+              <h1>Academy Setu</h1>
+              <p>BrainKet Technologies</p>
+              <p>Official CRM Partner</p>
+            </div>
+            <div class="invoice-meta">
+              <h2>Tax Invoice</h2>
+              <div class="meta-row"><strong>Date:</strong> ${new Date(date || new Date()).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+              <div class="meta-row"><strong>Transaction ID:</strong> ${txnId || 'N/A'}</div>
+              <div class="meta-row"><strong>Payment Mode:</strong> <span style="text-transform: uppercase;">${paymentMode}</span></div>
+            </div>
+          </div>
+          
+          <div class="billing-section">
+            <div class="billing-box">
+              <h3>Billed To (Institute)</h3>
+              <p style="font-size: 20px; font-weight: 800; color: #4f46e5; margin-bottom: 8px;">${schoolName}</p>
+            </div>
+          </div>
+      
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th class="amount-col">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <strong style="font-size: 16px;">${planName}</strong><br>
+                  <span style="font-size: 13px; color: #6b7280;">Academy Setu CRM Software Subscription Plan</span>
+                  
+                  ${planDesc ? `<div style="margin-top: 10px; font-size: 13px; color: #4b5563; border-left: 2px solid #e5e7eb; padding-left: 10px;">${planDesc}</div>` : ''}
+                  
+                  ${planMenus && planMenus.length > 0 ? `
+                    <div style="margin-top: 15px;">
+                      <strong style="font-size: 12px; color: #9ca3af; text-transform: uppercase;">Modules Included:</strong>
+                      <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;">
+                        ${planMenus.map((m: string) => `<span style="padding: 3px 8px; background: #e0e7ff; color: #4338ca; border-radius: 4px; font-size: 11px; font-weight: 600;">${m}</span>`).join('')}
+                      </div>
+                    </div>
+                  ` : ''}
+                </td>
+                <td class="amount-col">₹${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+              </tr>
+            </tbody>
+          </table>
+      
+          <div class="summary-section">
+            <div class="summary-box">
+              <div class="summary-row">
+                <span>Subtotal</span>
+                <span>₹${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div class="summary-row" style="color: #10b981;">
+                <span>Discount Applied</span>
+                <span>- ₹0.00</span>
+              </div>
+              <div class="summary-row total">
+                <span>Total Paid</span>
+                <span>₹${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+          </div>
+      
+          <div class="footer">
+            <p><strong style="color: #4f46e5;">Thank you for choosing Academy Setu!</strong></p>
+            <p>This is a computer-generated invoice and requires no physical signature.</p>
+          </div>
+        </div>
+        <script>
+          window.onload = () => {
+            window.print();
+            setTimeout(() => window.close(), 250);
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([invoiceHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
   }
 
   const handleGenerateLink = (gatewayName: string) => {
@@ -654,8 +788,7 @@ function BillingDashboardContent() {
       {/* ================= PURCHASE PLAN TAB ================= */}
       {activeTab === 'purchase' && (
         <div className="flex flex-col gap-6">
-          {wizardStep === 1 ? (
-            <>
+          <>
               {/* Step 1: Selection Form Card */}
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm">
                 <form onSubmit={handleSelectionSubmit} className="flex items-end justify-between flex-wrap gap-5">
@@ -773,9 +906,30 @@ function BillingDashboardContent() {
                         </div>
 
                         {instActivePlan ? (
+                          <>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="flex flex-col gap-1.5 md:col-span-2">
                               <h3 className="text-xl font-black text-slate-800 dark:text-slate-100">{instActivePlan.plan_name}</h3>
+                              {(() => {
+                                const fullPlan = filteredPlansList.find(p => p.id === instActivePlan.plan_id) || plans.find(p => p.id === instActivePlan.plan_id);
+                                if (!fullPlan) return null;
+                                return (
+                                  <div className="flex flex-col gap-2 mt-2 mb-1">
+                                    {fullPlan.description && (
+                                      <p className="text-sm font-medium text-slate-600 dark:text-slate-400 max-w-2xl">{fullPlan.description}</p>
+                                    )}
+                                    {fullPlan.menus && fullPlan.menus.length > 0 && (
+                                      <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto pr-1 pb-1">
+                                        {fullPlan.menus.map((m: string) => (
+                                          <span key={m} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-md text-[10px] font-bold border border-indigo-100 dark:border-indigo-800">
+                                            {m}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
                                 <div className="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 rounded-xl">
                                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Valid From</span>
@@ -787,21 +941,7 @@ function BillingDashboardContent() {
                                 </div>
                               </div>
                               <div className="flex flex-wrap items-center gap-3 mt-4">
-                                <button
-                                  onClick={() => {
-                                    setPurchaseMode('renew')
-                                    const fullPlan = plans.find(p => p.id === instActivePlan.plan_id)
-                                    if (fullPlan) {
-                                      setSelectedPlan(fullPlan)
-                                      setWizardStep(2)
-                                    } else {
-                                      toast.error('Plan details not found')
-                                    }
-                                  }}
-                                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
-                                >
-                                  Renew Plan
-                                </button>
+
                                 <button
                                   onClick={() => {
                                     setPurchaseMode('change')
@@ -822,9 +962,12 @@ function BillingDashboardContent() {
                                 </button>
                               </div>
                             </div>
-                            <div className="p-5 bg-gradient-to-br from-indigo-500 to-violet-600 text-white rounded-2xl flex flex-col justify-between shadow-sm relative overflow-hidden">
+                            <div className="p-5 bg-gradient-to-br from-indigo-500 to-violet-600 text-white rounded-2xl flex flex-col shadow-sm relative overflow-hidden self-start w-full">
                               <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 opacity-10 text-[100px] font-black pointer-events-none">₹</div>
-                              <div>
+                              <button onClick={() => handleDownloadPDF(selectedSchool, instActivePlan.amount, instActivePlan.plan_name || 'Active Plan', instActivePlan.payment_date, instActivePlan.transaction_id, instActivePlan.payment_mode)} className="absolute right-4 top-4 p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all cursor-pointer z-10" title="Download Bill">
+                                <Download className="w-4 h-4" />
+                              </button>
+                              <div className="pr-10">
                                 <span className="text-[10px] font-bold text-indigo-100 uppercase tracking-wider">Amount Paid</span>
                                 <p className="text-3xl font-black mt-1">₹{instActivePlan.amount}</p>
                               </div>
@@ -834,6 +977,77 @@ function BillingDashboardContent() {
                               </div>
                             </div>
                           </div>
+                          
+                          {(() => {
+                            const activeFullPlan = filteredPlansList.find(p => p.id === instActivePlan.plan_id) || plans.find(p => p.id === instActivePlan.plan_id);
+                            const hasRenewal = activeFullPlan && activeFullPlan.renewal_billing_items && activeFullPlan.renewal_billing_items.length > 0;
+                            
+                            if (!hasRenewal) return null;
+                            
+                            const renewalPrice = (activeFullPlan?.renewal_billing_items || []).reduce((acc: number, item: any) => acc + (Number(item.price) + Number(item.tax_price)), 0);
+                            const renewalDuration = activeFullPlan.renewal_billing_duration || 0;
+                            
+                            const validFrom = new Date(instActivePlan.end_date);
+                            const validTill = new Date(validFrom.getTime() + renewalDuration * 24 * 60 * 60 * 1000);
+                            
+                            const daysLeftToRenew = Math.max(0, Math.ceil((validFrom.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+
+                            const hasPendingRenewal = instHasPendingRenewal;
+
+                            return (
+                              <div className="mt-6 p-5 rounded-2xl border border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/30 dark:bg-indigo-900/10">
+                                <h4 className="text-sm font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                  Renewal Details (Active Plan)
+                                </h4>
+                                <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                                  <div className="flex-1">
+                                    <h5 className="text-base font-black text-slate-800 dark:text-slate-100">{activeFullPlan.plan_name} (Renewal)</h5>
+                                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1 max-w-lg line-clamp-2">
+                                      This is the renewal configuration for your current active plan.
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-wrap gap-6 items-center">
+                                    <div className="text-xs">
+                                      <div className="text-slate-500 dark:text-slate-400 font-medium">Valid From: <span className="font-bold text-slate-700 dark:text-slate-300">{formatDateOnly(instActivePlan.end_date)}</span></div>
+                                      <div className="text-slate-500 dark:text-slate-400 font-medium mt-1">Valid Till: <span className="font-bold text-slate-700 dark:text-slate-300">{formatDateOnly(validTill.toISOString())}</span></div>
+                                    </div>
+                                    <div className="text-right p-3 bg-gradient-to-br from-indigo-500 to-violet-600 text-white rounded-xl shadow-sm">
+                                      <div className="text-[10px] font-bold text-indigo-100 uppercase tracking-wider">Renewal Price</div>
+                                      <span className="text-2xl font-black">₹{renewalPrice.toFixed(2)}</span>
+                                      <div className="text-[10px] font-medium text-indigo-200 mt-0.5">
+                                        {daysLeftToRenew} days left
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        disabled={hasPendingRenewal}
+                                        onClick={() => {
+                                          setPurchaseMode('renew')
+                                          if (activeFullPlan) {
+                                            setSelectedPlan(activeFullPlan)
+                                            setWizardStep(2)
+                                          } else {
+                                            toast.error('Plan details not found')
+                                          }
+                                        }}
+                                        className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 ${
+                                          hasPendingRenewal
+                                            ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-400 cursor-not-allowed shadow-none'
+                                            : 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer'
+                                        }`}
+                                      >
+                                        {hasPendingRenewal ? 'Renewal Requested' : 'Renew Plan'}
+                                      </button>
+                                      <button onClick={() => handleDownloadPDF(selectedSchool, instActivePlan.amount, instActivePlan.plan_name || 'Active Plan', instActivePlan.payment_date, instActivePlan.transaction_id, instActivePlan.payment_mode)} className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm cursor-pointer" title="Download Bill">
+                                        <Download className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </>
                         ) : (
                           <div className="py-6 text-center text-slate-400 dark:text-slate-500 text-sm font-medium flex flex-col items-center justify-center gap-3">
                             <p>This institute has no currently running plan.</p>
@@ -1008,262 +1222,269 @@ function BillingDashboardContent() {
                 </div>
               )}
             </>
-          ) : (
-            /* Step 2: Checkout – Two-Column Layout */
-            <div className="flex flex-col gap-5">
 
-              {/* Back link */}
-              <button
-                onClick={() => {
-                  setWizardStep(1)
-                  if (purchaseMode === 'renew') {
-                    setPurchaseMode('new')
-                  }
-                }}
-                className="self-start flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-              >
-                &larr; {purchaseMode === 'renew' ? 'Cancel Renewal' : 'Back to plan list'}
-              </button>
-
-              {/* Two-column grid: form left, summary right */}
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
-
-                {/* ── LEFT: Promo + Payment Mode Form ── */}
-                <div className="lg:col-span-3 flex flex-col gap-5">
-
-                  {/* Promo Code */}
-                  <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-3">
-                    <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 pb-3">
-                      <Percent className="w-4 h-4 text-indigo-500" /> Promo Code
-                    </h3>
-                    <div className="relative">
-                      <input
-                        type="text" readOnly placeholder="Click to select a promo code (optional)"
-                        onClick={() => setPromoModalOpen(true)}
-                        value={appliedPromo ? `${appliedPromo.code} – ${appliedPromo.discount_type === 'Fixed' ? `₹${appliedPromo.discount_value} Off` : `${appliedPromo.discount_value}% Off`}` : ''}
-                        className="w-full px-4 py-3 pr-12 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer placeholder:text-slate-400"
-                      />
-                      <button onClick={() => setPromoModalOpen(true)} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 flex items-center justify-center text-indigo-600 cursor-pointer transition-colors border border-indigo-100/50">
-                        <Percent className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {appliedPromo && (
-                      <div className="flex items-center justify-between px-3 py-2 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900 rounded-xl">
-                        <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">✓ Promo applied: {appliedPromo.code}</span>
-                        <button onClick={() => setAppliedPromo(null)} className="text-[10px] font-bold text-red-500 hover:text-red-700 cursor-pointer">Remove</button>
+            {/* Modal for Step 2 */}
+            {wizardStep === 2 && (
+              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto p-4 lg:p-5 relative animate-in fade-in zoom-in duration-200">
+                  <button
+                    onClick={() => {
+                      setWizardStep(1)
+                      if (purchaseMode === 'renew') {
+                        setPurchaseMode('new')
+                      }
+                    }}
+                    className="absolute top-4 right-4 p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer z-10"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                  
+                  <div className="flex flex-col gap-3 mx-auto w-full mt-2">
+                    
+                    {/* 1. Plan Detail & Institute Header */}
+                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
+                      <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-3 px-4 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <p className="text-[9px] font-bold text-indigo-200 uppercase tracking-widest mb-0.5">Purchasing Plan For</p>
+                          <h2 className="text-sm font-black leading-tight">{selectedSchool || '—'}</h2>
+                        </div>
+                        {selectedSegment && (
+                          <span className="self-start sm:self-auto px-2 py-0.5 bg-white/20 text-white border border-white/30 rounded-full text-[9px] font-bold uppercase tracking-wider shrink-0">{selectedSegment}</span>
+                        )}
                       </div>
-                    )}
-                  </div>
-
-                  {/* Payment Mode Card */}
-                  <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-5">
-                    <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-3">
-                      Payment Mode
-                    </h3>
-
-                    {/* Mode pill tabs */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {(['gateway', 'bank', 'upi', 'qr'] as const).map(mode => (
-                        <button key={mode} type="button" onClick={() => setPaymentModeOption(mode)}
-                          className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border-2 text-xs font-bold transition-all cursor-pointer ${paymentModeOption === mode ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-300'}`}
-                        >
-                          <span className="text-lg">{mode === 'gateway' ? '💳' : mode === 'bank' ? '🏦' : mode === 'upi' ? '📱' : '📷'}</span>
-                          {mode === 'gateway' ? 'Gateway' : mode === 'bank' ? 'Bank' : mode === 'upi' ? 'UPI' : 'QR Code'}
-                        </button>
-                      ))}
-                    </div>
-
-                    <form id="checkout-form" onSubmit={handleCheckoutSubmit} className="flex flex-col gap-5">
-
-                      {/* 1. Payment Gateway */}
-                      {paymentModeOption === 'gateway' && (
-                        <div className="flex flex-col gap-3 p-4 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800">
-                          <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl">
-                            <span className="text-sm font-bold text-slate-800 dark:text-slate-100">Razorpay Payment Gateway 1</span>
-                            <div className="flex items-center gap-3">
-                              <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900 rounded-full text-[10px] font-bold">Pending</span>
-                              <button type="button" onClick={() => handleGenerateLink('Razorpay')} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg cursor-pointer transition-colors">Generate Link</button>
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl">
-                            <span className="text-sm font-bold text-slate-800 dark:text-slate-100">Phonepay Payment Gateway 1</span>
-                            <button type="button" onClick={() => handleGenerateLink('Phonepe')} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg cursor-pointer transition-colors">Generate Link</button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 2. Bank */}
-                      {paymentModeOption === 'bank' && (
-                        <div className="flex flex-col gap-4">
-                          <div className="p-4 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Bank Account Details</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                              <div><span className="text-slate-400 font-semibold block">Account No.</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankAccountNo}</span></div>
-                              <div><span className="text-slate-400 font-semibold block">IFSC Code</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankIfsc}</span></div>
-                              <div><span className="text-slate-400 font-semibold block">Holder Name</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankHolderName}</span></div>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="flex flex-col gap-1.5">
-                              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
-                              <input type="text" placeholder="Enter Transaction ID" value={txnId} onChange={e => setTxnId(e.target.value)} required className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount *</label>
-                              <input type="number" placeholder="Enter Amount" value={manualAmount} onChange={e => setManualAmount(e.target.value)} required className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                            </div>
-                            <div className="flex flex-col gap-1.5 sm:col-span-2">
-                              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
-                              <div className="relative">
-                                <input type="text" placeholder="Attach a file" readOnly value={screenshotName} onClick={() => setScreenshotName('screenshot_bank_txn.png')} className="w-full px-4 py-2.5 pr-10 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm cursor-pointer text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                                <Paperclip className="w-4 h-4 text-indigo-600 absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer" />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 3. UPI */}
-                      {paymentModeOption === 'upi' && (
-                        <div className="flex flex-col gap-4">
-                          <div className="p-4 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">UPI Details</p>
-                            <div className="text-xs"><span className="text-slate-400 font-semibold block">UPI ID</span><span className="font-bold text-slate-800 dark:text-slate-200">{upiId}</span></div>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="flex flex-col gap-1.5">
-                              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
-                              <input type="text" placeholder="Enter Transaction ID" value={txnId} onChange={e => setTxnId(e.target.value)} required className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount *</label>
-                              <input type="number" placeholder="Enter Amount" value={manualAmount} onChange={e => setManualAmount(e.target.value)} required className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                            </div>
-                            <div className="flex flex-col gap-1.5 sm:col-span-2">
-                              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
-                              <div className="relative">
-                                <input type="text" placeholder="Attach a file" readOnly value={screenshotName} onClick={() => setScreenshotName('screenshot_upi_txn.png')} className="w-full px-4 py-2.5 pr-10 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm cursor-pointer text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                                <Paperclip className="w-4 h-4 text-indigo-600 absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer" />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 4. QR Code */}
-                      {paymentModeOption === 'qr' && (
-                        <div className="flex flex-col gap-4">
-                          <div className="p-4 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center gap-5">
-                            <div className="p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm shrink-0">
-                              <svg className="w-24 h-24 text-slate-900 dark:text-white" viewBox="0 0 100 100" fill="currentColor">
-                                <path d="M0,0 h30 v30 h-30 z M10,10 h10 v10 h-10 z" /><path d="M70,0 h30 v30 h-30 z M80,10 h10 v10 h-10 z" /><path d="M0,70 h30 v30 h-30 z M10,80 h10 v10 h-10 z" />
-                                <rect x="40" y="5" width="10" height="15" /><rect x="55" y="15" width="10" height="10" /><rect x="45" y="40" width="15" height="15" /><rect x="15" y="45" width="10" height="10" /><rect x="75" y="45" width="15" height="10" /><rect x="40" y="70" width="15" height="10" /><rect x="55" y="85" width="10" height="10" /><rect x="75" y="75" width="15" height="15" /><rect x="85" y="60" width="10" height="10" />
-                              </svg>
-                            </div>
-                            <div>
-                              <p className="text-xs font-extrabold text-slate-700 dark:text-slate-200">Scan QR to Pay</p>
-                              <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">Use any UPI app to scan and pay, then enter the transaction ID below.</p>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="flex flex-col gap-1.5">
-                              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
-                              <input type="text" placeholder="Enter Transaction ID" value={txnId} onChange={e => setTxnId(e.target.value)} required className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount *</label>
-                              <input type="number" placeholder="Enter Amount" value={manualAmount} onChange={e => setManualAmount(e.target.value)} required className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                            </div>
-                            <div className="flex flex-col gap-1.5 sm:col-span-2">
-                              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
-                              <div className="relative">
-                                <input type="text" placeholder="Attach a file" readOnly value={screenshotName} onClick={() => setScreenshotName('screenshot_qr_txn.png')} className="w-full px-4 py-2.5 pr-10 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm cursor-pointer text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                                <Paperclip className="w-4 h-4 text-indigo-600 absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer" />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                    </form>
-                  </div>
-                </div>
-
-                {/* ── RIGHT: Order Summary (Sticky) ── */}
-                <div className="lg:col-span-2">
-                  <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden sticky top-4">
-
-                    {/* Institute header banner */}
-                    <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-5 text-white">
-                      <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest mb-1">Purchasing Plan For</p>
-                      <h2 className="text-base font-black leading-tight">{selectedSchool || '—'}</h2>
-                      {selectedSegment && (
-                        <span className="mt-2 inline-block px-2.5 py-0.5 bg-white/20 text-white border border-white/30 rounded-full text-[10px] font-bold uppercase tracking-wider">{selectedSegment}</span>
-                      )}
-                    </div>
-
-                    {/* Summary body */}
-                    <div className="p-5 flex flex-col gap-4">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Order Summary</p>
-
                       {selectedPlan && (
-                        <>
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-black text-slate-800 dark:text-slate-100">{selectedPlan.plan_name}</p>
-                              <p className="text-[11px] text-slate-400 mt-0.5">Validity: {selectedPlan.first_billing_duration || 365} days</p>
-                              <p className="text-[11px] text-slate-400">{dates.validFrom} → {dates.validTo}</p>
+                        <div className="p-3 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-black text-slate-800 dark:text-slate-100">{selectedPlan.plan_name}</p>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                              <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600">Validity: {selectedPlan.first_billing_duration || 365} days</span>
+                              <span className="text-[10px] text-slate-500 font-medium bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded">{dates.validFrom} → {dates.validTo}</span>
                             </div>
-                            <span className="text-base font-extrabold text-slate-800 dark:text-slate-100 shrink-0">
+                          </div>
+                          <div className="text-left sm:text-right shrink-0">
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Plan Price</p>
+                            <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">
                               ₹{getPlanPrice(selectedPlan).toLocaleString('en-IN')}
                             </span>
                           </div>
+                        </div>
+                      )}
+                    </div>
 
-                          <div className="border-t border-slate-100 dark:border-slate-700 pt-3 flex flex-col gap-2 text-xs font-semibold">
-                            <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                              <span>Plan Price</span>
-                              <span>₹{getPlanPrice(selectedPlan).toLocaleString('en-IN')}</span>
-                            </div>
-                            {appliedPromo && (
-                              <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-                                <span>Discount ({appliedPromo.code})</span>
-                                <span>− ₹{getPromoDiscountAmount(selectedPlan, appliedPromo).toFixed(2)}</span>
+                    {/* 2. Promo Code */}
+                    <div className="bg-white dark:bg-slate-800 rounded-xl p-3 px-4 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-1.5">
+                      <h3 className="text-xs font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-slate-100 dark:border-slate-700">
+                        <Percent className="w-3.5 h-3.5 text-indigo-500" /> Promo Code
+                      </h3>
+                      {promoCodes.length === 0 ? (
+                        <p className="text-[10px] text-slate-400 font-medium mt-1">No promo codes available.</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {promoCodes.map(pc => (
+                            <button
+                              key={pc.id}
+                              type="button"
+                              onClick={() => {
+                                if (appliedPromo?.id === pc.id) {
+                                  setAppliedPromo(null)
+                                } else {
+                                  setAppliedPromo(pc)
+                                  toast.success(`Promo code ${pc.code} applied!`)
+                                }
+                              }}
+                              title={pc.discount_type === 'Fixed' ? `Amount ₹${pc.discount_value}/- Off` : `${pc.discount_value}% Off`}
+                              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold transition-all border shadow-sm cursor-pointer ${
+                                appliedPromo?.id === pc.id
+                                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-indigo-600/20'
+                                  : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30'
+                              }`}
+                            >
+                              <Percent className="w-3 h-3" />
+                              {pc.code}
+                              {appliedPromo?.id === pc.id && (
+                                <span className="ml-1 flex items-center justify-center bg-white/20 rounded-full w-3 h-3 text-[8px]">✓</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3. Payment Mode */}
+                    <div className="bg-white dark:bg-slate-800 rounded-xl p-3 px-4 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-3">
+                      <h3 className="text-xs font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2">
+                        Payment Mode
+                      </h3>
+
+                      {/* Mode pill tabs */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {(['gateway', 'bank', 'upi', 'qr'] as const).map(mode => (
+                          <button key={mode} type="button" onClick={() => setPaymentModeOption(mode)}
+                            className={`flex flex-row justify-center items-center gap-1.5 py-1.5 px-2 rounded-lg border-2 text-[10px] font-bold transition-all cursor-pointer ${paymentModeOption === mode ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 shadow-sm' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 bg-slate-50 dark:bg-slate-900/30'}`}
+                          >
+                            <span className="text-sm leading-none">{mode === 'gateway' ? '💳' : mode === 'bank' ? '🏦' : mode === 'upi' ? '📱' : '📷'}</span>
+                            {mode === 'gateway' ? 'Gateway' : mode === 'bank' ? 'Bank' : mode === 'upi' ? 'UPI' : 'QR Code'}
+                          </button>
+                        ))}
+                      </div>
+
+                      <form id="checkout-form" onSubmit={handleCheckoutSubmit} className="flex flex-col gap-3">
+                        {/* 1. Payment Gateway */}
+                        {paymentModeOption === 'gateway' && (
+                          <div className="flex flex-col gap-2 p-2 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-100 dark:border-slate-800">
+                            <div className="flex items-center justify-between p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Razorpay Gateway 1</span>
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900 rounded-full text-[9px] font-bold">Pending</span>
+                                <button type="button" onClick={() => handleGenerateLink('Razorpay')} className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-md cursor-pointer transition-colors shadow-sm">Generate</button>
                               </div>
-                            )}
-                            <div className="flex justify-between text-slate-800 dark:text-slate-100 font-extrabold text-sm border-t border-slate-100 dark:border-slate-700 pt-2 mt-1">
-                              <span>Total Payable</span>
-                              <span className="text-indigo-600 dark:text-indigo-400">
-                                ₹{(paymentModeOption === 'gateway' ? getFinalAmount() : parseFloat(manualAmount || '0')).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </span>
+                            </div>
+                            <div className="flex items-center justify-between p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">PhonePe Gateway 1</span>
+                              <button type="button" onClick={() => handleGenerateLink('Phonepe')} className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-md cursor-pointer transition-colors shadow-sm">Generate</button>
                             </div>
                           </div>
-                        </>
-                      )}
-
-                      {/* Submit button tied to the form */}
-                      <button
-                        type="submit"
-                        form="checkout-form"
-                        disabled={submitting}
-                        className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-extrabold text-sm rounded-xl transition-all cursor-pointer shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 mt-2"
-                      >
-                        {submitting ? (
-                          <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
-                        ) : (
-                          paymentModeOption === 'gateway' ? '🚀 Submit Request' : '✅ Create Bill'
                         )}
-                      </button>
 
-                      <p className="text-[10px] text-slate-400 text-center leading-relaxed">
-                        A request will be created under the <strong>Request</strong> menu for review.
-                      </p>
+                        {/* 2. Bank */}
+                        {paymentModeOption === 'bank' && (
+                          <div className="flex flex-col gap-3">
+                            <div className="p-3 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-100 dark:border-slate-800">
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-2">Bank Account Details</p>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                                <div><span className="text-slate-400 text-[10px] font-semibold block mb-0.5">Account No.</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankAccountNo}</span></div>
+                                <div><span className="text-slate-400 text-[10px] font-semibold block mb-0.5">IFSC Code</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankIfsc}</span></div>
+                                <div><span className="text-slate-400 text-[10px] font-semibold block mb-0.5">Holder Name</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankHolderName}</span></div>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
+                                <input type="text" placeholder="Enter Transaction ID" value={txnId} onChange={e => setTxnId(e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount *</label>
+                                <input type="number" placeholder="Enter Amount" value={manualAmount} onChange={e => setManualAmount(e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
+                              </div>
+                              <div className="flex flex-col gap-1 sm:col-span-2">
+                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
+                                <div className="relative">
+                                  <input type="text" placeholder="Attach a file" readOnly value={screenshotName} onClick={() => setScreenshotName('screenshot_bank_txn.png')} className="w-full px-3 py-2 pr-8 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs cursor-pointer text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
+                                  <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer" />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 3. UPI */}
+                        {paymentModeOption === 'upi' && (
+                          <div className="flex flex-col gap-3">
+                            <div className="p-3 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-100 dark:border-slate-800">
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">UPI Details</p>
+                              <div className="text-xs"><span className="text-slate-400 text-[10px] font-semibold block mb-0.5">UPI ID</span><span className="font-bold text-slate-800 dark:text-slate-200">{upiId}</span></div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
+                                <input type="text" placeholder="Enter Transaction ID" value={txnId} onChange={e => setTxnId(e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount *</label>
+                                <input type="number" placeholder="Enter Amount" value={manualAmount} onChange={e => setManualAmount(e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
+                              </div>
+                              <div className="flex flex-col gap-1 sm:col-span-2">
+                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
+                                <div className="relative">
+                                  <input type="text" placeholder="Attach a file" readOnly value={screenshotName} onClick={() => setScreenshotName('screenshot_upi_txn.png')} className="w-full px-3 py-2 pr-8 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs cursor-pointer text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
+                                  <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer" />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 4. QR Code */}
+                        {paymentModeOption === 'qr' && (
+                          <div className="flex flex-col gap-3">
+                            <div className="p-3 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-100 dark:border-slate-800 flex items-center gap-4">
+                              <div className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm shrink-0">
+                                <svg className="w-16 h-16 text-slate-900 dark:text-white" viewBox="0 0 100 100" fill="currentColor">
+                                  <path d="M0,0 h30 v30 h-30 z M10,10 h10 v10 h-10 z" /><path d="M70,0 h30 v30 h-30 z M80,10 h10 v10 h-10 z" /><path d="M0,70 h30 v30 h-30 z M10,80 h10 v10 h-10 z" />
+                                  <rect x="40" y="5" width="10" height="15" /><rect x="55" y="15" width="10" height="10" /><rect x="45" y="40" width="15" height="15" /><rect x="15" y="45" width="10" height="10" /><rect x="75" y="45" width="15" height="10" /><rect x="40" y="70" width="15" height="10" /><rect x="55" y="85" width="10" height="10" /><rect x="75" y="75" width="15" height="15" /><rect x="85" y="60" width="10" height="10" />
+                                </svg>
+                              </div>
+                              <div>
+                                <p className="text-xs font-extrabold text-slate-700 dark:text-slate-200">Scan QR to Pay</p>
+                                <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">Use any UPI app to scan and pay, then enter the transaction ID below.</p>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
+                                <input type="text" placeholder="Enter Transaction ID" value={txnId} onChange={e => setTxnId(e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount *</label>
+                                <input type="number" placeholder="Enter Amount" value={manualAmount} onChange={e => setManualAmount(e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
+                              </div>
+                              <div className="flex flex-col gap-1 sm:col-span-2">
+                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
+                                <div className="relative">
+                                  <input type="text" placeholder="Attach a file" readOnly value={screenshotName} onClick={() => setScreenshotName('screenshot_qr_txn.png')} className="w-full px-3 py-2 pr-8 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs cursor-pointer text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
+                                  <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer" />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </form>
                     </div>
+
+                    {/* 4. Final Summary & Submit */}
+                    {selectedPlan && (
+                      <div className="bg-slate-800 dark:bg-slate-900/80 rounded-xl p-4 shadow-md text-white mt-1 border border-slate-700">
+                        <div className="flex flex-col gap-1.5 text-xs font-semibold mb-3">
+                          <div className="flex justify-between text-slate-300">
+                            <span>Plan Price</span>
+                            <span>₹{getPlanPrice(selectedPlan).toLocaleString('en-IN')}</span>
+                          </div>
+                          {appliedPromo && (
+                            <div className="flex justify-between text-emerald-400">
+                              <span>Discount ({appliedPromo.code})</span>
+                              <span>− ₹{getPromoDiscountAmount(selectedPlan, appliedPromo).toFixed(2)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-white font-black text-lg border-t border-slate-600/50 pt-2 mt-1">
+                            <span>Total Payable</span>
+                            <span className="text-indigo-400">
+                              ₹{(paymentModeOption === 'gateway' ? getFinalAmount() : parseFloat(manualAmount || '0')).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="submit"
+                          form="checkout-form"
+                          disabled={submitting}
+                          className="w-full py-2.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-60 text-white font-black text-xs rounded-lg transition-all cursor-pointer shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2"
+                        >
+                          {submitting ? (
+                            <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
+                          ) : (
+                            '🚀 Submit Request'
+                          )}
+                        </button>
+
+                        <p className="text-[9px] text-slate-400 text-center leading-relaxed mt-2">
+                          A request will be created under the <strong className="text-slate-300">Request</strong> menu for review.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
-
               </div>
-            </div>
-          )}
+            )}
         </div>
       )}
 
@@ -1560,7 +1781,7 @@ function BillingDashboardContent() {
                           <td className="px-5 py-4 text-slate-500 dark:text-slate-400 font-semibold">{formatDateOnly(bill.payment_date)}</td>
                           <td className="px-5 py-4 text-center">
                             <button
-                              onClick={() => handleDownloadPDF(bill)}
+                              onClick={() => handleDownloadPDF(bill.school_name, bill.amount, bill.plan_name, bill.payment_date, bill.transaction_id, bill.payment_mode)}
                               className="w-8 h-8 inline-flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg transition-colors cursor-pointer border border-indigo-100 dark:border-indigo-900/40"
                               title="Download Invoice (PDF)"
                             >

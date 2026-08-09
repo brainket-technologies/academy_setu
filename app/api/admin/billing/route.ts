@@ -84,6 +84,13 @@ export async function POST(request: NextRequest) {
       finalPlanId = planRes.rows[0]?.id || null
     }
 
+    if (body.is_renewal && finalInstitutionId) {
+      const pendingCheck = await pool.query(`SELECT id FROM bills WHERE institution_id = $1 AND status = 'Pending'`, [finalInstitutionId]);
+      if (pendingCheck.rows.length > 0) {
+        return NextResponse.json({ success: false, error: 'A renewal request is already pending for this institution.' }, { status: 400 })
+      }
+    }
+
     if (finalPlanId && finalInstitutionId) {
       const planInfo = await pool.query('SELECT segment_id FROM plans WHERE id = $1', [finalPlanId])
       if (planInfo.rows.length > 0 && planInfo.rows[0].segment_id) {
