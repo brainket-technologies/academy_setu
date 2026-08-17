@@ -38,12 +38,17 @@ interface Party {
   party_category: string
 }
 
-const STAFF_OPTIONS = ['Neeraj', 'Sourabh', 'Kamlesh', 'Priya Singh', 'Amit Verma', 'Sudhir Rawat']
+interface UserRole {
+  id: string
+  name: string
+  role: string
+}
 
 export default function AllExpensesPage() {
   const [records, setRecords] = useState<ExpenseRecord[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [parties, setParties] = useState<Party[]>([])
+  const [staffs, setStaffs] = useState<UserRole[]>([])
   const [loading, setLoading] = useState(true)
 
   // Search & Filter state
@@ -70,6 +75,7 @@ export default function AllExpensesPage() {
 
   // Add Expense Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [addRole, setAddRole] = useState('')
   const [addForm, setAddForm] = useState({
     trans_id: '',
     expense_category: '',
@@ -88,6 +94,7 @@ export default function AllExpensesPage() {
 
   // Edit Expense Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editRole, setEditRole] = useState('')
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({
     trans_id: '',
@@ -122,16 +129,19 @@ export default function AllExpensesPage() {
   // Fetch helper options
   const fetchAuxiliaryData = async () => {
     try {
-      const [catRes, partRes] = await Promise.all([
+      const [catRes, partRes, usersRes] = await Promise.all([
         fetch('/api/admin/income/categories?category_type=Expense'),
-        fetch('/api/admin/income/parties?party_category=Expense')
+        fetch('/api/admin/income/parties?party_category=Expense'),
+        fetch('/api/admin/users?pageSize=1000')
       ])
       
       const catData = await catRes.json()
       const partData = await partRes.json()
+      const usersData = await usersRes.json()
 
       if (catData.success) setCategories(catData.data)
       if (partData.success) setParties(partData.data)
+      if (usersData.success) setStaffs(usersData.data)
     } catch (err) {
       console.error('Error fetching auxiliary data:', err)
     }
@@ -323,6 +333,22 @@ export default function AllExpensesPage() {
       toast.error('Error deleting record')
     } finally {
       setDeleteLoading(false)
+    }
+  }
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        if (isEdit) {
+          setEditForm(prev => ({ ...prev, photo_url: reader.result as string }))
+        } else {
+          setAddForm(prev => ({ ...prev, photo_url: reader.result as string }))
+        }
+        toast.success('Photo uploaded successfully')
+      }
+      reader.readAsDataURL(file)
     }
   }
 
@@ -654,8 +680,8 @@ export default function AllExpensesPage() {
                     className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                   >
                     <option value="">Select an option</option>
-                    {STAFF_OPTIONS.map(s => (
-                      <option key={s} value={s}>{s}</option>
+                    {staffs.map(s => (
+                      <option key={s.id} value={s.name}>{s.name} ({s.role})</option>
                     ))}
                   </select>
                 </div>
@@ -804,16 +830,33 @@ export default function AllExpensesPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Paid by (Staffs) *</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Select Role *</label>
+                    <select
+                      value={addRole}
+                      onChange={e => {
+                        setAddRole(e.target.value)
+                        setAddForm(prev => ({ ...prev, paid_by: '' }))
+                      }}
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
+                    >
+                      <option value="">Select a Role</option>
+                      {Array.from(new Set(staffs.map(s => s.role))).filter(Boolean).map(role => (
+                        <option key={role} value={role}>{role}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Paid by (Users) *</label>
                     <select
                       required
                       value={addForm.paid_by}
                       onChange={e => setAddForm(prev => ({ ...prev, paid_by: e.target.value }))}
                       className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                     >
-                      <option value="">Select an Option</option>
-                      {STAFF_OPTIONS.map(s => (
-                        <option key={s} value={s}>{s}</option>
+                      <option value="">Select a User</option>
+                      {staffs.filter(s => !addRole || s.role === addRole).map(s => (
+                        <option key={s.id} value={s.name}>{s.name} ({s.role})</option>
                       ))}
                     </select>
                   </div>
@@ -871,10 +914,11 @@ export default function AllExpensesPage() {
                 <div className="mt-4">
                   <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Photo</label>
                   <div className="flex items-center justify-between px-4 py-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-400">
-                    <span className="text-sm font-medium text-slate-555">Upload a photo</span>
-                    <button type="button" onClick={() => toast.info('Receipt upload capability')} className="p-1 text-indigo-600 hover:text-indigo-750">
+                    <span className="text-sm font-medium text-slate-500">{addForm.photo_url ? 'Photo Selected' : 'Upload a photo'}</span>
+                    <label className="p-1 text-indigo-600 hover:text-indigo-700 cursor-pointer">
                       <Upload className="w-5 h-5" />
-                    </button>
+                      <input type="file" className="hidden" accept="image/*" onChange={e => handlePhotoUpload(e, false)} />
+                    </label>
                   </div>
                 </div>
               </div>
@@ -1011,16 +1055,33 @@ export default function AllExpensesPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Paid by (Staffs) *</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Select Role *</label>
+                    <select
+                      value={editRole}
+                      onChange={e => {
+                        setEditRole(e.target.value)
+                        setEditForm(prev => ({ ...prev, paid_by: '' }))
+                      }}
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
+                    >
+                      <option value="">Select a Role</option>
+                      {Array.from(new Set(staffs.map(s => s.role))).filter(Boolean).map(role => (
+                        <option key={role} value={role}>{role}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Paid by (Users) *</label>
                     <select
                       required
                       value={editForm.paid_by}
                       onChange={e => setEditForm(prev => ({ ...prev, paid_by: e.target.value }))}
                       className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
                     >
-                      <option value="">Select an Option</option>
-                      {STAFF_OPTIONS.map(s => (
-                        <option key={s} value={s}>{s}</option>
+                      <option value="">Select a User</option>
+                      {staffs.filter(s => !editRole || s.role === editRole).map(s => (
+                        <option key={s.id} value={s.name}>{s.name} ({s.role})</option>
                       ))}
                     </select>
                   </div>
@@ -1078,10 +1139,11 @@ export default function AllExpensesPage() {
                 <div className="mt-4">
                   <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Photo</label>
                   <div className="flex items-center justify-between px-4 py-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-slate-400">
-                    <span className="text-sm font-medium text-slate-500">Upload a photo</span>
-                    <button type="button" onClick={() => toast.info('Receipt upload capability')} className="p-1 text-indigo-600 hover:text-indigo-700">
+                    <span className="text-sm font-medium text-slate-500">{editForm.photo_url ? 'Photo Selected' : 'Upload a photo'}</span>
+                    <label className="p-1 text-indigo-600 hover:text-indigo-700 cursor-pointer">
                       <Upload className="w-5 h-5" />
-                    </button>
+                      <input type="file" className="hidden" accept="image/*" onChange={e => handlePhotoUpload(e, true)} />
+                    </label>
                   </div>
                 </div>
               </div>

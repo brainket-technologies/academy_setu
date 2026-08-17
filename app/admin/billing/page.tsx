@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react
 import { useRouter, useSearchParams } from 'next/navigation'
 import { 
   Search, Plus, Edit3, Trash2, FileText, Download, Loader2, 
-  ChevronLeft, ChevronRight, X, Percent, Tag, Ticket, Check, Paperclip
+  ChevronLeft, ChevronRight, X, Percent, Tag, Ticket, Check, Paperclip, Calendar
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
@@ -14,12 +14,15 @@ interface Bill {
   segment: string
   school_name: string
   plan_name: string
+  plan_id?: string | null
   payment_mode: string
   payment_date: string
   amount: number
   transaction_id: string
   status: string
   created_at: string
+  screenshots?: any
+  institution_id?: string | null
 }
 
 interface Segment {
@@ -31,6 +34,7 @@ interface InstituteOption {
   id: string
   name: string
   segment_name?: string | null
+  segment_id?: string | null
 }
 
 interface Plan {
@@ -85,7 +89,7 @@ function BillingDashboardContent() {
   const [activeTab, setActiveTab] = useState<'purchase' | 'history'>('purchase')
 
   // Purchase Wizard States (Tab 1)
-  const [wizardStep, setWizardStep] = useState<1 | 2>(1)
+  const [wizardStep, setWizardStep] = useState<0 | 1 | 2>(1)
   const [selectedSegment, setSelectedSegment] = useState('')
   const [selectedSchool, setSelectedSchool] = useState('')
   const [isSubmitted, setIsSubmitted] = useState(false)
@@ -111,9 +115,10 @@ function BillingDashboardContent() {
   const [upiId, setUpiId] = useState('abcd1234567890')
 
   // Manual payment inputs
-  const [txnId, setTxnId] = useState('')
-  const [screenshotName, setScreenshotName] = useState('')
-  const [manualAmount, setManualAmount] = useState('')
+  const [payments, setPayments] = useState<{ id: number, txnId: string, amount: string, screenshot: string, screenshotData?: string }[]>([{ id: 1, txnId: '', amount: '', screenshot: '', screenshotData: '' }])
+  const addPayment = () => setPayments([...payments, { id: Date.now(), txnId: '', amount: '', screenshot: '', screenshotData: '' }])
+  const updatePayment = (id: number, field: string, value: string) => setPayments(payments.map(p => p.id === id ? { ...p, [field]: value } : p))
+  const removePayment = (id: number) => setPayments(payments.filter(p => p.id !== id))
 
   // Transaction History States (Tab 2)
   const [bills, setBills] = useState<Bill[]>([])
@@ -151,8 +156,10 @@ function BillingDashboardContent() {
   const [instPlanHistory, setInstPlanHistory] = useState<any[]>([])
   const [instHasPendingRenewal, setInstHasPendingRenewal] = useState<boolean>(false)
   const [showAllPlansOverride, setShowAllPlansOverride] = useState(false)
-  const [purchaseMode, setPurchaseMode] = useState<'new' | 'renew' | 'change' | 'upcoming'>('new')
-
+  const [purchaseMode, setPurchaseMode] = useState<'new' | 'renew' | 'change' | 'upcoming' | 'edit'>('new')
+  const [showActivePlanFeatures, setShowActivePlanFeatures] = useState(false)
+  const [showRenewalFeatures, setShowRenewalFeatures] = useState(false)
+  const [showUpcomingFeatures, setShowUpcomingFeatures] = useState<Record<string, boolean>>({})
   // Delete modal states
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
@@ -348,6 +355,7 @@ function BillingDashboardContent() {
     return allPromoCodes.map((pc: DBPromoCode, idx: number) => ({
       id: pc.id,
       code: pc.code,
+      description: pc.description,
       discount_name: pc.discount_name || 'Promo Code',
       discount_type: pc.discount_type,
       discount_value: parseFloat(pc.discount_value),
@@ -357,10 +365,20 @@ function BillingDashboardContent() {
     }))
   }
 
+  // Helper for gross amount
+  const getTotalEntered = () => payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+  
+  const getGrossAmount = () => {
+    if (!selectedPlan) return 0
+    if (purchaseMode === 'edit') return getTotalEntered()
+    if (paymentModeOption !== 'gateway') return getTotalEntered()
+    return getPlanPrice(selectedPlan)
+  }
+
   // Calculate discount figures
   const getPromoDiscountAmount = (plan: Plan | null, promo: any) => {
     if (!plan || !promo) return 0
-    const price = getPlanPrice(plan)
+    const price = getGrossAmount()
     if (promo.discount_type === 'Percentage') {
       return (price * Number(promo.discount_value)) / 100
     }
@@ -370,15 +388,20 @@ function BillingDashboardContent() {
   // Get final calculated payment amount
   const getFinalAmount = () => {
     if (!selectedPlan) return 0
-    const planPrice = getPlanPrice(selectedPlan)
+    const grossPrice = getGrossAmount()
     const discount = getPromoDiscountAmount(selectedPlan, appliedPromo)
-    return Math.max(0, planPrice - discount)
+    return Math.max(0, grossPrice - discount)
   }
 
   // Pre-fill manual amount field when plan or promo changes
   useEffect(() => {
     if (selectedPlan) {
-      setManualAmount(String(getFinalAmount()))
+      setPayments(prev => {
+        if (prev.length === 1 && !prev[0].txnId && !prev[0].screenshot) {
+          return [{ ...prev[0], amount: String(getFinalAmount()) }]
+        }
+        return prev
+      })
     }
   }, [selectedPlan, appliedPromo, purchaseMode])
 
@@ -389,8 +412,15 @@ function BillingDashboardContent() {
 
     // If manual mode, require some validation
     if (paymentModeOption !== 'gateway') {
-      if (!txnId) { toast.error('Transaction ID is required'); return }
-      if (!manualAmount || parseFloat(manualAmount) <= 0) { toast.error('Amount is required'); return }
+      if (payments.some(p => !p.txnId)) { toast.error('Transaction ID is required for all payments'); return }
+      if (payments.some(p => !p.amount || parseFloat(p.amount) <= 0)) { toast.error('Valid Amount is required for all payments'); return }
+      
+      const planAmount = getPlanPrice(selectedPlan)
+      const enteredAmount = getGrossAmount()
+      if (enteredAmount < planAmount) {
+        toast.error(`Gross amount (₹${enteredAmount}) cannot be less than the plan price (₹${planAmount})`)
+        return
+      }
     }
 
     setSubmitting(true)
@@ -402,16 +432,19 @@ function BillingDashboardContent() {
         qr: 'QR Code'
       }[paymentModeOption]
 
-      const finalVal = paymentModeOption === 'gateway' ? getFinalAmount() : parseFloat(manualAmount)
-      const finalTxn = paymentModeOption === 'gateway' ? `TXN${Math.floor(100000 + Math.random() * 900000)}` : txnId
+      const finalVal = getFinalAmount()
+      const finalTxn = paymentModeOption === 'gateway' ? `TXN${Math.floor(100000 + Math.random() * 900000)}` : payments.map(p => p.txnId).join(', ')
       const finalStatus = 'Pending'
 
       // Resolve institution_id from loaded schools list
       const selectedSchoolObj = schools.find(s => s.name === selectedSchool)
       const institutionId = selectedSchoolObj?.id || null
 
-      const res = await fetch('/api/admin/billing', {
-        method: 'POST',
+      const url = purchaseMode === 'edit' && editingId ? `/api/admin/billing/${editingId}` : '/api/admin/billing'
+      const method = purchaseMode === 'edit' && editingId ? 'PUT' : 'POST'
+
+      const res = await fetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           institution_id: institutionId,
@@ -425,7 +458,8 @@ function BillingDashboardContent() {
           transaction_id: finalTxn,
           status: finalStatus,
           promo_code_id: appliedPromo?.id || null,
-          is_renewal: purchaseMode === 'renew'
+          is_renewal: purchaseMode === 'renew',
+          screenshots: paymentModeOption === 'gateway' ? [] : payments.map(p => ({ amount: parseFloat(p.amount) || 0, filename: p.screenshot || '', dataUrl: p.screenshotData || '' }))
         })
       })
 
@@ -439,17 +473,22 @@ function BillingDashboardContent() {
             body: JSON.stringify({ bill_id: data.data.id, institution_id: institutionId })
           })
         }
+        if (purchaseMode === 'edit') {
+          toast.success('Bill updated successfully!')
+          setWizardStep(0)
+          setEditingId(null)
+          fetchBills(currentPage)
+        } else {
+          toast.success(paymentModeOption === 'gateway' ? 'Payment request submitted successfully!' : 'Bill created successfully!')
+          setWizardStep(1)
+        }
         
-        toast.success(paymentModeOption === 'gateway' ? 'Payment request submitted successfully!' : 'Bill created successfully!')
-        setWizardStep(1)
         setIsSubmitted(false)
         setShowAllPlansOverride(false)
         setPurchaseMode('new')
         setSelectedPlan(null)
         setAppliedPromo(null)
-        setTxnId('')
-        setManualAmount('')
-        setScreenshotName('')
+        setPayments([{ id: Date.now(), txnId: '', amount: '', screenshot: '', screenshotData: '' }])
         // Reload the institute plans so the dashboard refreshes
         if (institutionId) {
           setInstPlansLoading(true)
@@ -491,77 +530,60 @@ function BillingDashboardContent() {
     }
   }, [createParam])
 
-  // Inline editing in history table
+  // Start editing a bill using the advanced modal
   const handleStartEdit = (bill: Bill) => {
-    setActiveTab('history')
+    setActiveTab('purchase')
+    // 1. Open the wizard directly to Step 2
+    setWizardStep(2)
+    setPurchaseMode('edit')
     setEditingId(bill.id)
-    setFormSegment(bill.segment || '')
-    setSchoolName(bill.school_name || '')
-    setPlanName(bill.plan_name || '')
-    setPaymentMode(bill.payment_mode || '')
-    setPaymentDate(bill.payment_date ? bill.payment_date.substring(0, 10) : '')
-    setAmount(String(bill.amount || ''))
-    setTransactionId(bill.transaction_id || '')
-    setStatus(bill.status || 'Paid')
     
-    setTimeout(() => {
-      formRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }, 100)
-  }
-
-  const handleResetForm = () => {
-    setEditingId(null)
-    setFormSegment('')
-    setSchoolName('')
-    setPlanName('')
-    setPaymentMode('')
-    setPaymentDate(new Date().toISOString().substring(0, 10))
-    setAmount('')
-    setTransactionId('')
-    setStatus('Paid')
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!formSegment) { toast.error('Segment is required'); return }
-    if (!schoolName) { toast.error('School Name is required'); return }
-    if (!planName) { toast.error('Plan Name is required'); return }
-    if (!paymentMode) { toast.error('Payment Mode is required'); return }
-    if (!amount || parseFloat(amount) <= 0) { toast.error('Valid Amount is required'); return }
-
-    setSubmitting(true)
-    try {
-      const url = editingId ? `/api/admin/billing/${editingId}` : '/api/admin/billing'
-      const method = editingId ? 'PUT' : 'POST'
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          segment: formSegment,
-          school_name: schoolName,
-          plan_name: planName,
-          payment_mode: paymentMode,
-          payment_date: paymentDate,
-          amount: parseFloat(amount),
-          transaction_id: transactionId,
-          status
-        })
-      })
-
-      const data = await res.json()
-      if (data.success) {
-        toast.success(editingId ? 'Bill updated successfully!' : 'Bill created successfully!')
-        handleResetForm()
-        fetchBills(currentPage)
-      } else {
-        toast.error(data.error || 'Failed to save bill')
-      }
-    } catch {
-      toast.error('Something went wrong saving bill')
-    } finally {
-      setSubmitting(false)
+    // 2. Pre-fill the states needed for Step 2
+    const inst = schools.find(i => i.id === bill.institution_id)
+    if (inst) setSelectedSchool(inst.name)
+    
+    const segment = segments.find(s => s.id === inst?.segment_id)?.name
+    if (segment) setSelectedSegment(segment)
+    
+    const plan = plans.find(p => p.id === bill.plan_id)
+    if (plan) setSelectedPlan(plan)
+    
+    // 3. Pre-fill payment mode
+    const modeMap: Record<string, 'gateway' | 'bank' | 'upi' | 'qr'> = {
+      'Payment Gateway': 'gateway',
+      'Bank Transfer': 'bank',
+      'UPI ID': 'upi',
+      'QR Code': 'qr'
     }
+    setPaymentModeOption(modeMap[bill.payment_mode] || 'gateway')
+    
+    // 4. Pre-fill payments
+    const txnIds = (bill.transaction_id || '').split(',').map(s => s.trim()).filter(Boolean)
+    const amountPerTxn = txnIds.length > 0 ? (bill.amount || 0) / txnIds.length : (bill.amount || 0)
+    
+    let parsedScreenshots: any[] = []
+    if (bill.screenshots) {
+      if (typeof bill.screenshots === 'string') {
+        try { parsedScreenshots = JSON.parse(bill.screenshots) } catch (e) {}
+      } else if (Array.isArray(bill.screenshots)) {
+        parsedScreenshots = bill.screenshots
+      }
+    }
+    
+    const prefilledPayments = txnIds.map((id, index) => {
+      const matched = parsedScreenshots[index]
+      return {
+        id: Date.now() + index,
+        txnId: id,
+        amount: matched?.amount ? String(matched.amount) : String(amountPerTxn),
+        screenshot: matched?.filename || '',
+        screenshotData: matched?.dataUrl || ''
+      }
+    })
+    
+    setPayments(prefilledPayments.length > 0 ? prefilledPayments : [{ id: Date.now(), txnId: '', amount: String(bill.amount || ''), screenshot: '', screenshotData: '' }])
+    
+    setAppliedPromo(null)
   }
 
   const handleDelete = (id: string) => {
@@ -906,48 +928,106 @@ function BillingDashboardContent() {
                         </div>
 
                         {instActivePlan ? (
-                          <>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="flex flex-col gap-1.5 md:col-span-2">
-                              <h3 className="text-xl font-black text-slate-800 dark:text-slate-100">{instActivePlan.plan_name}</h3>
-                              {(() => {
-                                const fullPlan = filteredPlansList.find(p => p.id === instActivePlan.plan_id) || plans.find(p => p.id === instActivePlan.plan_id);
-                                if (!fullPlan) return null;
-                                return (
-                                  <div className="flex flex-col gap-2 mt-2 mb-1">
-                                    {fullPlan.description && (
-                                      <p className="text-sm font-medium text-slate-600 dark:text-slate-400 max-w-2xl">{fullPlan.description}</p>
-                                    )}
-                                    {fullPlan.menus && fullPlan.menus.length > 0 && (
-                                      <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto pr-1 pb-1">
-                                        {fullPlan.menus.map((m: string) => (
-                                          <span key={m} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-md text-[10px] font-bold border border-indigo-100 dark:border-indigo-800">
-                                            {m}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
+                          <div className="flex flex-col gap-6">
+                            {/* Ongoing Plan */}
+                            <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/30 dark:bg-indigo-900/10 overflow-hidden">
+                              <div className="px-5 py-4 border-b border-indigo-100/50 dark:border-indigo-900/50 flex items-center justify-between">
+                                <h4 className="text-sm font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-2">
+                                  Ongoing Plan
+                                </h4>
+                                {(() => {
+                                  const activeValidTill = new Date(instActivePlan.end_date);
+                                  const activeDaysLeft = Math.max(0, Math.ceil((activeValidTill.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+                                  return (
+                                    <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-black uppercase tracking-wider shadow-sm">
+                                      {activeDaysLeft} Days Left
+                                    </span>
+                                  )
+                                })()}
+                              </div>
+                              <div className="p-5">
+                                <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                                  <div className="flex-1">
+                                    <h5 className="text-base font-black text-slate-800 dark:text-slate-100">{instActivePlan.plan_name}</h5>
+                                    {(() => {
+                                      const fullPlan = filteredPlansList.find(p => p.id === instActivePlan.plan_id) || plans.find(p => p.id === instActivePlan.plan_id);
+                                      if (!fullPlan) return null;
+                                      return (
+                                        <div className="flex flex-col gap-2 mt-1 mb-1">
+                                          {fullPlan.description && (
+                                            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 max-w-lg line-clamp-2">{fullPlan.description}</p>
+                                          )}
+                                          {fullPlan.menus && fullPlan.menus.length > 0 && (
+                                            <div className="mt-1">
+                                              {!showActivePlanFeatures ? (
+                                                <button 
+                                                  onClick={() => setShowActivePlanFeatures(true)}
+                                                  className="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline cursor-pointer transition-colors"
+                                                >
+                                                  Show all features
+                                                </button>
+                                              ) : (
+                                                <div className="flex flex-col gap-2 mt-1">
+                                                  <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto pr-1 pb-1">
+                                                    {fullPlan.menus.map((m: string) => (
+                                                      <span key={m} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-md text-[10px] font-bold border border-indigo-100 dark:border-indigo-800">
+                                                        {m}
+                                                      </span>
+                                                    ))}
+                                                  </div>
+                                                  <button 
+                                                    onClick={() => setShowActivePlanFeatures(false)}
+                                                    className="text-[10px] font-bold text-slate-500 hover:text-slate-700 self-start hover:underline cursor-pointer transition-colors"
+                                                  >
+                                                    Hide features
+                                                  </button>
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
-                                );
-                              })()}
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
-                                <div className="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 rounded-xl">
-                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Valid From</span>
-                                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mt-0.5">📅 {formatDateOnly(instActivePlan.start_date)}</p>
-                                </div>
-                                <div className="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 rounded-xl">
-                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Renewal Date / Expires</span>
-                                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mt-0.5">📅 {formatDateOnly(instActivePlan.end_date)}</p>
+                                  <div className="flex flex-wrap gap-6 items-center">
+                                    <div className="flex flex-col gap-2">
+                                      <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm">
+                                        <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                                        <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Valid From: <span className="font-bold text-slate-700 dark:text-slate-300 ml-1">{formatDateOnly(instActivePlan.start_date)}</span></div>
+                                      </div>
+                                      <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm">
+                                        <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                                        <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Valid Till: <span className="font-bold text-slate-700 dark:text-slate-300 ml-1">{formatDateOnly(instActivePlan.end_date)}</span></div>
+                                      </div>
+                                    </div>
+                                    {(() => {
+                                      const activeValidTill = new Date(instActivePlan.end_date);
+                                      const activeDaysLeft = Math.max(0, Math.ceil((activeValidTill.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+                                      return (
+                                        <div className="text-right p-3 bg-gradient-to-br from-indigo-500 to-violet-600 text-white rounded-xl shadow-sm">
+                                          <div className="text-[10px] font-bold text-indigo-100 uppercase tracking-wider">Amount Paid</div>
+                                          <span className="text-2xl font-black">₹{instActivePlan.amount}</span>
+                                        </div>
+                                      )
+                                    })()}
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => handleDownloadPDF(selectedSchool, instActivePlan.amount, instActivePlan.plan_name || 'Active Plan', instActivePlan.payment_date, instActivePlan.transaction_id, instActivePlan.payment_mode)}
+                                        className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm cursor-pointer" title="Download Bill"
+                                      >
+                                        <Download className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
-                              <div className="flex flex-wrap items-center gap-3 mt-4">
-
+                              <div className="px-5 py-4 bg-indigo-100/30 dark:bg-indigo-900/20 border-t border-indigo-100/50 dark:border-indigo-900/50 flex flex-wrap items-center gap-3">
                                 <button
                                   onClick={() => {
                                     setPurchaseMode('change')
                                     setShowAllPlansOverride(true)
                                   }}
-                                  className="px-5 py-2 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                                  className="px-5 py-2 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
                                 >
                                   Change Plan (Instant)
                                 </button>
@@ -956,29 +1036,14 @@ function BillingDashboardContent() {
                                     setPurchaseMode('upcoming')
                                     setShowAllPlansOverride(true)
                                   }}
-                                  className="px-5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                                  className="px-5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
                                 >
                                   Create Upcoming Plan
                                 </button>
                               </div>
                             </div>
-                            <div className="p-5 bg-gradient-to-br from-indigo-500 to-violet-600 text-white rounded-2xl flex flex-col shadow-sm relative overflow-hidden self-start w-full">
-                              <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 opacity-10 text-[100px] font-black pointer-events-none">₹</div>
-                              <button onClick={() => handleDownloadPDF(selectedSchool, instActivePlan.amount, instActivePlan.plan_name || 'Active Plan', instActivePlan.payment_date, instActivePlan.transaction_id, instActivePlan.payment_mode)} className="absolute right-4 top-4 p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all cursor-pointer z-10" title="Download Bill">
-                                <Download className="w-4 h-4" />
-                              </button>
-                              <div className="pr-10">
-                                <span className="text-[10px] font-bold text-indigo-100 uppercase tracking-wider">Amount Paid</span>
-                                <p className="text-3xl font-black mt-1">₹{instActivePlan.amount}</p>
-                              </div>
-                              <div className="mt-4 pt-3 border-t border-indigo-400/30 text-xs font-semibold text-indigo-100 flex flex-col gap-1">
-                                <div>Method: <span className="text-white uppercase">{instActivePlan.payment_mode}</span></div>
-                                <div className="truncate">Txn ID: <span className="text-white font-mono text-[10px]">{instActivePlan.transaction_id || '—'}</span></div>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {(() => {
+                            
+                            {(() => {
                             const activeFullPlan = filteredPlansList.find(p => p.id === instActivePlan.plan_id) || plans.find(p => p.id === instActivePlan.plan_id);
                             const hasRenewal = activeFullPlan && activeFullPlan.renewal_billing_items && activeFullPlan.renewal_billing_items.length > 0;
                             
@@ -995,59 +1060,106 @@ function BillingDashboardContent() {
                             const hasPendingRenewal = instHasPendingRenewal;
 
                             return (
-                              <div className="mt-6 p-5 rounded-2xl border border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/30 dark:bg-indigo-900/10">
-                                <h4 className="text-sm font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider mb-4 flex items-center gap-2">
-                                  Renewal Details (Active Plan)
-                                </h4>
-                                <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
-                                  <div className="flex-1">
-                                    <h5 className="text-base font-black text-slate-800 dark:text-slate-100">{activeFullPlan.plan_name} (Renewal)</h5>
-                                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1 max-w-lg line-clamp-2">
-                                      This is the renewal configuration for your current active plan.
-                                    </p>
-                                  </div>
-                                  <div className="flex flex-wrap gap-6 items-center">
-                                    <div className="text-xs">
-                                      <div className="text-slate-500 dark:text-slate-400 font-medium">Valid From: <span className="font-bold text-slate-700 dark:text-slate-300">{formatDateOnly(instActivePlan.end_date)}</span></div>
-                                      <div className="text-slate-500 dark:text-slate-400 font-medium mt-1">Valid Till: <span className="font-bold text-slate-700 dark:text-slate-300">{formatDateOnly(validTill.toISOString())}</span></div>
-                                    </div>
-                                    <div className="text-right p-3 bg-gradient-to-br from-indigo-500 to-violet-600 text-white rounded-xl shadow-sm">
-                                      <div className="text-[10px] font-bold text-indigo-100 uppercase tracking-wider">Renewal Price</div>
-                                      <span className="text-2xl font-black">₹{renewalPrice.toFixed(2)}</span>
-                                      <div className="text-[10px] font-medium text-indigo-200 mt-0.5">
-                                        {daysLeftToRenew} days left
+                              <div className="mt-6 rounded-2xl border border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/30 dark:bg-indigo-900/10 overflow-hidden">
+                                <div className="px-5 py-4 border-b border-indigo-100/50 dark:border-indigo-900/50 flex items-center justify-between">
+                                  <h4 className="text-sm font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-2">
+                                    Renewal Details (Active Plan)
+                                  </h4>
+                                  {hasPendingRenewal && (
+                                    <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 rounded-full text-xs font-black uppercase tracking-wider shadow-sm">
+                                      Renewal Requested
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="p-5">
+                                  <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                                    <div className="flex-1">
+                                      <h5 className="text-base font-black text-slate-800 dark:text-slate-100">{activeFullPlan.plan_name} (Renewal)</h5>
+                                      <div className="flex flex-col gap-2 mt-1 mb-1">
+                                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 max-w-lg line-clamp-2">
+                                          This is the renewal configuration for your current active plan.
+                                        </p>
+                                        {activeFullPlan.menus && activeFullPlan.menus.length > 0 && (
+                                          <div className="mt-1">
+                                            {!showRenewalFeatures ? (
+                                              <button 
+                                                onClick={() => setShowRenewalFeatures(true)}
+                                                className="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline cursor-pointer transition-colors"
+                                              >
+                                                Show all features
+                                              </button>
+                                            ) : (
+                                              <div className="flex flex-col gap-2 mt-1">
+                                                <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto pr-1 pb-1">
+                                                  {activeFullPlan.menus.map((m: string) => (
+                                                    <span key={m} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-md text-[10px] font-bold border border-indigo-100 dark:border-indigo-800">
+                                                      {m}
+                                                    </span>
+                                                  ))}
+                                                </div>
+                                                <button 
+                                                  onClick={() => setShowRenewalFeatures(false)}
+                                                  className="text-[10px] font-bold text-slate-500 hover:text-slate-700 self-start hover:underline cursor-pointer transition-colors"
+                                                >
+                                                  Hide features
+                                                </button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                      <button
-                                        disabled={hasPendingRenewal}
-                                        onClick={() => {
-                                          setPurchaseMode('renew')
-                                          if (activeFullPlan) {
-                                            setSelectedPlan(activeFullPlan)
-                                            setWizardStep(2)
-                                          } else {
-                                            toast.error('Plan details not found')
-                                          }
-                                        }}
-                                        className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 ${
-                                          hasPendingRenewal
-                                            ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-400 cursor-not-allowed shadow-none'
-                                            : 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer'
-                                        }`}
-                                      >
-                                        {hasPendingRenewal ? 'Renewal Requested' : 'Renew Plan'}
-                                      </button>
-                                      <button onClick={() => handleDownloadPDF(selectedSchool, instActivePlan.amount, instActivePlan.plan_name || 'Active Plan', instActivePlan.payment_date, instActivePlan.transaction_id, instActivePlan.payment_mode)} className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm cursor-pointer" title="Download Bill">
-                                        <Download className="w-4 h-4" />
-                                      </button>
+                                    <div className="flex flex-wrap gap-6 items-center">
+                                      {hasPendingRenewal && (
+                                        <div className="flex flex-col gap-2">
+                                          <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm">
+                                            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                                            <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Valid From: <span className="font-bold text-slate-700 dark:text-slate-300 ml-1">{formatDateOnly(instActivePlan.end_date)}</span></div>
+                                          </div>
+                                          <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm">
+                                            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                                            <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Valid Till: <span className="font-bold text-slate-700 dark:text-slate-300 ml-1">{formatDateOnly(validTill.toISOString())}</span></div>
+                                          </div>
+                                        </div>
+                                      )}
+                                      <div className="text-right p-3 bg-gradient-to-br from-indigo-500 to-violet-600 text-white rounded-xl shadow-sm">
+                                        <div className="text-[10px] font-bold text-indigo-100 uppercase tracking-wider">Renewal Price</div>
+                                        <span className="text-2xl font-black">₹{renewalPrice.toFixed(2)}</span>
+                                        <div className="text-[10px] font-medium text-indigo-200 mt-0.5">
+                                          {daysLeftToRenew} days left
+                                        </div>
+                                      </div>
                                     </div>
                                   </div>
+                                </div>
+                                <div className="px-5 py-4 bg-indigo-100/30 dark:bg-indigo-900/20 border-t border-indigo-100/50 dark:border-indigo-900/50 flex flex-wrap items-center gap-3">
+                                  <button
+                                    disabled={hasPendingRenewal}
+                                    onClick={() => {
+                                      setPurchaseMode('renew')
+                                      if (activeFullPlan) {
+                                        setSelectedPlan(activeFullPlan)
+                                        setWizardStep(2)
+                                      } else {
+                                        toast.error('Plan details not found')
+                                      }
+                                    }}
+                                    className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 ${
+                                      hasPendingRenewal
+                                        ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-400 cursor-not-allowed shadow-none'
+                                        : 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer'
+                                    }`}
+                                  >
+                                    {hasPendingRenewal ? 'Renewal Requested' : 'Renew Plan'}
+                                  </button>
+                                  <button onClick={() => handleDownloadPDF(selectedSchool, instActivePlan.amount, instActivePlan.plan_name || 'Active Plan', instActivePlan.payment_date, instActivePlan.transaction_id, instActivePlan.payment_mode)} className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm cursor-pointer" title="Download Bill">
+                                    <Download className="w-4 h-4" />
+                                  </button>
                                 </div>
                               </div>
                             );
                           })()}
-                        </>
+                        </div>
                         ) : (
                           <div className="py-6 text-center text-slate-400 dark:text-slate-500 text-sm font-medium flex flex-col items-center justify-center gap-3">
                             <p>This institute has no currently running plan.</p>
@@ -1067,23 +1179,83 @@ function BillingDashboardContent() {
                           <h4 className="text-sm font-extrabold text-slate-850 dark:text-slate-150 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-3 mb-4">
                             Upcoming Plans ({instUpcomingPlans.length})
                           </h4>
-                          <div className="flex flex-col gap-4">
+                          <div className="flex flex-col gap-6 mt-6">
                             {instUpcomingPlans.map((plan: any) => (
-                              <div key={plan.id} className="p-4 bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 rounded-xl flex flex-wrap items-center justify-between gap-4">
-                                <div>
-                                  <h4 className="text-base font-bold text-slate-800 dark:text-slate-150">{plan.plan_name}</h4>
-                                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                    Queue Start: {formatDateOnly(plan.start_date)} | Queue End: {formatDateOnly(plan.end_date)}
-                                  </p>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  <div className="text-right">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Price</span>
-                                    <span className="text-sm font-black text-slate-800 dark:text-slate-150">₹{plan.amount}</span>
-                                  </div>
-                                  <span className="px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                              <div key={plan.id} className="rounded-2xl border border-blue-100 bg-blue-50/50 dark:border-blue-900/30 dark:bg-blue-900/10 overflow-hidden">
+                                <div className="px-5 py-4 border-b border-blue-100/50 dark:border-blue-900/50 flex items-center justify-between">
+                                  <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider flex items-center gap-2">
+                                    Queued Plan
+                                  </h4>
+                                  <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full text-xs font-black uppercase tracking-wider shadow-sm">
                                     Queued
                                   </span>
+                                </div>
+                                <div className="p-5">
+                                  <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                                    <div className="flex-1">
+                                      <h5 className="text-base font-black text-slate-800 dark:text-slate-100">{plan.plan_name}</h5>
+                                      {(() => {
+                                        const fullPlan = filteredPlansList.find(p => p.id === plan.plan_id) || plans.find(p => p.id === plan.plan_id);
+                                        if (!fullPlan) return null;
+                                        return (
+                                          <div className="flex flex-col gap-2 mt-1 mb-1">
+                                            {fullPlan.description && (
+                                              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 max-w-lg line-clamp-2">{fullPlan.description}</p>
+                                            )}
+                                            {fullPlan.menus && fullPlan.menus.length > 0 && (
+                                              <div className="mt-1">
+                                                {!showUpcomingFeatures[plan.id] ? (
+                                                  <button 
+                                                    onClick={() => setShowUpcomingFeatures(prev => ({...prev, [plan.id]: true}))}
+                                                    className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer transition-colors"
+                                                  >
+                                                    Show all features
+                                                  </button>
+                                                ) : (
+                                                  <div className="flex flex-col gap-2 mt-1">
+                                                    <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto pr-1 pb-1">
+                                                      {fullPlan.menus.map((m: string) => (
+                                                        <span key={m} className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-md text-[10px] font-bold border border-blue-100 dark:border-blue-800">
+                                                          {m}
+                                                        </span>
+                                                      ))}
+                                                    </div>
+                                                    <button 
+                                                      onClick={() => setShowUpcomingFeatures(prev => ({...prev, [plan.id]: false}))}
+                                                      className="text-[10px] font-bold text-slate-500 hover:text-slate-700 self-start hover:underline cursor-pointer transition-colors"
+                                                    >
+                                                      Hide features
+                                                    </button>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+                                    <div className="flex flex-wrap gap-6 items-center">
+                                      <div className="flex flex-col gap-2">
+                                        <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm">
+                                          <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                                          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Valid From: <span className="font-bold text-slate-700 dark:text-slate-300 ml-1">{formatDateOnly(plan.start_date)}</span></div>
+                                        </div>
+                                        <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm">
+                                          <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                                          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Valid Till: <span className="font-bold text-slate-700 dark:text-slate-300 ml-1">{formatDateOnly(plan.end_date)}</span></div>
+                                        </div>
+                                      </div>
+                                      <div className="text-right p-3 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl shadow-sm">
+                                        <div className="text-[10px] font-bold text-blue-100 uppercase tracking-wider">Price Paid</div>
+                                        <span className="text-2xl font-black">₹{plan.amount}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="px-5 py-4 bg-blue-100/30 dark:bg-blue-900/20 border-t border-blue-100/50 dark:border-blue-900/50 flex flex-wrap items-center justify-end gap-3">
+                                  <button onClick={() => handleDownloadPDF(selectedSchool, plan.amount, plan.plan_name || 'Upcoming Plan', plan.payment_date, plan.transaction_id, plan.payment_mode)} className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm cursor-pointer" title="Download Bill">
+                                    <Download className="w-4 h-4" />
+                                  </button>
                                 </div>
                               </div>
                             ))}
@@ -1229,9 +1401,16 @@ function BillingDashboardContent() {
                 <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto p-4 lg:p-5 relative animate-in fade-in zoom-in duration-200">
                   <button
                     onClick={() => {
-                      setWizardStep(1)
-                      if (purchaseMode === 'renew') {
+                      if (purchaseMode === 'edit') {
+                        setWizardStep(0)
+                        setEditingId(null)
+                        setActiveTab('history')
                         setPurchaseMode('new')
+                      } else {
+                        setWizardStep(1)
+                        if (purchaseMode === 'renew') {
+                          setPurchaseMode('new')
+                        }
                       }
                     }}
                     className="absolute top-4 right-4 p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer z-10"
@@ -1292,8 +1471,7 @@ function BillingDashboardContent() {
                                   toast.success(`Promo code ${pc.code} applied!`)
                                 }
                               }}
-                              title={pc.discount_type === 'Fixed' ? `Amount ₹${pc.discount_value}/- Off` : `${pc.discount_value}% Off`}
-                              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold transition-all border shadow-sm cursor-pointer ${
+                              className={`group relative flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold transition-all border shadow-sm cursor-pointer ${
                                 appliedPromo?.id === pc.id
                                   ? 'bg-indigo-600 border-indigo-600 text-white shadow-indigo-600/20'
                                   : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30'
@@ -1304,6 +1482,13 @@ function BillingDashboardContent() {
                               {appliedPromo?.id === pc.id && (
                                 <span className="ml-1 flex items-center justify-center bg-white/20 rounded-full w-3 h-3 text-[8px]">✓</span>
                               )}
+                              {/* Hover Tooltip */}
+                              <div className="opacity-0 invisible group-hover:opacity-100 group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-[200px] p-2 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl z-20 pointer-events-none transition-all">
+                                <div className="font-bold text-indigo-300 mb-0.5">{pc.code}</div>
+                                <div className="font-medium">Discount: {pc.discount_type === 'Fixed' ? `₹${pc.discount_value} Off` : `${pc.discount_value}% Off`}</div>
+                                {pc.description && <div className="mt-1 text-slate-300 leading-tight border-t border-slate-600 pt-1">{pc.description}</div>}
+                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+                              </div>
                             </button>
                           ))}
                         </div>
@@ -1357,22 +1542,46 @@ function BillingDashboardContent() {
                                 <div><span className="text-slate-400 text-[10px] font-semibold block mb-0.5">Holder Name</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankHolderName}</span></div>
                               </div>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
-                                <input type="text" placeholder="Enter Transaction ID" value={txnId} onChange={e => setTxnId(e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount *</label>
-                                <input type="number" placeholder="Enter Amount" value={manualAmount} onChange={e => setManualAmount(e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                              </div>
-                              <div className="flex flex-col gap-1 sm:col-span-2">
-                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
-                                <div className="relative">
-                                  <input type="text" placeholder="Attach a file" readOnly value={screenshotName} onClick={() => setScreenshotName('screenshot_bank_txn.png')} className="w-full px-3 py-2 pr-8 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs cursor-pointer text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                                  <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer" />
+                            <div className="flex flex-col gap-3">
+                              {payments.map((p, index) => (
+                                <div key={p.id} className="relative grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
+                                  {index > 0 && (
+                                    <button type="button" onClick={() => removePayment(p.id)} className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-1 cursor-pointer transition-colors shadow-sm z-10" title="Remove Payment">
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
+                                    <input type="text" placeholder="Enter Transaction ID" value={p.txnId} onChange={e => updatePayment(p.id, 'txnId', e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
+                                  </div>
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount *</label>
+                                    <input type="number" placeholder="Enter Amount" value={p.amount} onChange={e => updatePayment(p.id, 'amount', e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
+                                  </div>
+                                  <div className="flex flex-col gap-1 sm:col-span-2">
+                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
+                                    <label className="relative cursor-pointer block">
+                                      <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          const reader = new FileReader();
+                                          reader.onloadend = () => {
+                                            setPayments(prev => prev.map(pay => pay.id === p.id ? { ...pay, screenshot: file.name, screenshotData: reader.result as string } : pay));
+                                          };
+                                          reader.readAsDataURL(file);
+                                        }
+                                      }} />
+                                      <div className={`w-full px-3 py-2 pr-8 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs truncate ${p.screenshot ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400'}`}>
+                                        {p.screenshot || 'Attach a file'}
+                                      </div>
+                                      <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2" />
+                                    </label>
+                                  </div>
                                 </div>
-                              </div>
+                              ))}
+                              <button type="button" onClick={addPayment} className="self-start flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline cursor-pointer transition-colors px-1">
+                                <Plus className="w-3.5 h-3.5" /> Add Another Payment
+                              </button>
                             </div>
                           </div>
                         )}
@@ -1384,22 +1593,46 @@ function BillingDashboardContent() {
                               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">UPI Details</p>
                               <div className="text-xs"><span className="text-slate-400 text-[10px] font-semibold block mb-0.5">UPI ID</span><span className="font-bold text-slate-800 dark:text-slate-200">{upiId}</span></div>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
-                                <input type="text" placeholder="Enter Transaction ID" value={txnId} onChange={e => setTxnId(e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount *</label>
-                                <input type="number" placeholder="Enter Amount" value={manualAmount} onChange={e => setManualAmount(e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                              </div>
-                              <div className="flex flex-col gap-1 sm:col-span-2">
-                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
-                                <div className="relative">
-                                  <input type="text" placeholder="Attach a file" readOnly value={screenshotName} onClick={() => setScreenshotName('screenshot_upi_txn.png')} className="w-full px-3 py-2 pr-8 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs cursor-pointer text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                                  <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer" />
+                            <div className="flex flex-col gap-3">
+                              {payments.map((p, index) => (
+                                <div key={p.id} className="relative grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
+                                  {index > 0 && (
+                                    <button type="button" onClick={() => removePayment(p.id)} className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-1 cursor-pointer transition-colors shadow-sm z-10" title="Remove Payment">
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
+                                    <input type="text" placeholder="Enter Transaction ID" value={p.txnId} onChange={e => updatePayment(p.id, 'txnId', e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
+                                  </div>
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount *</label>
+                                    <input type="number" placeholder="Enter Amount" value={p.amount} onChange={e => updatePayment(p.id, 'amount', e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
+                                  </div>
+                                  <div className="flex flex-col gap-1 sm:col-span-2">
+                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
+                                    <label className="relative cursor-pointer block">
+                                      <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          const reader = new FileReader();
+                                          reader.onloadend = () => {
+                                            setPayments(prev => prev.map(pay => pay.id === p.id ? { ...pay, screenshot: file.name, screenshotData: reader.result as string } : pay));
+                                          };
+                                          reader.readAsDataURL(file);
+                                        }
+                                      }} />
+                                      <div className={`w-full px-3 py-2 pr-8 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs truncate ${p.screenshot ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400'}`}>
+                                        {p.screenshot || 'Attach a file'}
+                                      </div>
+                                      <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2" />
+                                    </label>
+                                  </div>
                                 </div>
-                              </div>
+                              ))}
+                              <button type="button" onClick={addPayment} className="self-start flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline cursor-pointer transition-colors px-1">
+                                <Plus className="w-3.5 h-3.5" /> Add Another Payment
+                              </button>
                             </div>
                           </div>
                         )}
@@ -1419,22 +1652,46 @@ function BillingDashboardContent() {
                                 <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">Use any UPI app to scan and pay, then enter the transaction ID below.</p>
                               </div>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
-                                <input type="text" placeholder="Enter Transaction ID" value={txnId} onChange={e => setTxnId(e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount *</label>
-                                <input type="number" placeholder="Enter Amount" value={manualAmount} onChange={e => setManualAmount(e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                              </div>
-                              <div className="flex flex-col gap-1 sm:col-span-2">
-                                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
-                                <div className="relative">
-                                  <input type="text" placeholder="Attach a file" readOnly value={screenshotName} onClick={() => setScreenshotName('screenshot_qr_txn.png')} className="w-full px-3 py-2 pr-8 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs cursor-pointer text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                                  <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer" />
+                            <div className="flex flex-col gap-3">
+                              {payments.map((p, index) => (
+                                <div key={p.id} className="relative grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
+                                  {index > 0 && (
+                                    <button type="button" onClick={() => removePayment(p.id)} className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-1 cursor-pointer transition-colors shadow-sm z-10" title="Remove Payment">
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
+                                    <input type="text" placeholder="Enter Transaction ID" value={p.txnId} onChange={e => updatePayment(p.id, 'txnId', e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
+                                  </div>
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount *</label>
+                                    <input type="number" placeholder="Enter Amount" value={p.amount} onChange={e => updatePayment(p.id, 'amount', e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
+                                  </div>
+                                  <div className="flex flex-col gap-1 sm:col-span-2">
+                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
+                                    <label className="relative cursor-pointer block">
+                                      <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          const reader = new FileReader();
+                                          reader.onloadend = () => {
+                                            setPayments(prev => prev.map(pay => pay.id === p.id ? { ...pay, screenshot: file.name, screenshotData: reader.result as string } : pay));
+                                          };
+                                          reader.readAsDataURL(file);
+                                        }
+                                      }} />
+                                      <div className={`w-full px-3 py-2 pr-8 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs truncate ${p.screenshot ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400'}`}>
+                                        {p.screenshot || 'Attach a file'}
+                                      </div>
+                                      <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2" />
+                                    </label>
+                                  </div>
                                 </div>
-                              </div>
+                              ))}
+                              <button type="button" onClick={addPayment} className="self-start flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline cursor-pointer transition-colors px-1">
+                                <Plus className="w-3.5 h-3.5" /> Add Another Payment
+                              </button>
                             </div>
                           </div>
                         )}
@@ -1446,8 +1703,8 @@ function BillingDashboardContent() {
                       <div className="bg-slate-800 dark:bg-slate-900/80 rounded-xl p-4 shadow-md text-white mt-1 border border-slate-700">
                         <div className="flex flex-col gap-1.5 text-xs font-semibold mb-3">
                           <div className="flex justify-between text-slate-300">
-                            <span>Plan Price</span>
-                            <span>₹{getPlanPrice(selectedPlan).toLocaleString('en-IN')}</span>
+                            <span>{paymentModeOption !== 'gateway' ? 'Gross Amount (Entered)' : 'Plan Price'}</span>
+                            <span>₹{getGrossAmount().toLocaleString('en-IN')}</span>
                           </div>
                           {appliedPromo && (
                             <div className="flex justify-between text-emerald-400">
@@ -1456,9 +1713,9 @@ function BillingDashboardContent() {
                             </div>
                           )}
                           <div className="flex justify-between text-white font-black text-lg border-t border-slate-600/50 pt-2 mt-1">
-                            <span>Total Payable</span>
+                            <span>Total Payable (Net)</span>
                             <span className="text-indigo-400">
-                              ₹{(paymentModeOption === 'gateway' ? getFinalAmount() : parseFloat(manualAmount || '0')).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              ₹{getFinalAmount().toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </span>
                           </div>
                         </div>
@@ -1491,171 +1748,7 @@ function BillingDashboardContent() {
       {/* ================= TRANSACTION HISTORY TAB ================= */}
       {activeTab === 'history' && (
         <div className="flex flex-col gap-6">
-          {/* Edit Inline Form Box */}
-          {editingId && (
-            <div ref={formRef} className="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm">
-              <div className="border-b border-slate-100 dark:border-slate-700 pb-4 mb-7 flex items-center justify-between">
-                <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">Edit Bill</h2>
-                <button
-                  onClick={handleResetForm}
-                  className="p-1.5 rounded-full hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                      Segment<span className="text-red-500 ml-0.5">*</span>
-                    </label>
-                    <select
-                      value={formSegment}
-                      onChange={e => {
-                        setFormSegment(e.target.value)
-                        setSchoolName('')
-                        setPlanName('')
-                      }}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
-                      required
-                    >
-                      <option value="">Select Segment</option>
-                      {segments.map(s => (
-                        <option key={s.id} value={s.name}>{s.name}</option>
-                      ))}
-                    </select>
-                  </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                      School/Application<span className="text-red-500 ml-0.5">*</span>
-                    </label>
-                    <select
-                      value={schoolName}
-                      onChange={e => setSchoolName(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
-                      required
-                    >
-                      <option value="">Select School</option>
-                      {schools
-                        .filter(s => !formSegment || s.segment_name === formSegment || !s.segment_name)
-                        .map(s => (
-                          <option key={s.id} value={s.name}>{s.name}</option>
-                        ))
-                      }
-                    </select>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                      Plan<span className="text-red-500 ml-0.5">*</span>
-                    </label>
-                    <select
-                      value={planName}
-                      onChange={e => setPlanName(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
-                      required
-                    >
-                      <option value="">Select Plan</option>
-                      {filteredPlans.map(p => (
-                        <option key={p.id} value={p.plan_name}>{p.plan_name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                      Payment Mode<span className="text-red-500 ml-0.5">*</span>
-                    </label>
-                    <select
-                      value={paymentMode}
-                      onChange={e => setPaymentMode(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
-                      required
-                    >
-                      <option value="">Select Payment Mode</option>
-                      <option value="Bank Account">Bank Account</option>
-                      <option value="UPI ID">UPI ID</option>
-                      <option value="QR Mode">QR Mode</option>
-                    </select>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                      Amount (₹)<span className="text-red-500 ml-0.5">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      value={amount}
-                      onChange={e => setAmount(e.target.value)}
-                      placeholder="e.g. 1000"
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                      required
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                      Payment Date<span className="text-red-500 ml-0.5">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={paymentDate}
-                      onChange={e => setPaymentDate(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none text-slate-800 dark:text-slate-200"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID / Ref</label>
-                    <input
-                      type="text"
-                      value={transactionId}
-                      onChange={e => setTransactionId(e.target.value)}
-                      placeholder="e.g. TXN998877"
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Status</label>
-                    <select
-                      value={status}
-                      onChange={e => setStatus(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none text-slate-800 dark:text-slate-200"
-                    >
-                      <option value="Paid">Paid</option>
-                      <option value="Pending">Pending</option>
-                      <option value="Refunded">Refunded</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-3 mt-4">
-                  <button
-                    type="button"
-                    onClick={handleResetForm}
-                    className="px-6 py-2.5 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center gap-2"
-                  >
-                    {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                    Update Bill
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
 
           {/* Filter and Log Card */}
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-5">
@@ -1667,22 +1760,22 @@ function BillingDashboardContent() {
                   <select
                     value={filterSegment}
                     onChange={(e) => setFilterSegment(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-55 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer"
                   >
                     <option value="">Select Segment</option>
                     {segments.map(s => (
-                      <option key={s.id} value={s.name}>{s.name}</option>
+                      <option key={s.id} value={s.name}>{s.name === 'Insitute' ? 'Institute' : s.name}</option>
                     ))}
                   </select>
                 </div>
 
                 {/* School Select */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-505 dark:text-slate-400 uppercase tracking-wider">School</label>
+                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">School</label>
                   <select
                     value={filterSchool}
                     onChange={(e) => setFilterSchool(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-55 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer"
                   >
                     <option value="">Select School</option>
                     {Array.from(new Set(schools.map(s => s.name))).map(name => (
@@ -1697,7 +1790,7 @@ function BillingDashboardContent() {
                   <select
                     value={filterPaymentMode}
                     onChange={(e) => setFilterPaymentMode(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-55 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer"
                   >
                     <option value="">Select Payment Mode</option>
                     <option value="Bank Account">Bank Account</option>
@@ -1715,7 +1808,7 @@ function BillingDashboardContent() {
                   <select
                     value={filterDateRange}
                     onChange={(e) => setFilterDateRange(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-55 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer"
                   >
                     <option value="">Select Option</option>
                     <option value="Last Week">Last Week</option>
@@ -1736,12 +1829,13 @@ function BillingDashboardContent() {
             {/* Table Container */}
             <div className="overflow-x-auto border border-slate-100 dark:border-slate-700 rounded-2xl">
               <table className="w-full border-collapse text-left text-sm">
-                <thead className="bg-[#EBF6F6]/50 dark:bg-slate-700/50">
+                <thead className="bg-slate-50/80 dark:bg-slate-700/50">
                   <tr>
                     <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">S.No.</th>
                     <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Segment Name</th>
                     <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">School Name</th>
                     <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Plan Name</th>
+                    <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Total Price</th>
                     <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Payment Mode</th>
                     <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Payment Date</th>
                     <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 text-center">Bill</th>
@@ -1751,7 +1845,7 @@ function BillingDashboardContent() {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                   {loading ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">
+                      <td colSpan={9} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">
                         <div className="flex items-center justify-center gap-2">
                           <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
                           Loading transaction records...
@@ -1760,7 +1854,7 @@ function BillingDashboardContent() {
                     </tr>
                   ) : bills.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-medium">
+                      <td colSpan={9} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-medium">
                         No transactions found.
                       </td>
                     </tr>
@@ -1770,9 +1864,10 @@ function BillingDashboardContent() {
                       return (
                         <tr key={bill.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
                           <td className="px-5 py-4 font-medium text-slate-500 dark:text-slate-400">{sNo}.</td>
-                          <td className="px-5 py-4 text-slate-700 dark:text-slate-200 font-semibold">{bill.segment}</td>
+                          <td className="px-5 py-4 text-slate-700 dark:text-slate-200 font-semibold">{bill.segment === 'Insitute' ? 'Institute' : bill.segment}</td>
                           <td className="px-5 py-4 text-slate-700 dark:text-slate-200 font-semibold">{bill.school_name}</td>
-                          <td className="px-5 py-4 text-slate-650 dark:text-slate-400">{bill.plan_name}</td>
+                          <td className="px-5 py-4 text-slate-600 dark:text-slate-400">{bill.plan_name}</td>
+                          <td className="px-5 py-4 text-slate-800 dark:text-slate-100 font-bold">₹{Number(bill.amount || 0).toFixed(2)}</td>
                           <td className="px-5 py-4">
                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-800/40">
                               {bill.payment_mode}

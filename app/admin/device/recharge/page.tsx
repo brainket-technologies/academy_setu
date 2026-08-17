@@ -14,6 +14,12 @@ interface DevicePlan {
   total_amount: number
 }
 
+interface DeviceSetup {
+  id: string
+  name: string
+  model: string
+}
+
 interface RechargeRequest {
   id: string
   school_name: string
@@ -39,6 +45,7 @@ interface RechargeRequest {
 export default function RechargeRequestPage() {
   const [requests, setRequests] = useState<RechargeRequest[]>([])
   const [plans, setPlans] = useState<DevicePlan[]>([])
+  const [deviceSetups, setDeviceSetups] = useState<DeviceSetup[]>([])
   const [loading, setLoading] = useState(true)
 
   // Filters
@@ -56,7 +63,8 @@ export default function RechargeRequestPage() {
 
   // Add form fields
   const [addSchool, setAddSchool] = useState('')
-  const [addDevice, setAddDevice] = useState('Device 1')
+  const [addModel, setAddModel] = useState('')
+  const [addDevice, setAddDevice] = useState('')
   const [addPlanId, setAddPlanId] = useState('')
   const [addDurationType, setAddDurationType] = useState('Days')
   const [addDuration, setAddDuration] = useState('30 Days')
@@ -114,10 +122,27 @@ export default function RechargeRequestPage() {
     }
   }, [])
 
+  const fetchDeviceSetups = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/device/setup')
+      const data = await res.json()
+      if (data.success) {
+        setDeviceSetups(data.data)
+        if (data.data.length > 0) {
+          setAddModel(data.data[0].model)
+          setAddDevice(data.data[0].name)
+        }
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }, [])
+
   useEffect(() => {
     fetchRequests()
     fetchPlans()
-  }, [fetchRequests, fetchPlans])
+    fetchDeviceSetups()
+  }, [fetchRequests, fetchPlans, fetchDeviceSetups])
 
   // Automatically update duration type and duration when plan selection changes
   const handlePlanChange = (planId: string) => {
@@ -145,7 +170,7 @@ export default function RechargeRequestPage() {
         body: JSON.stringify({
           school_name: addSchool,
           device_name: addDevice,
-          device_type: addDevice === 'Device 1' ? 'GPS' : addDevice === 'Device 2' ? 'Finger Print' : 'Attendance',
+          device_type: addDevice, // Assume name is device_type based on original schema logic mapping
           plan_duration: addDuration,
           amount: selectedPlan.amount,
           payment_reference: addPaymentRef
@@ -451,16 +476,34 @@ export default function RechargeRequestPage() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-500">Select Device</label>
+                  <label className="text-xs font-bold text-slate-500">Select Device Model</label>
                   <select
-                    value={addDevice}
-                    onChange={e => setAddDevice(e.target.value)}
+                    value={addModel}
+                    onChange={e => {
+                      const selectedModel = e.target.value
+                      setAddModel(selectedModel)
+                      const deviceSetup = deviceSetups.find(d => d.model === selectedModel)
+                      if (deviceSetup) {
+                        setAddDevice(deviceSetup.name)
+                      }
+                    }}
                     className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
                   >
-                    <option value="Device 1">Device 1 (GPS)</option>
-                    <option value="Device 2">Device 2 (Finger Print)</option>
-                    <option value="Device 3">Device 3 (Attendance)</option>
+                    {deviceSetups.length === 0 && <option value="">No devices configured</option>}
+                    {deviceSetups.map(setup => (
+                      <option key={setup.id} value={setup.model}>{setup.model}</option>
+                    ))}
                   </select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-500">Device Name (Auto-filled)</label>
+                  <input
+                    type="text"
+                    disabled
+                    value={addDevice}
+                    className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-900/50 border border-slate-205 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-500 cursor-not-allowed"
+                  />
                 </div>
 
                 <div className="flex flex-col gap-1.5">

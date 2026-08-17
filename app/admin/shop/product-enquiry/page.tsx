@@ -48,14 +48,6 @@ export default function ProductEnquiryPage() {
       const data = await res.json()
       if (data.success) {
         setEnquiries(data.data)
-        
-        // Populate school dropdown list if it's the first time
-        if (schoolsList.length === 0) {
-          const uniqueSchools: string[] = Array.from(
-            new Set((data.data as Enquiry[]).map(e => e.school_name))
-          )
-          setSchoolsList(uniqueSchools)
-        }
       } else {
         toast.error('Failed to load enquiries')
       }
@@ -65,11 +57,29 @@ export default function ProductEnquiryPage() {
     } finally {
       setLoading(false)
     }
-  }, [schoolFilter, fromDate, toDate, searchTerm, schoolsList.length])
+  }, [schoolFilter, fromDate, toDate, searchTerm])
 
   useEffect(() => {
     fetchEnquiries()
   }, [fetchEnquiries])
+
+  // Fetch all real institutes for the filter dropdown
+  useEffect(() => {
+    const fetchInstitutes = async () => {
+      try {
+        const res = await fetch('/api/admin/institute?simple=true')
+        const data = await res.json()
+        if (data.success) {
+          // Extract just the institute names
+          const names: string[] = data.data.map((i: any) => i.name)
+          setSchoolsList(names)
+        }
+      } catch (err) {
+        console.error('Failed to fetch institutes for dropdown', err)
+      }
+    }
+    fetchInstitutes()
+  }, [])
 
   // Clear filters handler
   const handleClearFilters = () => {

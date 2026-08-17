@@ -14,6 +14,7 @@ interface PromoCode {
   description: string
   segment: string
   applicable_by: string
+  applicable_on: string
   applicable_one: boolean
   discount_name: string
   discount_type: string
@@ -193,6 +194,7 @@ export default function AllPromoCodePage() {
   // Form states
   const [formSegment, setFormSegment] = useState<string[]>([])
   const [applicableBy, setApplicableBy] = useState<string[]>([])
+  const [applicableOn, setApplicableOn] = useState('Both')
   const [applicableOne, setApplicableOne] = useState(false)
   const [discountName, setDiscountName] = useState('')
   const [code, setCode] = useState('')
@@ -292,6 +294,7 @@ export default function AllPromoCodePage() {
     setEditingId(null)
     setFormSegment([])
     setApplicableBy([])
+    setApplicableOn('Both')
     setApplicableOne(false)
     setDiscountName('')
     setCode('')
@@ -334,6 +337,7 @@ export default function AllPromoCodePage() {
     setCode(item.code || '')
     setFormSegment(parsePgArray(item.segment))
     setApplicableBy(parsePgArray(item.applicable_by))
+    setApplicableOn(item.applicable_on || 'Both')
     setApplicableOne(!!item.applicable_one)
     setDiscountName(item.discount_name || '')
     setDiscountAmount(item.discount_type || 'Percentage')
@@ -363,6 +367,7 @@ export default function AllPromoCodePage() {
           description: '',
           segment: formSegment,
           applicable_by: applicableBy,
+          applicable_on: applicableOn,
           applicable_one: applicableOne,
           discount_name: discountName,
           discount_type: discountAmount,
@@ -682,6 +687,14 @@ export default function AllPromoCodePage() {
                   onChange={setApplicableBy}
                   placeholder="Select Options"
                 />
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Applicable On</label>
+                  <select value={applicableOn} onChange={e => setApplicableOn(e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                    <option value="Both">Both (New & Renewal)</option>
+                    <option value="New">New Applications</option>
+                    <option value="Renewal">Renewal Applications</option>
+                  </select>
+                </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Discount Type</label>
                   <select value={discountAmount} onChange={e => setDiscountAmount(e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">

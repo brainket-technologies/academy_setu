@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     let query = `
       SELECT 
         a.id, a.application_no, i.name as school_name, i.contact_person, 
-        i.state, i.district, a.status, a.created_at, 
+        i.state, i.district, a.status, a.enquiry_status, a.created_at, 
         i.assigned_to, u.name as assigned_user_name, u.role as assigned_user_role 
       FROM applications a
       LEFT JOIN institutions i ON a.institution_id = i.id
@@ -164,7 +164,7 @@ export async function POST(request: Request) {
         principal_name, principal_gender, principal_sign, principal_photo,
         director_name, director_gender, director_sign, director_photo,
         status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, 'Active')
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, 'Pending')
        RETURNING id`,
       [
         school_name, school_code || '', affiliated_to || '', affiliation_code || '',

@@ -32,7 +32,7 @@ export async function PUT(
     await ensureShopDb()
     const { id } = await context.params
     const body = await request.json()
-    const { name, description, images, mrp_price, sell_price, colors, sizes, features } = body
+    const { name, description, images, mrp_price, sell_price, colors, sizes, features, moq } = body
 
     if (!name || !description || mrp_price === undefined || sell_price === undefined) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 })
@@ -40,8 +40,8 @@ export async function PUT(
 
     const result = await pool.query(
       `UPDATE products 
-       SET name = $1, description = $2, images = $3, mrp_price = $4, sell_price = $5, colors = $6, sizes = $7, features = $8, updated_at = NOW()
-       WHERE id = $9
+       SET name = $1, description = $2, images = $3, mrp_price = $4, sell_price = $5, colors = $6, sizes = $7, features = $8, moq = $9, updated_at = NOW()
+       WHERE id = $10
        RETURNING *`,
       [
         name,
@@ -52,6 +52,7 @@ export async function PUT(
         colors || [],
         sizes || [],
         features || [],
+        moq || 1,
         id
       ]
     )

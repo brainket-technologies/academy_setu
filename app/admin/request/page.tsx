@@ -9,6 +9,9 @@ import { toast } from 'sonner'
 interface Screenshot {
   amount: number
   filename: string
+  transaction_id?: string
+  isLegacy?: boolean
+  dataUrl?: string
 }
 
 interface RequestItem {
@@ -171,6 +174,16 @@ function RequestDashboardContent() {
       {selectedRequest ? (
         /* ================= MODERATION VIEW (INLINE DETAIL CARD) ================= */
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-3 duration-250">
+          <div className="flex items-center gap-3 border-b border-slate-150 dark:border-slate-700 pb-4">
+            <button
+              type="button"
+              onClick={() => setSelectedRequest(null)}
+              className="p-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Verify Request</h2>
+          </div>
           <form onSubmit={handleModerationSubmit} className="flex flex-col gap-6">
             
             {/* School Name input */}
@@ -240,30 +253,41 @@ function RequestDashboardContent() {
 
               {/* Cards Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-2">
-                {selectedRequest.screenshots && selectedRequest.screenshots.map((s, idx) => (
+                {(() => {
+                  let screens = selectedRequest.screenshots;
+                  if (typeof screens === 'string') {
+                    try { screens = JSON.parse(screens); } catch { screens = []; }
+                  }
+                  if (!Array.isArray(screens) || screens.length === 0) {
+                    screens = [{ amount: selectedRequest.amount, filename: selectedRequest.transaction_id || 'N/A', isLegacy: true }];
+                  }
+                  
+                  return screens.map((s: any, idx: number) => (
                   <div
                     key={idx}
                     className="border border-slate-200 dark:border-slate-700 rounded-2xl p-5 flex items-center justify-between shadow-sm bg-white dark:bg-slate-900"
                   >
                     <div className="flex flex-col gap-1">
                       <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                        Amount: {s.amount.toLocaleString('en-IN')}/-
+                        Amount: {Number(s.amount).toLocaleString('en-IN')}/-
                       </span>
                       <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 block truncate max-w-[200px]">
-                        Screenshot: {s.filename}
+                        {s.isLegacy ? 'Transaction: ' : 'Screenshot: '} {s.filename}
                       </span>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setViewingScreenshot(s)}
-                      className="px-4 py-1.5 bg-[#EBF6F6] dark:bg-slate-750 hover:bg-[#EBF6F6]/85 text-indigo-650 dark:text-indigo-400 font-bold text-xs rounded-xl flex items-center gap-1 border border-indigo-100/50 dark:border-slate-650 cursor-pointer"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      View
-                    </button>
+                    {!s.isLegacy && s.filename !== 'N/A' && (
+                      <button
+                        type="button"
+                        onClick={() => setViewingScreenshot(s)}
+                        className="px-4 py-1.5 bg-[#EBF6F6] dark:bg-slate-750 hover:bg-[#EBF6F6]/85 text-indigo-650 dark:text-indigo-400 font-bold text-xs rounded-xl flex items-center gap-1 border border-indigo-100/50 dark:border-slate-650 cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        View
+                      </button>
+                    )}
                   </div>
-                ))}
+                ))})()}
               </div>
 
               {/* Interactive Inputs */}
@@ -281,40 +305,28 @@ function RequestDashboardContent() {
                     required
                   />
                 </div>
-
-                <div className="flex flex-col gap-1.5 relative">
-                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                    Status
-                  </label>
-                  <select
-                    value={statusInput}
-                    onChange={e => setStatusInput(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-100 font-semibold shadow-sm"
-                  >
-                    <option value="Accept">Accept</option>
-                    <option value="Reject">Reject</option>
-                    <option value="Pending">Pending</option>
-                  </select>
-                </div>
               </div>
             </div>
 
             {/* BOTTOM BUTTONS */}
             <div className="flex justify-center gap-3 mt-6 border-t border-slate-100 dark:border-slate-700 pt-6">
               <button
-                type="button"
-                onClick={() => setSelectedRequest(null)}
-                className="px-8 py-2.5 border border-slate-250 dark:border-slate-650 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors cursor-pointer min-w-[130px]"
+                type="submit"
+                onClick={() => setStatusInput('Reject')}
+                disabled={submitting}
+                className="px-8 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold text-xs transition-all shadow-md shadow-rose-500/20 cursor-pointer min-w-[130px] flex items-center justify-center gap-1.5"
               >
-                Cancel
+                {submitting && statusInput === 'Reject' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <X className="w-4 h-4" /> Reject
               </button>
               <button
                 type="submit"
+                onClick={() => setStatusInput('Accept')}
                 disabled={submitting}
-                className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer min-w-[130px] flex items-center justify-center gap-1.5"
+                className="px-8 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-xs transition-all shadow-md shadow-emerald-500/20 cursor-pointer min-w-[130px] flex items-center justify-center gap-1.5"
               >
-                {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                Submit
+                {submitting && statusInput === 'Accept' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <Check className="w-4 h-4" /> Accept
               </button>
             </div>
           </form>
@@ -515,34 +527,28 @@ function RequestDashboardContent() {
               Payment Attachment
             </h3>
             
-            {/* Receipt Simulation Card */}
-            <div className="border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden p-6 bg-slate-50/50 dark:bg-slate-900 shadow-inner flex flex-col gap-4 font-medium text-xs text-slate-600 dark:text-slate-400">
-              <div className="text-center pb-2 border-b border-dashed border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] font-extrabold text-slate-450 uppercase tracking-widest block">Bank Transfer Receipt</span>
-                <span className="text-lg font-black text-slate-800 dark:text-white mt-1 block">
-                  ₹{viewingScreenshot.amount.toLocaleString('en-IN')}.00
-                </span>
+            {/* Image Viewer Simulation Card */}
+            <div className="border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-900 shadow-inner flex flex-col relative min-h-[350px]">
+              {/* Overlay info */}
+              <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md text-white px-3 py-1.5 rounded-lg text-xs font-mono z-10 flex flex-col">
+                <span className="font-bold text-[10px] text-white/70 uppercase">File</span>
+                <span>{viewingScreenshot.filename}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span>Attachment Filename</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">{viewingScreenshot.filename}</span>
+              <div className="absolute top-3 right-3 bg-emerald-500/90 backdrop-blur-md text-white px-3 py-1.5 rounded-lg text-xs font-bold z-10 flex items-center gap-1.5 shadow-sm">
+                <Check className="w-3.5 h-3.5" />
+                ₹{viewingScreenshot.amount.toLocaleString('en-IN')}
               </div>
-              <div className="flex justify-between items-center">
-                <span>Recipient Account</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">ACADEMY SETU MAIN</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Transaction Ref</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">TXN.12354890</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Timestamp</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">11/01/2026 14:32:05</span>
-              </div>
-              <div className="mt-2 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/35 p-3 rounded-xl flex items-center gap-2 justify-center font-extrabold text-[11px] shadow-sm">
-                <Check className="w-4 h-4 shrink-0" />
-                Receipt Verified Valid
-              </div>
+              
+              {/* The "Photo" */}
+              {viewingScreenshot.dataUrl && viewingScreenshot.dataUrl.startsWith('data:application/pdf') ? (
+                <iframe src={viewingScreenshot.dataUrl} className="w-full h-[350px] rounded-b-2xl bg-white" />
+              ) : (
+                <img 
+                  src={viewingScreenshot.dataUrl || "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&q=80"} 
+                  alt="Receipt Document" 
+                  className="w-full h-[350px] object-cover opacity-90 hover:opacity-100 transition-opacity"
+                />
+              )}
             </div>
 
             <button

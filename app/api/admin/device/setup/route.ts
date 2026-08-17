@@ -8,11 +8,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
 
-    let query = 'SELECT * FROM products'
+    let query = 'SELECT * FROM device_setup'
     const params: any[] = []
 
     if (search) {
-      query += ' WHERE name ILIKE $1 OR description ILIKE $1'
+      query += ' WHERE name ILIKE $1 OR model ILIKE $1'
       params.push(`%${search}%`)
     }
 
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const result = await pool.query(query, params)
     return NextResponse.json({ success: true, data: result.rows })
   } catch (error) {
-    console.error('Fetch products error:', error)
+    console.error('Fetch device setup error:', error)
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
   }
 }
@@ -30,32 +30,20 @@ export async function POST(request: NextRequest) {
   try {
     await ensureShopDb()
     const body = await request.json()
-    const { name, description, images, mrp_price, sell_price, colors, sizes, features, moq } = body
+    const { name, model } = body
 
-    if (!name || !description || mrp_price === undefined || sell_price === undefined) {
-      return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 })
+    if (!name || !model) {
+      return NextResponse.json({ success: false, error: 'Name and model are required' }, { status: 400 })
     }
 
     const result = await pool.query(
-      `INSERT INTO products (name, description, images, mrp_price, sell_price, colors, sizes, features, moq)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING *`,
-      [
-        name,
-        description,
-        images || [],
-        mrp_price,
-        sell_price,
-        colors || [],
-        sizes || [],
-        features || [],
-        moq || 1
-      ]
+      `INSERT INTO device_setup (name, model) VALUES ($1, $2) RETURNING *`,
+      [name, model]
     )
 
     return NextResponse.json({ success: true, data: result.rows[0] })
   } catch (error) {
-    console.error('Create product error:', error)
+    console.error('Create device setup error:', error)
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
   }
 }

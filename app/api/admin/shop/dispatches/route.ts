@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     const { 
       school_name, address, name, mobile_no, product_name, 
       product_description, quantity, size, product_as, dispatch_date, status,
-      price, tax_percent, total_amount, courier_name, courier_id
+      price, tax_percent, total_amount, courier_name, courier_id, transactions
     } = body
 
     if (!school_name || !address || !name || !mobile_no || !product_name || !quantity) {
@@ -68,9 +68,9 @@ export async function POST(request: NextRequest) {
       `INSERT INTO product_dispatches (
         school_name, address, name, mobile_no, product_name, 
         product_description, quantity, size, product_as, dispatch_date, status,
-        price, tax_percent, total_amount, courier_name, courier_id
+        price, tax_percent, total_amount, courier_name, courier_id, transactions
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *`,
       [
         school_name,
@@ -88,7 +88,8 @@ export async function POST(request: NextRequest) {
         parseFloat(tax_percent) || 0,
         parseFloat(total_amount) || 0,
         courier_name || '',
-        courier_id || ''
+        courier_id || '',
+        transactions ? JSON.stringify(transactions) : '[]'
       ]
     )
 

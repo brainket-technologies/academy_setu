@@ -1,8 +1,15 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { X, Loader2 } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { X, Loader2, Plus, Trash2, Upload, Image as ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
+
+interface Transaction {
+  amount: string
+  date: string
+  txnId: string
+  screenshot: string
+}
 
 interface DispatchRecord {
   id: string
@@ -22,6 +29,7 @@ interface DispatchRecord {
   total_amount?: string | number
   courier_name?: string
   courier_id?: string
+  transactions?: Transaction[]
 }
 
 interface DispatchModalProps {
@@ -59,6 +67,22 @@ export function DispatchModal({ isOpen, onClose, onSuccess, dispatch }: Dispatch
   const [courierName, setCourierName] = useState('')
   const [courierId, setCourierId] = useState('')
 
+  // Transactions
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // Institutes
+  const [institutes, setInstitutes] = useState<any[]>([])
+
+  useEffect(() => {
+    fetch('/api/admin/institute?simple=true')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setInstitutes(data.data)
+      })
+      .catch(console.error)
+  }, [])
+
   // Sync data when modal opens or active record changes
   useEffect(() => {
     if (isOpen) {
@@ -77,6 +101,7 @@ export function DispatchModal({ isOpen, onClose, onSuccess, dispatch }: Dispatch
         setStatus(dispatch.status || 'Order Generated')
         setCourierName(dispatch.courier_name || '')
         setCourierId(dispatch.courier_id || '')
+        setTransactions(dispatch.transactions || [])
         if (dispatch.dispatch_date) {
           setDispatchDate(dispatch.dispatch_date.split('T')[0])
         }
@@ -96,6 +121,7 @@ export function DispatchModal({ isOpen, onClose, onSuccess, dispatch }: Dispatch
         setStatus('Order Generated')
         setCourierName('')
         setCourierId('')
+        setTransactions([])
         setDispatchDate(new Date().toISOString().split('T')[0])
       }
     }
@@ -154,7 +180,8 @@ export function DispatchModal({ isOpen, onClose, onSuccess, dispatch }: Dispatch
           tax_percent: productAs === 'Amount' ? (parseFloat(taxPercent) || 0) : 0,
           total_amount: productAs === 'Amount' ? totalAmount : 0,
           courier_name: status === 'Order Dispatched' ? courierName : '',
-          courier_id: status === 'Order Dispatched' ? courierId : ''
+          courier_id: status === 'Order Dispatched' ? courierId : '',
+          transactions
         })
       })
 
@@ -212,13 +239,26 @@ export function DispatchModal({ isOpen, onClose, onSuccess, dispatch }: Dispatch
                   <label className="block text-xs font-bold text-slate-655 dark:text-slate-400 mb-1.5">
                     School Name <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    placeholder="Enter School Name"
+                  <select
                     value={schoolName}
-                    onChange={e => setSchoolName(e.target.value)}
+                    onChange={e => {
+                      const val = e.target.value
+                      setSchoolName(val)
+                      const inst = institutes.find(i => i.name === val)
+                      if (inst) {
+                        setContactPerson(inst.contact_person || '')
+                        setMobileNo(inst.mobile_no || '')
+                        const fullAddr = [inst.address, inst.district, inst.state].filter(Boolean).join(', ')
+                        if (fullAddr) setAddress(fullAddr)
+                      }
+                    }}
                     className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all dark:text-slate-200"
-                  />
+                  >
+                    <option value="">Select School</option>
+                    {institutes.map(inst => (
+                      <option key={inst.id} value={inst.name}>{inst.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-655 dark:text-slate-400 mb-1.5">
@@ -457,6 +497,129 @@ export function DispatchModal({ isOpen, onClose, onSuccess, dispatch }: Dispatch
                 </div>
               </div>
             )}
+
+            {/* Transactions Section */}
+            <div className="bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/65">
+              <div className="flex justify-between items-center mb-4 border-b border-slate-100 dark:border-slate-750 pb-2">
+                <h3 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider">
+                  Transactions & Screenshots
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setTransactions([...transactions, { amount: '', date: new Date().toISOString().split('T')[0], txnId: '', screenshot: '' }])}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-[10px] uppercase tracking-wide rounded-lg transition-colors"
+                >
+                  <Plus className="w-3 h-3" /> Add Transaction
+                </button>
+              </div>
+
+              {transactions.length === 0 ? (
+                <div className="text-center py-6 text-sm text-slate-400">
+                  No transactions added yet.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {transactions.map((txn, index) => (
+                    <div key={index} className="flex flex-col gap-3 p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-xl relative">
+                      <button
+                        type="button"
+                        onClick={() => setTransactions(transactions.filter((_, i) => i !== index))}
+                        className="absolute top-3 right-3 text-slate-400 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pr-6">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-655 dark:text-slate-400 mb-1.5">Amount</label>
+                          <input
+                            type="number"
+                            placeholder="Amount"
+                            value={txn.amount}
+                            onChange={(e) => {
+                              const newTxns = [...transactions]
+                              newTxns[index].amount = e.target.value
+                              setTransactions(newTxns)
+                            }}
+                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-655 dark:text-slate-400 mb-1.5">Transaction ID</label>
+                          <input
+                            type="text"
+                            placeholder="Txn ID"
+                            value={txn.txnId}
+                            onChange={(e) => {
+                              const newTxns = [...transactions]
+                              newTxns[index].txnId = e.target.value
+                              setTransactions(newTxns)
+                            }}
+                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-655 dark:text-slate-400 mb-1.5">Date</label>
+                          <input
+                            type="date"
+                            value={txn.date}
+                            onChange={(e) => {
+                              const newTxns = [...transactions]
+                              newTxns[index].date = e.target.value
+                              setTransactions(newTxns)
+                            }}
+                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-transparent"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-655 dark:text-slate-400 mb-1.5">Screenshot</label>
+                        <div className="flex items-center gap-3">
+                          {txn.screenshot ? (
+                            <div className="relative group">
+                              <img src={txn.screenshot} alt="Screenshot" className="w-16 h-16 object-cover rounded-lg border border-slate-200" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newTxns = [...transactions]
+                                  newTxns[index].screenshot = ''
+                                  setTransactions(newTxns)
+                                }}
+                                className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center rounded-lg"
+                              >
+                                <Trash2 className="w-4 h-4 text-white" />
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="flex items-center justify-center w-16 h-16 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg cursor-pointer hover:border-teal-500 transition-colors">
+                              <Upload className="w-5 h-5 text-slate-400" />
+                              <input 
+                                type="file" 
+                                className="hidden" 
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0]
+                                  if (file) {
+                                    // Use local URL for simulation (or base64 if needed)
+                                    const url = URL.createObjectURL(file)
+                                    const newTxns = [...transactions]
+                                    newTxns[index].screenshot = url
+                                    setTransactions(newTxns)
+                                  }
+                                }}
+                              />
+                            </label>
+                          )}
+                          {!txn.screenshot && <span className="text-xs text-slate-400 font-medium">Click to upload screenshot</span>}
+                        </div>
+                      </div>
+
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
           </div>
         </div>

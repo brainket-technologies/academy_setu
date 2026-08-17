@@ -14,7 +14,7 @@ interface Application {
   contact_person: string
   state: string
   district: string
-  status: 'Applied' | 'Pending' | 'Paid' | 'Unpaid' | 'Active' | 'Inactive' | 'Generate' | 'Requested' | 'Completed'
+  status: 'Applied' | 'Pending' | 'Paid' | 'Unpaid' | 'Active' | 'Inactive' | 'Completed' | 'Generate' | 'Requested' | string
   enquiry_status?: string | null
   plan_id?: string | null
   promo_code?: string | null
@@ -821,8 +821,6 @@ export default function ApplicationPage() {
                   <option value="Unpaid">Unpaid</option>
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
-                  <option value="Generate">Generate</option>
-                  <option value="Requested">Requested</option>
                   <option value="Completed">Completed</option>
                 </select>
               </div>
@@ -914,6 +912,7 @@ export default function ApplicationPage() {
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">City / District</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Created At</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Status</th>
+                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Enquiry Status</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Assigned To</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 text-center">Action</th>
                 </tr>
@@ -921,7 +920,7 @@ export default function ApplicationPage() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                 {loading ? (
                   <tr>
-                    <td colSpan={10} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
+                    <td colSpan={11} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
                         Loading applications...
@@ -930,7 +929,7 @@ export default function ApplicationPage() {
                   </tr>
                 ) : paginatedApps.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
+                    <td colSpan={11} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
                       No applications found.
                     </td>
                   </tr>
@@ -967,6 +966,9 @@ export default function ApplicationPage() {
                             }`} />
                             {app.status}
                           </span>
+                        </td>
+                        <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-xs font-semibold">
+                          {app.enquiry_status || '—'}
                         </td>
                         <td className="px-5 py-4">
                           <select
@@ -1013,16 +1015,7 @@ export default function ApplicationPage() {
                             >
                               <RefreshCw className="w-4 h-4" />
                             </button>
-                            <button
-                              onClick={() => {
-                                setSelectedApps([app.id])
-                                setIsAssignModalOpen(true)
-                              }}
-                              className="p-1.5 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 rounded-lg transition-colors cursor-pointer"
-                              title="Assign Application"
-                            >
-                              <UserCheck className="w-4 h-4" />
-                            </button>
+
                             <button
                               onClick={() => openEditModal(app.id)}
                               className="p-1.5 text-emerald-650 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg transition-colors cursor-pointer"
@@ -1505,8 +1498,6 @@ export default function ApplicationPage() {
                     >
                       <option value="Applied">Applied</option>
                       <option value="Pending">Pending</option>
-                      <option value="Generate">Generate</option>
-                      <option value="Requested">Requested</option>
                       <option value="Completed">Completed</option>
                     </select>
                   </div>
@@ -1638,8 +1629,6 @@ export default function ApplicationPage() {
                   >
                     <option value="Applied">Applied</option>
                     <option value="Pending">Pending</option>
-                    <option value="Generate">Generate</option>
-                    <option value="Requested">Requested</option>
                     <option value="Completed">Completed</option>
                   </select>
                 </div>

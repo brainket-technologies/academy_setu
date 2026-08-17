@@ -2,26 +2,11 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, Camera, Paperclip, Eye, EyeOff, Check, CalendarIcon } from 'lucide-react'
+import { Loader2, Camera, Paperclip, Eye, EyeOff, Check, CalendarIcon, Trash2, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Suspense } from 'react'
 
-
-const STATES = ['Uttar Pradesh', 'Madhya Pradesh', 'Punjab', 'Delhi', 'Maharashtra', 'Bihar', 'Haryana', 'Rajasthan', 'Gujarat', 'Karnataka']
-const DISTRICTS: Record<string, string[]> = {
-  'Uttar Pradesh': ['Lucknow', 'Varanasi', 'Agra', 'Noida', 'Prayagraj'],
-  'Madhya Pradesh': ['Bhopal', 'Indore', 'Gwalior', 'Jabalpur'],
-  'Punjab': ['Chandigarh', 'Ludhiana', 'Amritsar', 'Jalandhar'],
-  'Delhi': ['New Delhi', 'North Delhi', 'South Delhi', 'East Delhi'],
-  'Maharashtra': ['Mumbai', 'Pune', 'Nagpur', 'Nashik'],
-  'Bihar': ['Patna', 'Gaya', 'Muzaffarpur'],
-  'Haryana': ['Gurugram', 'Faridabad', 'Hisar', 'Rohtak'],
-  'Rajasthan': ['Jaipur', 'Jodhpur', 'Udaipur', 'Kota'],
-  'Gujarat': ['Ahmedabad', 'Surat', 'Vadodara', 'Rajkot'],
-  'Karnataka': ['Bengaluru', 'Mysuru', 'Hubli', 'Mangaluru'],
-}
-
-const STEPS = ['Personal Details', 'Address Details', 'Agreement & Commission', 'Account Details']
+const STEPS = ['Personal Details', 'Address Details', 'Agreement & Commission', 'Account Details', 'Preview']
 
 function CreateDistributorForm() {
   const router = useRouter()
@@ -43,6 +28,8 @@ function CreateDistributorForm() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [photo, setPhoto] = useState<string | null>(null)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   // Step 2: Address Details
   const [address, setAddress] = useState('')
@@ -50,8 +37,23 @@ function CreateDistributorForm() {
   const [district, setDistrict] = useState('')
   const [pincode, setPincode] = useState('')
   const [aadharNo, setAadharNo] = useState('')
-  const [aadharFile, setAadharFile] = useState('')
-  const [signatureFile, setSignatureFile] = useState('')
+  const [documents, setDocuments] = useState<{name: string, file: string}[]>([
+    { name: 'Aadhar Card', file: '' },
+    { name: 'Signature', file: '' }
+  ])
+
+  // Dynamic State & District states
+  const [statesData, setStatesData] = useState<{ id: number, name: string, districts: { id: number, name: string }[] }[]>([])
+  const [districtsList, setDistrictsList] = useState<{ id: number, name: string }[]>([])
+
+  const handleDocChange = (index: number, field: 'name' | 'file', value: string) => {
+    const newDocs = [...documents]
+    newDocs[index][field] = value
+    setDocuments(newDocs)
+  }
+
+  const addDocument = () => setDocuments([...documents, { name: '', file: '' }])
+  const removeDocument = (index: number) => setDocuments(documents.filter((_, i) => i !== index))
 
   // Step 3: Agreement & Commission
   const [agreementDoc, setAgreementDoc] = useState('')
@@ -104,6 +106,26 @@ function CreateDistributorForm() {
         .finally(() => setLoadingUser(false))
     }
   }, [editId])
+
+  useEffect(() => {
+    fetch('/api/admin/settings/state-city')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setStatesData(data.data)
+        }
+      })
+      .catch(err => console.error('Failed to fetch states', err))
+  }, [])
+
+  useEffect(() => {
+    const selectedState = statesData.find(s => s.name === state)
+    if (selectedState) {
+      setDistrictsList(selectedState.districts || [])
+    } else {
+      setDistrictsList([])
+    }
+  }, [state, statesData])
 
   const validateStep1 = () => {
     if (!distId.trim()) { toast.error('ID No. is required'); return false }
@@ -288,11 +310,31 @@ function CreateDistributorForm() {
 
                     {/* Right: Photo Upload */}
                     <div className="flex flex-col items-center gap-3">
-                      <div className="w-full h-36 bg-slate-100 dark:bg-slate-700 rounded-xl flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-600">
-                        <Camera className="w-10 h-10 text-indigo-600" />
+                      <div className="w-full h-36 bg-slate-100 dark:bg-slate-700 rounded-xl flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-600 overflow-hidden relative">
+                        {photo ? (
+                          <img src={photo} alt="Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <Camera className="w-10 h-10 text-indigo-600" />
+                        )}
                       </div>
-                      <button type="button" className="w-full py-2 border border-slate-200 dark:border-slate-600 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer">
-                        Upload Photo
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            setPhoto(URL.createObjectURL(file))
+                          }
+                        }} 
+                        accept="image/*" 
+                        className="hidden" 
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full py-2 border border-slate-200 dark:border-slate-600 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                      >
+                        {photo ? 'Change Photo' : 'Upload Photo'}
                       </button>
                     </div>
                   </div>
@@ -344,14 +386,14 @@ function CreateDistributorForm() {
                         <label className={labelCls}>State<span className="text-red-500 ml-0.5">*</span></label>
                         <select value={state} onChange={e => { setState(e.target.value); setDistrict('') }} className={selectCls}>
                           <option value="">Select State</option>
-                          {STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                          {statesData.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className={labelCls}>District<span className="text-red-500 ml-0.5">*</span></label>
                         <select value={district} onChange={e => setDistrict(e.target.value)} className={selectCls} disabled={!state}>
                           <option value="">Select District</option>
-                          {(DISTRICTS[state] || []).map(d => <option key={d} value={d}>{d}</option>)}
+                          {districtsList.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
                         </select>
                       </div>
                       <div>
@@ -362,27 +404,67 @@ function CreateDistributorForm() {
                   </div>
                 </div>
 
-                {/* Aadhar & Signature */}
+                {/* Documents */}
                 <div>
-                  <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-700 pb-3 mb-5">Aadhar &amp; Signature</h2>
-                  <div className="grid grid-cols-3 gap-5">
-                    <div>
+                  <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-700 pb-3 mb-5">Documents</h2>
+                  <div className="flex flex-col gap-5">
+                    <div className="w-1/3">
                       <label className={labelCls}>Aadhar No.<span className="text-red-500 ml-0.5">*</span></label>
                       <input type="text" placeholder="Enter Aadhar No." value={aadharNo} onChange={e => setAadharNo(e.target.value)} className={inputCls} maxLength={12} />
                     </div>
-                    <div>
-                      <label className={labelCls}>Attach Aadhar</label>
-                      <div className="relative">
-                        <input type="text" readOnly placeholder="Upload Aadhar Photo" value={aadharFile} className={inputCls + ' pr-10 cursor-pointer'} onClick={() => toast.info('File upload not connected in demo')} />
-                        <Paperclip className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className={labelCls}>Attach Signature</label>
-                      <div className="relative">
-                        <input type="text" readOnly placeholder="Upload Signature Photo" value={signatureFile} className={inputCls + ' pr-10 cursor-pointer'} onClick={() => toast.info('File upload not connected in demo')} />
-                        <Paperclip className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
-                      </div>
+
+                    <div className="flex flex-col gap-4 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700">
+                      {documents.map((doc, idx) => (
+                        <div key={idx} className="grid grid-cols-12 gap-4 items-end">
+                          <div className="col-span-5">
+                            <label className={labelCls}>Document Name</label>
+                            <input 
+                              type="text" 
+                              placeholder="e.g. Pan Card" 
+                              value={doc.name} 
+                              onChange={e => handleDocChange(idx, 'name', e.target.value)} 
+                              className={inputCls} 
+                            />
+                          </div>
+                          <div className="col-span-6">
+                            <label className={labelCls}>Attach File</label>
+                            <div className="relative">
+                              <input 
+                                type="text" 
+                                readOnly 
+                                placeholder="Upload Document" 
+                                value={doc.file} 
+                                className={inputCls + ' pr-10 cursor-pointer'} 
+                                onClick={() => {
+                                  toast.info('File upload simulated in demo')
+                                  handleDocChange(idx, 'file', 'attached-document.pdf')
+                                }} 
+                              />
+                              <Paperclip className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
+                            </div>
+                          </div>
+                          <div className="col-span-1 pb-1">
+                            {documents.length > 1 && (
+                              <button 
+                                type="button" 
+                                onClick={() => removeDocument(idx)}
+                                className="p-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 rounded-xl transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+
+                      <button 
+                        type="button" 
+                        onClick={addDocument}
+                        className="mt-2 flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-bold text-sm rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors w-fit"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add More
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -497,6 +579,57 @@ function CreateDistributorForm() {
               </div>
             )}
 
+            {/* ─── STEP 5: Preview ─── */}
+            {step === 4 && (
+              <div className="flex flex-col gap-8 animate-in fade-in duration-300">
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-4 uppercase tracking-wider">Personal Details</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div><span className="block text-xs text-slate-500 mb-1">ID No.</span><span className="font-semibold">{distId || '—'}</span></div>
+                    <div><span className="block text-xs text-slate-500 mb-1">Name</span><span className="font-semibold">{name || '—'}</span></div>
+                    <div><span className="block text-xs text-slate-500 mb-1">Mobile No.</span><span className="font-semibold">{mobileNo || '—'}</span></div>
+                    <div><span className="block text-xs text-slate-500 mb-1">Email</span><span className="font-semibold">{emailId || '—'}</span></div>
+                    <div><span className="block text-xs text-slate-500 mb-1">Gender</span><span className="font-semibold">{gender || '—'}</span></div>
+                    <div><span className="block text-xs text-slate-500 mb-1">Username</span><span className="font-semibold">{username || '—'}</span></div>
+                    <div><span className="block text-xs text-slate-500 mb-1">Joining Date</span><span className="font-semibold">{joiningDate || '—'}</span></div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-4 uppercase tracking-wider">Address Details</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div className="col-span-2"><span className="block text-xs text-slate-500 mb-1">Address</span><span className="font-semibold">{address || '—'}</span></div>
+                    <div><span className="block text-xs text-slate-500 mb-1">State</span><span className="font-semibold">{state || '—'}</span></div>
+                    <div><span className="block text-xs text-slate-500 mb-1">District</span><span className="font-semibold">{district || '—'}</span></div>
+                    <div><span className="block text-xs text-slate-500 mb-1">Pincode</span><span className="font-semibold">{pincode || '—'}</span></div>
+                    <div><span className="block text-xs text-slate-500 mb-1">Aadhar No.</span><span className="font-semibold">{aadharNo || '—'}</span></div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-4 uppercase tracking-wider">Agreement & Commission</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div><span className="block text-xs text-slate-500 mb-1">Commission In</span><span className="font-semibold">{commissionIn || '—'}</span></div>
+                    <div><span className="block text-xs text-slate-500 mb-1">Type Value</span><span className="font-semibold">{typeValue || '—'}</span></div>
+                    <div><span className="block text-xs text-slate-500 mb-1">Commission Type</span><span className="font-semibold">{commissionType || '—'}</span></div>
+                    <div><span className="block text-xs text-slate-500 mb-1">Assign Area</span><span className="font-semibold">{assignArea || '—'}</span></div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-4 uppercase tracking-wider">Account Details</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div><span className="block text-xs text-slate-500 mb-1">Account Holder</span><span className="font-semibold">{accountHolderName || '—'}</span></div>
+                    <div><span className="block text-xs text-slate-500 mb-1">Account No.</span><span className="font-semibold">{accountNumber || '—'}</span></div>
+                    <div><span className="block text-xs text-slate-500 mb-1">IFSC Code</span><span className="font-semibold">{ifscCode || '—'}</span></div>
+                    <div><span className="block text-xs text-slate-500 mb-1">Bank Name</span><span className="font-semibold">{bankName || '—'}</span></div>
+                    <div><span className="block text-xs text-slate-500 mb-1">PAN No.</span><span className="font-semibold">{panNo || '—'}</span></div>
+                    <div><span className="block text-xs text-slate-500 mb-1">UPI ID</span><span className="font-semibold">{upiId || '—'}</span></div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className={`flex items-center gap-3 mt-10 ${step > 0 ? 'justify-between' : 'justify-end'}`}>
               {step > 0 && (
@@ -516,7 +649,7 @@ function CreateDistributorForm() {
                 >
                   Cancel
                 </button>
-                {step < 3 ? (
+                {step < 4 ? (
                   <button
                     type="button"
                     onClick={handleNext}
@@ -532,7 +665,7 @@ function CreateDistributorForm() {
                     className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-500/10 flex items-center gap-2 cursor-pointer"
                   >
                     {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                    Final Preview
+                    Final Submit
                   </button>
                 )}
               </div>

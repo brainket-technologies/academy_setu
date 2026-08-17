@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, Camera, ArrowLeft, Loader2, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
@@ -36,6 +36,32 @@ export default function CreateInstitutePage() {
   const [directorPhoto, setDirectorPhoto] = useState<string | null>(null)
 
   const [status, setStatus] = useState<'Active' | 'Inactive'>('Active')
+
+  const [statesData, setStatesData] = useState<any[]>([])
+  const [districtsList, setDistrictsList] = useState<string[]>([])
+
+  useEffect(() => {
+    fetch('/api/admin/settings/state-city')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setStatesData(data.data)
+        }
+      })
+      .catch(err => console.error('Failed to load states', err))
+  }, [])
+
+  const handleStateChange = (stateVal: string) => {
+    setStateName(stateVal)
+    const stateObj = statesData.find((s: any) => s.state_name === stateVal)
+    if (stateObj) {
+      setDistrictsList(stateObj.districts || [])
+      setDistrictName('')
+    } else {
+      setDistrictsList([])
+      setDistrictName('')
+    }
+  }
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'principal' | 'director') => {
     const file = e.target.files?.[0]
@@ -157,19 +183,31 @@ export default function CreateInstitutePage() {
             </div>
 
             <div className="flex flex-col gap-5">
-              {/* School Name & Login Password */}
+              {/* School Name */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  Institute Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter Institute Name"
+                  value={schoolName}
+                  onChange={(e) => setSchoolName(e.target.value)}
+                  className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                  required
+                />
+              </div>
+
+              {/* Email & Password */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    Institute Name <span className="text-red-500">*</span>
-                  </label>
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Email ID</label>
                   <input
-                    type="text"
-                    placeholder="Enter Institute Name"
-                    value={schoolName}
-                    onChange={(e) => setSchoolName(e.target.value)}
+                    type="email"
+                    placeholder="Enter Email ID"
+                    value={emailId}
+                    onChange={(e) => setEmailId(e.target.value)}
                     className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                    required
                   />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -229,7 +267,7 @@ export default function CreateInstitutePage() {
               </div>
 
               {/* Contact grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Contact Person <span className="text-red-500">*</span>
@@ -256,16 +294,6 @@ export default function CreateInstitutePage() {
                     required
                   />
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Email ID</label>
-                  <input
-                    type="email"
-                    placeholder="Enter Email ID"
-                    value={emailId}
-                    onChange={(e) => setEmailId(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                  />
-                </div>
               </div>
 
               {/* Address */}
@@ -289,27 +317,38 @@ export default function CreateInstitutePage() {
                   <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                     State <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    placeholder="Enter State"
+                  <select
                     value={stateName}
-                    onChange={(e) => setStateName(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                    onChange={(e) => handleStateChange(e.target.value)}
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
                     required
-                  />
+                  >
+                    <option value="">Select State</option>
+                    {statesData.map((s: any) => (
+                      <option key={s.state_name} value={s.state_name}>
+                        {s.state_name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                     District <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    placeholder="Enter District"
+                  <select
                     value={districtName}
                     onChange={(e) => setDistrictName(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
                     required
-                  />
+                    disabled={!stateName}
+                  >
+                    <option value="">Select District</option>
+                    {districtsList.map((d: string) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Search, Edit3, Trash2, Calendar, Clock, Loader2, 
-  ChevronLeft, ChevronRight, Share2, Upload, AlertCircle, Users
+  ChevronLeft, ChevronRight, Share2, Upload, AlertCircle, Users, Activity, X
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
@@ -56,6 +56,26 @@ export default function AllLeadsPage() {
   const [loading, setLoading] = useState(true)
   const [statuses, setStatuses] = useState<LeadStatus[]>([])
   const [assignableUsers, setAssignableUsers] = useState<any[]>([])
+
+  // Add/Edit Lead Modal states
+  const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false)
+  const [addEditSubmitting, setAddEditSubmitting] = useState(false)
+  const [addEditId, setAddEditId] = useState<string | null>(null)
+
+  // Add/Edit Lead Form states
+  const [leadSource, setLeadSource] = useState('')
+  const [mobileNo, setMobileNo] = useState('')
+  const [emailId, setEmailId] = useState('')
+  const [contactPerson, setContactPerson] = useState('')
+  const [schoolName, setSchoolName] = useState('')
+  const [stateName, setStateName] = useState('')
+  const [district, setDistrict] = useState('')
+  const [noOfStudents, setNoOfStudents] = useState('')
+  const [baseStatus, setBaseStatus] = useState('Created')
+
+  // Dynamic State & District states
+  const [statesData, setStatesData] = useState<{ id: number, name: string, districts: { id: number, name: string }[] }[]>([])
+  const [districtsList, setDistrictsList] = useState<{ id: number, name: string }[]>([])
 
   // Bulk Assignment States
   const [selectedLeads, setSelectedLeads] = useState<string[]>([])
@@ -145,11 +165,34 @@ export default function AllLeadsPage() {
     }
   }, [])
 
+  const fetchStates = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/settings/state-city')
+      const data = await res.json()
+      if (data.success) {
+        setStatesData(data.data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch states', err)
+    }
+  }, [])
+
   useEffect(() => {
     fetchLeads(1, searchText, filterSource, filterStatus, filterAssignedTo)
     fetchStatuses()
     fetchAssignableUsers()
-  }, [fetchLeads, fetchStatuses, fetchAssignableUsers])
+    fetchStates()
+  }, [fetchLeads, fetchStatuses, fetchAssignableUsers, fetchStates])
+
+  // Update districts when state changes
+  useEffect(() => {
+    const selectedState = statesData.find(s => s.name === stateName)
+    if (selectedState) {
+      setDistrictsList(selectedState.districts || [])
+    } else {
+      setDistrictsList([])
+    }
+  }, [stateName, statesData])
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -213,6 +256,81 @@ export default function AllLeadsPage() {
     }
   }
 
+  const resetAddEditModal = () => {
+    setAddEditId(null)
+    setLeadSource('')
+    setMobileNo('')
+    setEmailId('')
+    setContactPerson('')
+    setSchoolName('')
+    setStateName('')
+    setDistrict('')
+    setNoOfStudents('')
+    setBaseStatus('Created')
+    setIsAddEditModalOpen(false)
+  }
+
+  const handleOpenAddModal = () => {
+    resetAddEditModal()
+    setIsAddEditModalOpen(true)
+  }
+
+  const handleOpenEditBaseModal = (lead: Lead) => {
+    setAddEditId(lead.id)
+    setLeadSource(lead.lead_source)
+    setMobileNo(lead.mobile_no)
+    setEmailId(lead.email_id || '')
+    setContactPerson(lead.contact_person || '')
+    setSchoolName(lead.school_name)
+    setStateName(lead.state)
+    setDistrict(lead.district)
+    setNoOfStudents(lead.no_of_students?.toString() || '')
+    setBaseStatus(lead.status)
+    setIsAddEditModalOpen(true)
+  }
+
+  const handleAddEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!leadSource || !mobileNo.trim() || !schoolName.trim() || !baseStatus) {
+      toast.error('Please fill required fields (Source, Mobile, School, Status)')
+      return
+    }
+
+    setAddEditSubmitting(true)
+    try {
+      const url = addEditId ? `/api/admin/crm/leads/${addEditId}` : '/api/admin/crm/leads'
+      const method = addEditId ? 'PUT' : 'POST'
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lead_source: leadSource,
+          mobile_no: mobileNo.trim(),
+          email_id: emailId.trim(),
+          contact_person: contactPerson.trim(),
+          school_name: schoolName.trim(),
+          state: stateName,
+          district,
+          no_of_students: parseInt(noOfStudents || '0'),
+          status: baseStatus
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(addEditId ? 'Lead updated successfully!' : 'Lead created successfully!')
+        resetAddEditModal()
+        fetchLeads(currentPage, searchText, filterSource, filterStatus, filterAssignedTo)
+      } else {
+        toast.error(data.error || `Failed to ${addEditId ? 'update' : 'create'} lead`)
+      }
+    } catch {
+      toast.error('Something went wrong saving lead')
+    } finally {
+      setAddEditSubmitting(false)
+    }
+  }
+
   // Switch to Edit View
   const handleStartEdit = async (lead: Lead) => {
     setView('edit')
@@ -246,6 +364,13 @@ export default function AllLeadsPage() {
     setLeadHistory([])
   }
 
+  // Helper to determine if a status requires follow-up
+  const requiresFollowUp = (statusName: string) => {
+    if (!statusName) return true
+    const closedStatuses = ['completed', 'not interested', 'dead', 'successfully onboarded', 'rejected', 'junk', 'lost']
+    return !closedStatuses.includes(statusName.toLowerCase())
+  }
+
   // Submit follow-up event
   const handleUpdateFollowUp = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -254,12 +379,12 @@ export default function AllLeadsPage() {
       toast.error('Remarks are required')
       return
     }
-    if (!followUpDate) {
-      toast.error('Follow Up Date is required')
-      return
-    }
     if (!editStatus) {
       toast.error('Status is required')
+      return
+    }
+    if (requiresFollowUp(editStatus) && !followUpDate) {
+      toast.error('Follow Up Date is required for this status')
       return
     }
 
@@ -382,12 +507,20 @@ export default function AllLeadsPage() {
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm shrink-0 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-850 dark:text-slate-100 tracking-tight">
-              {view === 'edit' ? 'Edit Lead' : 'All Leads'}
+              {view === 'edit' ? 'Edit Lead Logs' : 'All Leads'}
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               {view === 'edit' ? 'Update follow up timeline and lead logs' : 'Monitor sales pipelines, leads logs, and assignments'}
             </p>
           </div>
+          {view === 'list' && (
+            <button
+              onClick={handleOpenAddModal}
+              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-md transition-colors flex items-center gap-2 cursor-pointer"
+            >
+              Create Lead
+            </button>
+          )}
         </div>
 
         {view === 'edit' && editingLead ? (
@@ -538,21 +671,8 @@ export default function AllLeadsPage() {
                   />
                 </div>
 
-                {/* Follow Up Date & Status Dropdown */}
+                {/* Status Dropdown & Conditional Follow Up Date */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider flex items-center gap-0.5">
-                      Follow Up Date<span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={followUpDate}
-                      onChange={(e) => setFollowUpDate(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
-                      required
-                    />
-                  </div>
-
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider flex items-center gap-0.5">
                       Status<span className="text-red-500">*</span>
@@ -569,6 +689,21 @@ export default function AllLeadsPage() {
                       ))}
                     </select>
                   </div>
+
+                  {requiresFollowUp(editStatus) && (
+                    <div className="flex flex-col gap-1.5 animate-in fade-in duration-200">
+                      <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider flex items-center gap-0.5">
+                        Follow Up Date<span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={followUpDate}
+                        onChange={(e) => setFollowUpDate(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                        required={requiresFollowUp(editStatus)}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Form Buttons */}
@@ -901,11 +1036,18 @@ export default function AllLeadsPage() {
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-center gap-2">
                               <button
-                                onClick={() => handleStartEdit(l)}
-                                className="w-7 h-7 flex items-center justify-center bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-lg transition-colors cursor-pointer"
-                                title="Edit/Update Lead"
+                                onClick={() => handleOpenEditBaseModal(l)}
+                                className="w-7 h-7 flex items-center justify-center bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-lg transition-colors cursor-pointer"
+                                title="Edit Lead Details"
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleStartEdit(l)}
+                                className="w-7 h-7 flex items-center justify-center bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-lg transition-colors cursor-pointer"
+                                title="Process Lead / Add Logs"
+                              >
+                                <Activity className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => handleDeleteClick(l.id)}
@@ -962,18 +1104,25 @@ export default function AllLeadsPage() {
                         
                         <div className="flex items-center gap-1.5">
                           <button
-                            onClick={() => handleStartEdit(l)}
-                            className="p-2 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-xl cursor-pointer"
-                            title="Edit Lead"
+                            onClick={() => handleOpenEditBaseModal(l)}
+                            className="p-1.5 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg transition-colors cursor-pointer"
+                            title="Edit Lead Details"
                           >
-                            <Edit3 className="w-3.5 h-3.5" />
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleStartEdit(l)}
+                            className="p-1.5 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-lg transition-colors cursor-pointer"
+                            title="Process Lead / Add Logs"
+                          >
+                            <Activity className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteClick(l.id)}
-                            className="p-2 bg-red-50 dark:bg-red-950/30 text-red-550 dark:text-red-400 rounded-xl cursor-pointer"
+                            className="p-1.5 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-500 dark:text-red-400 rounded-lg transition-colors cursor-pointer"
                             title="Delete Lead"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
@@ -1079,6 +1228,168 @@ export default function AllLeadsPage() {
           </div>
         )}
       </div>
+
+      {/* Add / Edit Lead Modal */}
+      {isAddEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                {addEditId ? 'Edit Lead Details' : 'Create New Lead'}
+              </h2>
+              <button 
+                onClick={resetAddEditModal}
+                className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors text-slate-500 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleAddEditSubmit} className="p-6 overflow-y-auto flex flex-col gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Lead Source <span className="text-red-500">*</span></label>
+                  <select
+                    value={leadSource}
+                    onChange={(e) => setLeadSource(e.target.value)}
+                    required
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                  >
+                    <option value="">Select Lead Source</option>
+                    {SOURCE_OPTIONS.map(src => (
+                      <option key={src} value={src}>{src}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Mobile No. <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    value={mobileNo}
+                    onChange={(e) => setMobileNo(e.target.value)}
+                    placeholder="Enter Mobile No."
+                    required
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Email Id</label>
+                  <input
+                    type="email"
+                    value={emailId}
+                    onChange={(e) => setEmailId(e.target.value)}
+                    placeholder="Enter Email Id"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Contact Person</label>
+                  <input
+                    type="text"
+                    value={contactPerson}
+                    onChange={(e) => setContactPerson(e.target.value)}
+                    placeholder="Enter Contact Person"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400">School Name <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={schoolName}
+                  onChange={(e) => setSchoolName(e.target.value)}
+                  placeholder="Enter School Name"
+                  required
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">State</label>
+                  <select
+                    value={stateName}
+                    onChange={(e) => {
+                      setStateName(e.target.value)
+                      setDistrict('')
+                    }}
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                  >
+                    <option value="">Select State</option>
+                    {statesData.map(st => (
+                      <option key={st.id} value={st.name}>{st.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">District</label>
+                  <select
+                    value={district}
+                    onChange={(e) => setDistrict(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                    disabled={!stateName}
+                  >
+                    <option value="">Select District</option>
+                    {districtsList.map(dist => (
+                      <option key={dist.id} value={dist.name}>{dist.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">No of Students</label>
+                  <input
+                    type="number"
+                    value={noOfStudents}
+                    onChange={(e) => setNoOfStudents(e.target.value)}
+                    placeholder="Enter No of Students"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Status <span className="text-red-500">*</span></label>
+                  <select
+                    value={baseStatus}
+                    onChange={(e) => setBaseStatus(e.target.value)}
+                    required
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                  >
+                    <option value="">Select Status</option>
+                    {statuses.map(s => (
+                      <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3 mt-auto">
+                <button
+                  type="button"
+                  onClick={resetAddEditModal}
+                  className="px-5 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addEditSubmitting}
+                  className="px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {addEditSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {addEditId ? 'Save Changes' : 'Create Lead'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Delete Lead confirmation */}
       <DeleteConfirmationModal

@@ -28,6 +28,13 @@ export async function GET(request: NextRequest) {
         ) THEN
           ALTER TABLE promo_codes ADD COLUMN min_applicable_amount NUMERIC(10,2) DEFAULT 0;
         END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'promo_codes' AND column_name = 'applicable_on'
+        ) THEN
+          ALTER TABLE promo_codes ADD COLUMN applicable_on VARCHAR(50) DEFAULT 'Both';
+        END IF;
       END $$;
     `).catch(err => console.error("Database migration promo_codes error:", err));
 
@@ -114,25 +121,33 @@ export async function POST(request: NextRequest) {
           ALTER TABLE promo_codes ALTER COLUMN applicable_by TYPE TEXT[] USING string_to_array(applicable_by, ',');
           ALTER TABLE promo_codes ALTER COLUMN applicable_by SET DEFAULT '{}';
         END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'promo_codes' AND column_name = 'applicable_on'
+        ) THEN
+          ALTER TABLE promo_codes ADD COLUMN applicable_on VARCHAR(50) DEFAULT 'Both';
+        END IF;
       END $$;
     `).catch(err => console.error("Database migration promo_codes error:", err));
 
     const body = await request.json()
-    const { code, description, segment, applicable_by, applicable_one, discount_name, discount_type, discount_value, max_uses, start_date, has_expiry, expiry_date, min_applicable_amount, plan_id } = body
+    const { code, description, segment, applicable_by, applicable_on, applicable_one, discount_name, discount_type, discount_value, max_uses, start_date, has_expiry, expiry_date, min_applicable_amount, plan_id } = body
 
     if (!code || !discount_type || discount_value == null) {
       return NextResponse.json({ success: false, error: 'Code, Discount Type, and Discount Value are required' }, { status: 400 })
     }
 
     const result = await pool.query(
-      `INSERT INTO promo_codes (code, description, segment, applicable_by, applicable_one, discount_name, discount_type, discount_value, max_uses, start_date, has_expiry, expiry_date, min_applicable_amount, plan_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      `INSERT INTO promo_codes (code, description, segment, applicable_by, applicable_on, applicable_one, discount_name, discount_type, discount_value, max_uses, start_date, has_expiry, expiry_date, min_applicable_amount, plan_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING *`,
       [
         code.toUpperCase(),
         description || '',
         segment || [],
         applicable_by || [],
+        applicable_on || 'Both',
         applicable_one || false,
         discount_name || '',
         discount_type,

@@ -525,7 +525,6 @@ export function InstitutePageContent() {
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Contact Person</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Active Plan</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Plan Expiry</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Email</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Location</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Created At</th>
                   <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 text-center">Action</th>
@@ -534,7 +533,7 @@ export function InstitutePageContent() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                 {loading ? (
                   <tr>
-                    <td colSpan={11} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
+                    <td colSpan={10} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
                         Loading institutes...
@@ -598,7 +597,6 @@ export function InstitutePageContent() {
                             }
                           })()}
                         </td>
-                        <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-xs">{inst.email_id || '-'}</td>
                         <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-xs font-semibold">{inst.district}, {inst.state}</td>
                         <td className="px-5 py-4 text-slate-500 dark:text-slate-400 text-xs font-semibold leading-relaxed">
                           {formatDate(inst.created_at)}
@@ -723,8 +721,18 @@ export function InstitutePageContent() {
                   </div>
                 </div>
 
-                {/* Password Grid */}
+                {/* Email & Password Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Email ID</label>
+                    <input
+                      type="email"
+                      placeholder="Enter Email ID"
+                      value={emailId}
+                      onChange={(e) => setEmailId(e.target.value)}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                    />
+                  </div>
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Login Password</label>
                     <div className="relative w-full">
@@ -745,6 +753,10 @@ export function InstitutePageContent() {
                       </button>
                     </div>
                   </div>
+                </div>
+
+                {/* Codes Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Institute Code</label>
                     <input
@@ -755,10 +767,6 @@ export function InstitutePageContent() {
                       className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     />
                   </div>
-                </div>
-
-                {/* Affiliated Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Affiliated To</label>
                     <input
@@ -782,7 +790,7 @@ export function InstitutePageContent() {
                 </div>
 
                 {/* Contact grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                       Contact Person <span className="text-red-500">*</span>
@@ -807,16 +815,6 @@ export function InstitutePageContent() {
                       onChange={(e) => setMobileNo(e.target.value)}
                       className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                       required
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Email ID</label>
-                    <input
-                      type="email"
-                      placeholder="Enter Email ID"
-                      value={emailId}
-                      onChange={(e) => setEmailId(e.target.value)}
-                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     />
                   </div>
                 </div>

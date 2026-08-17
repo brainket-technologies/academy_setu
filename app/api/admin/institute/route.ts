@@ -20,6 +20,9 @@ export async function GET(request: Request) {
           i.name,
           i.contact_person,
           i.mobile_no,
+          i.address,
+          i.state,
+          i.district,
           COALESCE(s.name, p_bill.segment, p_app.segment, p_seg.segment) as segment_name
         FROM institutions i
         LEFT JOIN segments s ON i.segment_id = s.id

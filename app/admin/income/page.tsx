@@ -797,19 +797,7 @@ export default function AllIncomePage() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Payment Account</label>
-                    <select
-                      value={addForm.payment_account}
-                      onChange={e => setAddForm(prev => ({ ...prev, payment_account: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
-                    >
-                      <option value="">Select an Option</option>
-                      <option value="SBI">SBI Bank</option>
-                      <option value="HDFC">HDFC Bank</option>
-                      <option value="ICICI">ICICI Bank</option>
-                    </select>
-                  </div>
+
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Received From (Parties) *</label>
@@ -826,19 +814,7 @@ export default function AllIncomePage() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Session</label>
-                    <select
-                      value={addForm.session_name}
-                      onChange={e => setAddForm(prev => ({ ...prev, session_name: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
-                    >
-                      <option value="">Select Session</option>
-                      {sessions.map(s => (
-                        <option key={s.id} value={s.name}>{s.name}</option>
-                      ))}
-                    </select>
-                  </div>
+
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Status</label>
@@ -984,19 +960,7 @@ export default function AllIncomePage() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Payment Account</label>
-                    <select
-                      value={editForm.payment_account}
-                      onChange={e => setEditForm(prev => ({ ...prev, payment_account: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
-                    >
-                      <option value="">Select an Option</option>
-                      <option value="SBI">SBI Bank</option>
-                      <option value="HDFC">HDFC Bank</option>
-                      <option value="ICICI">ICICI Bank</option>
-                    </select>
-                  </div>
+
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Received From (Parties) *</label>
@@ -1013,19 +977,7 @@ export default function AllIncomePage() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Session</label>
-                    <select
-                      value={editForm.session_name}
-                      onChange={e => setEditForm(prev => ({ ...prev, session_name: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium cursor-pointer"
-                    >
-                      <option value="">Select Session</option>
-                      {sessions.map(s => (
-                        <option key={s.id} value={s.name}>{s.name}</option>
-                      ))}
-                    </select>
-                  </div>
+
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Status</label>

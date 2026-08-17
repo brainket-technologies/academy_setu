@@ -33,7 +33,7 @@ export async function PUT(
     const { 
       school_name, address, name, mobile_no, product_name, 
       product_description, quantity, size, product_as, dispatch_date, status,
-      price, tax_percent, total_amount, courier_name, courier_id
+      price, tax_percent, total_amount, courier_name, courier_id, transactions
     } = body
 
     if (!school_name || !address || !name || !mobile_no || !product_name || !quantity || !status) {
@@ -44,8 +44,8 @@ export async function PUT(
       `UPDATE product_dispatches 
        SET school_name = $1, address = $2, name = $3, mobile_no = $4, product_name = $5, 
            product_description = $6, quantity = $7, size = $8, product_as = $9, dispatch_date = $10, status = $11,
-           price = $12, tax_percent = $13, total_amount = $14, courier_name = $15, courier_id = $16, updated_at = NOW()
-       WHERE id = $17
+           price = $12, tax_percent = $13, total_amount = $14, courier_name = $15, courier_id = $16, transactions = $17, updated_at = NOW()
+       WHERE id = $18
        RETURNING *`,
       [
         school_name,
@@ -64,6 +64,7 @@ export async function PUT(
         parseFloat(total_amount) || 0,
         courier_name || '',
         courier_id || '',
+        transactions ? JSON.stringify(transactions) : '[]',
         id
       ]
     )

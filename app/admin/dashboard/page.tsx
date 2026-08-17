@@ -78,8 +78,19 @@ export default function AdminDashboardPage() {
     { title: 'Distributers', subtitle: '', value: stats?.kpiData?.distributers ?? 0, growth: stats?.growth?.distributers ?? 0, icon: Users, color: 'text-pink-500', bg: 'bg-pink-50 dark:bg-pink-950/30', href: '/admin/distributors' },
   ]
 
+  const allSegmentCard = {
+    title: 'ALL',
+    subtitle: '(Segment)',
+    value: (stats?.segments || []).reduce((acc: number, curr: any) => acc + (curr.count || 0), 0),
+    growth: stats?.growth?.institutions ?? 0,
+    icon: Building2,
+    color: 'text-indigo-600',
+    bg: 'bg-indigo-100 dark:bg-indigo-950/40',
+    href: '/admin/institute',
+  }
+
   // Merge segment + static KPIs
-  const kpiData = [...segmentCards, ...staticKpis]
+  const kpiData = [allSegmentCard, ...segmentCards, ...staticKpis]
 
   const collectionData = stats?.collectionData || [
     { name: 'Jan', value: 0 }, { name: 'Feb', value: 0 }, { name: 'Mar', value: 0 },

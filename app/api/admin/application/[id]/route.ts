@@ -103,6 +103,10 @@ export async function PUT(
       }
       addInstField('assigned_to', finalAssignedTo)
 
+      if (enquiry_status === 'Successfully Onboarded') {
+        addInstField('status', 'Active')
+      }
+
       if (instUpdates.length > 0) {
         instValues.push(institutionId)
         await pool.query(

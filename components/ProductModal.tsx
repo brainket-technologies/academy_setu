@@ -14,6 +14,7 @@ interface Product {
   colors: string[]
   sizes: string[]
   features: string[]
+  moq?: number | string
 }
 
 interface ProductModalProps {
@@ -35,6 +36,7 @@ export function ProductModal({ isOpen, onClose, onSuccess, product }: ProductMod
   const [colors, setColors] = useState<string[]>([])
   const [sizes, setSizes] = useState<string[]>([])
   const [features, setFeatures] = useState<string[]>([''])
+  const [moq, setMoq] = useState('1')
 
   // Tag inputs
   const [colorInput, setColorInput] = useState('')
@@ -52,6 +54,7 @@ export function ProductModal({ isOpen, onClose, onSuccess, product }: ProductMod
         setColors(product.colors || [])
         setSizes(product.sizes || [])
         setFeatures(product.features?.length ? product.features : [''])
+        setMoq(String(product.moq || '1'))
       } else {
         // Reset form for adding product
         setName('')
@@ -62,6 +65,7 @@ export function ProductModal({ isOpen, onClose, onSuccess, product }: ProductMod
         setColors([])
         setSizes([])
         setFeatures([''])
+        setMoq('1')
       }
     }
   }, [isOpen, product])
@@ -173,7 +177,8 @@ export function ProductModal({ isOpen, onClose, onSuccess, product }: ProductMod
           sell_price: parseFloat(sellPrice),
           colors,
           sizes,
-          features: cleanFeatures
+          features: cleanFeatures,
+          moq: parseInt(moq) || 1
         })
       })
 
@@ -423,9 +428,9 @@ export function ProductModal({ isOpen, onClose, onSuccess, product }: ProductMod
             {/* Product Price */}
             <div className="bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/60">
               <h3 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-4 border-b border-slate-100 dark:border-slate-750 pb-2">
-                Product Price
+                Product Price &amp; Quantity
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-655 dark:text-slate-400 mb-1.5">
                     Product MRP Price *
@@ -454,12 +459,21 @@ export function ProductModal({ isOpen, onClose, onSuccess, product }: ProductMod
                   <label className="block text-xs font-bold text-slate-655 dark:text-slate-400 mb-1.5">
                     Saving Amount
                   </label>
+                  <div className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300">
+                    {savingAmount > 0 ? `₹${savingAmount.toFixed(2)}` : '0'}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-655 dark:text-slate-400 mb-1.5">
+                    Min Order Qty (MOQ) *
+                  </label>
                   <input
-                    type="text"
-                    disabled
-                    placeholder="Autofill"
-                    value={savingAmount > 0 ? `₹${savingAmount.toLocaleString('en-IN')}` : ''}
-                    className="w-full px-4 py-2 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-500 cursor-not-allowed font-semibold"
+                    type="number"
+                    min="1"
+                    placeholder="Enter MOQ"
+                    value={moq}
+                    onChange={e => setMoq(e.target.value)}
+                    className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 dark:text-slate-200"
                   />
                 </div>
               </div>

@@ -53,7 +53,6 @@ export function AdminSidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: 
       icon: UserCheck, label: 'CRM', href: '#',
       subItems: [
         { label: 'All Leads', href: '/admin/crm/leads' },
-        { label: 'Create Lead', href: '/admin/crm/leads/create' },
         { label: 'Lead Status', href: '/admin/crm/status' }
       ]
     },
@@ -97,7 +96,8 @@ export function AdminSidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: 
       subItems: [
         { label: 'Recharge Request', href: '/admin/device/recharge' },
         { label: 'Expiry Recharge', href: '/admin/device/expiry' },
-        { label: 'Plan Setup', href: '/admin/device/plans' }
+        { label: 'Plan Setup', href: '/admin/device/plans' },
+        { label: 'Device Setup', href: '/admin/device/setup' }
       ]
     },
     { icon: Settings, label: 'Settings', href: '/admin/settings' },

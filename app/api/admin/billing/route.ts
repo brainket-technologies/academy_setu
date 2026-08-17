@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
           i.name as school_name, i.state, i.district,
           p.plan_name,
           COALESCE(p.segment, s.name) as segment,
+          (SELECT screenshots FROM requests r WHERE r.transaction_id = b.transaction_id LIMIT 1) as screenshots,
           COUNT(*) OVER()::int AS _total_count
         FROM bills b
         LEFT JOIN institutions i ON b.institution_id = i.id
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { school_name, institution_id, plan_name, plan_id, payment_mode, payment_date, amount, transaction_id, status } = body
+    const { school_name, institution_id, plan_name, plan_id, payment_mode, payment_date, amount, transaction_id, status, screenshots } = body
 
     if (!payment_mode || !amount) {
       return NextResponse.json({ success: false, error: 'Payment Mode and Amount are required' }, { status: 400 })
@@ -118,15 +119,16 @@ export async function POST(request: NextRequest) {
 
     // Insert into requests so it shows up in the Request menu
     await pool.query(
-      `INSERT INTO requests (institution_id, plan_id, school_name, plan_name, payment_mode, transaction_id, amount, status)
-       VALUES ($1, $2, (SELECT name FROM institutions WHERE id = $1 LIMIT 1), (SELECT plan_name FROM plans WHERE id = $2 LIMIT 1), $3, $4, $5, $6)`,
+      `INSERT INTO requests (institution_id, plan_id, school_name, plan_name, payment_mode, transaction_id, amount, status, screenshots)
+       VALUES ($1, $2, (SELECT name FROM institutions WHERE id = $1 LIMIT 1), (SELECT plan_name FROM plans WHERE id = $2 LIMIT 1), $3, $4, $5, $6, $7)`,
       [
         finalInstitutionId,
         finalPlanId,
         payment_mode,
         transaction_id || '',
         parseFloat(amount),
-        status === 'Paid' ? 'Accept' : (status === 'Failed' ? 'Reject' : 'Pending')
+        status === 'Paid' ? 'Accept' : (status === 'Failed' ? 'Reject' : 'Pending'),
+        JSON.stringify(screenshots || [])
       ]
     )
 

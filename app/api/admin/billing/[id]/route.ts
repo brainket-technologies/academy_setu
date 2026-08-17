@@ -28,7 +28,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
     const body = await request.json()
-    const { institution_id, plan_id, payment_mode, payment_date, amount, transaction_id, status } = body
+    const { institution_id, plan_id, payment_mode, payment_date, amount, transaction_id, status, screenshots } = body
+
+    // Get the old transaction ID before updating to sync with requests
+    const oldBillRes = await pool.query('SELECT transaction_id FROM bills WHERE id = $1', [id])
+    if (oldBillRes.rows.length === 0) {
+      return NextResponse.json({ success: false, error: 'Bill not found' }, { status: 404 })
+    }
+    const oldTxnId = oldBillRes.rows[0].transaction_id
 
     const result = await pool.query(
       `UPDATE bills SET
@@ -54,9 +61,27 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       ]
     )
 
-    if (result.rows.length === 0) {
-      return NextResponse.json({ success: false, error: 'Bill not found' }, { status: 404 })
+    // Sync with the requests table so the request verification tab reflects changes
+    if (oldTxnId) {
+      await pool.query(
+        `UPDATE requests SET 
+          amount = COALESCE($1, amount), 
+          transaction_id = COALESCE($2, transaction_id),
+          payment_mode = COALESCE($3, payment_mode),
+          screenshots = COALESCE($4, screenshots),
+          status = COALESCE($5, status)
+         WHERE transaction_id = $6`,
+        [
+          amount != null ? parseFloat(amount) : undefined,
+          transaction_id,
+          payment_mode,
+          screenshots !== undefined ? JSON.stringify(screenshots) : undefined,
+          status === 'Paid' ? 'Accept' : (status === 'Failed' ? 'Reject' : 'Pending'),
+          oldTxnId
+        ]
+      )
     }
+
     return NextResponse.json({ success: true, data: result.rows[0] })
   } catch (error) {
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })

@@ -20,6 +20,10 @@ export async function ensureShopDb() {
     `)
 
     await pool.query(`
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS moq INT DEFAULT 1;
+    `)
+
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS product_enquiries (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         school_name VARCHAR(255) NOT NULL,
@@ -69,6 +73,7 @@ export async function ensureShopDb() {
     await pool.query(`ALTER TABLE product_dispatches ADD COLUMN IF NOT EXISTS tax_percent NUMERIC(5,2) DEFAULT 0`)
     await pool.query(`ALTER TABLE product_dispatches ADD COLUMN IF NOT EXISTS total_amount NUMERIC(10,2) DEFAULT 0`)
     await pool.query(`ALTER TABLE product_dispatches ADD COLUMN IF NOT EXISTS product_as VARCHAR(50) DEFAULT 'Gift'`)
+    await pool.query(`ALTER TABLE product_dispatches ADD COLUMN IF NOT EXISTS transactions JSONB DEFAULT '[]'::jsonb`)
     await pool.query(`ALTER TABLE product_dispatches ADD COLUMN IF NOT EXISTS courier_name VARCHAR(255) DEFAULT ''`)
     await pool.query(`ALTER TABLE product_dispatches ADD COLUMN IF NOT EXISTS courier_id VARCHAR(255) DEFAULT ''`)
 
@@ -378,6 +383,17 @@ export async function ensureShopDb() {
         ('abcdschool', 'Device 3', '1234567890', 'Attendance', '365 Days', 4000.00, 'Brand 1', 'Lorem Ipsum', '1234567890', '9999999999', 18, 4720.00, '2025-09-15', '2025-10-01', TRUE)
       `)
     }
+
+    // 16. Create device_setup table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS device_setup (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(255) NOT NULL,
+        model VARCHAR(255) NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `)
 
   } catch (error) {
     console.error('Error ensuring Shop DB:', error)
