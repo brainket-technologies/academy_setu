@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Plus, Edit3, Trash2, Loader2, X } from 'lucide-react'
+import { Plus, Edit3, Trash2, Loader2, X, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
@@ -13,7 +13,8 @@ interface DeviceSetup {
 
 export default function DeviceSetupPage() {
   const [devices, setDevices] = useState<DeviceSetup[]>([])
-  const [loading, setLoading] = useState(true)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Modal States
   const [showModal, setShowModal] = useState(false)
@@ -28,10 +29,11 @@ export default function DeviceSetupPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  const fetchDevices = useCallback(async () => {
-    setLoading(true)
+  const fetchDevices = useCallback(async (search = '', isInitial = false) => {
+    if (isInitial) setInitialLoading(true)
     try {
-      const res = await fetch('/api/admin/device/setup')
+      const url = search ? `/api/admin/device/setup?search=${encodeURIComponent(search)}` : '/api/admin/device/setup'
+      const res = await fetch(url)
       const data = await res.json()
       if (data.success) {
         setDevices(data.data)
@@ -42,13 +44,22 @@ export default function DeviceSetupPage() {
       console.error(err)
       toast.error('Error fetching devices')
     } finally {
-      setLoading(false)
+      if (isInitial) setInitialLoading(false)
     }
   }, [])
 
+  // Initial load
   useEffect(() => {
-    fetchDevices()
+    fetchDevices('', true)
   }, [fetchDevices])
+
+  // Debounced search without full table unmounting
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchDevices(searchQuery, false)
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [searchQuery, fetchDevices])
 
   const openModal = (device?: DeviceSetup) => {
     if (device) {
@@ -76,14 +87,20 @@ export default function DeviceSetupPage() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, model })
+        body: JSON.stringify({ name: name.trim(), model: model.trim() })
       })
 
       const data = await res.json()
       if (data.success) {
-        toast.success(selectedDevice ? 'Device updated' : 'Device added')
+        toast.success(selectedDevice ? 'Device updated successfully' : 'Device added successfully')
         setShowModal(false)
-        fetchDevices()
+        
+        // Instant non-refreshing state update
+        if (selectedDevice) {
+          setDevices(prev => prev.map(d => d.id === selectedDevice.id ? data.data : d))
+        } else {
+          setDevices(prev => [data.data, ...prev])
+        }
       } else {
         toast.error(data.error || 'Failed to save device')
       }
@@ -103,8 +120,9 @@ export default function DeviceSetupPage() {
       const data = await res.json()
       if (data.success) {
         toast.success('Device deleted successfully')
+        // Instant state removal without reloading
+        setDevices(prev => prev.filter(d => d.id !== deleteId))
         setDeleteId(null)
-        fetchDevices()
       } else {
         toast.error(data.error || 'Failed to delete device')
       }
@@ -118,18 +136,30 @@ export default function DeviceSetupPage() {
 
   return (
     <>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 mb-6 shadow-sm border border-slate-100 dark:border-slate-700 flex justify-between items-center">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 mb-6 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col md:flex-row gap-4 md:items-center justify-between">
         <h1 className="text-xl font-bold text-slate-850 dark:text-slate-100">Device Setup</h1>
-        <button
-          onClick={() => openModal()}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-md cursor-pointer"
-        >
-          <Plus className="w-4 h-4" /> Add Device
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search devices..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-100 w-full sm:w-64"
+            />
+          </div>
+          <button
+            onClick={() => openModal()}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-md cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> Add Device
+          </button>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-        {loading ? (
+        {initialLoading ? (
           <div className="flex justify-center items-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
           </div>

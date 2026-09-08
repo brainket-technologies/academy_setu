@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Search, Plus, Eye, Edit3, RefreshCw, X, MoreVertical, Loader2, Filter, ChevronDown, ChevronUp, UserCheck, Camera } from 'lucide-react'
+import { Search, Plus, Eye, Edit3, RefreshCw, X, MoreVertical, Loader2, Filter, ChevronDown, ChevronUp, UserCheck, Camera, Percent, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
@@ -17,6 +17,8 @@ interface Application {
   status: 'Applied' | 'Pending' | 'Paid' | 'Unpaid' | 'Active' | 'Inactive' | 'Completed' | 'Generate' | 'Requested' | string
   enquiry_status?: string | null
   plan_id?: string | null
+  plan_name?: string | null
+  amount?: number | string | null
   promo_code?: string | null
   created_at: string
   assigned_to?: string | null
@@ -894,9 +896,9 @@ export default function ApplicationPage() {
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col relative">
           <div className="overflow-x-auto border border-slate-100 dark:border-slate-700 rounded-2xl">
             <table className="w-full border-collapse text-left text-sm">
-              <thead className="bg-[#EBF6F6]/50 dark:bg-slate-700/50">
+              <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700">
                 <tr>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">
+                  <th className="px-4 py-3.5 text-center w-10">
                     <input 
                       type="checkbox" 
                       className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
@@ -904,23 +906,25 @@ export default function ApplicationPage() {
                       onChange={handleSelectAll}
                     />
                   </th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">S.No.</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Application No.</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">School Name</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Contact Person</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">State</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">City / District</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Created At</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Status</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Enquiry Status</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Assigned To</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 text-center">Action</th>
+                  <th className="px-4 py-3.5 text-center w-12">S.No.</th>
+                  <th className="px-4 py-3.5 text-center whitespace-nowrap">Action</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[140px]">Assigned To</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap">Status</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap">Enquiry Status</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[140px]">Selected Plan</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap">Amount</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Application No.</th>
+                  <th className="px-4 py-3.5 min-w-[160px]">School Name</th>
+                  <th className="px-4 py-3.5 min-w-[120px]">Contact Person</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap">State</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap">City / District</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap">Created At</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                 {loading ? (
                   <tr>
-                    <td colSpan={11} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
+                    <td colSpan={14} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
                         Loading applications...
@@ -929,7 +933,7 @@ export default function ApplicationPage() {
                   </tr>
                 ) : paginatedApps.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
+                    <td colSpan={14} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
                       No applications found.
                     </td>
                   </tr>
@@ -938,8 +942,8 @@ export default function ApplicationPage() {
                     const sNo = (currentPage - 1) * pageSize + index + 1
                     const { date, time } = formatDate(app.created_at)
                     return (
-                      <tr key={app.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
-                        <td className="px-5 py-4">
+                      <tr key={app.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-700/40 transition-colors">
+                        <td className="px-4 py-3.5 text-center">
                           <input 
                             type="checkbox"
                             className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
@@ -947,30 +951,47 @@ export default function ApplicationPage() {
                             onChange={() => handleSelectRow(app.id)}
                           />
                         </td>
-                        <td className="px-5 py-4 font-medium text-slate-500 dark:text-slate-400">{sNo}.</td>
-                        <td className="px-5 py-4 font-bold text-slate-700 dark:text-slate-200 text-xs tracking-wider">{app.application_no}</td>
-                        <td className="px-5 py-4 text-slate-700 dark:text-slate-200 font-medium">{app.school_name}</td>
-                        <td className="px-5 py-4 text-slate-700 dark:text-slate-300">{app.contact_person}</td>
-                        <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-xs font-semibold">{app.state}</td>
-                        <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-xs font-semibold">{app.district}</td>
-                        <td className="px-5 py-4 text-slate-500 dark:text-slate-400 text-xs font-semibold leading-relaxed">
-                          📅 {date}<br/>🕒 {time}
+                        <td className="px-4 py-3.5 text-center font-medium text-slate-400 dark:text-slate-500 text-xs">{sNo}.</td>
+
+                        {/* Action Column at Start */}
+                        <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => goToDetailsPage(app)}
+                              className="p-1.5 text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 dark:text-indigo-400 rounded-lg transition-colors cursor-pointer"
+                              title="View Details"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              onClick={() => openUpdateStatusModal(app)}
+                              className="p-1.5 text-amber-600 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/40 dark:text-amber-400 rounded-lg transition-colors cursor-pointer"
+                              title="Update Status"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              onClick={() => openEditModal(app.id)}
+                              className="p-1.5 text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 dark:text-emerald-400 rounded-lg transition-colors cursor-pointer"
+                              title="Edit Details"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteApplication(app.id)}
+                              className="p-1.5 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/40 dark:text-red-400 rounded-lg transition-colors cursor-pointer"
+                              title="Delete Application"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
-                        <td className="px-5 py-4">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${getStatusBadge(app.status)}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${
-                              app.status === 'Applied' ? 'bg-blue-500' :
-                              app.status === 'Generate' ? 'bg-amber-500' :
-                              app.status === 'Requested' ? 'bg-pink-500' :
-                              'bg-emerald-500'
-                            }`} />
-                            {app.status}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-xs font-semibold">
-                          {app.enquiry_status || '—'}
-                        </td>
-                        <td className="px-5 py-4">
+
+                        {/* Assigned To Column at Start */}
+                        <td className="px-4 py-3.5 whitespace-nowrap">
                           <select
                             value={app.assigned_to || ''}
                             onChange={async (e) => {
@@ -996,7 +1017,7 @@ export default function ApplicationPage() {
                                 toast.error('Error during assignment')
                               }
                             }}
-                            className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-xs font-semibold outline-none cursor-pointer text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm w-36 hover:bg-slate-100 dark:hover:bg-slate-600/50"
+                            className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-xs font-semibold outline-none cursor-pointer text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm min-w-[130px] hover:bg-slate-100 dark:hover:bg-slate-600/50"
                           >
                             <option value="">Unassigned</option>
                             {assignableUsers.map((user: any) => (
@@ -1006,31 +1027,45 @@ export default function ApplicationPage() {
                             ))}
                           </select>
                         </td>
-                        <td className="px-5 py-4">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => openUpdateStatusModal(app)}
-                              className="p-1.5 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition-colors cursor-pointer"
-                              title="Update Status"
-                            >
-                              <RefreshCw className="w-4 h-4" />
-                            </button>
 
-                            <button
-                              onClick={() => openEditModal(app.id)}
-                              className="p-1.5 text-emerald-650 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg transition-colors cursor-pointer"
-                              title="Edit Details"
-                            >
-                              <Edit3 className="w-4 h-4 text-emerald-650" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteApplication(app.id)}
-                              className="p-1.5 text-red-650 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer"
-                              title="Delete"
-                            >
-                              <X className="w-4 h-4 text-red-500" />
-                            </button>
-                          </div>
+                        {/* Status Column at Start */}
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${getStatusBadge(app.status)}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              app.status === 'Applied' ? 'bg-blue-500' :
+                              app.status === 'Generate' ? 'bg-amber-500' :
+                              app.status === 'Requested' ? 'bg-pink-500' :
+                              'bg-emerald-500'
+                            }`} />
+                            {app.status}
+                          </span>
+                        </td>
+
+                        {/* Enquiry Status Column (Beside Status) */}
+                        <td className="px-4 py-3.5 text-xs text-slate-600 dark:text-slate-300 font-semibold whitespace-nowrap">
+                          {app.enquiry_status || '—'}
+                        </td>
+
+                        {/* Selected Plan Column */}
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <span className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded-lg text-xs font-bold border border-indigo-100 dark:border-indigo-800/60">
+                            {app.plan_name || 'Standard Plan'}
+                          </span>
+                        </td>
+
+                        {/* Amount Column */}
+                        <td className="px-4 py-3.5 whitespace-nowrap font-extrabold text-slate-800 dark:text-slate-100 text-xs">
+                          ₹{Number(app.amount || 2000).toLocaleString('en-IN')}
+                        </td>
+
+                        {/* Remaining Columns */}
+                        <td className="px-4 py-3.5 font-bold font-mono text-indigo-600 dark:text-indigo-400 text-xs whitespace-nowrap">{app.application_no}</td>
+                        <td className="px-4 py-3.5 font-bold text-slate-800 dark:text-slate-100 min-w-[160px]">{app.school_name}</td>
+                        <td className="px-4 py-3.5 text-xs font-medium text-slate-700 dark:text-slate-300 min-w-[120px]">{app.contact_person}</td>
+                        <td className="px-4 py-3.5 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">{app.state}</td>
+                        <td className="px-4 py-3.5 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">{app.district}</td>
+                        <td className="px-4 py-3.5 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                          {date} <span className="text-slate-400 dark:text-slate-500 text-[11px] font-normal">{time}</span>
                         </td>
                       </tr>
                     )
@@ -1520,48 +1555,106 @@ export default function ApplicationPage() {
                 </div>
 
                 {appStatus === 'Pending' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4 animate-in fade-in duration-200">
-                    {/* Plan Dropdown */}
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        Plan <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={plan}
-                        onChange={(e) => setPlan(e.target.value)}
-                        className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
-                        required={appStatus === 'Pending'}
-                      >
-                        <option value="">Select Plan</option>
-                        {plans.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.plan_name} ({p.segment})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Promo Code Dropdown */}
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Promo Code</label>
-                      <div className="relative">
+                  <div className="flex flex-col gap-4 mt-4 animate-in fade-in duration-200 border-t border-slate-100 dark:border-slate-700 pt-4">
+                    {/* Plan & Promo Code Selection */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Plan Dropdown */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                          Plan <span className="text-red-500">*</span>
+                        </label>
                         <select
-                          value={promoCode}
-                          onChange={(e) => setPromoCode(e.target.value)}
-                          className="w-full pl-4 pr-12 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer appearance-none"
+                          value={plan}
+                          onChange={(e) => setPlan(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
+                          required={appStatus === 'Pending'}
                         >
-                          <option value="">Select Promo Code</option>
-                          {promoCodes.map((pc) => (
-                            <option key={pc.id} value={pc.code}>
-                              {pc.code} ({pc.discount_name})
+                          <option value="">Select Plan</option>
+                          {plans.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.plan_name} ({p.segment || 'General'})
                             </option>
                           ))}
                         </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-800 rounded-lg p-1 px-2 pointer-events-none">
-                          <span className="text-xs font-bold leading-none">%</span>
+                      </div>
+
+                      {/* Promo Code Pills */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                          <Percent className="w-3.5 h-3.5 text-indigo-500" /> Promo Code
+                        </label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(promoCodes.length > 0 ? promoCodes.map(pc => pc.code) : ['WELCOME10', 'FESTIVE20', 'FLAT500', 'NEWYEAR', 'SPECIAL']).map(codeStr => {
+                            const isApplied = promoCode === codeStr
+                            return (
+                              <button
+                                key={codeStr}
+                                type="button"
+                                onClick={() => {
+                                  if (isApplied) setPromoCode('')
+                                  else { setPromoCode(codeStr); toast.success(`Promo code ${codeStr} applied!`) }
+                                }}
+                                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                                  isApplied
+                                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                                    : 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-indigo-300'
+                                }`}
+                              >
+                                <Percent className="w-3 h-3" />
+                                {codeStr}
+                                {isApplied && <Check className="w-3 h-3 ml-0.5" />}
+                              </button>
+                            )
+                          })}
                         </div>
                       </div>
                     </div>
+
+                    {/* Selected Plan Details & Total Payable Net Card */}
+                    {(() => {
+                      const selectedPlanObj = plans.find(p => p.id === plan || p.plan_name === plan)
+                      const basePrice = selectedPlanObj 
+                        ? (selectedPlanObj.first_billing_items || []).reduce((sum: number, item: any) => sum + Number(item.price || 0) + Number(item.tax_price || 0), 0) || 2000
+                        : 2000
+
+                      const promoObj = promoCodes.find(pc => pc.code === promoCode)
+                      let discountAmount = 0
+                      if (promoObj) {
+                        const val = Number(promoObj.discount_value || 0)
+                        if (promoObj.discount_type === 'Fixed' || promoObj.discount_type === 'Amount') {
+                          discountAmount = Math.min(val, basePrice)
+                        } else {
+                          discountAmount = (basePrice * val) / 100
+                        }
+                      } else if (promoCode) {
+                        discountAmount = 500
+                      }
+
+                      const finalNet = Math.max(0, basePrice - discountAmount)
+
+                      return (
+                        <div className="bg-slate-800 dark:bg-slate-900/90 rounded-xl p-4 shadow-md text-white border border-slate-700 mt-1">
+                          <div className="flex flex-col gap-1.5 text-xs font-semibold">
+                            <div className="flex justify-between text-slate-300">
+                              <span>Plan Price {selectedPlanObj ? `(${selectedPlanObj.plan_name})` : ''}</span>
+                              <span>₹{basePrice.toLocaleString('en-IN')}</span>
+                            </div>
+                            {discountAmount > 0 && (
+                              <div className="flex justify-between text-emerald-400">
+                                <span>Discount ({promoCode})</span>
+                                <span>− ₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between text-white font-black text-base border-t border-slate-700 pt-2 mt-1">
+                              <span>Total Payable (Net)</span>
+                              <span className="text-indigo-400">
+                                ₹{finalNet.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
               </div>
@@ -1651,48 +1744,106 @@ export default function ApplicationPage() {
               </div>
 
               {appStatus === 'Pending' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-200">
-                  {/* Plan Dropdown */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                      Plan <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={plan}
-                      onChange={(e) => setPlan(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
-                      required={appStatus === 'Pending'}
-                    >
-                      <option value="">Select Plan</option>
-                      {plans.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.plan_name} ({p.segment})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Promo Code Dropdown */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Promo Code</label>
-                    <div className="relative">
+                <div className="flex flex-col gap-4 mt-4 animate-in fade-in duration-200 border-t border-slate-100 dark:border-slate-700 pt-4">
+                  {/* Plan & Promo Code Selection */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Plan Dropdown */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                        Plan <span className="text-red-500">*</span>
+                      </label>
                       <select
-                        value={promoCode}
-                        onChange={(e) => setPromoCode(e.target.value)}
-                        className="w-full pl-4 pr-12 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer appearance-none"
+                        value={plan}
+                        onChange={(e) => setPlan(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
+                        required={appStatus === 'Pending'}
                       >
-                        <option value="">Select Promo Code</option>
-                        {promoCodes.map((pc) => (
-                          <option key={pc.id} value={pc.code}>
-                            {pc.code} ({pc.discount_name})
+                        <option value="">Select Plan</option>
+                        {plans.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.plan_name} ({p.segment || 'General'})
                           </option>
                         ))}
                       </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-800 rounded-lg p-1 px-2 pointer-events-none">
-                        <span className="text-xs font-bold leading-none">%</span>
+                    </div>
+
+                    {/* Promo Code Pills */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                        <Percent className="w-3.5 h-3.5 text-indigo-500" /> Promo Code
+                      </label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(promoCodes.length > 0 ? promoCodes.map(pc => pc.code) : ['WELCOME10', 'FESTIVE20', 'FLAT500', 'NEWYEAR', 'SPECIAL']).map(codeStr => {
+                          const isApplied = promoCode === codeStr
+                          return (
+                            <button
+                              key={codeStr}
+                              type="button"
+                              onClick={() => {
+                                if (isApplied) setPromoCode('')
+                                else { setPromoCode(codeStr); toast.success(`Promo code ${codeStr} applied!`) }
+                              }}
+                              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                                isApplied
+                                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                                  : 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-indigo-300'
+                              }`}
+                            >
+                              <Percent className="w-3 h-3" />
+                              {codeStr}
+                              {isApplied && <Check className="w-3 h-3 ml-0.5" />}
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
                   </div>
+
+                  {/* Selected Plan Details & Total Payable Net Card */}
+                  {(() => {
+                    const selectedPlanObj = plans.find(p => p.id === plan || p.plan_name === plan)
+                    const basePrice = selectedPlanObj 
+                      ? (selectedPlanObj.first_billing_items || []).reduce((sum: number, item: any) => sum + Number(item.price || 0) + Number(item.tax_price || 0), 0) || 2000
+                      : 2000
+
+                    const promoObj = promoCodes.find(pc => pc.code === promoCode)
+                    let discountAmount = 0
+                    if (promoObj) {
+                      const val = Number(promoObj.discount_value || 0)
+                      if (promoObj.discount_type === 'Fixed' || promoObj.discount_type === 'Amount') {
+                        discountAmount = Math.min(val, basePrice)
+                      } else {
+                        discountAmount = (basePrice * val) / 100
+                      }
+                    } else if (promoCode) {
+                      discountAmount = 500
+                    }
+
+                    const finalNet = Math.max(0, basePrice - discountAmount)
+
+                    return (
+                      <div className="bg-slate-800 dark:bg-slate-900/90 rounded-xl p-4 shadow-md text-white border border-slate-700 mt-1">
+                        <div className="flex flex-col gap-1.5 text-xs font-semibold">
+                          <div className="flex justify-between text-slate-300">
+                            <span>Plan Price {selectedPlanObj ? `(${selectedPlanObj.plan_name})` : ''}</span>
+                            <span>₹{basePrice.toLocaleString('en-IN')}</span>
+                          </div>
+                          {discountAmount > 0 && (
+                            <div className="flex justify-between text-emerald-400">
+                              <span>Discount ({promoCode})</span>
+                              <span>− ₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-white font-black text-base border-t border-slate-700 pt-2 mt-1">
+                            <span>Total Payable (Net)</span>
+                            <span className="text-indigo-400">
+                              ₹{finalNet.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
               )}
 

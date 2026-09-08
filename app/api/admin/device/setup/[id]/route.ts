@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
-import { ensureShopDb } from '@/lib/shop-db'
+
+async function ensureDeviceSetupTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS device_setup (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(255) NOT NULL,
+      model VARCHAR(255) NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `)
+}
 
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await ensureShopDb()
+    await ensureDeviceSetupTable()
     const { id } = await context.params
     const body = await request.json()
     const { name, model } = body
@@ -26,9 +37,9 @@ export async function PUT(
     }
 
     return NextResponse.json({ success: true, data: result.rows[0] })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Update device setup error:', error)
-    return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
+    return NextResponse.json({ success: false, error: error?.message || String(error) }, { status: 500 })
   }
 }
 
@@ -37,7 +48,7 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await ensureShopDb()
+    await ensureDeviceSetupTable()
     const { id } = await context.params
 
     const result = await pool.query(
@@ -50,8 +61,8 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true, data: result.rows[0] })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Delete device setup error:', error)
-    return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
+    return NextResponse.json({ success: false, error: error?.message || String(error) }, { status: 500 })
   }
 }

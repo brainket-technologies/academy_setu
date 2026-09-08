@@ -1,10 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
-import { ensureShopDb } from '@/lib/shop-db'
+
+async function ensureDeviceSetupTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS device_setup (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(255) NOT NULL,
+      model VARCHAR(255) NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `)
+
+  const countRes = await pool.query('SELECT COUNT(*)::int FROM device_setup')
+  if (countRes.rows[0].count === 0) {
+    await pool.query(`
+      INSERT INTO device_setup (name, model) VALUES 
+      ('GPS Tracker', 'TK103'),
+      ('Finger Print Sensor', 'ZKTeco K40'),
+      ('Biometric Attendance', 'Bio-100'),
+      ('RFID Card Reader', 'EM18')
+    `)
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
-    await ensureShopDb()
+    await ensureDeviceSetupTable()
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
 
@@ -20,15 +42,15 @@ export async function GET(request: NextRequest) {
 
     const result = await pool.query(query, params)
     return NextResponse.json({ success: true, data: result.rows })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Fetch device setup error:', error)
-    return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
+    return NextResponse.json({ success: false, error: error?.message || String(error) }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    await ensureShopDb()
+    await ensureDeviceSetupTable()
     const body = await request.json()
     const { name, model } = body
 
@@ -42,8 +64,8 @@ export async function POST(request: NextRequest) {
     )
 
     return NextResponse.json({ success: true, data: result.rows[0] })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create device setup error:', error)
-    return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
+    return NextResponse.json({ success: false, error: error?.message || String(error) }, { status: 500 })
   }
 }

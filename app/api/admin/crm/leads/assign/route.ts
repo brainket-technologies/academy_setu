@@ -20,20 +20,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Build parameterized query for IN clause
     const placeholders = lead_ids.map((_, idx) => `$${idx + 2}`).join(',')
     
-    // Update leads
+    // Update leads both assigned_to_id and assigned_to
     const query = `
       UPDATE leads
-      SET assigned_to = $1, updated_at = NOW()
+      SET assigned_to_id = $1, updated_at = NOW()
       WHERE id IN (${placeholders})
     `
     await pool.query(query, [finalAssignedToId, ...lead_ids])
 
-    // Invalidate cache
+    try {
+      await pool.query(`UPDATE leads SET assigned_to = $1 WHERE id IN (${placeholders})`, [finalAssignedToId, ...lead_ids])
+    } catch {
+      // ignore if assigned_to column missing or type mismatch
+    }
+
+    apiCache.clear()
     if (global._apiCache) {
-      global._apiCache.invalidate('leads:')
+      global._apiCache.clear()
     }
 
     return NextResponse.json({ success: true, message: 'Leads assigned successfully' })

@@ -58,10 +58,18 @@ export async function GET(request: Request) {
       SELECT 
         a.id, a.application_no, i.name as school_name, i.contact_person, 
         i.state, i.district, a.status, a.enquiry_status, a.created_at, 
-        i.assigned_to, u.name as assigned_user_name, u.role as assigned_user_role 
+        i.assigned_to, u.name as assigned_user_name, u.role as assigned_user_role,
+        p.plan_name,
+        COALESCE(b.amount, (
+          SELECT COALESCE(SUM(pbi.price + pbi.tax_price), 2000) 
+          FROM plan_billing_items pbi 
+          WHERE pbi.plan_id = p.id AND pbi.billing_type = 'first'
+        ), 2000) as amount
       FROM applications a
       LEFT JOIN institutions i ON a.institution_id = i.id
       LEFT JOIN admins u ON i.assigned_to = u.id
+      LEFT JOIN plans p ON a.plan_id = p.id
+      LEFT JOIN bills b ON (b.institution_id = a.institution_id AND b.plan_id = a.plan_id)
     `
     const values: any[] = []
     const conditions: string[] = []

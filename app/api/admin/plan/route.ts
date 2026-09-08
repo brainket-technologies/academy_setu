@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 
+let _plansEnsured = false
+async function ensurePlansColumns() {
+  if (_plansEnsured) return
+  try {
+    await pool.query(`
+      ALTER TABLE plans ADD COLUMN IF NOT EXISTS segment_id UUID;
+      ALTER TABLE plans ADD COLUMN IF NOT EXISTS menus TEXT[] DEFAULT '{}';
+      ALTER TABLE plans ADD COLUMN IF NOT EXISTS brochure_url TEXT DEFAULT '';
+    `)
+    _plansEnsured = true
+  } catch (err) {
+    console.error('Failed to ensure plans columns', err)
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
+    await ensurePlansColumns()
     const { searchParams } = new URL(request.url)
 
     // Return distinct segments list

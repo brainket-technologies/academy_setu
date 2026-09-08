@@ -1,8 +1,14 @@
 import pool from './db'
 
-export async function ensureShopDb() {
-  try {
-    // 1. Create tables if they do not exist
+declare global {
+  var _shopDbPromise: Promise<void> | undefined
+}
+
+export async function ensureShopDb(): Promise<void> {
+  if (!globalThis._shopDbPromise) {
+    globalThis._shopDbPromise = (async () => {
+      try {
+        // 1. Create tables if they do not exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS products (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -395,7 +401,24 @@ export async function ensureShopDb() {
       );
     `)
 
-  } catch (error) {
-    console.error('Error ensuring Shop DB:', error)
+    // Seed device_setup if empty
+    const deviceSetupCount = await pool.query("SELECT COUNT(*)::int FROM device_setup")
+    if (deviceSetupCount.rows[0].count === 0) {
+      await pool.query(`
+        INSERT INTO device_setup (name, model) VALUES 
+        ('GPS Tracker', 'TK103'),
+        ('Finger Print Sensor', 'ZKTeco K40'),
+        ('Biometric Attendance', 'Bio-100'),
+        ('RFID Card Reader', 'EM18')
+      `)
+    }
+
+      } catch (error) {
+        console.error('Error ensuring Shop DB:', error)
+        globalThis._shopDbPromise = undefined
+      }
+    })()
   }
+  return globalThis._shopDbPromise
 }
+

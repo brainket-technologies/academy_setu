@@ -362,6 +362,7 @@ export default function AllLeadsPage() {
     setView('list')
     setEditingLead(null)
     setLeadHistory([])
+    fetchLeads(currentPage, searchText, filterSource, filterStatus, filterAssignedTo)
   }
 
   // Helper to determine if a status requires follow-up
@@ -417,6 +418,9 @@ export default function AllLeadsPage() {
         setRemarks('')
         setCallDuration('')
         setFollowUpDate('')
+
+        // Refresh leads list
+        fetchLeads(currentPage, searchText, filterSource, filterStatus, filterAssignedTo)
       } else {
         toast.error(data.error || 'Failed to submit update')
       }
@@ -907,11 +911,11 @@ export default function AllLeadsPage() {
             </div>
 
             {/* Desktop Leads Log Table */}
-            <div className="hidden md:block overflow-x-auto border border-slate-100 dark:border-slate-700 rounded-2xl">
+            <div className="hidden md:block overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm bg-white dark:bg-slate-800">
               <table className="w-full border-collapse text-left text-sm">
-                <thead className="bg-[#EBF6F6]/50 dark:bg-slate-700/50">
+                <thead className="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700">
                   <tr>
-                    <th className="px-5 py-4 w-12 border-b border-slate-100 dark:border-slate-700">
+                    <th className="px-4 py-3.5 w-12 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700">
                       <input 
                         type="checkbox"
                         checked={leads.length > 0 && selectedLeads.length === leads.length}
@@ -922,20 +926,19 @@ export default function AllLeadsPage() {
                         className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                       />
                     </th>
-                    <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 w-16">S. No.</th>
-                    <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 w-44">Assigned To</th>
-                    <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">School Name</th>
-                    <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Name</th>
-                    <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Mobile No.</th>
-                    <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Email</th>
-                    <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 max-w-xs">Remarks</th>
-                    <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Created At</th>
-                    <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Updated At</th>
-                    <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Status</th>
-                    <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 text-center w-28">Action</th>
+                    <th className="px-4 py-3.5 font-bold text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700 w-16">S. No.</th>
+                    <th className="px-4 py-3.5 font-bold text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700 text-center w-28">Action</th>
+                    <th className="px-4 py-3.5 font-bold text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700 w-44">Assigned To</th>
+                    <th className="px-4 py-3.5 font-bold text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700">School Name</th>
+                    <th className="px-4 py-3.5 font-bold text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700">Name</th>
+                    <th className="px-4 py-3.5 font-bold text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700">Mobile No.</th>
+                    <th className="px-4 py-3.5 font-bold text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700 max-w-xs">Remarks</th>
+                    <th className="px-4 py-3.5 font-bold text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700">Status</th>
+                    <th className="px-4 py-3.5 font-bold text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700">Created At</th>
+                    <th className="px-4 py-3.5 font-bold text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700">Updated At</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                   {loading ? (
                     <tr>
                       <td colSpan={11} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">
@@ -957,8 +960,8 @@ export default function AllLeadsPage() {
                       const { date: cDate, time: cTime } = formatDateTime(l.created_at)
                       const { date: uDate, time: uTime } = formatDateTime(l.updated_at)
                       return (
-                        <tr key={l.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-750/30 transition-colors">
-                          <td className="px-5 py-4">
+                        <tr key={l.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-750/30 transition-colors">
+                          <td className="px-4 py-3.5">
                             <input 
                               type="checkbox"
                               checked={selectedLeads.includes(l.id)}
@@ -969,8 +972,33 @@ export default function AllLeadsPage() {
                               className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                             />
                           </td>
-                          <td className="px-5 py-4 font-medium text-slate-550 dark:text-slate-400">{sNo}.</td>
-                          <td className="px-5 py-4">
+                          <td className="px-4 py-3.5 font-medium text-slate-550 dark:text-slate-400">{sNo}.</td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => handleOpenEditBaseModal(l)}
+                                className="w-7 h-7 flex items-center justify-center bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-lg transition-colors cursor-pointer"
+                                title="Edit Lead Details"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleStartEdit(l)}
+                                className="w-7 h-7 flex items-center justify-center bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-lg transition-colors cursor-pointer"
+                                title="Process Lead / Add Logs"
+                              >
+                                <Activity className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteClick(l.id)}
+                                className="w-7 h-7 flex items-center justify-center bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 text-red-550 dark:text-red-400 rounded-lg transition-colors cursor-pointer"
+                                title="Delete Lead"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5">
                             {l.assigned_user_name ? (
                               <div className="flex flex-col items-start gap-1.5 mb-2">
                                 <div className="flex items-center gap-2">
@@ -999,18 +1027,18 @@ export default function AllLeadsPage() {
                               ))}
                             </select>
                           </td>
-                          <td className="px-5 py-4 text-slate-800 dark:text-slate-100 font-semibold">{l.school_name}</td>
-                          <td className="px-5 py-4 text-slate-700 dark:text-slate-205 text-sm font-semibold">
+                          <td className="px-4 py-3.5 text-slate-800 dark:text-slate-100 font-semibold">{l.school_name}</td>
+                          <td className="px-4 py-3.5 text-slate-700 dark:text-slate-205 text-sm font-semibold">
                             {l.contact_person}
                           </td>
-                          <td className="px-5 py-4 text-slate-650 dark:text-slate-300 text-sm font-semibold">{l.mobile_no}</td>
-                          <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-xs font-semibold">
-                            {l.email_id || '—'}
-                          </td>
-                          <td className="px-5 py-4 text-slate-500 dark:text-slate-400 text-xs font-medium max-w-xs truncate leading-normal" title={l.latest_remarks}>
+                          <td className="px-4 py-3.5 text-slate-650 dark:text-slate-300 text-sm font-semibold">{l.mobile_no}</td>
+                          <td className="px-4 py-3.5 text-slate-500 dark:text-slate-400 text-xs font-medium max-w-xs truncate leading-normal" title={l.latest_remarks}>
                             {l.latest_remarks || '—'}
                           </td>
-                          <td className="px-5 py-4 text-slate-500 dark:text-slate-400 text-xs font-semibold leading-relaxed">
+                          <td className="px-4 py-3.5">
+                            {renderStatusBadge(l.status)}
+                          </td>
+                          <td className="px-4 py-3.5 text-slate-500 dark:text-slate-400 text-xs font-semibold leading-relaxed">
                             <div className="flex items-center gap-1.5">
                               <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
                               {cDate}
@@ -1020,7 +1048,7 @@ export default function AllLeadsPage() {
                               {cTime}
                             </div>
                           </td>
-                          <td className="px-5 py-4 text-slate-500 dark:text-slate-400 text-xs font-semibold leading-relaxed">
+                          <td className="px-4 py-3.5 text-slate-500 dark:text-slate-400 text-xs font-semibold leading-relaxed">
                             <div className="flex items-center gap-1.5">
                               <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
                               {uDate}
@@ -1028,34 +1056,6 @@ export default function AllLeadsPage() {
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <Clock className="w-3 h-3 text-slate-400 shrink-0" />
                               {uTime}
-                            </div>
-                          </td>
-                          <td className="px-5 py-4">
-                            {renderStatusBadge(l.status)}
-                          </td>
-                          <td className="px-5 py-4">
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={() => handleOpenEditBaseModal(l)}
-                                className="w-7 h-7 flex items-center justify-center bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-lg transition-colors cursor-pointer"
-                                title="Edit Lead Details"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleStartEdit(l)}
-                                className="w-7 h-7 flex items-center justify-center bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-lg transition-colors cursor-pointer"
-                                title="Process Lead / Add Logs"
-                              >
-                                <Activity className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteClick(l.id)}
-                                className="w-7 h-7 flex items-center justify-center bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 text-red-550 dark:text-red-400 rounded-lg transition-colors cursor-pointer"
-                                title="Delete Lead"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
                             </div>
                           </td>
                         </tr>

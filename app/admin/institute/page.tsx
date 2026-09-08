@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, Suspense } from 'react'
-import { Search, Plus, Loader2, Filter, ChevronDown, ChevronUp, Trash2, X, Eye, EyeOff, Camera } from 'lucide-react'
+import { Search, Plus, Loader2, Filter, ChevronDown, ChevronUp, Trash2, X, Eye, EyeOff, Camera, Edit3 } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -265,8 +265,10 @@ export function InstitutePageContent() {
     setStatus('Active')
   }
 
+  const [editFetchingId, setEditFetchingId] = useState<string | null>(null)
+
   const openEditModal = async (instId: string) => {
-    setLoading(true)
+    setEditFetchingId(instId)
     try {
       const res = await fetch(`/api/admin/institute/${instId}`)
       const data = await res.json()
@@ -314,7 +316,7 @@ export function InstitutePageContent() {
       console.error(err)
       toast.error('Something went wrong loading details')
     } finally {
-      setLoading(false)
+      setEditFetchingId(null)
     }
   }
 
@@ -516,18 +518,18 @@ export function InstitutePageContent() {
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col relative">
           <div className="overflow-x-auto border border-slate-100 dark:border-slate-700 rounded-2xl">
             <table className="w-full border-collapse text-left text-sm">
-              <thead className="bg-[#EBF6F6]/50 dark:bg-slate-700/50">
+              <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700">
                 <tr>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">S.No.</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Institute Name</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Segment</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Code</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Contact Person</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Active Plan</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Plan Expiry</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Location</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Created At</th>
-                  <th className="px-5 py-4 font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 text-center">Action</th>
+                  <th className="px-4 py-3.5 text-center w-12">S.No.</th>
+                  <th className="px-4 py-3.5 min-w-[160px]">Institute Name</th>
+                  <th className="px-4 py-3.5">Segment</th>
+                  <th className="px-4 py-3.5">Code</th>
+                  <th className="px-4 py-3.5 min-w-[120px]">Contact Person</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap">Active Plan</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap">Plan Expiry</th>
+                  <th className="px-4 py-3.5 min-w-[140px]">Location</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap">Created At</th>
+                  <th className="px-4 py-3.5 text-center whitespace-nowrap">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -550,22 +552,28 @@ export function InstitutePageContent() {
                   paginatedInstitutes.map((inst, index) => {
                     const sNo = (currentPage - 1) * pageSize + index + 1
                     return (
-                      <tr key={inst.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
-                        <td className="px-5 py-4 font-medium text-slate-500 dark:text-slate-400">{sNo}.</td>
-                        <td className="px-5 py-4 text-slate-700 dark:text-slate-200 font-bold">{inst.name}</td>
-                        <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-xs font-semibold">{inst.segment_name || '-'}</td>
-                        <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-xs font-semibold">{inst.code || '-'}</td>
-                        <td className="px-5 py-4 text-slate-700 dark:text-slate-300">{inst.contact_person}</td>
-                        <td className="px-5 py-4">
+                      <tr key={inst.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-700/40 transition-colors">
+                        <td className="px-4 py-3.5 text-center font-medium text-slate-400 dark:text-slate-500 text-xs">{sNo}.</td>
+                        <td className="px-4 py-3.5 font-bold text-slate-800 dark:text-slate-100 min-w-[160px]">{inst.name}</td>
+                        <td className="px-4 py-3.5 text-xs font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                          {inst.segment_name ? (
+                            <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 rounded-md text-slate-700 dark:text-slate-200">
+                              {inst.segment_name}
+                            </span>
+                          ) : '-'}
+                        </td>
+                        <td className="px-4 py-3.5 text-xs font-mono text-indigo-600 dark:text-indigo-400 font-semibold whitespace-nowrap">{inst.code || '-'}</td>
+                        <td className="px-4 py-3.5 text-xs font-medium text-slate-700 dark:text-slate-300 min-w-[120px]">{inst.contact_person}</td>
+                        <td className="px-4 py-3.5 whitespace-nowrap">
                           {inst.active_plan_name ? (
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                               {inst.active_plan_name}
                             </span>
                           ) : (
-                            <span className="text-slate-400 text-xs italic">-</span>
+                            <span className="text-slate-400 text-xs italic">—</span>
                           )}
                         </td>
-                        <td className="px-5 py-4">
+                        <td className="px-4 py-3.5 whitespace-nowrap">
                           {(() => {
                             if (!inst.plan_expiry_date) return <span className="text-slate-400 text-xs italic">—</span>
                             const expiry = new Date(inst.plan_expiry_date)
@@ -575,52 +583,50 @@ export function InstitutePageContent() {
                             const label = expiry.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                             if (diffDays < 0) {
                               return (
-                                <span className="inline-flex flex-col gap-0.5">
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-200">❌ Expired</span>
-                                  <span className="text-[10px] text-slate-500">{label}</span>
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-50 text-red-600 border border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800">
+                                  <span>Expired</span>
+                                  <span className="text-slate-400 dark:text-slate-500 font-normal">({label})</span>
                                 </span>
                               )
                             } else if (diffDays <= 30) {
                               return (
-                                <span className="inline-flex flex-col gap-0.5">
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">⚠️ {diffDays}d left</span>
-                                  <span className="text-[10px] text-slate-500">{label}</span>
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800">
+                                  <span>{diffDays}d left</span>
+                                  <span className="text-slate-400 dark:text-slate-500 font-normal">({label})</span>
                                 </span>
                               )
                             } else {
                               return (
-                                <span className="inline-flex flex-col gap-0.5">
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">✅ Active</span>
-                                  <span className="text-[10px] text-slate-500">{label}</span>
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
+                                  <span>Active</span>
+                                  <span className="text-slate-400 dark:text-slate-500 font-normal">({label})</span>
                                 </span>
                               )
                             }
                           })()}
                         </td>
-                        <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-xs font-semibold">{inst.district}, {inst.state}</td>
-                        <td className="px-5 py-4 text-slate-500 dark:text-slate-400 text-xs font-semibold leading-relaxed">
+                        <td className="px-4 py-3.5 text-xs text-slate-600 dark:text-slate-300 min-w-[140px]">
+                          {inst.district ? `${inst.district}, ${inst.state}` : inst.state || '-'}
+                        </td>
+                        <td className="px-4 py-3.5 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
                           {formatDate(inst.created_at)}
                         </td>
-                        <td className="px-5 py-4 text-center">
+                        <td className="px-4 py-3.5 text-center whitespace-nowrap">
                           <div className="flex items-center justify-center gap-2">
                             <Link
                               href={`/admin/institute/${inst.id}`}
-                              className="text-slate-655 hover:text-slate-850 dark:text-slate-300 dark:hover:text-slate-100 transition-colors cursor-pointer text-xs font-bold px-3 py-1 bg-slate-50 dark:bg-slate-700/60 rounded-lg inline-block border border-slate-100 dark:border-slate-650"
+                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
                             >
+                              <Eye className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                               View Details
                             </Link>
                             <button
+                              disabled={editFetchingId === inst.id}
                               onClick={() => openEditModal(inst.id)}
-                              className="text-emerald-600 hover:text-emerald-800 transition-colors cursor-pointer text-xs font-bold px-3 py-1 bg-emerald-50 rounded-lg inline-block"
+                              className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 rounded-lg text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                             >
+                              {editFetchingId === inst.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Edit3 className="w-3.5 h-3.5" />}
                               Edit
-                            </button>
-                            <button
-                              onClick={() => handleDeleteInstitute(inst.id)}
-                              className="p-1.5 bg-red-50 dark:bg-red-950/40 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-xl transition-colors cursor-pointer"
-                              title="Delete Institute"
-                            >
-                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </td>

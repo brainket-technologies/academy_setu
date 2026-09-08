@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
        FROM bills b
        JOIN plans p ON b.plan_id = p.id
        WHERE b.institution_id = $1 AND b.status = 'Paid'
-       ORDER BY b.payment_date ASC, b.created_at ASC`,
+       ORDER BY b.payment_date DESC, b.created_at DESC`,
       [institutionId]
     )
 
@@ -24,26 +24,26 @@ export async function GET(request: NextRequest) {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    let currentChainEnd: Date | null = null
     const processedPlans: any[] = []
+    let nextPlanStart: Date | null = null
 
     for (const bill of bills) {
       const duration = Number(bill.first_billing_duration) || 365
       const paymentDateObj = new Date(bill.payment_date)
       paymentDateObj.setHours(0, 0, 0, 0)
 
-      // Start date: payment date, or end of previous plan (whichever is later)
       let startDateObj = paymentDateObj
-      if (currentChainEnd && currentChainEnd > startDateObj) {
-        startDateObj = new Date(currentChainEnd.getTime())
-      }
-
-      const endDateObj = new Date(startDateObj.getTime())
+      let endDateObj = new Date(startDateObj.getTime())
       endDateObj.setDate(startDateObj.getDate() + duration)
 
-      currentChainEnd = endDateObj
+      // If a newer plan starts before this plan's normal end date, cap this plan's end date so the new plan activates instantly
+      if (nextPlanStart && endDateObj > nextPlanStart) {
+        endDateObj = new Date(nextPlanStart.getTime())
+      }
 
-      processedPlans.push({
+      nextPlanStart = startDateObj
+
+      processedPlans.unshift({
         id: bill.id,
         plan_id: bill.plan_id,
         plan_name: bill.plan_name,

@@ -13,11 +13,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Fetch lead details with joined status and assigned user
     const leadRes = await pool.query(`
       SELECT l.*, 
+        COALESCE(l.institution_name, '') as school_name,
         ls.name as status, ls.text_color as status_text_color, ls.bg_color as status_bg_color,
-        a.name as assigned_to_name
+        a.name as assigned_user_name,
+        a.role as assigned_user_role
       FROM leads l
       LEFT JOIN lead_statuses ls ON l.status_id = ls.id
-      LEFT JOIN admins a ON l.assigned_to = a.id
+      LEFT JOIN admins a ON a.id::text = COALESCE(l.assigned_to_id::text, l.assigned_to::text)
       WHERE l.id = $1
     `, [id])
     if (leadRes.rows.length === 0) {
@@ -47,9 +49,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
     const body = await request.json()
-    const { assigned_to, assigned_to_id, status_id, status, institution_name, state, district, contact_person, mobile_no, no_of_students } = body
+    const { 
+      assigned_to, assigned_to_id, status_id, status, 
+      institution_name, school_name, lead_source, email_id,
+      state, district, contact_person, mobile_no, no_of_students 
+    } = body
 
-    // Build dynamic update query
     const updates: string[] = []
     const paramsList: (string | number | null)[] = []
 
@@ -61,8 +66,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     let finalAssignedToId = assigned_to_id
-    if (assigned_to === '') {
-      finalAssignedToId = null // allow un-assigning
+    if (assigned_to === '' || assigned_to_id === null) {
+      finalAssignedToId = null
     } else if (!finalAssignedToId && assigned_to) {
       if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(assigned_to)) {
         finalAssignedToId = assigned_to
@@ -71,21 +76,41 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         if (adminRes.rows.length > 0) finalAssignedToId = adminRes.rows[0].id
       }
     }
-    addUpdate('assigned_to', finalAssignedToId)
-    addUpdate('institution_name', institution_name)
-    addUpdate('state', state)
-    addUpdate('district', district)
-    addUpdate('contact_person', contact_person)
-    addUpdate('mobile_no', mobile_no)
-    addUpdate('no_of_students', no_of_students)
 
-    // If status name provided instead of id, resolve it
+    if (assigned_to !== undefined || assigned_to_id !== undefined) {
+      addUpdate('assigned_to_id', finalAssignedToId)
+      try {
+        await pool.query('UPDATE leads SET assigned_to = $1 WHERE id = $2', [finalAssignedToId, id])
+      } catch {
+        // ignore if column assigned_to is missing or constraint error
+      }
+    }
+
+    const targetSchoolName = school_name !== undefined ? school_name : institution_name
+    if (targetSchoolName !== undefined) {
+      addUpdate('institution_name', targetSchoolName)
+    }
+
+    if (lead_source !== undefined) addUpdate('lead_source', lead_source)
+    if (email_id !== undefined) addUpdate('email_id', email_id)
+    if (state !== undefined) addUpdate('state', state)
+    if (district !== undefined) addUpdate('district', district)
+    if (contact_person !== undefined) addUpdate('contact_person', contact_person)
+    if (mobile_no !== undefined) addUpdate('mobile_no', mobile_no)
+    if (no_of_students !== undefined) addUpdate('no_of_students', no_of_students)
+
+    // Resolve status_id
     let finalStatusId = status_id
     if (!finalStatusId && status) {
-      const statusRes = await pool.query('SELECT id FROM lead_statuses WHERE name = $1 LIMIT 1', [status])
+      const statusRes = await pool.query(
+        'SELECT id FROM lead_statuses WHERE LOWER(name) = LOWER($1) OR id::text = $1 LIMIT 1', 
+        [status]
+      )
       if (statusRes.rows.length > 0) finalStatusId = statusRes.rows[0].id
     }
-    addUpdate('status_id', finalStatusId)
+    if (finalStatusId !== undefined) {
+      addUpdate('status_id', finalStatusId)
+    }
 
     if (updates.length === 0) {
       return NextResponse.json({ success: false, error: 'No fields to update' }, { status: 400 })
@@ -101,8 +126,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // Invalidate cache so UI refreshes immediately
+    apiCache.clear()
     if (global._apiCache) {
-      global._apiCache.invalidate('leads:')
+      global._apiCache.clear()
     }
 
     return NextResponse.json({ success: true, data: result.rows[0] })
@@ -120,8 +146,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 })
     }
 
+    apiCache.clear()
     if (global._apiCache) {
-      global._apiCache.invalidate('leads:')
+      global._apiCache.clear()
     }
     return NextResponse.json({ success: true, message: 'Lead deleted successfully' })
   } catch (error) {

@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 
       if (userRole === 'BDM' || userRole === 'Manager') {
         params.push(userId as string)
-        conditions.push(`(l.assigned_to_id = $${params.length} OR l.created_by = $${params.length})`)
+        conditions.push(`(COALESCE(l.assigned_to_id::text, l.assigned_to::text) = $${params.length} OR l.created_by::text = $${params.length})`)
       }
 
       if (search) {
@@ -41,17 +41,18 @@ export async function GET(request: NextRequest) {
       if (status) { params.push(status); conditions.push(`ls.name = $${params.length}`) }
       
       if (assigned_to === 'unassigned') {
-        conditions.push(`l.assigned_to_id IS NULL`)
+        conditions.push(`COALESCE(l.assigned_to_id::text, l.assigned_to::text) IS NULL`)
       } else if (assigned_to) {
         params.push(assigned_to)
-        conditions.push(`l.assigned_to_id = $${params.length}`)
+        conditions.push(`COALESCE(l.assigned_to_id::text, l.assigned_to::text) = $${params.length}`)
       }
 
       const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : ''
 
-      // Use lateral subqueries + COUNT(*) OVER() — single DB round-trip
       const query = `
         SELECT l.*,
+          COALESCE(l.institution_name, '') as school_name,
+          COALESCE(l.assigned_to_id::text, l.assigned_to::text) as assigned_to,
           ls.name as status,
           ls.text_color as status_text_color,
           ls.bg_color as status_bg_color,
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
           COUNT(*) OVER()::int AS _total_count
         FROM leads l
         LEFT JOIN lead_statuses ls ON l.status_id = ls.id
-        LEFT JOIN admins a ON l.assigned_to_id = a.id
+        LEFT JOIN admins a ON a.id::text = COALESCE(l.assigned_to_id::text, l.assigned_to::text)
         ${where}
         ORDER BY l.created_at DESC
         LIMIT $${params.length + 1} OFFSET $${params.length + 2}
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
     // Resolve status_id if only status name is given
     let finalStatusId = status_id
     if (!finalStatusId && status) {
-      const statusRes = await pool.query('SELECT id FROM lead_statuses WHERE name = $1 LIMIT 1', [status])
+      const statusRes = await pool.query('SELECT id FROM lead_statuses WHERE LOWER(name) = LOWER($1) OR id::text = $1 LIMIT 1', [status])
       if (statusRes.rows.length > 0) finalStatusId = statusRes.rows[0].id
     }
     if (!finalStatusId) {
@@ -129,14 +130,25 @@ export async function POST(request: NextRequest) {
     const newLead = result.rows[0]
 
     // Create an initial history log
-    await pool.query(
-      `INSERT INTO lead_history (lead_id, communication_option, call_duration, remarks, follow_up_date, status_id, created_at)
-       VALUES ($1, 'Message', '', 'Lead created', NULL, $2, NOW())`,
-      [newLead.id, finalStatusId]
-    )
+    try {
+      await pool.query(
+        `INSERT INTO lead_history (lead_id, communication_option, call_duration, remarks, follow_up_date, status_id, created_at)
+         VALUES ($1, 'Message', '', 'Lead created', NULL, $2, NOW())`,
+        [newLead.id, finalStatusId]
+      )
+    } catch {
+      await pool.query(
+        `INSERT INTO lead_history (lead_id, communication_option, call_duration, remarks, follow_up_date, status, created_at)
+         VALUES ($1, 'Message', '', 'Lead created', NULL, 'Created', NOW())`,
+        [newLead.id]
+      )
+    }
 
     // Invalidate cache
     apiCache.clear()
+    if (global._apiCache) {
+      global._apiCache.clear()
+    }
 
     return NextResponse.json({ success: true, data: { ...newLead, school_name } })
   } catch (error) {

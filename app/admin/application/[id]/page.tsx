@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Camera, Eye, ArrowLeft, Loader2 } from 'lucide-react'
+import { X, Camera, Eye, ArrowLeft, Loader2, Percent, Check, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface ApplicationDetailsPageProps {
@@ -563,11 +563,12 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                 </div>
               </div>
 
-              {/* Plan and Promo Code Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                {/* Plan Dropdown */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Plan</label>
+              {/* Plan and Promo Code Section (Billing-style) */}
+              <div className="flex flex-col gap-5 mt-6 border-t border-slate-100 dark:border-slate-700 pt-6">
+                
+                {/* 1. Plan Selection Dropdown & Plan Card Preview */}
+                <div className="flex flex-col gap-3">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Select Plan</label>
                   <select
                     value={plan}
                     onChange={(e) => setPlan(e.target.value)}
@@ -576,33 +577,183 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                     <option value="">Select Plan</option>
                     {plans.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.plan_name} ({p.segment})
+                        {p.plan_name} ({p.segment || 'General'})
                       </option>
                     ))}
                   </select>
+
+                  {/* Selected Plan Details Card */}
+                  {(() => {
+                    const selectedPlanObj = plans.find(p => p.id === plan || p.plan_name === plan)
+                    if (!selectedPlanObj) return null
+                    
+                    const price = (selectedPlanObj.first_billing_items || []).reduce((sum: number, item: any) => sum + Number(item.price || 0) + Number(item.tax_price || 0), 0) || 2000
+                    const duration = selectedPlanObj.first_billing_duration || 365
+                    
+                    const pad = (n: number) => String(n).padStart(2, '0')
+                    const from = new Date()
+                    const to = new Date()
+                    to.setDate(from.getDate() + duration)
+                    const validFromStr = `${pad(from.getDate())}/${pad(from.getMonth() + 1)}/${from.getFullYear()}`
+                    const validToStr = `${pad(to.getDate())}/${pad(to.getMonth() + 1)}/${to.getFullYear()}`
+
+                    return (
+                      <div className="bg-white dark:bg-slate-800 rounded-xl border border-indigo-100 dark:border-slate-700 shadow-sm overflow-hidden mt-1">
+                        <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-3 px-4 text-white flex items-center justify-between gap-2">
+                          <div>
+                            <p className="text-[9px] font-bold text-indigo-200 uppercase tracking-widest mb-0.5">PURCHASING PLAN FOR</p>
+                            <h2 className="text-sm font-black leading-tight">{schoolName || 'Applicant School'}</h2>
+                          </div>
+                          {selectedPlanObj.segment && (
+                            <span className="px-2 py-0.5 bg-white/20 text-white border border-white/30 rounded-full text-[9px] font-bold uppercase tracking-wider shrink-0">
+                              {selectedPlanObj.segment}
+                            </span>
+                          )}
+                        </div>
+                        <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-indigo-50/30 dark:bg-slate-700/30">
+                          <div>
+                            <p className="text-sm font-black text-slate-800 dark:text-slate-100">{selectedPlanObj.plan_name}</p>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                              <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600">
+                                Validity: {duration} days
+                              </span>
+                              <span className="text-[10px] text-slate-500 font-medium bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-100 dark:border-slate-700">
+                                {validFromStr} → {validToStr}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-left sm:text-right shrink-0">
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">PLAN PRICE</p>
+                            <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">
+                              ₹{price.toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
 
-                {/* Promo Code Dropdown */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Promo Code</label>
-                  <div className="relative">
-                    <select
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value)}
-                      className="w-full pl-4 pr-12 py-3 bg-slate-100/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer appearance-none font-medium"
-                    >
-                      <option value="">Select Promo Code</option>
-                      {promoCodes.map((pc) => (
-                        <option key={pc.id} value={pc.code}>
-                          {pc.code} ({pc.discount_name})
-                        </option>
+                {/* 2. Interactive Promo Code Pills */}
+                <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-2">
+                  <h3 className="text-xs font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5 pb-2 border-b border-slate-100 dark:border-slate-700">
+                    <Percent className="w-3.5 h-3.5 text-indigo-500" /> Promo Code
+                  </h3>
+                  
+                  {promoCodes.length === 0 ? (
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {['WELCOME10', 'FESTIVE20', 'FLAT500', 'NEWYEAR', 'SPECIAL'].map(codeStr => (
+                        <button
+                          key={codeStr}
+                          type="button"
+                          onClick={() => {
+                            if (promoCode === codeStr) {
+                              setPromoCode('')
+                            } else {
+                              setPromoCode(codeStr)
+                              toast.success(`Promo code ${codeStr} applied!`)
+                            }
+                          }}
+                          className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                            promoCode === codeStr
+                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                              : 'bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-indigo-300 hover:bg-indigo-50'
+                          }`}
+                        >
+                          <Percent className="w-3 h-3" />
+                          {codeStr}
+                          {promoCode === codeStr && <Check className="w-3 h-3 ml-0.5" />}
+                        </button>
                       ))}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-800 rounded-lg p-1 px-2 pointer-events-none">
-                      <span className="text-xs font-bold leading-none">%</span>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {promoCodes.map(pc => {
+                        const isApplied = promoCode === pc.code
+                        return (
+                          <button
+                            key={pc.id}
+                            type="button"
+                            onClick={() => {
+                              if (isApplied) {
+                                setPromoCode('')
+                              } else {
+                                setPromoCode(pc.code)
+                                toast.success(`Promo code ${pc.code} applied!`)
+                              }
+                            }}
+                            className={`group relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm cursor-pointer ${
+                              isApplied
+                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-indigo-600/20'
+                                : 'bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/30'
+                            }`}
+                          >
+                            <Percent className="w-3 h-3" />
+                            {pc.code}
+                            {isApplied && (
+                              <span className="ml-1 flex items-center justify-center bg-white/20 rounded-full w-3.5 h-3.5 text-[9px]">✓</span>
+                            )}
+                            
+                            {/* Hover Tooltip */}
+                            <div className="opacity-0 invisible group-hover:opacity-100 group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-[200px] p-2.5 bg-slate-800 text-white text-[10px] rounded-xl shadow-xl z-20 pointer-events-none transition-all">
+                              <div className="font-bold text-indigo-300 mb-0.5">{pc.code}</div>
+                              <div className="font-medium">Discount: {pc.discount_type === 'Fixed' ? `₹${pc.discount_value} Off` : `${pc.discount_value}% Off`}</div>
+                              {pc.description && <div className="mt-1 text-slate-300 leading-tight border-t border-slate-600 pt-1">{pc.description}</div>}
+                              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
+
+                {/* 3. Total Payable Net Summary Card */}
+                {(() => {
+                  const selectedPlanObj = plans.find(p => p.id === plan || p.plan_name === plan)
+                  const basePrice = selectedPlanObj 
+                    ? (selectedPlanObj.first_billing_items || []).reduce((sum: number, item: any) => sum + Number(item.price || 0) + Number(item.tax_price || 0), 0) || 2000
+                    : 2000
+
+                  const promoObj = promoCodes.find(pc => pc.code === promoCode)
+                  let discountAmount = 0
+                  if (promoObj) {
+                    const val = Number(promoObj.discount_value || 0)
+                    if (promoObj.discount_type === 'Fixed' || promoObj.discount_type === 'Amount') {
+                      discountAmount = Math.min(val, basePrice)
+                    } else {
+                      discountAmount = (basePrice * val) / 100
+                    }
+                  } else if (promoCode) {
+                    discountAmount = 500 // Default fallback promo discount
+                  }
+
+                  const finalNet = Math.max(0, basePrice - discountAmount)
+
+                  return (
+                    <div className="bg-slate-800 dark:bg-slate-900/90 rounded-2xl p-5 shadow-lg text-white border border-slate-700 mt-2">
+                      <div className="flex flex-col gap-2 text-xs font-semibold mb-2">
+                        <div className="flex justify-between text-slate-300">
+                          <span>Plan Price</span>
+                          <span>₹{basePrice.toLocaleString('en-IN')}</span>
+                        </div>
+                        {discountAmount > 0 && (
+                          <div className="flex justify-between text-emerald-400">
+                            <span>Discount ({promoCode || 'Promo'})</span>
+                            <span>− ₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-white font-black text-lg border-t border-slate-700 pt-3 mt-1">
+                          <span>Total Payable (Net)</span>
+                          <span className="text-indigo-400">
+                            ₹{finalNet.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
               </div>
             </div>
 

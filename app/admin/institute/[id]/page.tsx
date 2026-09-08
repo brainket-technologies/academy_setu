@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, Loader2, Eye, EyeOff, Calendar, CreditCard, Shield, User, MapPin, Trash2 } from 'lucide-react'
+import { ArrowLeft, Loader2, Eye, EyeOff, Calendar, CreditCard, Shield, User, MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
@@ -45,7 +45,6 @@ export default function InstituteDetailPage() {
   const [planHistory, setPlanHistory] = useState<any[]>([])
   
   const [showPassword, setShowPassword] = useState(false)
-  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const formatDateOnly = (dateStr: string | null) => {
     if (!dateStr) return '—'
@@ -97,27 +96,6 @@ export default function InstituteDetailPage() {
       }
     } catch (error) {
       console.error(error)
-    }
-  }
-
-  const handleDeletePlan = async (billId: string, planName: string) => {
-    if (!confirm(`Are you sure you want to delete the plan "${planName}"? This action cannot be undone.`)) return
-
-    setDeletingId(billId)
-    try {
-      const res = await fetch(`/api/admin/billing/${billId}`, { method: 'DELETE' })
-      const data = await res.json()
-      if (data.success) {
-        toast.success(`Plan "${planName}" deleted successfully`)
-        // Reload plans after deletion
-        await loadPlans()
-      } else {
-        toast.error(data.error || 'Failed to delete plan')
-      }
-    } catch {
-      toast.error('Error deleting plan')
-    } finally {
-      setDeletingId(null)
     }
   }
 
@@ -281,26 +259,13 @@ export default function InstituteDetailPage() {
           {/* Active Plan */}
           <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700/60 p-6 shadow-sm">
             <div className="border-b border-slate-100 dark:border-slate-700 pb-3 mb-4 flex items-center justify-between">
-              <h4 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
+              <h4 className="text-sm font-extrabold text-slate-880 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-indigo-650" /> Active Plan
               </h4>
               {activePlan ? (
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                    Active
-                  </span>
-                  <button
-                    onClick={() => handleDeletePlan(activePlan.id, activePlan.plan_name)}
-                    disabled={deletingId === activePlan.id}
-                    className="p-1.5 bg-red-50 dark:bg-red-950/30 text-red-500 hover:bg-red-100 dark:hover:bg-red-950/60 border border-red-100 dark:border-red-900 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-                    title="Delete this plan"
-                  >
-                    {deletingId === activePlan.id
-                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      : <Trash2 className="w-3.5 h-3.5" />
-                    }
-                  </button>
-                </div>
+                <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                  Active
+                </span>
               ) : (
                 <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900 rounded-full text-[10px] font-bold uppercase tracking-wider">
                   No Active Plan
@@ -361,17 +326,6 @@ export default function InstituteDetailPage() {
                       <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900 rounded-full text-[9px] font-bold uppercase tracking-wider">
                         ₹{plan.amount}
                       </span>
-                      <button
-                        onClick={() => handleDeletePlan(plan.id, plan.plan_name)}
-                        disabled={deletingId === plan.id}
-                        className="p-1.5 bg-red-50 dark:bg-red-950/30 text-red-500 hover:bg-red-100 dark:hover:bg-red-950/60 border border-red-100 dark:border-red-900 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-                        title="Delete this plan"
-                      >
-                        {deletingId === plan.id
-                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          : <Trash2 className="w-3.5 h-3.5" />
-                        }
-                      </button>
                     </div>
                   </div>
                 ))}
@@ -399,17 +353,6 @@ export default function InstituteDetailPage() {
                         <span className="font-bold text-slate-750 dark:text-slate-300 block">₹{h.amount}</span>
                         <span className="text-[9px] font-mono text-slate-400">{h.transaction_id || '—'}</span>
                       </div>
-                      <button
-                        onClick={() => handleDeletePlan(h.id, h.plan_name)}
-                        disabled={deletingId === h.id}
-                        className="p-1.5 bg-red-50 dark:bg-red-950/30 text-red-500 hover:bg-red-100 dark:hover:bg-red-950/60 border border-red-100 dark:border-red-900 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-                        title="Delete this plan"
-                      >
-                        {deletingId === h.id
-                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          : <Trash2 className="w-3.5 h-3.5" />
-                        }
-                      </button>
                     </div>
                   </div>
                 ))}

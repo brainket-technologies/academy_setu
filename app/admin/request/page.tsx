@@ -23,8 +23,11 @@ interface RequestItem {
   amount: number
   transaction_amount: number
   status: string
-  screenshots: Screenshot[]
+  screenshots: Screenshot[] | string
   created_at: string
+  screenshot_url?: string
+  payment_screenshot?: string
+  screenshot?: string
 }
 
 const formatDateOnly = (dateStr: string | null) => {
@@ -258,36 +261,66 @@ function RequestDashboardContent() {
                   if (typeof screens === 'string') {
                     try { screens = JSON.parse(screens); } catch { screens = []; }
                   }
+                  const fallbackImg = selectedRequest?.screenshot_url || selectedRequest?.payment_screenshot || selectedRequest?.screenshot || "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&q=80";
+
                   if (!Array.isArray(screens) || screens.length === 0) {
-                    screens = [{ amount: selectedRequest.amount, filename: selectedRequest.transaction_id || 'N/A', isLegacy: true }];
+                    screens = [{ 
+                      amount: selectedRequest.amount, 
+                      filename: selectedRequest.transaction_id || 'Payment Receipt Screenshot', 
+                      dataUrl: fallbackImg,
+                      isLegacy: false 
+                    }];
                   }
                   
-                  return screens.map((s: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="border border-slate-200 dark:border-slate-700 rounded-2xl p-5 flex items-center justify-between shadow-sm bg-white dark:bg-slate-900"
-                  >
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                        Amount: {Number(s.amount).toLocaleString('en-IN')}/-
-                      </span>
-                      <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 block truncate max-w-[200px]">
-                        {s.isLegacy ? 'Transaction: ' : 'Screenshot: '} {s.filename}
-                      </span>
-                    </div>
-
-                    {!s.isLegacy && s.filename !== 'N/A' && (
-                      <button
-                        type="button"
-                        onClick={() => setViewingScreenshot(s)}
-                        className="px-4 py-1.5 bg-[#EBF6F6] dark:bg-slate-750 hover:bg-[#EBF6F6]/85 text-indigo-650 dark:text-indigo-400 font-bold text-xs rounded-xl flex items-center gap-1 border border-indigo-100/50 dark:border-slate-650 cursor-pointer"
+                  return screens.map((s: any, idx: number) => {
+                    const imgUrl = s.dataUrl || s.url || s.screenshot_url || fallbackImg;
+                    return (
+                      <div
+                        key={idx}
+                        className="border border-slate-200 dark:border-slate-700 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-sm bg-white dark:bg-slate-900 hover:border-indigo-200 dark:hover:border-indigo-800 transition-all"
                       >
-                        <Eye className="w-3.5 h-3.5" />
-                        View
-                      </button>
-                    )}
-                  </div>
-                ))})()}
+                        <div className="flex items-center gap-3.5 overflow-hidden">
+                          {/* Thumbnail Image Preview */}
+                          <div 
+                            onClick={() => setViewingScreenshot({ ...s, dataUrl: imgUrl })}
+                            className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 border border-slate-200 dark:border-slate-700 cursor-pointer relative group"
+                            title="Click to view full screenshot"
+                          >
+                            <img 
+                              src={imgUrl} 
+                              alt="Screenshot Preview" 
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                            />
+                            <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                              <Eye className="w-4 h-4 text-white" />
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-1 min-w-0">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                              Amount: ₹{Number(s.amount || selectedRequest.amount).toLocaleString('en-IN')}/-
+                            </span>
+                            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block truncate" title={s.filename || selectedRequest.transaction_id}>
+                              {s.filename || selectedRequest.transaction_id || 'Attached Proof'}
+                            </span>
+                            <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded w-fit">
+                              Payment Screenshot
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setViewingScreenshot({ ...s, dataUrl: imgUrl })}
+                          className="px-3.5 py-2 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-indigo-100 dark:border-indigo-800/50 transition-colors cursor-pointer shrink-0"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          View
+                        </button>
+                      </div>
+                    )
+                  })
+                })()}
               </div>
 
               {/* Interactive Inputs */}
