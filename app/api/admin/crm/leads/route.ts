@@ -93,13 +93,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { 
       lead_source, mobile_no, email_id, contact_person, 
-      school_name, state, district, no_of_students, status_id, status
+      school_name, state, district, no_of_students, status_id, status, follow_up_date
     } = body
 
-    if (!lead_source || !mobile_no || !school_name) {
+    const cleanMobile = (mobile_no || '').trim().replace(/\D/g, '')
+    if (!lead_source || !cleanMobile || !school_name) {
       return NextResponse.json({ 
         success: false, 
         error: 'Lead Source, Mobile No., and School Name are required' 
+      }, { status: 400 })
+    }
+
+    if (cleanMobile.length !== 10) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Mobile Number must be exactly 10 digits' 
       }, { status: 400 })
     }
 
@@ -133,14 +141,14 @@ export async function POST(request: NextRequest) {
     try {
       await pool.query(
         `INSERT INTO lead_history (lead_id, communication_option, call_duration, remarks, follow_up_date, status_id, created_at)
-         VALUES ($1, 'Message', '', 'Lead created', NULL, $2, NOW())`,
-        [newLead.id, finalStatusId]
+         VALUES ($1, 'Message', '', 'Lead created', $2, $3, NOW())`,
+        [newLead.id, follow_up_date || null, finalStatusId]
       )
     } catch {
       await pool.query(
         `INSERT INTO lead_history (lead_id, communication_option, call_duration, remarks, follow_up_date, status, created_at)
-         VALUES ($1, 'Message', '', 'Lead created', NULL, 'Created', NOW())`,
-        [newLead.id]
+         VALUES ($1, 'Message', '', 'Lead created', $2, 'Created', NOW())`,
+        [newLead.id, follow_up_date || null]
       )
     }
 

@@ -307,15 +307,15 @@ export default function LeadsPage() {
     if (matched) {
       return (
         <span 
-          className="px-3 py-1 rounded-full text-xs font-bold shadow-sm"
-          style={{ color: matched.text_color, backgroundColor: matched.bg_color }}
+          className="px-3 py-1 rounded-full text-xs font-extrabold shadow-sm bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-700 uppercase tracking-wider inline-block"
+          style={{ color: matched.text_color }}
         >
           {statusName}
         </span>
       )
     }
     return (
-      <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
+      <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 uppercase tracking-wider">
         {statusName}
       </span>
     )
@@ -446,8 +446,16 @@ export default function LeadsPage() {
                   leads.map((l, idx) => {
                     const sNo = (currentPage - 1) * pageSize + idx + 1
                     const { date: uDate, time: uTime } = formatDateTime(l.updated_at)
+                    const matchedStatus = statuses.find(s => s.name.toLowerCase() === l.status?.toLowerCase())
                     return (
-                      <tr key={l.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-750/30 transition-colors">
+                      <tr 
+                        key={l.id} 
+                        className="hover:brightness-95 transition-all border-b border-slate-200/50 dark:border-slate-700/50"
+                        style={{ 
+                          backgroundColor: matchedStatus?.bg_color || undefined,
+                          borderLeft: matchedStatus ? `6px solid ${matchedStatus.text_color || matchedStatus.bg_color}` : undefined
+                        }}
+                      >
                         <td className="px-5 py-4 font-medium text-slate-550 dark:text-slate-400">{sNo}.</td>
                         <td className="px-5 py-4 text-slate-800 dark:text-slate-100 font-semibold">{l.school_name}</td>
                         <td className="px-5 py-4 text-slate-700 dark:text-slate-205 text-sm font-semibold">

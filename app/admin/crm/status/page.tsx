@@ -25,8 +25,9 @@ export default function LeadStatusPage() {
   // Form states
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [statusName, setStatusName] = useState('')
+  const [color, setColor] = useState('#10B981')
   const [textColor, setTextColor] = useState('#10B981')
-  const [bgColor, setBgColor] = useState('#E6F4EA')
+  const [bgColor, setBgColor] = useState('#10B9811F')
   const [showOnBdm, setShowOnBdm] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -95,10 +96,12 @@ export default function LeadStatusPage() {
       if (data.success) {
         toast.success(editingId ? 'Status updated successfully!' : 'Status created successfully!')
         setStatusName('')
+        setColor('#10B981')
         setTextColor('#10B981')
-        setBgColor('#E6F4EA')
+        setBgColor('#10B9811F')
         setShowOnBdm(true)
         setEditingId(null)
+        setIsModalOpen(false)
         fetchStatuses()
       } else {
         toast.error(data.error || 'Failed to save status')
@@ -113,8 +116,10 @@ export default function LeadStatusPage() {
   const handleStartEdit = (status: LeadStatus) => {
     setEditingId(status.id)
     setStatusName(status.name)
-    setTextColor(status.text_color || '#10B981')
-    setBgColor(status.bg_color || '#E6F4EA')
+    const baseColor = status.text_color || '#10B981'
+    setColor(baseColor)
+    setTextColor(baseColor)
+    setBgColor(status.bg_color || (baseColor.length === 7 ? baseColor + '1F' : baseColor))
     setShowOnBdm(!!status.show_on_bdm)
     setIsModalOpen(true)
   }
@@ -122,8 +127,9 @@ export default function LeadStatusPage() {
   const handleCancelEdit = () => {
     setEditingId(null)
     setStatusName('')
+    setColor('#10B981')
     setTextColor('#10B981')
-    setBgColor('#E6F4EA')
+    setBgColor('#10B9811F')
     setShowOnBdm(true)
     setIsModalOpen(false)
   }
@@ -343,45 +349,101 @@ export default function LeadStatusPage() {
       {/* Create/Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-xl p-8 border border-slate-100 dark:border-slate-700 shadow-2xl relative animate-in zoom-in-95 duration-200">
-            <button onClick={handleCancelEdit} className="absolute top-4 right-4 p-1 rounded-full text-slate-400 hover:bg-slate-50 transition-all cursor-pointer">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-lg p-7 sm:p-8 border border-slate-100 dark:border-slate-700 shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <button 
+              onClick={handleCancelEdit} 
+              className="absolute top-5 right-5 p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all cursor-pointer"
+            >
               <X className="w-5 h-5" />
             </button>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-6">{editingId ? 'Edit Status' : 'Create Status'}</h2>
+            
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-6">
+              {editingId ? 'Edit Status' : 'Create Status'}
+            </h2>
+            
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Status Name <span className="text-red-500">*</span></label>
-                  <input type="text" placeholder="Enter Status Name" value={statusName} onChange={(e) => setStatusName(e.target.value)} required className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Text Color</label>
-                  <div className="flex gap-2">
-                    <input type="text" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="flex-1 px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
-                    <div className="w-11 h-11 rounded-xl border border-slate-200 overflow-hidden shrink-0 relative flex items-center justify-center">
-                      <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
-                      <div className="w-6 h-6 rounded-md shadow-sm" style={{ backgroundColor: textColor }} />
-                    </div>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Background Color</label>
-                  <div className="flex gap-2">
-                    <input type="text" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="flex-1 px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
-                    <div className="w-11 h-11 rounded-xl border border-slate-200 overflow-hidden shrink-0 relative flex items-center justify-center">
-                      <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
-                      <div className="w-6 h-6 rounded-md shadow-sm" style={{ backgroundColor: bgColor }} />
-                    </div>
+              {/* Status Name input */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                  Status Name <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  placeholder="Enter Status Name" 
+                  value={statusName} 
+                  onChange={(e) => setStatusName(e.target.value)} 
+                  required 
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 shadow-sm" 
+                />
+              </div>
+
+              {/* Single Color Picker */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                  Status Color
+                </label>
+                <div className="relative flex items-center">
+                  <input 
+                    type="text" 
+                    value={color} 
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setColor(val)
+                      setTextColor(val)
+                      setBgColor(val.length === 7 && val.startsWith('#') ? val + '1F' : val)
+                    }} 
+                    className="w-full pl-4 pr-11 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 shadow-sm" 
+                  />
+                  <div 
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden flex items-center justify-center shrink-0 shadow-sm cursor-pointer"
+                    style={{ backgroundColor: color }}
+                  >
+                    <input 
+                      type="color" 
+                      value={color.length === 7 && color.startsWith('#') ? color : '#10B981'} 
+                      onChange={(e) => {
+                        const val = e.target.value
+                        setColor(val)
+                        setTextColor(val)
+                        setBgColor(val + '1F')
+                      }} 
+                      className="opacity-0 cursor-pointer w-full h-full absolute inset-0" 
+                    />
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
-                <button type="button" onClick={() => setShowOnBdm(!showOnBdm)} className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${showOnBdm ? 'bg-[#0E9485]' : 'bg-slate-200 dark:bg-slate-700'}`}>
+
+              {/* Live Preview Box */}
+              <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Live Preview</span>
+                <span 
+                  className="px-3.5 py-1 rounded-full text-xs font-bold shadow-sm transition-all"
+                  style={{ color: textColor, backgroundColor: bgColor }}
+                >
+                  {statusName || 'Status Preview'}
+                </span>
+              </div>
+
+              {/* Show on BDM Follow Up Toggle */}
+              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider cursor-pointer">
+                  Show on BDM Follow Up
+                </label>
+                <button 
+                  type="button" 
+                  onClick={() => setShowOnBdm(!showOnBdm)} 
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${showOnBdm ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'}`}
+                >
                   <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${showOnBdm ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
-                <label className="text-sm text-slate-700 dark:text-slate-300 font-medium">Show on BDM Follow Up</label>
               </div>
-              <button type="submit" disabled={submitting} className="py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-md flex justify-center items-center gap-2">
+
+              {/* Action Button */}
+              <button 
+                type="submit" 
+                disabled={submitting} 
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex justify-center items-center gap-2"
+              >
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 {editingId ? 'Update Status' : 'Create Status'}
               </button>

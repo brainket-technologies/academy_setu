@@ -52,7 +52,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const { 
       assigned_to, assigned_to_id, status_id, status, 
       institution_name, school_name, lead_source, email_id,
-      state, district, contact_person, mobile_no, no_of_students 
+      state, district, contact_person, mobile_no, no_of_students,
+      follow_up_date 
     } = body
 
     const updates: string[] = []
@@ -96,7 +97,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (state !== undefined) addUpdate('state', state)
     if (district !== undefined) addUpdate('district', district)
     if (contact_person !== undefined) addUpdate('contact_person', contact_person)
-    if (mobile_no !== undefined) addUpdate('mobile_no', mobile_no)
+    if (mobile_no !== undefined) {
+      const cleanMobile = String(mobile_no).trim().replace(/\D/g, '')
+      if (cleanMobile.length !== 10) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Mobile Number must be exactly 10 digits' 
+        }, { status: 400 })
+      }
+      addUpdate('mobile_no', cleanMobile)
+    }
     if (no_of_students !== undefined) addUpdate('no_of_students', no_of_students)
 
     // Resolve status_id
@@ -123,6 +133,23 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     if (result.rows.length === 0) {
       return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 })
+    }
+
+    // Insert history log if follow_up_date was provided
+    if (follow_up_date) {
+      try {
+        await pool.query(
+          `INSERT INTO lead_history (lead_id, communication_option, call_duration, remarks, follow_up_date, status_id, created_at)
+           VALUES ($1, 'Message', '', 'Lead updated', $2, $3, NOW())`,
+          [id, follow_up_date, finalStatusId || result.rows[0].status_id]
+        )
+      } catch {
+        await pool.query(
+          `INSERT INTO lead_history (lead_id, communication_option, call_duration, remarks, follow_up_date, status, created_at)
+           VALUES ($1, 'Message', '', 'Lead updated', $2, $3, NOW())`,
+          [id, follow_up_date, status || 'Updated']
+        )
+      }
     }
 
     // Invalidate cache so UI refreshes immediately
