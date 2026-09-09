@@ -59,10 +59,43 @@ export async function GET(request: NextRequest) {
     params.push(pageSize, offset)
 
     const result = await pool.query(query, params)
+    const plans = result.rows
+
+    if (plans.length > 0) {
+      const planIds = plans.map((p: any) => p.id)
+      const itemsRes = await pool.query(
+        'SELECT * FROM plan_billing_items WHERE plan_id = ANY($1::uuid[]) ORDER BY serial_no',
+        [planIds]
+      )
+
+      const itemsByPlan: Record<string, { first: any[]; renewal: any[] }> = {}
+      for (const item of itemsRes.rows) {
+        if (!itemsByPlan[item.plan_id]) {
+          itemsByPlan[item.plan_id] = { first: [], renewal: [] }
+        }
+        const itemObj = {
+          serial_no: item.serial_no,
+          item_description: item.item_description,
+          price: Number(item.price || 0),
+          tax_percentage: Number(item.tax_percentage || 0),
+          tax_price: Number(item.tax_price || 0)
+        }
+        if (item.billing_type === 'renewal') {
+          itemsByPlan[item.plan_id].renewal.push(itemObj)
+        } else {
+          itemsByPlan[item.plan_id].first.push(itemObj)
+        }
+      }
+
+      for (const p of plans) {
+        p.first_billing_items = itemsByPlan[p.id]?.first || []
+        p.renewal_billing_items = itemsByPlan[p.id]?.renewal || []
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      data: result.rows,
+      data: plans,
       meta: { totalCount, page, pageSize, totalPages: Math.ceil(totalCount / pageSize) }
     })
   } catch (error) {

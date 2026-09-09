@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Search, Plus, Eye, Edit3, RefreshCw, X, MoreVertical, Loader2, Filter, ChevronDown, ChevronUp, UserCheck, Camera, Percent, Check } from 'lucide-react'
+import { Search, Plus, Eye, Edit3, RefreshCw, X, MoreVertical, Loader2, Filter, ChevronDown, ChevronUp, UserCheck, Camera, Percent, Check, CreditCard, Building, Smartphone, QrCode, Wallet, ShieldCheck, Tag, Paperclip } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
@@ -20,6 +20,7 @@ interface Application {
   plan_name?: string | null
   amount?: number | string | null
   promo_code?: string | null
+  payment_mode?: string | null
   created_at: string
   assigned_to?: string | null
   assigned_user_name?: string | null
@@ -120,8 +121,20 @@ export default function ApplicationPage() {
   const [enquiryStatus, setEnquiryStatus] = useState<string>('Applied')
   const [plan, setPlan] = useState<string>('')
   const [promoCode, setPromoCode] = useState<string>('')
+  const [paymentMode, setPaymentMode] = useState<string>('Payment Gateway')
+  const [transactionId, setTransactionId] = useState<string>('')
+  const [screenshotFilename, setScreenshotFilename] = useState<string>('')
+  const [screenshotDataUrl, setScreenshotDataUrl] = useState<string>('')
   const [plans, setPlans] = useState<any[]>([])
   const [promoCodes, setPromoCodes] = useState<any[]>([])
+
+  const PAYMENT_METHOD_OPTIONS = [
+    { id: 'Payment Gateway', label: 'Payment Gateway', sub: 'Cards / Netbanking / UPI', icon: CreditCard },
+    { id: 'Bank Transfer', label: 'Bank Transfer', sub: 'Direct NEFT / IMPS', icon: Building },
+    { id: 'UPI ID', label: 'UPI ID', sub: 'Instant VPA Transfer', icon: Smartphone },
+    { id: 'QR Code', label: 'QR Code', sub: 'Scan & Pay via QR', icon: QrCode },
+    { id: 'Cash', label: 'Cash / Cheque', sub: 'Offline Payment', icon: Wallet },
+  ]
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'principal' | 'director') => {
     const file = e.target.files?.[0]
@@ -284,6 +297,41 @@ export default function ApplicationPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  const getCalculatedPrice = (selectedPlanId: string, appliedPromoCode: string) => {
+    if (!selectedPlanId) {
+      return { basePrice: 0, discountAmount: 0, finalNet: 0 }
+    }
+
+    const selectedPlanObj = plans.find(p => p.id === selectedPlanId || p.plan_name === selectedPlanId)
+    if (!selectedPlanObj) {
+      return { basePrice: 0, discountAmount: 0, finalNet: 0 }
+    }
+
+    const itemsSum = (selectedPlanObj.first_billing_items || []).reduce((sum: number, item: any) => {
+      const itemTotal = Number(item.tax_price) > 0 
+        ? Number(item.tax_price) 
+        : (Number(item.price || 0) + (Number(item.price || 0) * Number(item.tax_percentage || 0) / 100))
+      return sum + itemTotal
+    }, 0)
+    const basePrice = itemsSum > 0 ? itemsSum : Number((selectedPlanObj as any).price || 0)
+
+    const promoObj = promoCodes.find(pc => pc.code === appliedPromoCode)
+    let discountAmount = 0
+    if (promoObj) {
+      const val = Number(promoObj.discount_value || 0)
+      if (promoObj.discount_type === 'Fixed' || promoObj.discount_type === 'Amount') {
+        discountAmount = Math.min(val, basePrice)
+      } else {
+        discountAmount = (basePrice * val) / 100
+      }
+    } else if (appliedPromoCode) {
+      discountAmount = 500
+    }
+
+    const finalNet = Math.max(0, basePrice - discountAmount)
+    return { basePrice, discountAmount, finalNet }
+  }
+
   // Create Application Action
   const handleCreateApplication = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -296,6 +344,8 @@ export default function ApplicationPage() {
     if (!pincode.trim()) { toast.error('Pincode is required.'); return; }
     if (!principalName.trim()) { toast.error('Principal Name is required.'); return; }
     if (!directorName.trim()) { toast.error('Director Name is required.'); return; }
+
+    const { finalNet } = getCalculatedPrice(plan, promoCode)
 
     setSubmitting(true)
     try {
@@ -325,7 +375,9 @@ export default function ApplicationPage() {
           status: appStatus,
           enquiry_status: enquiryStatus,
           plan: plan,
-          promo_code: promoCode
+          promo_code: promoCode,
+          payment_mode: appStatus === 'Pending' ? paymentMode : null,
+          amount: appStatus === 'Pending' ? finalNet : null
         })
       })
 
@@ -392,6 +444,7 @@ export default function ApplicationPage() {
     setEnquiryStatus('Applied')
     setPlan('')
     setPromoCode('')
+    setPaymentMode('Payment Gateway')
   }
  
   const openEditModal = async (appId: string) => {
@@ -432,8 +485,10 @@ export default function ApplicationPage() {
         setDirectorPhoto(app.director_photo || null)
         setAppStatus(app.status || 'Applied')
         setEnquiryStatus(app.enquiry_status || 'Applied')
-        setPlan(app.plan_id || '')
+        const foundPlan = plans.find(p => p.id === app.plan_id || p.plan_name === app.plan_id)
+        setPlan(foundPlan ? foundPlan.id : (app.plan_id || ''))
         setPromoCode(app.promo_code || '')
+        setPaymentMode(app.payment_mode || 'Payment Gateway')
         setIsCreateModalOpen(true)
       } else {
         toast.error('Failed to load application details')
@@ -481,6 +536,8 @@ export default function ApplicationPage() {
     if (!principalName.trim()) { toast.error('Principal Name is required.'); return; }
     if (!directorName.trim()) { toast.error('Director Name is required.'); return; }
 
+    const { finalNet } = getCalculatedPrice(plan, promoCode)
+
     setSubmitting(true)
     try {
       const response = await fetch(`/api/admin/application/${selectedApp.id}`, {
@@ -509,7 +566,13 @@ export default function ApplicationPage() {
           status: appStatus,
           enquiry_status: enquiryStatus,
           plan_id: plan || null,
-          promo_code: promoCode
+          promo_code: promoCode,
+          payment_mode: paymentMode || 'Payment Gateway',
+          amount: finalNet,
+          transaction_id: transactionId,
+          screenshot_filename: screenshotFilename,
+          screenshot_data_url: screenshotDataUrl,
+          screenshots: screenshotFilename ? [{ filename: screenshotFilename, dataUrl: screenshotDataUrl, amount: finalNet }] : []
         })
       })
 
@@ -534,6 +597,8 @@ export default function ApplicationPage() {
     e.preventDefault()
     if (!selectedApp) return
 
+    const { finalNet } = getCalculatedPrice(plan, promoCode)
+
     setSubmitting(true)
     try {
       const response = await fetch(`/api/admin/application/${selectedApp.id}`, {
@@ -542,8 +607,14 @@ export default function ApplicationPage() {
         body: JSON.stringify({ 
           status: appStatus,
           enquiry_status: enquiryStatus,
-          plan_id: appStatus === 'Pending' ? (plan || null) : null,
-          promo_code: appStatus === 'Pending' ? promoCode : ''
+          plan_id: plan || null,
+          promo_code: promoCode,
+          payment_mode: paymentMode || 'Payment Gateway',
+          amount: finalNet,
+          transaction_id: transactionId,
+          screenshot_filename: screenshotFilename,
+          screenshot_data_url: screenshotDataUrl,
+          screenshots: screenshotFilename ? [{ filename: screenshotFilename, dataUrl: screenshotDataUrl, amount: finalNet }] : []
         })
       })
 
@@ -631,14 +702,32 @@ export default function ApplicationPage() {
     router.push(`/admin/application/${app.id}`)
   }
 
-  const openUpdateStatusModal = (app: Application) => {
+  const openUpdateStatusModal = async (app: Application) => {
     setSelectedApp(app)
     setAppStatus(app.status)
     setEnquiryStatus(app.enquiry_status || 'Applied')
-    setPlan(app.plan_id || '')
+    
+    const initialFoundPlan = plans.find(p => p.id === app.plan_id || p.plan_name === app.plan_id)
+    setPlan(initialFoundPlan ? initialFoundPlan.id : (app.plan_id || ''))
     setPromoCode(app.promo_code || '')
+    setPaymentMode(app.payment_mode || 'Payment Gateway')
     setIsUpdateStatusModalOpen(true)
     setActiveMenuId(null)
+
+    try {
+      const res = await fetch(`/api/admin/application/${app.id}`)
+      const data = await res.json()
+      if (data.success && data.data) {
+        const fullApp = data.data
+        setSelectedApp(fullApp)
+        const fullFoundPlan = plans.find(p => p.id === fullApp.plan_id || p.plan_name === fullApp.plan_id)
+        setPlan(fullFoundPlan ? fullFoundPlan.id : (fullApp.plan_id || ''))
+        setPromoCode(fullApp.promo_code || '')
+        setPaymentMode(fullApp.payment_mode || 'Payment Gateway')
+      }
+    } catch (e) {
+      console.error('Failed to load application details for update status modal', e)
+    }
   }
 
   // Status Badge visual styles
@@ -1048,14 +1137,18 @@ export default function ApplicationPage() {
 
                         {/* Selected Plan Column */}
                         <td className="px-4 py-3.5 whitespace-nowrap">
-                          <span className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded-lg text-xs font-bold border border-indigo-100 dark:border-indigo-800/60">
-                            {app.plan_name || 'Standard Plan'}
-                          </span>
+                          {app.plan_name ? (
+                            <span className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded-lg text-xs font-bold border border-indigo-100 dark:border-indigo-800/60">
+                              {app.plan_name}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-400 font-medium">—</span>
+                          )}
                         </td>
 
                         {/* Amount Column */}
                         <td className="px-4 py-3.5 whitespace-nowrap font-extrabold text-slate-800 dark:text-slate-100 text-xs">
-                          ₹{Number(app.amount || 2000).toLocaleString('en-IN')}
+                          {app.amount ? `₹${Number(app.amount).toLocaleString('en-IN')}` : '—'}
                         </td>
 
                         {/* Remaining Columns */}
@@ -1554,20 +1647,37 @@ export default function ApplicationPage() {
                   </div>
                 </div>
 
-                {appStatus === 'Pending' && (
-                  <div className="flex flex-col gap-4 mt-4 animate-in fade-in duration-200 border-t border-slate-100 dark:border-slate-700 pt-4">
+                {(appStatus === 'Pending' || appStatus === 'Completed' || enquiryStatus === 'Successfully Onboarded') && (
+                  <div className="flex flex-col gap-5 mt-4 animate-in fade-in duration-200 border-t border-slate-100 dark:border-slate-700 pt-5">
+                    
+                    {/* Section Header */}
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-lg">
+                        <ShieldCheck className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                          Plan, Promo & Payment Method Setup
+                        </h4>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                          Configure subscription details and select preferred billing payment method
+                        </p>
+                      </div>
+                    </div>
+
                     {/* Plan & Promo Code Selection */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Plan Dropdown */}
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                          Plan <span className="text-red-500">*</span>
+                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                          <span>Plan <span className="text-red-500">*</span></span>
+                          {plan && <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">Selected</span>}
                         </label>
                         <select
                           value={plan}
                           onChange={(e) => setPlan(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
-                          required={appStatus === 'Pending'}
+                          className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer font-medium"
+                          required={appStatus === 'Pending' || appStatus === 'Completed' || enquiryStatus === 'Successfully Onboarded'}
                         >
                           <option value="">Select Plan</option>
                           {plans.map((p) => (
@@ -1580,12 +1690,28 @@ export default function ApplicationPage() {
 
                       {/* Promo Code Pills */}
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                          <Percent className="w-3.5 h-3.5 text-indigo-500" /> Promo Code
+                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                          <span className="flex items-center gap-1">
+                            <Tag className="w-3.5 h-3.5 text-indigo-500" /> Promo Code
+                          </span>
+                          {promoCode && (
+                            <button type="button" onClick={() => setPromoCode('')} className="text-[10px] text-rose-500 hover:underline cursor-pointer">
+                              Remove
+                            </button>
+                          )}
                         </label>
                         <div className="flex flex-wrap gap-1.5">
-                          {(promoCodes.length > 0 ? promoCodes.map(pc => pc.code) : ['WELCOME10', 'FESTIVE20', 'FLAT500', 'NEWYEAR', 'SPECIAL']).map(codeStr => {
+                          {(promoCodes.length > 0 ? promoCodes : [
+                            { code: 'WELCOME10', discount_type: 'Percentage', discount_value: '10' },
+                            { code: 'FESTIVE20', discount_type: 'Percentage', discount_value: '20' },
+                            { code: 'FLAT500', discount_type: 'Fixed', discount_value: '500' },
+                            { code: 'SPECIAL', discount_type: 'Fixed', discount_value: '1000' }
+                          ]).map(pcItem => {
+                            const codeStr = typeof pcItem === 'string' ? pcItem : pcItem.code
                             const isApplied = promoCode === codeStr
+                            const discountTag = typeof pcItem === 'object' && pcItem.discount_value
+                              ? (pcItem.discount_type === 'Percentage' ? `${pcItem.discount_value}%` : `₹${pcItem.discount_value}`)
+                              : ''
                             return (
                               <button
                                 key={codeStr}
@@ -1602,6 +1728,7 @@ export default function ApplicationPage() {
                               >
                                 <Percent className="w-3 h-3" />
                                 {codeStr}
+                                {discountTag && <span className={`text-[10px] ml-0.5 opacity-80 ${isApplied ? 'text-indigo-100' : 'text-indigo-600 dark:text-indigo-400'}`}>({discountTag})</span>}
                                 {isApplied && <Check className="w-3 h-3 ml-0.5" />}
                               </button>
                             )
@@ -1610,33 +1737,120 @@ export default function ApplicationPage() {
                       </div>
                     </div>
 
-                    {/* Selected Plan Details & Total Payable Net Card */}
+                    {/* Payment Method Selector */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <CreditCard className="w-3.5 h-3.5 text-indigo-500" />
+                        Payment Method <span className="text-red-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                        {PAYMENT_METHOD_OPTIONS.map((pm) => {
+                          const IconComp = pm.icon
+                          const isSelected = paymentMode === pm.id
+                          return (
+                            <button
+                              key={pm.id}
+                              type="button"
+                              onClick={() => setPaymentMode(pm.id)}
+                              className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer relative ${
+                                isSelected
+                                  ? 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-600 dark:border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/20 shadow-sm'
+                                  : 'bg-white dark:bg-slate-700/60 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-slate-500'
+                              }`}
+                            >
+                              {isSelected && (
+                                <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm">
+                                  <Check className="w-2.5 h-2.5" />
+                                </span>
+                              )}
+                              <IconComp className={`w-5 h-5 mb-1 ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
+                              <span className="text-xs font-bold leading-tight">{pm.label}</span>
+                              <span className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5 line-clamp-1">{pm.sub}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Transaction ID & Payment Screenshot Proof Upload (for verification in Request tab) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 dark:border-slate-700 pt-4">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <CreditCard className="w-3.5 h-3.5 text-indigo-500" />
+                          Transaction ID / UTR No.
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Enter Transaction ID / UTR No."
+                          value={transactionId}
+                          onChange={(e) => setTransactionId(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <Paperclip className="w-3.5 h-3.5 text-indigo-500" />
+                          Payment Proof Screenshot
+                        </label>
+                        <div className="relative">
+                          <label className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm flex items-center justify-between cursor-pointer hover:border-indigo-400 transition-all shadow-sm">
+                            <span className={`text-xs truncate max-w-[200px] ${screenshotFilename ? 'font-bold text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}>
+                              {screenshotFilename || 'Attach payment screenshot...'}
+                            </span>
+                            <span className="bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800">
+                              Browse
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*,.pdf"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                if (file) {
+                                  setScreenshotFilename(file.name)
+                                  const reader = new FileReader()
+                                  reader.onloadend = () => {
+                                    setScreenshotDataUrl(reader.result as string)
+                                    toast.success('Payment screenshot attached!')
+                                  }
+                                  reader.readAsDataURL(file)
+                                }
+                              }}
+                            />
+                          </label>
+                          {screenshotFilename && (
+                            <button
+                              type="button"
+                              onClick={() => { setScreenshotFilename(''); setScreenshotDataUrl('') }}
+                              className="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full p-1 shadow-md hover:bg-rose-700 transition-colors cursor-pointer"
+                              title="Remove Screenshot"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Summary & Net Payable Breakdown Card */}
                     {(() => {
+                      const { basePrice, discountAmount, finalNet } = getCalculatedPrice(plan, promoCode)
                       const selectedPlanObj = plans.find(p => p.id === plan || p.plan_name === plan)
-                      const basePrice = selectedPlanObj 
-                        ? (selectedPlanObj.first_billing_items || []).reduce((sum: number, item: any) => sum + Number(item.price || 0) + Number(item.tax_price || 0), 0) || 2000
-                        : 2000
-
-                      const promoObj = promoCodes.find(pc => pc.code === promoCode)
-                      let discountAmount = 0
-                      if (promoObj) {
-                        const val = Number(promoObj.discount_value || 0)
-                        if (promoObj.discount_type === 'Fixed' || promoObj.discount_type === 'Amount') {
-                          discountAmount = Math.min(val, basePrice)
-                        } else {
-                          discountAmount = (basePrice * val) / 100
-                        }
-                      } else if (promoCode) {
-                        discountAmount = 500
-                      }
-
-                      const finalNet = Math.max(0, basePrice - discountAmount)
 
                       return (
-                        <div className="bg-slate-800 dark:bg-slate-900/90 rounded-xl p-4 shadow-md text-white border border-slate-700 mt-1">
-                          <div className="flex flex-col gap-1.5 text-xs font-semibold">
+                        <div className="bg-slate-900 dark:bg-slate-950 rounded-2xl p-4 shadow-lg text-white border border-slate-800 flex flex-col gap-2">
+                          <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-2">
+                            <span className="font-semibold flex items-center gap-1.5">
+                              <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" /> Billing Breakdown Summary
+                            </span>
+                            <span className="bg-indigo-900/60 text-indigo-300 border border-indigo-700/50 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                              {paymentMode}
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-1.5 text-xs font-semibold pt-1">
                             <div className="flex justify-between text-slate-300">
-                              <span>Plan Price {selectedPlanObj ? `(${selectedPlanObj.plan_name})` : ''}</span>
+                              <span>Plan Base Price {selectedPlanObj ? `(${selectedPlanObj.plan_name})` : ''}</span>
                               <span>₹{basePrice.toLocaleString('en-IN')}</span>
                             </div>
                             {discountAmount > 0 && (
@@ -1645,9 +1859,9 @@ export default function ApplicationPage() {
                                 <span>− ₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                               </div>
                             )}
-                            <div className="flex justify-between text-white font-black text-base border-t border-slate-700 pt-2 mt-1">
+                            <div className="flex justify-between text-white font-black text-base border-t border-slate-800 pt-2.5 mt-1">
                               <span>Total Payable (Net)</span>
-                              <span className="text-indigo-400">
+                              <span className="text-indigo-400 text-lg">
                                 ₹{finalNet.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                               </span>
                             </div>
@@ -1686,7 +1900,7 @@ export default function ApplicationPage() {
       {/* Modal 3: Update Status */}
       {isUpdateStatusModalOpen && selectedApp && (
         <div className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg p-6 border border-slate-100 dark:border-slate-700 shadow-2xl relative animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg p-6 border border-slate-100 dark:border-slate-700 shadow-2xl relative my-8 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <button 
               onClick={() => {
                 setIsUpdateStatusModalOpen(false)
@@ -1743,7 +1957,7 @@ export default function ApplicationPage() {
                 </div>
               </div>
 
-              {appStatus === 'Pending' && (
+              {(appStatus === 'Pending' || appStatus === 'Completed' || enquiryStatus === 'Successfully Onboarded') && (
                 <div className="flex flex-col gap-4 mt-4 animate-in fade-in duration-200 border-t border-slate-100 dark:border-slate-700 pt-4">
                   {/* Plan & Promo Code Selection */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1756,7 +1970,7 @@ export default function ApplicationPage() {
                         value={plan}
                         onChange={(e) => setPlan(e.target.value)}
                         className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
-                        required={appStatus === 'Pending'}
+                        required={appStatus === 'Pending' || appStatus === 'Completed' || enquiryStatus === 'Successfully Onboarded'}
                       >
                         <option value="">Select Plan</option>
                         {plans.map((p) => (
@@ -1770,7 +1984,7 @@ export default function ApplicationPage() {
                     {/* Promo Code Pills */}
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                        <Percent className="w-3.5 h-3.5 text-indigo-500" /> Promo Code
+                        <Tag className="w-3.5 h-3.5 text-indigo-500" /> Promo Code
                       </label>
                       <div className="flex flex-wrap gap-1.5">
                         {(promoCodes.length > 0 ? promoCodes.map(pc => pc.code) : ['WELCOME10', 'FESTIVE20', 'FLAT500', 'NEWYEAR', 'SPECIAL']).map(codeStr => {
@@ -1799,33 +2013,119 @@ export default function ApplicationPage() {
                     </div>
                   </div>
 
-                  {/* Selected Plan Details & Total Payable Net Card */}
+                  {/* Payment Method Selector */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <CreditCard className="w-3.5 h-3.5 text-indigo-500" />
+                      Payment Method <span className="text-red-500">*</span>
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {PAYMENT_METHOD_OPTIONS.map((pm) => {
+                        const IconComp = pm.icon
+                        const isSelected = paymentMode === pm.id
+                        return (
+                          <button
+                            key={pm.id}
+                            type="button"
+                            onClick={() => setPaymentMode(pm.id)}
+                            className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all cursor-pointer relative ${
+                              isSelected
+                                ? 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-600 dark:border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/20 shadow-sm'
+                                : 'bg-white dark:bg-slate-700/60 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-slate-500'
+                            }`}
+                          >
+                            {isSelected && (
+                              <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm">
+                                <Check className="w-2.5 h-2.5" />
+                              </span>
+                            )}
+                            <IconComp className={`w-4 h-4 mb-1 ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
+                            <span className="text-xs font-bold leading-tight">{pm.label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Transaction ID & Payment Screenshot Proof Upload (for verification in Request tab) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-slate-100 dark:border-slate-700 pt-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <CreditCard className="w-3.5 h-3.5 text-indigo-500" />
+                        Transaction ID / UTR
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Enter Transaction ID / UTR"
+                        value={transactionId}
+                        onChange={(e) => setTransactionId(e.target.value)}
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <Paperclip className="w-3.5 h-3.5 text-indigo-500" />
+                        Payment Screenshot Proof
+                      </label>
+                      <div className="relative">
+                        <label className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs flex items-center justify-between cursor-pointer hover:border-indigo-400 transition-all shadow-sm">
+                          <span className={`text-xs truncate max-w-[140px] ${screenshotFilename ? 'font-bold text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}>
+                            {screenshotFilename || 'Attach screenshot...'}
+                          </span>
+                          <span className="bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-lg text-[10px] font-bold border border-indigo-200 dark:border-indigo-800">
+                            Browse
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) {
+                                setScreenshotFilename(file.name)
+                                const reader = new FileReader()
+                                reader.onloadend = () => {
+                                  setScreenshotDataUrl(reader.result as string)
+                                  toast.success('Payment screenshot attached!')
+                                }
+                                reader.readAsDataURL(file)
+                              }
+                            }}
+                          />
+                        </label>
+                        {screenshotFilename && (
+                          <button
+                            type="button"
+                            onClick={() => { setScreenshotFilename(''); setScreenshotDataUrl('') }}
+                            className="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full p-1 shadow-md hover:bg-rose-700 transition-colors cursor-pointer"
+                            title="Remove Screenshot"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Summary & Net Payable Breakdown Card */}
                   {(() => {
+                    const { basePrice, discountAmount, finalNet } = getCalculatedPrice(plan, promoCode)
                     const selectedPlanObj = plans.find(p => p.id === plan || p.plan_name === plan)
-                    const basePrice = selectedPlanObj 
-                      ? (selectedPlanObj.first_billing_items || []).reduce((sum: number, item: any) => sum + Number(item.price || 0) + Number(item.tax_price || 0), 0) || 2000
-                      : 2000
-
-                    const promoObj = promoCodes.find(pc => pc.code === promoCode)
-                    let discountAmount = 0
-                    if (promoObj) {
-                      const val = Number(promoObj.discount_value || 0)
-                      if (promoObj.discount_type === 'Fixed' || promoObj.discount_type === 'Amount') {
-                        discountAmount = Math.min(val, basePrice)
-                      } else {
-                        discountAmount = (basePrice * val) / 100
-                      }
-                    } else if (promoCode) {
-                      discountAmount = 500
-                    }
-
-                    const finalNet = Math.max(0, basePrice - discountAmount)
 
                     return (
-                      <div className="bg-slate-800 dark:bg-slate-900/90 rounded-xl p-4 shadow-md text-white border border-slate-700 mt-1">
-                        <div className="flex flex-col gap-1.5 text-xs font-semibold">
+                      <div className="bg-slate-900 dark:bg-slate-950 rounded-2xl p-4 shadow-lg text-white border border-slate-800 flex flex-col gap-2">
+                        <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-2">
+                          <span className="font-semibold flex items-center gap-1.5">
+                            <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" /> Billing Breakdown Summary
+                          </span>
+                          <span className="bg-indigo-900/60 text-indigo-300 border border-indigo-700/50 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                            {paymentMode}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-1.5 text-xs font-semibold pt-1">
                           <div className="flex justify-between text-slate-300">
-                            <span>Plan Price {selectedPlanObj ? `(${selectedPlanObj.plan_name})` : ''}</span>
+                            <span>Plan Base Price {selectedPlanObj ? `(${selectedPlanObj.plan_name})` : ''}</span>
                             <span>₹{basePrice.toLocaleString('en-IN')}</span>
                           </div>
                           {discountAmount > 0 && (
@@ -1834,9 +2134,9 @@ export default function ApplicationPage() {
                               <span>− ₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                             </div>
                           )}
-                          <div className="flex justify-between text-white font-black text-base border-t border-slate-700 pt-2 mt-1">
+                          <div className="flex justify-between text-white font-black text-base border-t border-slate-800 pt-2.5 mt-1">
                             <span>Total Payable (Net)</span>
-                            <span className="text-indigo-400">
+                            <span className="text-indigo-400 text-lg">
                               ₹{finalNet.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </span>
                           </div>

@@ -11,9 +11,12 @@ async function ensureSegmentsColumns() {
         name VARCHAR(255) NOT NULL,
         description TEXT,
         menus TEXT[] DEFAULT '{}',
+        services TEXT[] DEFAULT '{}',
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
+      ALTER TABLE segments ALTER COLUMN services DROP NOT NULL;
+      ALTER TABLE segments ALTER COLUMN services SET DEFAULT '{}'::text[];
       ALTER TABLE segments ADD COLUMN IF NOT EXISTS menus TEXT[] DEFAULT '{}';
       ALTER TABLE segments ADD COLUMN IF NOT EXISTS description TEXT;
     `)

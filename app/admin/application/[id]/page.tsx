@@ -587,7 +587,13 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                     const selectedPlanObj = plans.find(p => p.id === plan || p.plan_name === plan)
                     if (!selectedPlanObj) return null
                     
-                    const price = (selectedPlanObj.first_billing_items || []).reduce((sum: number, item: any) => sum + Number(item.price || 0) + Number(item.tax_price || 0), 0) || 2000
+                    const itemsSum = (selectedPlanObj.first_billing_items || []).reduce((sum: number, item: any) => {
+                      const itemTotal = Number(item.tax_price) > 0 
+                        ? Number(item.tax_price) 
+                        : (Number(item.price || 0) + (Number(item.price || 0) * Number(item.tax_percentage || 0) / 100))
+                      return sum + itemTotal
+                    }, 0)
+                    const price = itemsSum > 0 ? itemsSum : Number((selectedPlanObj as any).price || 0)
                     const duration = selectedPlanObj.first_billing_duration || 365
                     
                     const pad = (n: number) => String(n).padStart(2, '0')
@@ -711,21 +717,30 @@ export default function ApplicationDetailsPage({ params }: ApplicationDetailsPag
                 {/* 3. Total Payable Net Summary Card */}
                 {(() => {
                   const selectedPlanObj = plans.find(p => p.id === plan || p.plan_name === plan)
-                  const basePrice = selectedPlanObj 
-                    ? (selectedPlanObj.first_billing_items || []).reduce((sum: number, item: any) => sum + Number(item.price || 0) + Number(item.tax_price || 0), 0) || 2000
-                    : 2000
+                  let basePrice = 0
+                  if (selectedPlanObj) {
+                    const itemsSum = (selectedPlanObj.first_billing_items || []).reduce((sum: number, item: any) => {
+                      const itemTotal = Number(item.tax_price) > 0 
+                        ? Number(item.tax_price) 
+                        : (Number(item.price || 0) + (Number(item.price || 0) * Number(item.tax_percentage || 0) / 100))
+                      return sum + itemTotal
+                    }, 0)
+                    basePrice = itemsSum > 0 ? itemsSum : Number((selectedPlanObj as any).price || 0)
+                  }
 
                   const promoObj = promoCodes.find(pc => pc.code === promoCode)
                   let discountAmount = 0
-                  if (promoObj) {
-                    const val = Number(promoObj.discount_value || 0)
-                    if (promoObj.discount_type === 'Fixed' || promoObj.discount_type === 'Amount') {
-                      discountAmount = Math.min(val, basePrice)
-                    } else {
-                      discountAmount = (basePrice * val) / 100
+                  if (basePrice > 0) {
+                    if (promoObj) {
+                      const val = Number(promoObj.discount_value || 0)
+                      if (promoObj.discount_type === 'Fixed' || promoObj.discount_type === 'Amount') {
+                        discountAmount = Math.min(val, basePrice)
+                      } else {
+                        discountAmount = (basePrice * val) / 100
+                      }
+                    } else if (promoCode) {
+                      discountAmount = 500 // Default fallback promo discount
                     }
-                  } else if (promoCode) {
-                    discountAmount = 500 // Default fallback promo discount
                   }
 
                   const finalNet = Math.max(0, basePrice - discountAmount)

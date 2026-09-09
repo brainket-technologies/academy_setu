@@ -35,6 +35,13 @@ export async function GET(request: NextRequest) {
         ) THEN
           ALTER TABLE promo_codes ADD COLUMN applicable_on VARCHAR(50) DEFAULT 'Both';
         END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'promo_codes' AND column_name = 'plan_id'
+        ) THEN
+          ALTER TABLE promo_codes ADD COLUMN plan_id UUID;
+        END IF;
       END $$;
     `).catch(err => console.error("Database migration promo_codes error:", err));
 
@@ -127,6 +134,13 @@ export async function POST(request: NextRequest) {
           WHERE table_name = 'promo_codes' AND column_name = 'applicable_on'
         ) THEN
           ALTER TABLE promo_codes ADD COLUMN applicable_on VARCHAR(50) DEFAULT 'Both';
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'promo_codes' AND column_name = 'plan_id'
+        ) THEN
+          ALTER TABLE promo_codes ADD COLUMN plan_id UUID;
         END IF;
       END $$;
     `).catch(err => console.error("Database migration promo_codes error:", err));

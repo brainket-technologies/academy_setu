@@ -48,7 +48,7 @@ export async function PUT(
       contact_person, mobile_no, email_id, address, state, district, pincode,
       principal_name, principal_gender, principal_sign, principal_photo,
       director_name, director_gender, director_sign, director_photo,
-      status, enquiry_status, plan_id, promo_code, assigned_to 
+      status, enquiry_status, plan_id, promo_code, assigned_to, payment_mode, amount 
     } = body
 
     // First, update the institution with address/personal details
@@ -127,10 +127,23 @@ export async function PUT(
       }
     }
 
+    let cleanPlanId = null
+    if (plan_id && String(plan_id).trim() !== '') {
+      const planRes = await pool.query(
+        'SELECT id FROM plans WHERE id::text = $1 OR plan_name = $1 LIMIT 1',
+        [plan_id]
+      )
+      if (planRes.rows.length > 0) {
+        cleanPlanId = planRes.rows[0].id
+      }
+    }
+
     addAppField('status', status)
     addAppField('enquiry_status', enquiry_status)
-    addAppField('plan_id', plan_id)
-    addAppField('promo_code', promo_code)
+    addAppField('plan_id', cleanPlanId)
+    addAppField('promo_code', promo_code !== undefined ? promo_code : null)
+    addAppField('payment_mode', payment_mode !== undefined ? payment_mode : null)
+    addAppField('amount', amount ? parseFloat(amount) : null)
 
     appUpdates.push('updated_at = NOW()')
     appValues.push(id)
@@ -142,6 +155,43 @@ export async function PUT(
 
     if (result.rows.length === 0) {
       return NextResponse.json({ success: false, error: 'Application not found.' }, { status: 404 })
+    }
+
+    // Move institution to Active & Create Request record for verification in Request tab
+    if (institutionId) {
+      if (enquiry_status === 'Successfully Onboarded' || status === 'Completed') {
+        await pool.query("UPDATE institutions SET status = 'Active', updated_at = NOW() WHERE id = $1", [institutionId])
+      }
+
+      const { transaction_id, screenshots, screenshot_filename, screenshot_data_url } = body
+      const screenshotsArr = Array.isArray(screenshots) && screenshots.length > 0
+        ? screenshots
+        : (screenshot_filename ? [{ filename: screenshot_filename, dataUrl: screenshot_data_url || '', amount: amount || 0 }] : [])
+
+      const finalAmount = amount ? parseFloat(amount) : 0
+
+      if (enquiry_status === 'Successfully Onboarded' || status === 'Completed' || screenshotsArr.length > 0 || transaction_id) {
+        const existingReq = await pool.query('SELECT id FROM requests WHERE institution_id = $1 LIMIT 1', [institutionId])
+        if (existingReq.rows.length > 0) {
+          await pool.query(
+            `UPDATE requests 
+             SET plan_id = COALESCE($1, plan_id),
+                 payment_mode = COALESCE($2, payment_mode),
+                 transaction_id = CASE WHEN $3 != '' THEN $3 ELSE transaction_id END,
+                 amount = CASE WHEN $4::numeric > 0 THEN $4::numeric ELSE amount END,
+                 screenshots = CASE WHEN $5::jsonb != '[]'::jsonb THEN $5::jsonb ELSE screenshots END,
+                 updated_at = NOW()
+             WHERE id = $6`,
+            [cleanPlanId, payment_mode || 'Payment Gateway', transaction_id || '', finalAmount, JSON.stringify(screenshotsArr), existingReq.rows[0].id]
+          )
+        } else {
+          await pool.query(
+            `INSERT INTO requests (institution_id, plan_id, payment_mode, transaction_id, amount, status, screenshots)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [institutionId, cleanPlanId, payment_mode || 'Payment Gateway', transaction_id || '', finalAmount, 'Pending', JSON.stringify(screenshotsArr)]
+          )
+        }
+      }
     }
 
     return NextResponse.json({ success: true, data: result.rows[0] })

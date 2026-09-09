@@ -45,7 +45,7 @@ export async function GET(request: Request) {
 
     const countsResult = await pool.query(`
       SELECT 
-        COUNT(*)::int as total,
+        COUNT(CASE WHEN COALESCE(a.enquiry_status, '') != 'Successfully Onboarded' THEN 1 END)::int as total,
         COUNT(CASE WHEN a.status IN ('Applied', 'Requested') THEN 1 END)::int as new
       FROM applications a
       LEFT JOIN institutions i ON a.institution_id = i.id
@@ -56,11 +56,11 @@ export async function GET(request: Request) {
     // 2. Fetch applications with filters
     let query = `
       SELECT 
-        a.id, a.application_no, i.name as school_name, i.contact_person, 
+        a.id, a.application_no, a.plan_id, a.promo_code, a.payment_mode, i.name as school_name, i.contact_person, 
         i.state, i.district, a.status, a.enquiry_status, a.created_at, 
         i.assigned_to, u.name as assigned_user_name, u.role as assigned_user_role,
         p.plan_name,
-        COALESCE(b.amount, (
+        COALESCE(a.amount, b.amount, (
           SELECT COALESCE(SUM(pbi.price + pbi.tax_price), 2000) 
           FROM plan_billing_items pbi 
           WHERE pbi.plan_id = p.id AND pbi.billing_type = 'first'
@@ -90,6 +90,8 @@ export async function GET(request: Request) {
     if (status) {
       conditions.push('a.status = $' + (values.length + 1))
       values.push(status)
+    } else {
+      conditions.push("(a.enquiry_status IS NULL OR a.enquiry_status != 'Successfully Onboarded')")
     }
 
     if (state) {
@@ -157,7 +159,7 @@ export async function POST(request: Request) {
       contact_person, mobile_no, email_id, address, state, district, pincode,
       principal_name, principal_gender, principal_sign, principal_photo,
       director_name, director_gender, director_sign, director_photo,
-      status, enquiry_status, plan, promo_code
+      status, enquiry_status, plan, promo_code, payment_mode, amount
     } = body
 
     if (!school_name || !contact_person || !mobile_no || !address || !state || !district || !pincode) {
@@ -202,12 +204,12 @@ export async function POST(request: Request) {
     const result = await pool.query(
       `INSERT INTO applications (
         application_no, institution_id,
-        status, enquiry_status, promo_code, plan_id, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        status, enquiry_status, promo_code, plan_id, created_by, payment_mode, amount
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
         applicationNo, institutionId,
-        status || 'Applied', enquiry_status || 'Applied', promo_code || '', planId, userId
+        status || 'Applied', enquiry_status || 'Applied', promo_code || '', planId, userId, payment_mode || 'Payment Gateway', amount ? parseFloat(amount) : null
       ]
     )
 

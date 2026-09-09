@@ -4,7 +4,8 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react
 import { useRouter, useSearchParams } from 'next/navigation'
 import { 
   Search, Plus, Edit3, Trash2, FileText, Download, Loader2, 
-  ChevronLeft, ChevronRight, X, Percent, Tag, Ticket, Check, Paperclip, Calendar
+  ChevronLeft, ChevronRight, X, Percent, Tag, Ticket, Check, Paperclip, Calendar,
+  Building2, Phone, Mail, User, MapPin, ShieldCheck, Award
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
@@ -42,6 +43,7 @@ interface Plan {
   plan_name: string
   segment: string
   description?: string
+  brochure_url?: string
   first_billing_duration?: number
   renewal_billing_duration?: number
   first_billing_items?: Array<{
@@ -151,10 +153,12 @@ function BillingDashboardContent() {
   const [status, setStatus] = useState('Pending')
   const [submitting, setSubmitting] = useState(false)
   const [instPlansLoading, setInstPlansLoading] = useState(false)
+  const [instDetails, setInstDetails] = useState<any>(null)
   const [instActivePlan, setInstActivePlan] = useState<any>(null)
   const [instUpcomingPlans, setInstUpcomingPlans] = useState<any[]>([])
   const [instPlanHistory, setInstPlanHistory] = useState<any[]>([])
   const [instHasPendingRenewal, setInstHasPendingRenewal] = useState<boolean>(false)
+  const [segmentInstitutesList, setSegmentInstitutesList] = useState<any[]>([])
   const [showAllPlansOverride, setShowAllPlansOverride] = useState(false)
   const [purchaseMode, setPurchaseMode] = useState<'new' | 'renew' | 'change' | 'upcoming' | 'edit'>('new')
   const [showActivePlanFeatures, setShowActivePlanFeatures] = useState(false)
@@ -270,31 +274,67 @@ function BillingDashboardContent() {
   const handleSelectionSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedSegment) { toast.error('Segment is required'); return }
-    if (!selectedSchool) { toast.error('School Name is required'); return }
     
     setIsSubmitted(true)
     setInstPlansLoading(true)
     setInstActivePlan(null)
     setInstUpcomingPlans([])
     setInstPlanHistory([])
+    setInstDetails(null)
 
-    const schoolObj = schools.find(s => s.name === selectedSchool)
-    if (schoolObj) {
+    if (selectedSchool) {
+      setSegmentInstitutesList([])
+      const schoolObj = schools.find(s => s.name === selectedSchool)
+      if (schoolObj) {
+        try {
+          const res = await fetch(`/api/admin/billing/institute-plans?institution_id=${schoolObj.id}`)
+          const data = await res.json()
+          if (data.success) {
+            setInstDetails(data.institutionDetails || schoolObj)
+            setInstActivePlan(data.activePlan)
+            setInstUpcomingPlans(data.upcomingPlans || [])
+            setInstPlanHistory(data.planHistory || [])
+            setInstHasPendingRenewal(data.hasPendingRenewal || false)
+          }
+        } catch (err) {
+          console.error('Failed to load institute plans', err)
+        }
+      }
+    } else {
       try {
-        const res = await fetch(`/api/admin/billing/institute-plans?institution_id=${schoolObj.id}`)
+        const res = await fetch(`/api/admin/billing/institute-plans?segment=${encodeURIComponent(selectedSegment)}`)
         const data = await res.json()
         if (data.success) {
-          setInstActivePlan(data.activePlan)
-          setInstUpcomingPlans(data.upcomingPlans || [])
-          setInstPlanHistory(data.planHistory || [])
-          setInstHasPendingRenewal(data.hasPendingRenewal || false)
+          setSegmentInstitutesList(data.institutesList || [])
         }
       } catch (err) {
-        console.error('Failed to load institute plans', err)
+        console.error('Failed to load segment institutes', err)
       }
     }
+
     setInstPlansLoading(false)
     fetchPlansWithDetails(selectedSegment)
+  }
+
+  // Helper functions for item price calculations
+  const getItemTaxAmount = (item: any) => {
+    const price = Number(item.price) || 0
+    const taxPrice = Number(item.tax_price) || 0
+    const taxPct = Number(item.tax_percentage) || 0
+    if (taxPrice >= price && price > 0) {
+      return taxPrice - price
+    }
+    if (taxPrice > 0) return taxPrice
+    return (price * taxPct) / 100
+  }
+
+  const getItemTotal = (item: any) => {
+    const price = Number(item.price) || 0
+    const taxPrice = Number(item.tax_price) || 0
+    if (taxPrice >= price && price > 0) {
+      return taxPrice
+    }
+    return price + taxPrice
   }
 
   // Calculate pricing values
@@ -304,7 +344,7 @@ function BillingDashboardContent() {
     if (!items || items.length === 0) {
       return 1200 // Default fallback base price
     }
-    return items.reduce((sum: number, item: any) => sum + Number(item.price) + Number(item.tax_price || 0), 0)
+    return items.reduce((sum: number, item: any) => sum + getItemTotal(item), 0)
   }
 
   // Calculate plan validity dates
@@ -751,6 +791,25 @@ function BillingDashboardContent() {
     toast.info(`Generating checkout link for ${gatewayName}...`)
   }
 
+  const handleDownloadBrochure = (brochureUrl?: string, planName?: string) => {
+    if (!brochureUrl) {
+      toast.error('No brochure document uploaded for this plan')
+      return
+    }
+    try {
+      const link = document.createElement('a')
+      link.href = brochureUrl
+      link.target = '_blank'
+      link.download = `${(planName || 'Plan').replace(/\s+/g, '_')}_Brochure`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      toast.success('Brochure download initiated')
+    } catch {
+      window.open(brochureUrl, '_blank')
+    }
+  }
+
 
   const filteredPlans = plans.filter(p => !formSegment || p.segment === formSegment)
 
@@ -844,7 +903,7 @@ function BillingDashboardContent() {
                     {/* School Select */}
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                        School/College Name<span className="text-red-500 ml-0.5">*</span>
+                        School/College Name <span className="text-[10px] text-slate-400 font-normal lowercase">(optional)</span>
                       </label>
                       <select
                         value={selectedSchool}
@@ -862,7 +921,6 @@ function BillingDashboardContent() {
                           }
                         }}
                         className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
-                        required
                       >
                         <option value="">Select School</option>
                         {schools
@@ -894,37 +952,308 @@ function BillingDashboardContent() {
                       <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mx-auto mb-2" />
                       <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Loading institute plans...</p>
                     </div>
-                  ) : (instActivePlan || instUpcomingPlans.length > 0 || instPlanHistory.length > 0) && !showAllPlansOverride ? (
-                    /* Institute Plans Dashboard */
+                  ) : segmentInstitutesList.length > 0 && !selectedSchool && !showAllPlansOverride ? (
+                    /* Multiple Institute Cards under the selected Segment */
                     <div className="flex flex-col gap-6 animate-in fade-in duration-200">
-                      
-                      {/* Header Summary */}
-                      <div className="flex items-center justify-between flex-wrap gap-3 bg-indigo-50/50 dark:bg-slate-700/30 rounded-2xl p-5 border border-indigo-100/40 dark:border-slate-700">
-                        <div>
-                          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">{selectedSchool}</h3>
-                          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">Segment: {selectedSegment}</p>
-                        </div>
-                        <button
-                          onClick={() => setShowAllPlansOverride(true)}
-                          className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
-                        >
-                          + Purchase New Plan
-                        </button>
+                      <div className="flex items-center justify-between px-1">
+                        <h2 className="text-base font-extrabold text-slate-800 dark:text-slate-100">
+                          Institutes in {selectedSegment} Segment ({segmentInstitutesList.length})
+                        </h2>
                       </div>
 
-                      {/* Active Plan Detail */}
-                      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700/60 p-6 shadow-sm">
-                        <div className="border-b border-slate-100 dark:border-slate-700 pb-3 mb-4 flex items-center justify-between">
-                          <h4 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-wider">Active Plan</h4>
-                          {instActivePlan ? (
-                            <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                              Active
-                            </span>
-                          ) : (
-                            <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                              No Active Plan
-                            </span>
-                          )}
+                      {segmentInstitutesList.map((instData: any, iIdx: number) => {
+                        const dDetails = instData.institutionDetails;
+                        const dActivePlan = instData.activePlan;
+                        const dUpcomingPlans = instData.upcomingPlans || [];
+                        const dPlanHistory = instData.planHistory || [];
+
+                        return (
+                          <div key={dDetails?.id || iIdx} className="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700/70 shadow-md flex flex-col gap-6">
+                            
+                            {/* Institute Profile & Contact Details Header */}
+                            <div className="flex flex-col gap-5 border-b border-slate-150 dark:border-slate-700/80 pb-6">
+                              <div className="flex items-start justify-between flex-wrap gap-4">
+                                <div className="flex items-center gap-3.5">
+                                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xl border border-indigo-100 dark:border-indigo-800/50 shrink-0 shadow-sm">
+                                    <Building2 className="w-6 h-6" />
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <h3 className="text-xl font-extrabold text-slate-800 dark:text-slate-100 tracking-tight">{dDetails?.name}</h3>
+                                      {dDetails?.code && (
+                                        <span className="text-xs font-mono font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2.5 py-0.5 rounded-md border border-slate-200 dark:border-slate-600">
+                                          {dDetails.code}
+                                        </span>
+                                      )}
+                                      <span className="px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 rounded-full text-xs font-bold">
+                                        {selectedSegment}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs font-semibold text-slate-400 dark:text-slate-400 mt-1">
+                                      Institute Billing & Subscription Profile
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  {dActivePlan ? (
+                                    <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 rounded-full text-xs font-extrabold flex items-center gap-1.5 shadow-sm">
+                                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                      Active Plan
+                                    </span>
+                                  ) : (
+                                    <span className="px-3 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50 rounded-full text-xs font-extrabold flex items-center gap-1.5 shadow-sm">
+                                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                                      No Active Plan
+                                    </span>
+                                  )}
+                                  {!dActivePlan && (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedSchool(dDetails?.name)
+                                        setInstDetails(dDetails)
+                                        setPurchaseMode('new')
+                                        setShowAllPlansOverride(true)
+                                      }}
+                                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                                    >
+                                      + Purchase Plan
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Contact Details Grid */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50/70 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="p-2 rounded-xl bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-slate-150 dark:border-slate-700 shrink-0">
+                                    <User className="w-4 h-4" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Owner / Contact</span>
+                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate block">
+                                      {dDetails?.contact_person || 'Not Specified'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2.5">
+                                  <div className="p-2 rounded-xl bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-slate-150 dark:border-slate-700 shrink-0">
+                                    <Phone className="w-4 h-4" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Phone Number</span>
+                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate block">
+                                      {dDetails?.mobile_no || 'Not Specified'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2.5">
+                                  <div className="p-2 rounded-xl bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-slate-150 dark:border-slate-700 shrink-0">
+                                    <Mail className="w-4 h-4" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Email Address</span>
+                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate block" title={dDetails?.email_id}>
+                                      {dDetails?.email_id || 'Not Specified'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2.5">
+                                  <div className="p-2 rounded-xl bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-slate-150 dark:border-slate-700 shrink-0">
+                                    <MapPin className="w-4 h-4" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Location</span>
+                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate block" title={`${dDetails?.district || ''}, ${dDetails?.state || ''}`}>
+                                      {[dDetails?.district, dDetails?.state].filter(Boolean).join(', ') || dDetails?.address || 'Not Specified'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Active Plan Detail for this Institute */}
+                            <div className="flex flex-col gap-5">
+                              {dActivePlan ? (
+                                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/30 dark:bg-indigo-900/10 overflow-hidden p-5 flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
+                                  <div>
+                                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                                      Active Plan
+                                    </span>
+                                    <h5 className="text-base font-black text-slate-800 dark:text-slate-100 mt-1">{dActivePlan.plan_name}</h5>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                      Valid: {formatDateOnly(dActivePlan.start_date)} to {formatDateOnly(dActivePlan.end_date)}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-4">
+                                    <span className="text-xl font-black text-slate-800 dark:text-slate-100">₹{dActivePlan.amount}</span>
+                                    {(() => {
+                                      const fullPlan = filteredPlansList.find(p => p.id === dActivePlan.plan_id) || plans.find(p => p.id === dActivePlan.plan_id);
+                                      const brochure = dActivePlan.brochure_url || fullPlan?.brochure_url;
+                                      if (brochure) {
+                                        return (
+                                          <button
+                                            onClick={() => handleDownloadBrochure(brochure, dActivePlan.plan_name)}
+                                            className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:border-indigo-300 transition-all shadow-sm cursor-pointer flex items-center gap-1.5 font-bold text-xs"
+                                            title="Download Brochure"
+                                          >
+                                            <FileText className="w-4 h-4 text-indigo-500" />
+                                            Brochure
+                                          </button>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
+                                    <button
+                                      onClick={() => {
+                                        setSelectedSchool(dDetails?.name)
+                                        setInstDetails(dDetails)
+                                        setInstActivePlan(dActivePlan)
+                                        setInstUpcomingPlans(dUpcomingPlans)
+                                        setInstPlanHistory(dPlanHistory)
+                                      }}
+                                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                                    >
+                                      Manage Institute & Plan
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="p-4 bg-slate-50 dark:bg-slate-900/30 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between">
+                                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">No active plan for this institute.</span>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedSchool(dDetails?.name)
+                                      setInstDetails(dDetails)
+                                      setPurchaseMode('new')
+                                      setShowAllPlansOverride(true)
+                                    }}
+                                    className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                                  >
+                                    + Purchase Plan
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (instActivePlan || instUpcomingPlans.length > 0 || instPlanHistory.length > 0) && !showAllPlansOverride ? (
+                    /* Institute Wise Single Card */
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700/70 shadow-md flex flex-col gap-6 animate-in fade-in duration-200">
+                      
+                      {/* Institute Profile & Contact Details Header */}
+                      <div className="flex flex-col gap-5 border-b border-slate-150 dark:border-slate-700/80 pb-6">
+                        <div className="flex items-start justify-between flex-wrap gap-4">
+                          <div className="flex items-center gap-3.5">
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xl border border-indigo-100 dark:border-indigo-800/50 shrink-0 shadow-sm">
+                              <Building2 className="w-6 h-6" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="text-xl font-extrabold text-slate-800 dark:text-slate-100 tracking-tight">{instDetails?.name || selectedSchool}</h3>
+                                {instDetails?.code && (
+                                  <span className="text-xs font-mono font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2.5 py-0.5 rounded-md border border-slate-200 dark:border-slate-600">
+                                    {instDetails.code}
+                                  </span>
+                                )}
+                                <span className="px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 rounded-full text-xs font-bold">
+                                  {selectedSegment}
+                                </span>
+                              </div>
+                              <p className="text-xs font-semibold text-slate-400 dark:text-slate-400 mt-1">
+                                Institute Billing & Subscription Profile
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {instActivePlan ? (
+                              <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50 rounded-full text-xs font-extrabold flex items-center gap-1.5 shadow-sm">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                Active Plan
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50 rounded-full text-xs font-extrabold flex items-center gap-1.5 shadow-sm">
+                                <span className="w-2 h-2 rounded-full bg-amber-500" />
+                                No Active Plan
+                              </span>
+                            )}
+                            {!instActivePlan && (
+                              <button
+                                onClick={() => {
+                                  setPurchaseMode('new')
+                                  setShowAllPlansOverride(true)
+                                }}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                              >
+                                + Purchase New Plan
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Contact Details Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50/70 dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-slate-150 dark:border-slate-700 shrink-0">
+                              <User className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Owner / Contact</span>
+                              <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate block">
+                                {instDetails?.contact_person || 'Not Specified'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-slate-150 dark:border-slate-700 shrink-0">
+                              <Phone className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Phone Number</span>
+                              <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate block">
+                                {instDetails?.mobile_no || 'Not Specified'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-slate-150 dark:border-slate-700 shrink-0">
+                              <Mail className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Email Address</span>
+                              <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate block" title={instDetails?.email_id}>
+                                {instDetails?.email_id || 'Not Specified'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-slate-150 dark:border-slate-700 shrink-0">
+                              <MapPin className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Location</span>
+                              <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate block" title={`${instDetails?.district || ''}, ${instDetails?.state || ''}`}>
+                                {[instDetails?.district, instDetails?.state].filter(Boolean).join(', ') || instDetails?.address || 'Not Specified'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Nested Active & Subscription Plan Section */}
+                      <div className="flex flex-col gap-5">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-wider">Active Subscription</h4>
                         </div>
 
                         {instActivePlan ? (
@@ -1011,6 +1340,23 @@ function BillingDashboardContent() {
                                       )
                                     })()}
                                     <div className="flex items-center gap-2">
+                                      {(() => {
+                                        const fullPlan = filteredPlansList.find(p => p.id === instActivePlan.plan_id) || plans.find(p => p.id === instActivePlan.plan_id);
+                                        const brochure = instActivePlan.brochure_url || fullPlan?.brochure_url;
+                                        if (brochure) {
+                                          return (
+                                            <button
+                                              onClick={() => handleDownloadBrochure(brochure, instActivePlan.plan_name)}
+                                              className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:border-indigo-300 transition-all shadow-sm cursor-pointer flex items-center gap-1.5 font-bold text-xs"
+                                              title="Download Brochure"
+                                            >
+                                              <FileText className="w-4 h-4 text-indigo-500" />
+                                              Brochure
+                                            </button>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
                                       <button
                                         onClick={() => handleDownloadPDF(selectedSchool, instActivePlan.amount, instActivePlan.plan_name || 'Active Plan', instActivePlan.payment_date, instActivePlan.transaction_id, instActivePlan.payment_mode)}
                                         className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm cursor-pointer" title="Download Bill"
@@ -1049,7 +1395,7 @@ function BillingDashboardContent() {
                             
                             if (!hasRenewal) return null;
                             
-                            const renewalPrice = (activeFullPlan?.renewal_billing_items || []).reduce((acc: number, item: any) => acc + (Number(item.price) + Number(item.tax_price)), 0);
+                            const renewalPrice = (activeFullPlan?.renewal_billing_items || []).reduce((acc: number, item: any) => acc + getItemTotal(item), 0);
                             const renewalDuration = activeFullPlan.renewal_billing_duration || 0;
                             
                             const validFrom = new Date(instActivePlan.end_date);
@@ -1152,9 +1498,22 @@ function BillingDashboardContent() {
                                   >
                                     {hasPendingRenewal ? 'Renewal Requested' : 'Renew Plan'}
                                   </button>
-                                  <button onClick={() => handleDownloadPDF(selectedSchool, instActivePlan.amount, instActivePlan.plan_name || 'Active Plan', instActivePlan.payment_date, instActivePlan.transaction_id, instActivePlan.payment_mode)} className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm cursor-pointer" title="Download Bill">
-                                    <Download className="w-4 h-4" />
-                                  </button>
+                                  {(() => {
+                                    const brochure = activeFullPlan?.brochure_url || instActivePlan?.brochure_url;
+                                    if (brochure) {
+                                      return (
+                                        <button
+                                          onClick={() => handleDownloadBrochure(brochure, activeFullPlan?.plan_name || instActivePlan?.plan_name)}
+                                          className="px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:border-indigo-300 transition-all shadow-sm cursor-pointer flex items-center gap-1.5 font-bold text-xs"
+                                          title="Download Brochure"
+                                        >
+                                          <FileText className="w-4 h-4 text-indigo-500" />
+                                          Brochure
+                                        </button>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
                                 </div>
                               </div>
                             );
@@ -1253,6 +1612,23 @@ function BillingDashboardContent() {
                                   </div>
                                 </div>
                                 <div className="px-5 py-4 bg-blue-100/30 dark:bg-blue-900/20 border-t border-blue-100/50 dark:border-blue-900/50 flex flex-wrap items-center justify-end gap-3">
+                                  {(() => {
+                                     const fullPlan = filteredPlansList.find(p => p.id === plan.plan_id) || plans.find(p => p.id === plan.plan_id);
+                                     const brochure = plan.brochure_url || fullPlan?.brochure_url;
+                                     if (brochure) {
+                                       return (
+                                         <button
+                                           onClick={() => handleDownloadBrochure(brochure, plan.plan_name)}
+                                           className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-blue-600 dark:text-blue-400 hover:text-blue-700 transition-all shadow-sm cursor-pointer flex items-center gap-1.5 font-bold text-xs"
+                                           title="Download Brochure"
+                                         >
+                                           <FileText className="w-4 h-4 text-blue-500" />
+                                           Brochure
+                                         </button>
+                                       );
+                                     }
+                                     return null;
+                                   })()}
                                   <button onClick={() => handleDownloadPDF(selectedSchool, plan.amount, plan.plan_name || 'Upcoming Plan', plan.payment_date, plan.transaction_id, plan.payment_mode)} className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm cursor-pointer" title="Download Bill">
                                     <Download className="w-4 h-4" />
                                   </button>
@@ -1278,6 +1654,7 @@ function BillingDashboardContent() {
                                   <th className="px-4 py-3 text-slate-600 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">Amount</th>
                                   <th className="px-4 py-3 text-slate-600 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">Method</th>
                                   <th className="px-4 py-3 text-slate-600 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">Txn ID</th>
+                                  <th className="px-4 py-3 text-slate-600 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700 text-right">Actions</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-slate-700 dark:text-slate-300">
@@ -1290,6 +1667,33 @@ function BillingDashboardContent() {
                                     <td className="px-4 py-3 font-bold">₹{h.amount}</td>
                                     <td className="px-4 py-3 uppercase">{h.payment_mode}</td>
                                     <td className="px-4 py-3 font-mono text-[10px]">{h.transaction_id || '—'}</td>
+                                    <td className="px-4 py-3 text-right">
+                                      <div className="flex items-center justify-end gap-2">
+                                        {(() => {
+                                          const fullPlan = filteredPlansList.find(p => p.id === h.plan_id) || plans.find(p => p.id === h.plan_id);
+                                          const brochure = h.brochure_url || fullPlan?.brochure_url;
+                                          if (brochure) {
+                                            return (
+                                              <button
+                                                onClick={() => handleDownloadBrochure(brochure, h.plan_name)}
+                                                className="p-1.5 bg-indigo-50 dark:bg-indigo-950/60 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 cursor-pointer"
+                                                title="Download Brochure"
+                                              >
+                                                <FileText className="w-3.5 h-3.5" />
+                                              </button>
+                                            );
+                                          }
+                                          return null;
+                                        })()}
+                                        <button
+                                          onClick={() => handleDownloadPDF(selectedSchool, h.amount, h.plan_name || 'Past Plan', h.payment_date, h.transaction_id, h.payment_mode)}
+                                          className="p-1.5 bg-slate-100 dark:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 hover:text-indigo-600 cursor-pointer"
+                                          title="Download Bill"
+                                        >
+                                          <Download className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -1306,9 +1710,11 @@ function BillingDashboardContent() {
                       {/* Back button and Alert for empty state */}
                       <div className="flex items-center justify-between flex-wrap gap-3">
                         <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 px-1">
-                          {showAllPlansOverride ? `Select Plan to Purchase for ${selectedSchool}` : 'Create Institute Plan'}
+                          {selectedSchool 
+                            ? `Select Plan to Purchase for ${selectedSchool}` 
+                            : `Available Plans for ${selectedSegment || 'Segment'}`}
                         </h2>
-                        {showAllPlansOverride && (
+                        {showAllPlansOverride && selectedSchool && (
                           <button
                             onClick={() => setShowAllPlansOverride(false)}
                             className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
@@ -1318,7 +1724,7 @@ function BillingDashboardContent() {
                         )}
                       </div>
 
-                      {!(instActivePlan || instUpcomingPlans.length > 0 || instPlanHistory.length > 0) && (
+                      {selectedSchool && !(instActivePlan || instUpcomingPlans.length > 0 || instPlanHistory.length > 0) && (
                         <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900 rounded-2xl text-xs font-medium text-amber-700 dark:text-amber-400 flex flex-col gap-1">
                           <p className="font-extrabold uppercase tracking-wider text-[10px]">No Plan Found</p>
                           <p>This institute currently does not have any active, upcoming, or historical subscription. Please select one of the available plans below to create an institute plan proper.</p>
@@ -1367,6 +1773,15 @@ function BillingDashboardContent() {
                                 </div>
 
                                 <div className="flex flex-row md:flex-col gap-2 flex-1 md:flex-none">
+                                  {p.brochure_url && (
+                                    <button
+                                      onClick={() => handleDownloadBrochure(p.brochure_url, p.plan_name)}
+                                      className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-400 rounded-xl text-xs font-bold transition-all border border-emerald-200 dark:border-emerald-800/60 cursor-pointer shadow-sm"
+                                    >
+                                      <Download className="w-4 h-4" />
+                                      Brochure
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => setShowViewPlanModal(p)}
                                     className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-[#EBF6F6] dark:bg-slate-750 hover:bg-[#EBF6F6]/80 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold transition-all border border-indigo-100 dark:border-slate-600 cursor-pointer"
@@ -2007,9 +2422,9 @@ function BillingDashboardContent() {
                         <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30">
                           <td className="p-3 font-semibold text-slate-700 dark:text-slate-200">{item.item_description}</td>
                           <td className="p-3 text-right">₹{item.price}</td>
-                          <td className="p-3 text-right">₹{item.tax_price} ({item.tax_percentage}%)</td>
+                          <td className="p-3 text-right">₹{getItemTaxAmount(item).toFixed(2)} ({item.tax_percentage}%)</td>
                           <td className="p-3 text-right font-extrabold text-slate-800 dark:text-slate-100">
-                            ₹{Number(item.price) + Number(item.tax_price)}
+                            ₹{getItemTotal(item).toFixed(2)}
                           </td>
                         </tr>
                       ))
@@ -2028,6 +2443,15 @@ function BillingDashboardContent() {
                 <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Total Subscription Price</span>
                 <span className="text-base font-extrabold text-indigo-600 dark:text-indigo-400">₹{getPlanPrice(showViewPlanModal)}</span>
               </div>
+              {showViewPlanModal.brochure_url && (
+                <button
+                  onClick={() => handleDownloadBrochure(showViewPlanModal.brochure_url, showViewPlanModal.plan_name)}
+                  className="w-full mt-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  Download Plan Brochure
+                </button>
+              )}
             </div>
           </div>
         </div>

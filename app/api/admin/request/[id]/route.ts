@@ -46,33 +46,60 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const updatedReq = updatedRes.rows[0]
 
-    // 3. If accepted, sync/insert into the bills table
-    if (status === 'Accept') {
-      const planRes = await pool.query('SELECT segment FROM plans WHERE plan_name = $1 LIMIT 1', [currentReq.plan_name])
-      const segment = planRes.rows.length > 0 ? planRes.rows[0].segment : 'School'
+    // 3. If accepted, sync/insert into the bills table and activate institution plan instantly
+    if (status === 'Accept' || status === 'Accepted' || status === 'Approved') {
+      let schoolName = currentReq.school_name
+      let planName = currentReq.plan_name
+      let institutionId = currentReq.institution_id
 
+      if (!institutionId && schoolName) {
+        const instFind = await pool.query('SELECT id FROM institutions WHERE name = $1 LIMIT 1', [schoolName])
+        if (instFind.rows.length > 0) {
+          institutionId = instFind.rows[0].id
+        }
+      }
+
+      if ((!schoolName || !planName) && institutionId) {
+        const instRes = await pool.query('SELECT name FROM institutions WHERE id = $1', [institutionId])
+        if (instRes.rows.length > 0) schoolName = instRes.rows[0].name
+      }
+
+      if (!planName && currentReq.plan_id) {
+        const planRes = await pool.query('SELECT plan_name, segment FROM plans WHERE id = $1', [currentReq.plan_id])
+        if (planRes.rows.length > 0) planName = planRes.rows[0].plan_name
+      }
+
+      const planRes = await pool.query(
+        'SELECT id, segment, segment_id FROM plans WHERE id = $1 OR plan_name = $2 LIMIT 1',
+        [currentReq.plan_id, planName]
+      )
+      const planId = planRes.rows.length > 0 ? planRes.rows[0].id : currentReq.plan_id
+      const segment = planRes.rows.length > 0 ? planRes.rows[0].segment : 'School'
+      const segmentId = planRes.rows.length > 0 ? planRes.rows[0].segment_id : null
+
+      const finalAmount = parseFloat(transaction_amount || currentReq.amount || '0')
+
+      // Insert/Update Bills table
       const billCheck = await pool.query(
-        'SELECT id FROM bills WHERE transaction_id = $1 OR (institution_id = $2 AND status = \'Pending\') LIMIT 1',
-        [currentReq.transaction_id, currentReq.institution_id]
+        "SELECT id FROM bills WHERE (transaction_id = $1 AND transaction_id != '') OR (institution_id = $2 AND status = 'Pending') LIMIT 1",
+        [currentReq.transaction_id || '', institutionId]
       )
 
       if (billCheck.rows.length === 0) {
         await pool.query(
-          `INSERT INTO bills (segment, school_name, plan_name, payment_mode, payment_date, amount, transaction_id, status, institution_id, plan_id)
-           VALUES ($1, $2, $3, $4, CURRENT_DATE, $5, $6, 'Paid', $7, $8)`,
+          `INSERT INTO bills (school_name, plan_name, payment_mode, payment_date, amount, transaction_id, status, institution_id, plan_id)
+           VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, 'Paid', $6, $7)`,
           [
-            segment,
-            currentReq.school_name,
-            currentReq.plan_name,
-            currentReq.payment_mode,
-            parseFloat(transaction_amount || currentReq.amount),
-            currentReq.transaction_id,
-            currentReq.institution_id,
-            currentReq.plan_id
+            schoolName || 'Institution',
+            planName || 'Standard Plan',
+            currentReq.payment_mode || 'Payment Gateway',
+            finalAmount,
+            currentReq.transaction_id || '',
+            institutionId,
+            planId
           ]
         )
       } else {
-        // Update existing bill status to 'Paid', date to CURRENT_DATE, and attach institution_id / plan_id
         await pool.query(
           `UPDATE bills SET 
             amount = $1, 
@@ -80,50 +107,46 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
             payment_date = CURRENT_DATE, 
             institution_id = COALESCE(institution_id, $3), 
             plan_id = COALESCE(plan_id, $4) 
-           WHERE id = $2 OR transaction_id = $5`,
+           WHERE id = $2 OR (transaction_id = $5 AND $5 != '')`,
           [
-            parseFloat(transaction_amount || currentReq.amount), 
+            finalAmount, 
             billCheck.rows[0].id, 
-            currentReq.institution_id, 
-            currentReq.plan_id,
-            currentReq.transaction_id
+            institutionId, 
+            planId,
+            currentReq.transaction_id || ''
           ]
         )
       }
 
-      // Update institution's segment_id if plan has segment_id
-      if (currentReq.institution_id && currentReq.plan_id) {
-        const planInfo = await pool.query('SELECT segment_id FROM plans WHERE id = $1', [currentReq.plan_id])
-        if (planInfo.rows.length > 0 && planInfo.rows[0].segment_id) {
-          await pool.query('UPDATE institutions SET segment_id = $1 WHERE id = $2', [
-            planInfo.rows[0].segment_id,
-            currentReq.institution_id
-          ])
-        }
+      // INSTANT PLAN ACTIVATION FOR INSTITUTION
+      if (institutionId) {
+        await pool.query(
+          `UPDATE institutions 
+           SET status = 'Active', 
+               segment_id = COALESCE($1, segment_id),
+               updated_at = NOW() 
+           WHERE id = $2`,
+          [segmentId, institutionId]
+        )
+
+        await pool.query(
+          `UPDATE applications 
+           SET status = 'Completed', 
+               enquiry_status = 'Successfully Onboarded',
+               plan_id = COALESCE($1, plan_id),
+               payment_mode = COALESCE($2, payment_mode),
+               amount = CASE WHEN $3::numeric > 0 THEN $3::numeric ELSE amount END,
+               updated_at = NOW()
+           WHERE institution_id = $4`,
+          [planId, currentReq.payment_mode, finalAmount, institutionId]
+        )
       }
-    } else if (status === 'Reject') {
-      const billCheck = await pool.query('SELECT id FROM bills WHERE transaction_id = $1 LIMIT 1', [currentReq.transaction_id])
+    } else if (status === 'Reject' || status === 'Rejected') {
+      const billCheck = await pool.query('SELECT id FROM bills WHERE transaction_id = $1 AND transaction_id != \'\' LIMIT 1', [currentReq.transaction_id || ''])
       if (billCheck.rows.length > 0) {
         await pool.query(
-          `UPDATE bills SET status = 'Failed' WHERE transaction_id = $1`,
-          [currentReq.transaction_id]
-        )
-      } else {
-        const planRes = await pool.query('SELECT segment FROM plans WHERE plan_name = $1 LIMIT 1', [currentReq.plan_name])
-        const segment = planRes.rows.length > 0 ? planRes.rows[0].segment : 'School'
-        await pool.query(
-          `INSERT INTO bills (segment, school_name, plan_name, payment_mode, payment_date, amount, transaction_id, status, institution_id, plan_id)
-           VALUES ($1, $2, $3, $4, CURRENT_DATE, $5, $6, 'Failed', $7, $8)`,
-          [
-            segment,
-            currentReq.school_name,
-            currentReq.plan_name,
-            currentReq.payment_mode,
-            parseFloat(transaction_amount || currentReq.amount),
-            currentReq.transaction_id,
-            currentReq.institution_id,
-            currentReq.plan_id
-          ]
+          `UPDATE bills SET status = 'Failed' WHERE id = $1`,
+          [billCheck.rows[0].id]
         )
       }
     }
