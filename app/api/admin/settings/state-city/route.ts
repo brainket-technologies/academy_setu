@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 
+async function ensureStatesDistrictsTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS states_districts (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      state_name VARCHAR(255) UNIQUE NOT NULL,
+      districts TEXT[] DEFAULT '{}',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `)
+}
+
 export async function GET(request: NextRequest) {
   try {
+    await ensureStatesDistrictsTable()
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id') || ''
     const search = searchParams.get('search') || ''

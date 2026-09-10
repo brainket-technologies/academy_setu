@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Search, Plus, Eye, Edit3, RefreshCw, X, MoreVertical, Loader2, Filter, ChevronDown, ChevronUp, UserCheck, Camera, Percent, Check, CreditCard, Building, Smartphone, QrCode, Wallet, ShieldCheck, Tag, Paperclip } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
+import { SearchableDropdown } from '@/components/ui/SearchableDropdown'
 
 interface Application {
   id: string
@@ -81,6 +82,24 @@ export default function ApplicationPage() {
       })
       .catch(err => console.error('Failed to load states/cities', err))
   }, [])
+
+  // Computed state and district options strictly from Settings (/api/admin/settings/state-city)
+  const allStatesList = React.useMemo(() => {
+    return statesData
+      .map((s: any) => s.state_name)
+      .filter(Boolean)
+      .sort((a: string, b: string) => a.localeCompare(b))
+  }, [statesData])
+
+  const getDistrictsForState = (stName: string): string[] => {
+    if (!stName) {
+      const allDistricts = new Set<string>()
+      statesData.forEach((s: any) => (s.districts || []).forEach((d: string) => allDistricts.add(d)))
+      return Array.from(allDistricts).sort((a, b) => a.localeCompare(b))
+    }
+    const stateObj = statesData.find((s: any) => s.state_name?.toLowerCase() === stName.toLowerCase())
+    return (stateObj?.districts || []).slice().sort((a: string, b: string) => a.localeCompare(b))
+  }
 
   const handleStateChange = (stateVal: string) => {
     setStateName(stateVal)
@@ -896,61 +915,57 @@ export default function ApplicationPage() {
 
         {/* Collapsible Filter Bar */}
         {showFilters && (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 shadow-sm">
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Status</label>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
-                >
-                  <option value="">All</option>
-                  <option value="Applied">Applied</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Paid">Paid</option>
-                  <option value="Unpaid">Unpaid</option>
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                  <option value="Completed">Completed</option>
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Assigned To</label>
-                <select
-                  value={filterAssignedTo}
-                  onChange={(e) => setFilterAssignedTo(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
-                >
-                  <option value="">All Users</option>
-                  <option value="unassigned">Unassigned</option>
-                  {assignableUsers.map(user => (
-                    <option key={user.id} value={user.id}>
-                      {user.name} ({user.role})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">State</label>
-                <input
-                  type="text"
-                  placeholder="Enter State"
-                  value={filterState}
-                  onChange={(e) => setFilterState(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">District</label>
-                <input
-                  type="text"
-                  placeholder="Enter District"
-                  value={filterDistrict}
-                  onChange={(e) => setFilterDistrict(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                />
-              </div>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 shadow-sm animate-in fade-in slide-in-from-top-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <SearchableDropdown
+                label="Status"
+                placeholder="All Statuses"
+                searchPlaceholder="Search Status..."
+                options={[
+                  'Applied',
+                  'Pending',
+                  'Paid',
+                  'Unpaid',
+                  'Active',
+                  'Inactive',
+                  'Completed'
+                ]}
+                value={filterStatus}
+                onChange={(val) => setFilterStatus(val)}
+              />
+              <SearchableDropdown
+                label="Assigned To"
+                placeholder="All Users"
+                searchPlaceholder="Search User..."
+                options={[
+                  { label: 'Unassigned', value: 'unassigned' },
+                  ...assignableUsers.map(user => ({
+                    label: `${user.name} (${user.role})`,
+                    value: user.id
+                  }))
+                ]}
+                value={filterAssignedTo}
+                onChange={(val) => setFilterAssignedTo(val)}
+              />
+              <SearchableDropdown
+                label="State"
+                placeholder="All States"
+                searchPlaceholder="Search State..."
+                options={allStatesList}
+                value={filterState}
+                onChange={(val) => {
+                  setFilterState(val)
+                  setFilterDistrict('')
+                }}
+              />
+              <SearchableDropdown
+                label="District"
+                placeholder="All Districts"
+                searchPlaceholder="Search District..."
+                options={getDistrictsForState(filterState)}
+                value={filterDistrict}
+                onChange={(val) => setFilterDistrict(val)}
+              />
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">From Date</label>
                 <input
@@ -1350,43 +1365,23 @@ export default function ApplicationPage() {
 
                 {/* Location Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                      State <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={stateName}
-                      onChange={(e) => handleStateChange(e.target.value)}
-                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
-                      required
-                    >
-                      <option value="">Select State</option>
-                      {statesData.map((s: any) => (
-                        <option key={s.id} value={s.state_name}>
-                          {s.state_name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                      District <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={districtName}
-                      onChange={(e) => setDistrictName(e.target.value)}
-                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
-                      required
-                      disabled={!stateName}
-                    >
-                      <option value="">Select District</option>
-                      {districtsList.map((dist: string) => (
-                        <option key={dist} value={dist}>
-                          {dist}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <SearchableDropdown
+                    label="State *"
+                    placeholder="Select State"
+                    searchPlaceholder="Search State..."
+                    options={allStatesList}
+                    value={stateName}
+                    onChange={(val) => handleStateChange(val)}
+                  />
+                  <SearchableDropdown
+                    label="District *"
+                    placeholder="Select District"
+                    searchPlaceholder="Search District..."
+                    options={getDistrictsForState(stateName)}
+                    value={districtName}
+                    onChange={(val) => setDistrictName(val)}
+                    disabled={!stateName}
+                  />
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                       Pincode <span className="text-red-500">*</span>

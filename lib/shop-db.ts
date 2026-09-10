@@ -298,9 +298,18 @@ export async function ensureShopDb(): Promise<void> {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS device_types (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        name VARCHAR(255) NOT NULL UNIQUE
+        name VARCHAR(255) NOT NULL UNIQUE,
+        description TEXT DEFAULT '',
+        status VARCHAR(50) DEFAULT 'Active',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
       );
     `)
+
+    await pool.query(`ALTER TABLE device_types ADD COLUMN IF NOT EXISTS description TEXT DEFAULT ''`)
+    await pool.query(`ALTER TABLE device_types ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active'`)
+    await pool.query(`ALTER TABLE device_types ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()`)
+    await pool.query(`ALTER TABLE device_types ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`)
 
     // 11. Create device_plans table
     await pool.query(`
@@ -350,6 +359,12 @@ export async function ensureShopDb(): Promise<void> {
       );
     `)
 
+    await pool.query(`ALTER TABLE device_recharge_requests ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(255) DEFAULT ''`)
+    await pool.query(`ALTER TABLE device_recharge_requests ADD COLUMN IF NOT EXISTS start_date DATE`)
+    await pool.query(`ALTER TABLE device_recharge_requests ADD COLUMN IF NOT EXISTS end_date DATE`)
+    await pool.query(`ALTER TABLE device_recharge_requests ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT FALSE`)
+    await pool.query(`ALTER TABLE device_recharge_requests ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`)
+
     // Seed device_brands if empty
     const deviceBrandsCount = await pool.query("SELECT COUNT(*)::int FROM device_brands")
     if (deviceBrandsCount.rows[0].count === 0) {
@@ -394,24 +409,13 @@ export async function ensureShopDb(): Promise<void> {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS device_setup (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        device_type VARCHAR(255) DEFAULT '',
         name VARCHAR(255) NOT NULL,
         model VARCHAR(255) NOT NULL,
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
     `)
-
-    // Seed device_setup if empty
-    const deviceSetupCount = await pool.query("SELECT COUNT(*)::int FROM device_setup")
-    if (deviceSetupCount.rows[0].count === 0) {
-      await pool.query(`
-        INSERT INTO device_setup (name, model) VALUES 
-        ('GPS Tracker', 'TK103'),
-        ('Finger Print Sensor', 'ZKTeco K40'),
-        ('Biometric Attendance', 'Bio-100'),
-        ('RFID Card Reader', 'EM18')
-      `)
-    }
 
       } catch (error) {
         console.error('Error ensuring Shop DB:', error)

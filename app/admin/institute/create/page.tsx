@@ -6,6 +6,7 @@ import { X, Camera, ArrowLeft, Loader2, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
+import { SearchableDropdown } from '@/components/ui/SearchableDropdown'
 export default function CreateInstitutePage() {
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
@@ -44,23 +45,31 @@ export default function CreateInstitutePage() {
     fetch('/api/admin/settings/state-city')
       .then(res => res.json())
       .then(data => {
-        if (data.success) {
+        if (data.success && Array.isArray(data.data)) {
           setStatesData(data.data)
         }
       })
       .catch(err => console.error('Failed to load states', err))
   }, [])
 
+  // Computed state options strictly from Settings (/api/admin/settings/state-city)
+  const allStatesList = React.useMemo(() => {
+    return statesData
+      .map((s: any) => s.state_name)
+      .filter(Boolean)
+      .sort((a: string, b: string) => a.localeCompare(b))
+  }, [statesData])
+
+  const getDistrictsForState = (stName: string): string[] => {
+    if (!stName) return []
+    const stateObj = statesData.find((s: any) => s.state_name?.toLowerCase() === stName.toLowerCase())
+    return (stateObj?.districts || []).slice().sort((a: string, b: string) => a.localeCompare(b))
+  }
+
   const handleStateChange = (stateVal: string) => {
     setStateName(stateVal)
-    const stateObj = statesData.find((s: any) => s.state_name === stateVal)
-    if (stateObj) {
-      setDistrictsList(stateObj.districts || [])
-      setDistrictName('')
-    } else {
-      setDistrictsList([])
-      setDistrictName('')
-    }
+    setDistrictName('')
+    setDistrictsList(getDistrictsForState(stateVal))
   }
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'principal' | 'director') => {
@@ -313,43 +322,23 @@ export default function CreateInstitutePage() {
 
               {/* Location Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    State <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={stateName}
-                    onChange={(e) => handleStateChange(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
-                    required
-                  >
-                    <option value="">Select State</option>
-                    {statesData.map((s: any) => (
-                      <option key={s.state_name} value={s.state_name}>
-                        {s.state_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    District <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={districtName}
-                    onChange={(e) => setDistrictName(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
-                    required
-                    disabled={!stateName}
-                  >
-                    <option value="">Select District</option>
-                    {districtsList.map((d: string) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <SearchableDropdown
+                  label="State *"
+                  placeholder="Select State"
+                  searchPlaceholder="Search State..."
+                  options={allStatesList}
+                  value={stateName}
+                  onChange={handleStateChange}
+                />
+                <SearchableDropdown
+                  label="District *"
+                  placeholder="Select District"
+                  searchPlaceholder="Search District..."
+                  options={districtsList}
+                  value={districtName}
+                  onChange={setDistrictName}
+                  disabled={!stateName}
+                />
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Pincode <span className="text-red-500">*</span>

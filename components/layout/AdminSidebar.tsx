@@ -97,7 +97,8 @@ export function AdminSidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: 
         { label: 'Recharge Request', href: '/admin/device/recharge' },
         { label: 'Expiry Recharge', href: '/admin/device/expiry' },
         { label: 'Plan Setup', href: '/admin/device/plans' },
-        { label: 'Device Setup', href: '/admin/device/setup' }
+        { label: 'Device Setup', href: '/admin/device/setup' },
+        { label: 'Device Type', href: '/admin/device/type' }
       ]
     },
     { icon: Settings, label: 'Settings', href: '/admin/settings' },

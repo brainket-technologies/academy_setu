@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Search, Loader2, Plus, Eye, X, Calendar, Check, ArrowUp, ArrowDown } from 'lucide-react'
+import { Loader2, Plus, Eye, X, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface DevicePlan {
@@ -18,6 +18,17 @@ interface DeviceSetup {
   id: string
   name: string
   model: string
+  device_type: string
+}
+
+interface DeviceTypeItem {
+  id: string
+  name: string
+}
+
+interface InstituteItem {
+  id: string
+  name: string
 }
 
 interface RechargeRequest {
@@ -45,17 +56,15 @@ interface RechargeRequest {
 export default function RechargeRequestPage() {
   const [requests, setRequests] = useState<RechargeRequest[]>([])
   const [plans, setPlans] = useState<DevicePlan[]>([])
+  const [institutes, setInstitutes] = useState<InstituteItem[]>([])
   const [deviceSetups, setDeviceSetups] = useState<DeviceSetup[]>([])
+  const [deviceTypes, setDeviceTypes] = useState<DeviceTypeItem[]>([])
   const [loading, setLoading] = useState(true)
 
   // Filters
   const [filterSchool, setFilterSchool] = useState('')
   const [filterDeviceType, setFilterDeviceType] = useState('')
-  const [filterExpiry, setFilterExpiry] = useState('') // Expiry filter dropdown
-
-  // Unique list of schools and device types for filter dropdowns
-  const [schools, setSchools] = useState<string[]>([])
-  const [deviceTypes, setDeviceTypes] = useState<string[]>([])
+  const [filterExpiry, setFilterExpiry] = useState('')
 
   // Modal States
   const [showAddModal, setShowAddModal] = useState(false)
@@ -63,8 +72,7 @@ export default function RechargeRequestPage() {
 
   // Add form fields
   const [addSchool, setAddSchool] = useState('')
-  const [addModel, setAddModel] = useState('')
-  const [addDevice, setAddDevice] = useState('')
+  const [addDeviceId, setAddDeviceId] = useState('')
   const [addPlanId, setAddPlanId] = useState('')
   const [addDurationType, setAddDurationType] = useState('Days')
   const [addDuration, setAddDuration] = useState('30 Days')
@@ -75,6 +83,62 @@ export default function RechargeRequestPage() {
   const [verifyStartDate, setVerifyStartDate] = useState('')
   const [verifyEndDate, setVerifyEndDate] = useState('')
   const [submittingVerify, setSubmittingVerify] = useState(false)
+
+  const fetchInstitutes = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/institute?simple=true')
+      const data = await res.json()
+      if (data.success && Array.isArray(data.data)) {
+        setInstitutes(data.data)
+      }
+    } catch (err) {
+      console.error('Error fetching institutes:', err)
+    }
+  }, [])
+
+  const fetchDeviceTypes = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/device/types')
+      const data = await res.json()
+      if (data.success && Array.isArray(data.data)) {
+        setDeviceTypes(data.data)
+      }
+    } catch (err) {
+      console.error('Error fetching device types:', err)
+    }
+  }, [])
+
+  const fetchDeviceSetups = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/device/setup')
+      const data = await res.json()
+      if (data.success && Array.isArray(data.data)) {
+        setDeviceSetups(data.data)
+        if (data.data.length > 0) {
+          setAddDeviceId(data.data[0].id)
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching device setups:', err)
+    }
+  }, [])
+
+  const fetchPlans = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/device/plans')
+      const data = await res.json()
+      if (data.success && Array.isArray(data.data)) {
+        setPlans(data.data)
+        if (data.data.length > 0) {
+          setAddPlanId(data.data[0].id)
+          setAddDurationType(data.data[0].duration_type || 'Days')
+          setAddDuration(`${data.data[0].duration} ${data.data[0].duration_type || 'Days'}`)
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching plans:', err)
+    }
+  }, [])
 
   const fetchRequests = useCallback(async () => {
     setLoading(true)
@@ -87,13 +151,7 @@ export default function RechargeRequestPage() {
       const res = await fetch(`/api/admin/device/recharge?${params.toString()}`)
       const data = await res.json()
       if (data.success) {
-        setRequests(data.data)
-
-        // populate unique schools and device types if not set
-        const uSchools = Array.from(new Set(data.data.map((r: RechargeRequest) => r.school_name))) as string[]
-        const uTypes = Array.from(new Set(data.data.map((r: RechargeRequest) => r.device_type))) as string[]
-        setSchools(uSchools.length ? uSchools : ['abcdschool'])
-        setDeviceTypes(uTypes.length ? uTypes : ['GPS', 'Finger Print', 'Attendance'])
+        setRequests(data.data || [])
       } else {
         toast.error('Failed to load recharge requests')
       }
@@ -105,62 +163,33 @@ export default function RechargeRequestPage() {
     }
   }, [filterSchool, filterDeviceType])
 
-  const fetchPlans = useCallback(async () => {
-    try {
-      const res = await fetch('/api/admin/device/plans')
-      const data = await res.json()
-      if (data.success) {
-        setPlans(data.data)
-        if (data.data.length > 0) {
-          setAddPlanId(data.data[0].id)
-          setAddDurationType(data.data[0].duration_type)
-          setAddDuration(`${data.data[0].duration} ${data.data[0].duration_type}`)
-        }
-      }
-    } catch (err) {
-      console.error(err)
-    }
-  }, [])
-
-  const fetchDeviceSetups = useCallback(async () => {
-    try {
-      const res = await fetch('/api/admin/device/setup')
-      const data = await res.json()
-      if (data.success) {
-        setDeviceSetups(data.data)
-        if (data.data.length > 0) {
-          setAddModel(data.data[0].model)
-          setAddDevice(data.data[0].name)
-        }
-      }
-    } catch (err) {
-      console.error(err)
-    }
-  }, [])
-
   useEffect(() => {
-    fetchRequests()
-    fetchPlans()
+    fetchInstitutes()
+    fetchDeviceTypes()
     fetchDeviceSetups()
-  }, [fetchRequests, fetchPlans, fetchDeviceSetups])
+    fetchPlans()
+    fetchRequests()
+  }, [fetchInstitutes, fetchDeviceTypes, fetchDeviceSetups, fetchPlans, fetchRequests])
 
-  // Automatically update duration type and duration when plan selection changes
   const handlePlanChange = (planId: string) => {
     setAddPlanId(planId)
     const selected = plans.find(p => p.id === planId)
     if (selected) {
-      setAddDurationType(selected.duration_type)
-      setAddDuration(`${selected.duration} ${selected.duration_type}`)
+      setAddDurationType(selected.duration_type || 'Days')
+      setAddDuration(`${selected.duration} ${selected.duration_type || 'Days'}`)
     }
   }
 
-  // Create rechargeable request
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!addSchool) return toast.error('Please enter or select a school')
+    if (!addSchool) return toast.error('Please select an institution')
     
     const selectedPlan = plans.find(p => p.id === addPlanId)
     if (!selectedPlan) return toast.error('Please select a plan')
+
+    const selectedDevice = deviceSetups.find(d => d.id === addDeviceId)
+    const deviceName = selectedDevice ? selectedDevice.name : 'GPS Device'
+    const deviceType = selectedDevice ? (selectedDevice.device_type || 'GPS') : 'GPS'
 
     setSubmittingAdd(true)
     try {
@@ -169,8 +198,8 @@ export default function RechargeRequestPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           school_name: addSchool,
-          device_name: addDevice,
-          device_type: addDevice, // Assume name is device_type based on original schema logic mapping
+          device_name: deviceName,
+          device_type: deviceType,
           plan_duration: addDuration,
           amount: selectedPlan.amount,
           payment_reference: addPaymentRef
@@ -193,7 +222,6 @@ export default function RechargeRequestPage() {
     }
   }
 
-  // Verify and activate plan
   const handleVerifySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedRequest) return
@@ -227,27 +255,33 @@ export default function RechargeRequestPage() {
 
   const handleOpenVerify = (req: RechargeRequest) => {
     setSelectedRequest(req)
-    // Pre-populate dates
     const today = new Date().toISOString().split('T')[0]
     setVerifyStartDate(today)
     
-    // Auto-calculate end date based on duration
     const days = parseInt(req.plan_duration) || 30
     const end = new Date()
     end.setDate(end.getDate() + days)
     setVerifyEndDate(end.toISOString().split('T')[0])
   }
 
+  // Filter requests
+  const filteredRequests = requests.filter(item => {
+    if (filterSchool && item.school_name !== filterSchool) return false
+    if (filterDeviceType && item.device_type !== filterDeviceType) return false
+    return true
+  })
+
   return (
     <>
       {/* Page Header */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 mb-6 shadow-sm border border-slate-100 dark:border-slate-700 flex justify-between items-center shrink-0">
         <div>
-          <h1 className="text-xl font-bold text-slate-850 dark:text-slate-100">Recharge Request</h1>
+          <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">Recharge Request</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Manage and verify incoming device subscription recharge requests</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md shadow-indigo-600/10 transition-colors cursor-pointer"
+          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
         >
           <Plus className="w-4.5 h-4.5" />
           Recharge
@@ -258,15 +292,15 @@ export default function RechargeRequestPage() {
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 mb-6 border border-slate-100 dark:border-slate-700 shadow-sm shrink-0">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">School Name</label>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">School / Institution</label>
             <select
               value={filterSchool}
               onChange={e => setFilterSchool(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-350 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
             >
               <option value="">Select an Option</option>
-              {schools.map(s => (
-                <option key={s} value={s}>{s}</option>
+              {institutes.map(inst => (
+                <option key={inst.id} value={inst.name}>{inst.name}</option>
               ))}
             </select>
           </div>
@@ -275,11 +309,11 @@ export default function RechargeRequestPage() {
             <select
               value={filterDeviceType}
               onChange={e => setFilterDeviceType(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-350 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
             >
               <option value="">Select an Option</option>
               {deviceTypes.map(t => (
-                <option key={t} value={t}>{t}</option>
+                <option key={t.id} value={t.name}>{t.name}</option>
               ))}
             </select>
           </div>
@@ -288,12 +322,12 @@ export default function RechargeRequestPage() {
             <select
               value={filterExpiry}
               onChange={e => setFilterExpiry(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-350 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
             >
               <option value="">Select an Option</option>
-              <option value="7">Last 7 Days</option>
-              <option value="15">Last 15 Days</option>
-              <option value="30">Last 30 Days</option>
+              <option value="7">Next 7 Days</option>
+              <option value="15">Next 15 Days</option>
+              <option value="30">Next 30 Days</option>
             </select>
           </div>
         </div>
@@ -305,38 +339,37 @@ export default function RechargeRequestPage() {
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50/70 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-750 text-slate-500 dark:text-slate-400 font-bold text-xs uppercase tracking-wider">
+              <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700 text-slate-500 dark:text-slate-400 font-bold text-xs uppercase tracking-wider">
                 <th className="py-4 px-5 text-center w-16">S.No.</th>
                 <th className="py-4 px-5">School Name</th>
                 <th className="py-4 px-5">Device Name</th>
                 <th className="py-4 px-5">IMEI No.</th>
                 <th className="py-4 px-5">Device Type</th>
-                <th className="py-4 px-5 text-center">Image</th>
-                <th className="py-4 px-5">Plan Duration</th>
+                <th className="py-4 px-5 text-center">Plan Duration</th>
                 <th className="py-4 px-5">Paid Amount</th>
                 <th className="py-4 px-5 text-center">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-750 text-sm text-slate-755 dark:text-slate-300">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm text-slate-700 dark:text-slate-300">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="py-20 text-center">
+                  <td colSpan={8} className="py-20 text-center">
                     <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
                   </td>
                 </tr>
-              ) : requests.length === 0 ? (
+              ) : filteredRequests.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-500 dark:text-slate-400">
-                    No recharge requests found.
+                  <td colSpan={8} className="py-12 text-center text-slate-500 dark:text-slate-400">
+                    No pending recharge requests found.
                   </td>
                 </tr>
               ) : (
-                requests.map((req, idx) => (
-                  <tr key={req.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-750/30 transition-colors">
+                filteredRequests.map((req, idx) => (
+                  <tr key={req.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
                     <td className="py-4 px-5 text-center text-slate-400 font-semibold">
                       {idx + 1}.
                     </td>
-                    <td className="py-4 px-5 font-semibold text-slate-850 dark:text-slate-200">
+                    <td className="py-4 px-5 font-semibold text-slate-900 dark:text-slate-200">
                       {req.school_name}
                     </td>
                     <td className="py-4 px-5 text-slate-700 dark:text-slate-300 font-semibold">
@@ -348,29 +381,21 @@ export default function RechargeRequestPage() {
                     <td className="py-4 px-5 text-xs font-bold text-slate-500 dark:text-slate-400">
                       {req.device_type}
                     </td>
-                    <td className="py-4 px-5">
-                      <div className="flex items-center justify-center">
-                        <div className="w-8 h-8 rounded bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-[10px] text-slate-400 font-bold uppercase">
-                          IMG
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-5 font-bold text-slate-800 dark:text-slate-200">
+                    <td className="py-4 px-5 text-center font-bold text-slate-800 dark:text-slate-200">
                       {req.plan_duration}
                     </td>
-                    <td className="py-4 px-5 font-semibold text-slate-755 dark:text-slate-300">
-                      {parseFloat(String(req.amount)).toFixed(2)}
+                    <td className="py-4 px-5 font-semibold text-slate-700 dark:text-slate-300">
+                      ₹{parseFloat(String(req.amount)).toFixed(2)}
                     </td>
-                    <td className="py-4 px-5">
-                      <div className="flex items-center justify-center">
-                        <button
-                          onClick={() => handleOpenVerify(req)}
-                          className="p-1.5 rounded-lg bg-indigo-55 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors cursor-pointer"
-                          title="Verify Recharge details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </div>
+                    <td className="py-4 px-5 text-center">
+                      <button
+                        onClick={() => handleOpenVerify(req)}
+                        className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-colors cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold"
+                        title="Verify & Activate Recharge"
+                      >
+                        <Eye className="w-4 h-4" />
+                        Verify
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -383,52 +408,53 @@ export default function RechargeRequestPage() {
         <div className="md:hidden p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/10">
           {loading ? (
             <div className="py-12 text-center">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-650" />
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
             </div>
-          ) : requests.length === 0 ? (
+          ) : filteredRequests.length === 0 ? (
             <div className="py-8 text-center text-slate-500 text-xs">
               No recharge requests found.
             </div>
           ) : (
-            requests.map((req, idx) => (
+            filteredRequests.map((req, idx) => (
               <div 
                 key={req.id} 
-                className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-xs space-y-3"
+                className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm space-y-3"
               >
                 <div className="flex justify-between items-start">
                   <div>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">#{idx + 1} Recharge Request</span>
-                    <h4 className="text-sm font-bold text-slate-850 dark:text-slate-200 mt-0.5">{req.school_name}</h4>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-slate-200 mt-0.5">{req.school_name}</h4>
                   </div>
                   <button
                     onClick={() => handleOpenVerify(req)}
-                    className="p-2 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-xl cursor-pointer"
+                    className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-xl cursor-pointer text-xs font-bold flex items-center gap-1"
                     title="Verify Request"
                   >
-                    <Eye className="w-4 h-4" />
+                    <Eye className="w-3.5 h-3.5" />
+                    Verify
                   </button>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
                   <div>
-                    <span className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Device</span>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Device</span>
                     <span className="font-bold text-slate-800 dark:text-slate-200">{req.device_name}</span>
                   </div>
                   <div>
-                    <span className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Type</span>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Type</span>
                     <span>{req.device_type}</span>
                   </div>
                   <div className="mt-1">
-                    <span className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">IMEI</span>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">IMEI</span>
                     <span>{req.imei_no}</span>
                   </div>
                   <div className="mt-1">
-                    <span className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Duration</span>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Duration</span>
                     <span>{req.plan_duration}</span>
                   </div>
                   <div className="mt-1 col-span-2">
-                    <span className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Paid Amount</span>
-                    <span className="text-indigo-650 dark:text-indigo-400 font-extrabold">₹{parseFloat(String(req.amount)).toFixed(2)}</span>
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Paid Amount</span>
+                    <span className="text-indigo-600 dark:text-indigo-400 font-extrabold text-sm">₹{parseFloat(String(req.amount)).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -441,29 +467,32 @@ export default function RechargeRequestPage() {
       {showAddModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4">
           <div 
-            className="fixed inset-0 bg-slate-900/60 dark:bg-slate-955/70 backdrop-blur-sm transition-opacity" 
+            className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/70 backdrop-blur-sm transition-opacity" 
             onClick={() => setShowAddModal(false)}
           />
 
-          <div className="relative bg-white dark:bg-slate-800 rounded-3xl w-full max-w-lg overflow-hidden flex flex-col shadow-2xl border border-slate-100 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative bg-white dark:bg-slate-800 rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-slate-100 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-200">
             {/* Header */}
-            <div className="p-6 border-b border-slate-100 dark:border-slate-750 flex items-center justify-between shrink-0">
-              <h2 className="text-lg font-bold text-slate-850 dark:text-slate-100">
-                Recharge Request
-              </h2>
+            <div className="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between shrink-0">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                  Recharge Request
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Submit a new device subscription recharge</p>
+              </div>
               <button 
                 onClick={() => setShowAddModal(false)}
-                className="p-2 hover:bg-slate-55 dark:hover:bg-slate-700 rounded-xl text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Form */}
-            <form onSubmit={handleAddSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleAddSubmit} className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-4">
               <div className="grid grid-cols-1 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-500">Select School</label>
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Select School / Institution <span className="text-rose-500">*</span></label>
                   <select
                     value={addSchool}
                     onChange={e => setAddSchool(e.target.value)}
@@ -471,49 +500,38 @@ export default function RechargeRequestPage() {
                     required
                   >
                     <option value="">Select an Option</option>
-                    <option value="abcdschool">abcdschool</option>
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-500">Select Device Model</label>
-                  <select
-                    value={addModel}
-                    onChange={e => {
-                      const selectedModel = e.target.value
-                      setAddModel(selectedModel)
-                      const deviceSetup = deviceSetups.find(d => d.model === selectedModel)
-                      if (deviceSetup) {
-                        setAddDevice(deviceSetup.name)
-                      }
-                    }}
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
-                  >
-                    {deviceSetups.length === 0 && <option value="">No devices configured</option>}
-                    {deviceSetups.map(setup => (
-                      <option key={setup.id} value={setup.model}>{setup.model}</option>
+                    {institutes.length === 0 && <option value="" disabled>No institutions found</option>}
+                    {institutes.map(inst => (
+                      <option key={inst.id} value={inst.name}>{inst.name}</option>
                     ))}
                   </select>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-500">Device Name (Auto-filled)</label>
-                  <input
-                    type="text"
-                    disabled
-                    value={addDevice}
-                    className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-900/50 border border-slate-205 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-500 cursor-not-allowed"
-                  />
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Select Device <span className="text-rose-500">*</span></label>
+                  <select
+                    value={addDeviceId}
+                    onChange={e => setAddDeviceId(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
+                  >
+                    {deviceSetups.length === 0 && <option value="">No devices configured in Device Setup</option>}
+                    {deviceSetups.map(dev => (
+                      <option key={dev.id} value={dev.id}>
+                        {dev.name} {dev.device_type ? `(${dev.device_type})` : ''} - {dev.model}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-500">Select Plan</label>
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Select Plan <span className="text-rose-500">*</span></label>
                   <select
                     value={addPlanId}
                     onChange={e => handlePlanChange(e.target.value)}
                     className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
                     required
                   >
+                    {plans.length === 0 && <option value="">No plans configured</option>}
                     {plans.map(p => (
                       <option key={p.id} value={p.id}>{p.name} - ₹{p.amount}</option>
                     ))}
@@ -522,30 +540,30 @@ export default function RechargeRequestPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-500">Plan Duration Type</label>
+                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Plan Duration Type</label>
                     <input
                       type="text"
                       disabled
                       value={addDurationType}
-                      className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-900/50 border border-slate-205 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-500 cursor-not-allowed"
+                      className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-500 cursor-not-allowed"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-500">Plan Duration</label>
+                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Plan Duration</label>
                     <input
                       type="text"
                       disabled
                       value={addDuration}
-                      className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-900/50 border border-slate-205 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-500 cursor-not-allowed"
+                      className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-500 cursor-not-allowed"
                     />
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-500">Payment Reference</label>
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Payment Reference</label>
                   <input
                     type="text"
-                    placeholder="Enter Reference"
+                    placeholder="Enter Reference / Transaction ID"
                     value={addPaymentRef}
                     onChange={e => setAddPaymentRef(e.target.value)}
                     className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:text-slate-200"
@@ -553,11 +571,19 @@ export default function RechargeRequestPage() {
                 </div>
               </div>
 
-              <div className="flex justify-center pt-2">
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-5 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 font-semibold text-sm rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
                   disabled={submittingAdd}
-                  className="w-full py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {submittingAdd && <Loader2 className="w-4 h-4 animate-spin" />}
                   Recharge
@@ -572,49 +598,43 @@ export default function RechargeRequestPage() {
       {selectedRequest && (
         <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4">
           <div 
-            className="fixed inset-0 bg-slate-900/60 dark:bg-slate-955/70 backdrop-blur-sm transition-opacity" 
+            className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/70 backdrop-blur-sm transition-opacity" 
             onClick={() => setSelectedRequest(null)}
           />
 
           <div className="relative bg-white dark:bg-slate-800 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-slate-100 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-200">
             {/* Header */}
-            <div className="p-6 border-b border-slate-100 dark:border-slate-750 flex items-center justify-between shrink-0">
-              <h2 className="text-lg font-bold text-slate-850 dark:text-slate-100">
-                Recharge Request
-              </h2>
+            <div className="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between shrink-0">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                  Verify & Activate Recharge
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Review details and set subscription start and end dates</p>
+              </div>
               <button 
                 onClick={() => setSelectedRequest(null)}
-                className="p-2 hover:bg-slate-55 dark:hover:bg-slate-700 rounded-xl text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Scrollable Body */}
-            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+            <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-6">
               
-              {/* Device Details */}
-              <div className="bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/65">
-                <h3 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-4 border-b border-slate-105 dark:border-slate-750 pb-2">
-                  Device Details
+              {/* Institution & Device Details */}
+              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/60">
+                <h3 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">
+                  Request & Device Details
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5 col-span-2">
-                    <label className="text-xs font-bold text-slate-500">Brand</label>
+                    <label className="text-xs font-bold text-slate-500">Institution / School</label>
                     <input
                       type="text"
                       disabled
-                      value={selectedRequest.brand || 'Brand 1'}
-                      className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-500 cursor-not-allowed"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-500">Device Type</label>
-                    <input
-                      type="text"
-                      disabled
-                      value={selectedRequest.device_type}
-                      className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-500 cursor-not-allowed"
+                      value={selectedRequest.school_name}
+                      className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 cursor-not-allowed"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
@@ -623,140 +643,59 @@ export default function RechargeRequestPage() {
                       type="text"
                       disabled
                       value={selectedRequest.device_name}
-                      className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-500 cursor-not-allowed"
+                      className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 cursor-not-allowed"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-500">IMEI No.</label>
+                    <label className="text-xs font-bold text-slate-500">Device Type</label>
                     <input
                       type="text"
                       disabled
-                      value={selectedRequest.imei_no}
-                      className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-500 cursor-not-allowed"
+                      value={selectedRequest.device_type}
+                      className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 cursor-not-allowed"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-500">Description</label>
-                    <input
-                      type="text"
-                      disabled
-                      value={selectedRequest.description || 'Lorem Ipsum'}
-                      className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-500 cursor-not-allowed"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* SIM Details */}
-              <div className="bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/65">
-                <h3 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-4 border-b border-slate-105 dark:border-slate-750 pb-2">
-                  SIM Details
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-500">IMEI No.</label>
-                    <input
-                      type="text"
-                      disabled
-                      value={selectedRequest.sim_imei_no || '1234567890'}
-                      className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-500 cursor-not-allowed"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-500">Sim No.</label>
-                    <input
-                      type="text"
-                      disabled
-                      value={selectedRequest.sim_no || '9999999999'}
-                      className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-500 cursor-not-allowed"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Device Image */}
-              <div className="bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/65">
-                <h3 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-4 border-b border-slate-105 dark:border-slate-750 pb-2">
-                  Device Image
-                </h3>
-                <div className="flex items-center gap-6">
-                  <div className="w-52 h-36 border-2 border-dashed border-indigo-500/30 rounded-2xl bg-indigo-50/10 flex items-center justify-center text-xs font-semibold text-slate-400 uppercase tracking-widest">
-                    No Image Uploaded
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <button type="button" className="p-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 rounded-xl text-slate-550 dark:text-slate-400 cursor-pointer transition-colors">
-                      <ArrowUp className="w-4 h-4" />
-                    </button>
-                    <button type="button" className="p-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 rounded-xl text-slate-550 dark:text-slate-400 cursor-pointer transition-colors">
-                      <ArrowDown className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Device Plan Amount */}
-              <div className="bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/65">
-                <h3 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-4 border-b border-slate-105 dark:border-slate-750 pb-2">
-                  Device Plan Amount
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                  <div className="flex flex-col gap-1.5 col-span-1">
-                    <label className="text-xs font-bold text-slate-500">Plan Duration Type</label>
-                    <input
-                      type="text"
-                      disabled
-                      value="Days"
-                      className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-550 cursor-not-allowed"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5 col-span-1">
                     <label className="text-xs font-bold text-slate-500">Plan Duration</label>
                     <input
                       type="text"
                       disabled
                       value={selectedRequest.plan_duration}
-                      className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-555 cursor-not-allowed"
+                      className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 cursor-not-allowed"
                     />
                   </div>
-                  <div className="flex flex-col gap-1.5 col-span-1">
-                    <label className="text-xs font-bold text-slate-500">Amount</label>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-500">Paid Amount</label>
                     <input
                       type="text"
                       disabled
-                      value={parseFloat(String(selectedRequest.amount)).toFixed(2)}
-                      className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-555 cursor-not-allowed"
+                      value={`₹${parseFloat(String(selectedRequest.amount)).toFixed(2)}`}
+                      className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 cursor-not-allowed"
                     />
                   </div>
-                  <div className="flex flex-col gap-1.5 col-span-1">
-                    <label className="text-xs font-bold text-slate-500">Tax <span className="text-[10px] text-slate-400">(In Percentage)</span></label>
-                    <input
-                      type="text"
-                      disabled
-                      value={`${selectedRequest.tax_percent || '18'}%`}
-                      className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-555 cursor-not-allowed"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5 col-span-1">
-                    <label className="text-xs font-bold text-slate-500">Total Amount</label>
-                    <input
-                      type="text"
-                      disabled
-                      value={parseFloat(String(selectedRequest.total_amount || (selectedRequest.amount * 1.18))).toFixed(2)}
-                      className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-555 cursor-not-allowed"
-                    />
-                  </div>
+                  {selectedRequest.payment_reference && (
+                    <div className="flex flex-col gap-1.5 col-span-2">
+                      <label className="text-xs font-bold text-slate-500">Payment Reference</label>
+                      <input
+                        type="text"
+                        disabled
+                        value={selectedRequest.payment_reference}
+                        className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 cursor-not-allowed"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Plan Validity Form */}
-              <form onSubmit={handleVerifySubmit} className="bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/65 space-y-4">
-                <h3 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider border-b border-slate-105 dark:border-slate-750 pb-2">
-                  Plan Validity
+              <form onSubmit={handleVerifySubmit} className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-5 border border-slate-100 dark:border-slate-700/60 space-y-4">
+                <h3 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider border-b border-slate-200 dark:border-slate-700 pb-2">
+                  Plan Validity & Activation
                 </h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-500">Start Date</label>
+                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Start Date <span className="text-rose-500">*</span></label>
                     <input
                       type="date"
                       value={verifyStartDate}
@@ -766,7 +705,7 @@ export default function RechargeRequestPage() {
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-500">End Date</label>
+                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400">End Date <span className="text-rose-500">*</span></label>
                     <input
                       type="date"
                       value={verifyEndDate}
@@ -777,21 +716,21 @@ export default function RechargeRequestPage() {
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-3 pt-2">
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
                   <button
                     type="button"
                     onClick={() => setSelectedRequest(null)}
-                    className="px-5 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-655 dark:text-slate-350 hover:bg-slate-100 dark:hover:bg-slate-750 font-semibold text-sm rounded-xl transition-colors cursor-pointer"
+                    className="px-5 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold text-sm rounded-xl transition-colors cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={submittingVerify}
-                    className="px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-md transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md shadow-indigo-600/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {submittingVerify && <Loader2 className="w-4 h-4 animate-spin" />}
-                    Verify
+                    Verify & Activate
                   </button>
                 </div>
               </form>
