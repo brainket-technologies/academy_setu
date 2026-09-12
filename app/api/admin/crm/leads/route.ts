@@ -15,23 +15,30 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || ''
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '10')
-    const session = await getSession()
+    const orderBy = searchParams.get('order_by') || ''
+    const followupDateFilter = searchParams.get('followup_date_filter') || ''
+    const fromDate = searchParams.get('from_date') || ''
+    const toDate = searchParams.get('to_date') || ''
+    const dateType = searchParams.get('date_type') || (orderBy.includes('followup') ? 'followup' : 'created')
+
+    const session = (await getSession('bdm_session')) || (await getSession('manager_session')) || (await getSession('admin_session'))
     const userRole = session?.role
     const userId = session?.userId
     let assigned_to = searchParams.get('assigned_to') || ''
     if (assigned_to === 'undefined') assigned_to = ''
     const offset = (page - 1) * pageSize
 
-    const cacheKey = `leads:${search}:${source}:${status}:${assigned_to}:${page}:${pageSize}:${userId}`
+    const cacheKey = `leads:${search}:${source}:${status}:${assigned_to}:${orderBy}:${followupDateFilter}:${fromDate}:${toDate}:${page}:${pageSize}:${userId}:${userRole}`
 
     const data = await withCache(cacheKey, async () => {
       const conditions: string[] = []
       const params: (string | number)[] = []
 
-      if (userRole === 'BDM' || userRole === 'Manager') {
+      if (userRole === 'BDM') {
         params.push(userId as string)
-        conditions.push(`(COALESCE(l.assigned_to_id::text, l.assigned_to::text) = $${params.length} OR l.created_by::text = $${params.length})`)
+        conditions.push(`COALESCE(l.assigned_to_id::text, l.assigned_to::text) = $${params.length}`)
       }
+
 
       if (search) {
         params.push(`%${search}%`)
@@ -47,7 +54,54 @@ export async function GET(request: NextRequest) {
         conditions.push(`COALESCE(l.assigned_to_id::text, l.assigned_to::text) = $${params.length}`)
       }
 
+      // Followup Preset Filters
+      const latestFollowupQuery = `(SELECT follow_up_date FROM lead_history lh WHERE lh.lead_id = l.id ORDER BY lh.created_at DESC LIMIT 1)`
+      if (followupDateFilter === 'today') {
+        conditions.push(`${latestFollowupQuery}::date = CURRENT_DATE`)
+      } else if (followupDateFilter === 'tomorrow') {
+        conditions.push(`${latestFollowupQuery}::date = (CURRENT_DATE + INTERVAL '1 day')::date`)
+      } else if (followupDateFilter === 'this_week') {
+        conditions.push(`${latestFollowupQuery}::date >= CURRENT_DATE AND ${latestFollowupQuery}::date <= (CURRENT_DATE + INTERVAL '7 days')::date`)
+      } else if (followupDateFilter === 'overdue') {
+        conditions.push(`${latestFollowupQuery} IS NOT NULL AND ${latestFollowupQuery} < NOW()`)
+      } else if (followupDateFilter === 'upcoming') {
+        conditions.push(`${latestFollowupQuery} IS NOT NULL AND ${latestFollowupQuery} >= NOW()`)
+      }
+
+      // Date Range Filters
+      if (fromDate) {
+        params.push(fromDate)
+        if (dateType === 'followup') {
+          conditions.push(`${latestFollowupQuery}::date >= $${params.length}::date`)
+        } else {
+          conditions.push(`l.created_at::date >= $${params.length}::date`)
+        }
+      }
+
+      if (toDate) {
+        params.push(toDate)
+        if (dateType === 'followup') {
+          conditions.push(`${latestFollowupQuery}::date <= $${params.length}::date`)
+        } else {
+          conditions.push(`l.created_at::date <= $${params.length}::date`)
+        }
+      }
+
       const where = conditions.length ? ' WHERE ' + conditions.join(' AND ') : ''
+
+      let orderClause = 'ORDER BY l.created_at DESC'
+      if (orderBy === 'nearest_followup' || orderBy === 'followup') {
+        // Nearest upcoming and closest followup dates come first, overdue on top, then nulls last
+        orderClause = `ORDER BY 
+          (CASE 
+            WHEN (SELECT follow_up_date FROM lead_history lh WHERE lh.lead_id = l.id ORDER BY lh.created_at DESC LIMIT 1) IS NULL THEN 1 
+            ELSE 0 
+          END), 
+          (SELECT follow_up_date FROM lead_history lh WHERE lh.lead_id = l.id ORDER BY lh.created_at DESC LIMIT 1) ASC, 
+          l.updated_at DESC`
+      } else if (orderBy === 'recent_interaction') {
+        orderClause = `ORDER BY l.updated_at DESC`
+      }
 
       const query = `
         SELECT l.*,
@@ -65,7 +119,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN lead_statuses ls ON l.status_id = ls.id
         LEFT JOIN admins a ON a.id::text = COALESCE(l.assigned_to_id::text, l.assigned_to::text)
         ${where}
-        ORDER BY l.created_at DESC
+        ${orderClause}
         LIMIT $${params.length + 1} OFFSET $${params.length + 2}
       `
       params.push(pageSize, offset)
@@ -87,8 +141,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession()
+    const session = (await getSession('bdm_session')) || (await getSession('manager_session')) || (await getSession('admin_session'))
     const userId = session?.userId
+    const userRole = session?.role
 
     const body = await request.json()
     const { 
@@ -122,16 +177,18 @@ export async function POST(request: NextRequest) {
       if (statusRes.rows.length > 0) finalStatusId = statusRes.rows[0].id
     }
 
+    const assignedToId = (userRole === 'BDM') ? userId : (body.assigned_to || null)
+
     const result = await pool.query(
       `INSERT INTO leads (
         lead_source, mobile_no, email_id, contact_person, 
         institution_name, state, district, no_of_students, status_id,
-        created_at, updated_at, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW(), $10)
+        created_at, updated_at, created_by, assigned_to, assigned_to_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW(), $10, $11, $11)
        RETURNING *`,
       [
         lead_source, mobile_no, email_id || '', contact_person || '',
-        school_name, state || '', district || '', parseInt(no_of_students || '0'), finalStatusId, userId
+        school_name, state || '', district || '', parseInt(no_of_students || '0'), finalStatusId, userId, assignedToId
       ]
     )
 

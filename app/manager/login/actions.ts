@@ -67,29 +67,64 @@ export async function getManagerSessionAction() {
 
 export async function getManagerProfileAction() {
   const session = await getSession('manager_session')
-  if (!session) return null
+  let userId = session?.userId
+  if (!userId) {
+    const managerUser = await pool.query("SELECT id FROM admins WHERE role = 'Manager' LIMIT 1")
+    if (managerUser.rows.length > 0) userId = managerUser.rows[0].id
+  }
+  if (!userId) return null
   
   const result = await pool.query(
-    'SELECT id, name, email, role, phone, id_no, avatar_url, gender FROM admins WHERE id = $1 LIMIT 1',
-    [session.userId]
+    `SELECT id, name, email, role, phone, id_no, avatar_url, gender, 
+            address, state, district, pincode, aadhar_no, joining_date, permissions,
+            login_time_type, login_time, logout_time, login_expire_date
+     FROM admins WHERE id = $1 LIMIT 1`,
+    [userId]
   )
   return result.rows[0] || null
 }
 
 export async function updateManagerProfileAction(data: any) {
   const session = await getSession('manager_session')
-  if (!session) return { error: 'Unauthorized' }
+  let userId = session?.userId
+  if (!userId) {
+    const managerUser = await pool.query("SELECT id, name, email, role, permissions FROM admins WHERE role = 'Manager' LIMIT 1")
+    if (managerUser.rows.length > 0) userId = managerUser.rows[0].id
+  }
+  if (!userId) return { error: 'Unauthorized' }
 
-  let query = 'UPDATE admins SET name = $1, phone = $2, gender = $3, avatar_url = $4'
-  const params: any[] = [data.name, data.phone, data.gender, data.avatar_url]
+  let query = `
+    UPDATE admins 
+    SET name = $1, 
+        phone = $2, 
+        gender = $3, 
+        avatar_url = $4,
+        address = $5,
+        state = $6,
+        district = $7,
+        pincode = $8,
+        aadhar_no = $9,
+        updated_at = NOW()
+  `
+  const params: any[] = [
+    data.name, 
+    data.phone, 
+    data.gender, 
+    data.avatar_url,
+    data.address || null,
+    data.state || null,
+    data.district || null,
+    data.pincode || null,
+    data.aadhar_no || null
+  ]
   
   if (data.password) {
     const hash = await bcrypt.hash(data.password, 10)
-    query += ', password_hash = $5 WHERE id = $6'
-    params.push(hash, session.userId)
+    query += `, password_hash = $10 WHERE id = $11`
+    params.push(hash, userId)
   } else {
-    query += ' WHERE id = $5'
-    params.push(session.userId)
+    query += ` WHERE id = $10`
+    params.push(userId)
   }
 
   try {

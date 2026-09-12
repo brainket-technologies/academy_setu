@@ -165,7 +165,7 @@ export default function CreateApplicationPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full pb-10">
+      <div className="flex flex-col gap-6 w-full pb-10">
         
         {/* Title Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm flex items-center justify-between">

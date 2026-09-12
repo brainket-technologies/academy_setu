@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import {
   Bell,
   Ticket,
@@ -11,11 +12,13 @@ import {
   RefreshCw,
   X,
   CheckCheck,
+  UserCheck,
+  Clock,
 } from 'lucide-react'
 
 interface Notification {
   id: string
-  type: 'ticket' | 'query' | 'request' | 'application'
+  type: 'ticket' | 'query' | 'request' | 'application' | 'lead' | 'followup'
   title: string
   description: string
   status: string
@@ -52,6 +55,18 @@ const TYPE_META: Record<
     bg: 'bg-teal-50 dark:bg-teal-950/40',
     dot: 'bg-teal-500',
   },
+  lead: {
+    icon: UserCheck,
+    color: 'text-emerald-600 dark:text-emerald-400',
+    bg: 'bg-emerald-50 dark:bg-emerald-950/40',
+    dot: 'bg-emerald-500',
+  },
+  followup: {
+    icon: Clock,
+    color: 'text-amber-600 dark:text-amber-400',
+    bg: 'bg-amber-50 dark:bg-amber-950/40',
+    dot: 'bg-amber-500',
+  },
 }
 
 function timeAgo(dateStr: string): string {
@@ -63,6 +78,14 @@ function timeAgo(dateStr: string): string {
 }
 
 export function NotificationPanel() {
+  const pathname = usePathname() || ''
+  const isBdm = pathname.startsWith('/bdm')
+  const isManager = pathname.startsWith('/manager')
+  const isInstitute = pathname.startsWith('/institute')
+  const isDistributor = pathname.startsWith('/distributor')
+  
+  const portalPrefix = isBdm ? '/bdm' : isManager ? '/manager' : isInstitute ? '/institute' : isDistributor ? '/distributor' : '/admin'
+
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
@@ -126,6 +149,10 @@ export function NotificationPanel() {
   function markRead(id: string) {
     setReadIds((prev) => new Set([...prev, id]))
   }
+
+  // Determine footer link and label
+  const footerHref = isBdm ? '/bdm/crm/followup' : isManager ? '/manager/application' : '/admin/application'
+  const footerLabel = isBdm ? 'View all follow-ups →' : 'View all applications →'
 
   return (
     <div className="relative">
@@ -212,7 +239,7 @@ export function NotificationPanel() {
               </div>
             ) : (
               notifications.map((n) => {
-                const meta = TYPE_META[n.type]
+                const meta = TYPE_META[n.type] || TYPE_META.application
                 const Icon = meta.icon
                 const isRead = readIds.has(n.id)
                 return (
@@ -244,7 +271,7 @@ export function NotificationPanel() {
                         )}
                       </div>
                       <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
-                        {n.description}
+                        {n.description || 'Notification update'}
                       </p>
                       <div className="flex items-center gap-2 mt-1.5">
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${meta.bg} ${meta.color}`}>
@@ -268,11 +295,11 @@ export function NotificationPanel() {
                 {lastFetched ? `Updated ${timeAgo(lastFetched.toISOString())}` : ''}
               </p>
               <Link
-                href="/admin/ticket"
+                href={footerHref}
                 onClick={() => setOpen(false)}
                 className="text-[11px] font-semibold text-teal-600 dark:text-teal-400 hover:underline"
               >
-                View all tickets →
+                {footerLabel}
               </Link>
             </div>
           )}

@@ -1,10 +1,11 @@
 'use client'
 
-import { Sun, Moon, Menu, ChevronDown } from 'lucide-react'
+import { Sun, Moon, Menu, ChevronDown, UserCog, LogOut } from 'lucide-react'
 import { NotificationPanel } from '@/components/layout/NotificationPanel'
 import { useTheme } from '@/components/theme-provider'
-import { useEffect, useState } from 'react'
-import { getDistributorSessionAction } from '@/app/distributor/login/actions'
+import { useEffect, useState, useRef } from 'react'
+import { getDistributorSessionAction, distributorLogoutAction } from '@/app/distributor/login/actions'
+import Link from 'next/link'
 
 export function DistributorHeader({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const { theme, setTheme } = useTheme()
@@ -12,7 +13,21 @@ export function DistributorHeader({ onMenuToggle }: { onMenuToggle?: () => void 
   const [currentDate, setCurrentDate] = useState<string>('')
   const [greeting, setGreeting] = useState<string>('Hello')
   const [userName, setUserName] = useState<string>('Distributor')
+  const [userEmail, setUserEmail] = useState<string>('')
   const [profilePhoto, setProfilePhoto] = useState<string>('https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80')
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const profileRef = useRef<HTMLDivElement>(null)
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   useEffect(() => {
     setMounted(true)
@@ -40,6 +55,7 @@ export function DistributorHeader({ onMenuToggle }: { onMenuToggle?: () => void 
         const session = await getDistributorSessionAction()
         if (session && session.name) {
           setUserName(session.name)
+          if (session.email) setUserEmail(session.email)
         }
       } catch (err) {
         console.error(err)
@@ -65,7 +81,7 @@ export function DistributorHeader({ onMenuToggle }: { onMenuToggle?: () => void 
 
   return (
     <header
-      className="h-16 sticky top-0 z-40 px-4 lg:px-6 flex items-center justify-between transition-all duration-300 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm"
+      className="h-16 sticky top-0 z-40 px-4 lg:px-6 flex items-center justify-between transition-all duration-300 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm"
     >
       {/* Left: menu toggle + greeting */}
       <div className="flex items-center gap-3 flex-1">
@@ -111,22 +127,55 @@ export function DistributorHeader({ onMenuToggle }: { onMenuToggle?: () => void 
 
         <div className="h-5 w-px bg-slate-200/60 dark:bg-white/10 hidden sm:block" />
 
-        {/* Profile */}
-        <div
-          className="flex items-center gap-2 pl-2.5 pr-2 py-1.5 rounded-2xl transition-all duration-200 cursor-pointer group border bg-slate-50 border-slate-200"
-        >
-          <div className="text-right hidden sm:block">
-            <p className="text-[12px] font-bold text-slate-800 dark:text-slate-100 leading-none group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{userName}</p>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold mt-0.5">Distributor</p>
-          </div>
-          <div className="relative">
-            <div className="w-8 h-8 rounded-xl overflow-hidden border-2 border-white/80 dark:border-white/20 shadow-sm transition-transform group-hover:scale-105"
-              style={{ background: 'linear-gradient(135deg, #4f46e5, #4338ca)' }}>
-              <img src={profilePhoto} alt="Distributor" className="w-full h-full object-cover" />
+        {/* Profile Dropdown Container */}
+        <div className="relative" ref={profileRef}>
+          <div
+            onClick={() => setIsProfileOpen(!isProfileOpen)}
+            className="flex items-center gap-2 pl-2.5 pr-2 py-1.5 rounded-2xl transition-all duration-200 cursor-pointer group border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 select-none"
+          >
+            <div className="text-right hidden sm:block">
+              <p className="text-[12px] font-bold text-slate-800 dark:text-slate-100 leading-none group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{userName}</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold mt-0.5">Distributor</p>
             </div>
-            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-indigo-500 rounded-full border-2 border-white dark:border-slate-900" />
+            <div className="relative">
+              <div className="w-8 h-8 rounded-xl overflow-hidden border-2 border-white/80 dark:border-white/20 shadow-sm transition-transform group-hover:scale-105"
+                style={{ background: 'linear-gradient(135deg, #4f46e5, #4338ca)' }}>
+                <img src={profilePhoto} alt="Distributor" className="w-full h-full object-cover" />
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-indigo-500 rounded-full border-2 border-white dark:border-slate-900" />
+            </div>
+            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-transform hidden sm:block ${isProfileOpen ? 'rotate-180' : ''}`} />
           </div>
-          <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-slate-600 transition-colors hidden sm:block" />
+
+          {/* Profile Dropdown Menu */}
+          {isProfileOpen && (
+            <div className="absolute right-0 top-full mt-2 w-52 bg-white dark:bg-slate-800 rounded-2xl border border-slate-150 dark:border-slate-700 shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 z-50">
+              <div className="p-3 border-b border-slate-100 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/50">
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{userName}</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-400 font-medium truncate">{userEmail || 'Distributor Account'}</p>
+              </div>
+
+              <div className="p-1.5 flex flex-col gap-0.5">
+                <Link 
+                  href="/distributor/dashboard"
+                  onClick={() => setIsProfileOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 text-[13px] font-semibold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/30 rounded-xl transition-colors cursor-pointer"
+                >
+                  <UserCog className="w-4 h-4 text-indigo-500" />
+                  Profile / Dashboard
+                </Link>
+                <form action={distributorLogoutAction}>
+                  <button
+                    type="submit"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-semibold text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-colors text-left cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 text-red-500" />
+                    Logout
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>

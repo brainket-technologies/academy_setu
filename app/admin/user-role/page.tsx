@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import {
   Search, Loader2, Trash2, X, Plus, Filter, Download,
   ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, FileText, Upload,
-  Eye, Edit3, Shield, Mail, Phone, Key, Contact, Image
+  Eye, Edit3, Shield, Mail, Phone, Key, Contact, Image, ExternalLink
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
@@ -271,6 +271,17 @@ function UserRoleContent() {
     }
   }
 
+  const getRoleLoginUrl = (role: string) => {
+    const normalized = (role || '').trim().toLowerCase()
+    if (normalized === 'admin') return '/admin/login'
+    if (normalized === 'manager') return '/manager/login'
+    if (normalized === 'bdm') return '/bdm/login'
+    if (normalized === 'distributor') return '/distributor/login'
+    if (normalized === 'institute' || normalized === 'teacher') return '/institute/login'
+    if (normalized === 'support team') return '/admin/login'
+    return `/${normalized}/login`
+  }
+
   return (
     <>
       <div className="flex flex-col gap-6 p-6">
@@ -310,23 +321,47 @@ function UserRoleContent() {
           </div>
         </div>
 
-        {/* Tab Filters matching Screenshot 1-5 */}
-        <div className="flex flex-wrap items-center gap-2 md:gap-4 border-b border-slate-100 dark:border-slate-700 pb-1">
-          {(['All', 'Admin', 'Manager', 'BDM'] as const).map(tab => {
-            const isActive = activeTab === tab
-            return (
-              <button
-                key={tab}
-                onClick={() => handleTabChange(tab)}
-                className={`px-8 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${isActive
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/10'
-                    : 'border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
-                  }`}
+        {/* Tab Filters and Quick Role Login Links */}
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-700 pb-3">
+          <div className="flex flex-wrap items-center gap-2 md:gap-3">
+            {(['All', 'Admin', 'Manager', 'BDM'] as const).map(tab => {
+              const isActive = activeTab === tab
+              return (
+                <button
+                  key={tab}
+                  onClick={() => handleTabChange(tab)}
+                  className={`px-8 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${isActive
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/10'
+                      : 'border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
+                    }`}
+                >
+                  {tab}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Quick role login links */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Portal Logins:</span>
+            {[
+              { label: 'Admin Login', role: 'Admin' },
+              { label: 'Manager Login', role: 'Manager' },
+              { label: 'BDM Login', role: 'BDM' },
+            ].map(item => (
+              <a
+                key={item.role}
+                href={getRoleLoginUrl(item.role)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200 dark:border-slate-700 text-xs font-semibold shadow-sm transition-all group cursor-pointer"
+                title={`Open ${item.label} (${getRoleLoginUrl(item.role)}) in new tab`}
               >
-                {tab}
-              </button>
-            )
-          })}
+                <span>{item.label}</span>
+                <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+              </a>
+            ))}
+          </div>
         </div>
 
         {/* Users Table List */}
@@ -394,7 +429,11 @@ function UserRoleContent() {
                             <FileText className="w-4 h-4" />
                           </button>
                         </td>
-                        <td className="py-4 px-6 font-semibold text-slate-700 dark:text-slate-300">{row.role}</td>
+                        <td className="py-4 px-6 font-semibold text-slate-700 dark:text-slate-300">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-700/60 text-slate-800 dark:text-slate-200">
+                            {row.role}
+                          </span>
+                        </td>
                         <td className="py-4 px-6 font-medium text-slate-500 dark:text-slate-400">{row.phone || '-'}</td>
                         <td className="py-4 px-6 font-medium text-slate-500 dark:text-slate-400">{row.email}</td>
                         <td className="py-4 px-6">

@@ -112,7 +112,7 @@ export default function AdminDashboardPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-6 max-w-7xl mx-auto animate-fade-in-up">
+      <div className="flex flex-col gap-6 w-full animate-fade-in-up">
         
         {/* Top Section */}
         <div className="flex flex-col xl:flex-row gap-6">
@@ -232,7 +232,7 @@ export default function AdminDashboardPage() {
               </div>
               <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-4 flex items-center justify-between border border-white/60 dark:border-white/10">
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Total Login Time</p>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Login Time</p>
                   <p className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 mt-1">{stats?.callLogin?.totalLoginTime ?? 0}</p>
                 </div>
                 <div className="w-11 h-11 rounded-xl bg-pink-100 dark:bg-pink-950/40 flex items-center justify-center">

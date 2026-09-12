@@ -5,7 +5,9 @@ import { Search, Paperclip, Send, Loader2, CheckCheck, Check } from 'lucide-reac
 import { toast } from 'sonner'
 
 interface Contact {
+  id?: string
   contact: string
+  name?: string
   type: string
   latest_message: string
   latest_timestamp: string | null
@@ -15,11 +17,14 @@ interface Contact {
 
 interface Message {
   id: string
+  sender_id?: string
+  receiver_id?: string
   sender: string
   receiver: string
   message: string
   is_read: boolean
   created_at: string
+  is_outgoing?: boolean
 }
 
 const formatMsgTime = (timestampStr: string | null) => {
@@ -61,10 +66,10 @@ const TYPE_BADGE_COLORS: Record<string, string> = {
   Distributor: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
 }
 
-const ContactAvatar = ({ name, type, size = '12' }: { name: string; type?: string; size?: string }) => {
+const ContactAvatar = ({ name, type, size = '10' }: { name: string; type?: string; size?: string }) => {
   const resolved = type || name
   const colors = CONTACT_TYPE_COLORS[resolved] || { bg: 'bg-slate-500', text: 'text-slate-50' }
-  const initials = name.substring(0, 2).toUpperCase()
+  const initials = (name || '?').substring(0, 2).toUpperCase()
 
   return (
     <div className={`w-${size} h-${size} rounded-full ${colors.bg} flex items-center justify-center font-bold text-xs shrink-0 border border-slate-100 dark:border-slate-700 shadow-sm`}>
@@ -75,8 +80,9 @@ const ContactAvatar = ({ name, type, size = '12' }: { name: string; type?: strin
 
 export default function AllConversationPage() {
   const [contacts, setContacts] = useState<Contact[]>([])
+  const [currentUserName, setCurrentUserName] = useState<string>('Super Admin')
   const [loadingContacts, setLoadingContacts] = useState(true)
-  const [activeContact, setActiveContact] = useState<string>('Manager')
+  const [activeContact, setActiveContact] = useState<string>('')
   const [messages, setMessages] = useState<Message[]>([])
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -97,18 +103,21 @@ export default function AllConversationPage() {
   // Load Contacts list
   const fetchContacts = useCallback(async (selectDefault = false) => {
     try {
-      const res = await fetch('/api/admin/conversation')
+      const res = await fetch('/api/admin/conversation?portal=admin')
       const data = await res.json()
       if (data.success) {
-        setContacts(data.data)
-        if (selectDefault && data.data.length > 0) {
-          // If manager is present, select it. Else choose first.
-          const hasManager = data.data.some((c: Contact) => c.contact === 'Manager')
-          if (hasManager) {
-            setActiveContact('Manager')
-          } else {
-            setActiveContact(data.data[0].contact)
-          }
+        const cUser = data.currentUser?.name || 'Super Admin'
+        setCurrentUserName(cUser)
+        // Ensure self is excluded
+        const validContacts = (data.data || []).filter((c: Contact) => 
+          c.contact.toLowerCase() !== cUser.toLowerCase()
+        )
+        setContacts(validContacts)
+        if (selectDefault && validContacts.length > 0) {
+          setActiveContact((prev) => {
+            if (prev && validContacts.some((c: Contact) => c.contact === prev)) return prev
+            return validContacts[0].contact
+          })
         }
       }
     } catch {
@@ -120,9 +129,10 @@ export default function AllConversationPage() {
 
   // Load Messages for active contact
   const fetchMessages = useCallback(async (contactName: string) => {
+    if (!contactName) return
     setLoadingMessages(true)
     try {
-      const res = await fetch(`/api/admin/conversation/${contactName}`)
+      const res = await fetch(`/api/admin/conversation/${encodeURIComponent(contactName)}?portal=admin`)
       const data = await res.json()
       if (data.success) {
         setMessages(data.data)
@@ -137,18 +147,22 @@ export default function AllConversationPage() {
 
   // Mark active messages as read
   const markAsRead = useCallback(async (contactName: string) => {
+    if (!contactName) return
     try {
-      await fetch(`/api/admin/conversation/${contactName}`, { method: 'PUT' })
-      // Refresh contacts to update unread badge counts
-      const res = await fetch('/api/admin/conversation')
+      await fetch(`/api/admin/conversation/${encodeURIComponent(contactName)}?portal=admin`, { method: 'PUT' })
+      const res = await fetch('/api/admin/conversation?portal=admin')
       const data = await res.json()
       if (data.success) {
-        setContacts(data.data)
+        const cUser = data.currentUser?.name || currentUserName
+        const validContacts = (data.data || []).filter((c: Contact) => 
+          c.contact.toLowerCase() !== cUser.toLowerCase()
+        )
+        setContacts(validContacts)
       }
     } catch (e) {
       console.error('Failed to mark read', e)
     }
-  }, [])
+  }, [currentUserName])
 
   // Trigger loads on mount
   useEffect(() => {
@@ -160,15 +174,16 @@ export default function AllConversationPage() {
     if (activeContact) {
       fetchMessages(activeContact)
       markAsRead(activeContact)
+    } else {
+      setMessages([])
     }
   }, [activeContact, fetchMessages, markAsRead])
 
-  // Periodic polling for new messages (e.g. simulated chat freshness)
+  // Periodic polling for new messages
   useEffect(() => {
     const interval = setInterval(() => {
       if (activeContact) {
-        // Refresh silently
-        fetch(`/api/admin/conversation/${activeContact}`)
+        fetch(`/api/admin/conversation/${encodeURIComponent(activeContact)}?portal=admin`)
           .then(r => r.json())
           .then(data => {
             if (data.success && data.data.length !== messages.length) {
@@ -176,45 +191,78 @@ export default function AllConversationPage() {
               setTimeout(scrollToBottom, 50)
             }
           })
+          .catch(() => {})
         
-        fetch('/api/admin/conversation')
+        fetch('/api/admin/conversation?portal=admin')
           .then(r => r.json())
           .then(data => {
             if (data.success) {
-              setContacts(data.data)
+              const cUser = data.currentUser?.name || currentUserName
+              const validContacts = (data.data || []).filter((c: Contact) => 
+                c.contact.toLowerCase() !== cUser.toLowerCase()
+              )
+              setContacts(validContacts)
             }
           })
+          .catch(() => {})
       }
     }, 4000)
     return () => clearInterval(interval)
-  }, [activeContact, messages.length])
+  }, [activeContact, currentUserName, messages.length])
+
+  // Filter contacts by search input and type filter (strictly exclude self)
+  const filteredContacts = contacts.filter(c => {
+    if (c.contact.toLowerCase() === currentUserName.toLowerCase()) return false
+    const matchSearch = c.contact.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.latest_message.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchType = typeFilter === 'All' || c.type === typeFilter
+    return matchSearch && matchType
+  })
+
+  // Handle filter change
+  const handleFilterChange = (tab: string) => {
+    setTypeFilter(tab)
+    const matching = contacts.filter(c => {
+      if (c.contact.toLowerCase() === currentUserName.toLowerCase()) return false
+      const matchSearch = c.contact.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.latest_message.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchType = tab === 'All' || c.type === tab
+      return matchSearch && matchType
+    })
+    if (matching.length > 0 && (!activeContact || !matching.some(c => c.contact === activeContact))) {
+      setActiveContact(matching[0].contact)
+    } else if (matching.length === 0) {
+      setActiveContact('')
+    }
+  }
 
   // Send message
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!inputMessage.trim() && !mockFile) return
+    if (!activeContact) return
 
     setSending(true)
     const currentMsgText = inputMessage.trim() || `[Attachment: ${mockFile}]`
     setInputMessage('')
     setMockFile('')
 
+    const activeContactObj = contacts.find(c => c.contact === activeContact)
+
     try {
-      const res = await fetch('/api/admin/conversation', {
+      const res = await fetch('/api/admin/conversation?portal=admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           receiver: activeContact,
+          receiver_id: activeContactObj?.id,
           message: currentMsgText
         })
       })
       const data = await res.json()
       if (data.success) {
-        // Optimistically append sent message
         setMessages(prev => [...prev, data.data])
         setTimeout(scrollToBottom, 50)
-        
-        // Refresh contacts list to update last message preview
         fetchContacts()
       } else {
         toast.error('Failed to send message')
@@ -235,21 +283,14 @@ export default function AllConversationPage() {
     }
   }
 
-  // Filter contacts by search input and type filter
   const activeContactObj = contacts.find(c => c.contact === activeContact)
-  const filteredContacts = contacts.filter(c => {
-    const matchSearch = c.contact.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.latest_message.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchType = typeFilter === 'All' || c.type === typeFilter
-    return matchSearch && matchType
-  })
 
   return (
     <>
-      <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full h-[calc(100vh-120px)]">
+      <div className="flex flex-col gap-6 w-full h-[calc(100vh-120px)]">
         {/* Title Header Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm shrink-0">
-          <h1 className="text-2xl font-bold text-slate-850 dark:text-slate-100 tracking-tight">All Conversation</h1>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">All Conversation</h1>
         </div>
 
         {/* Messaging Layout Panel */}
@@ -276,7 +317,7 @@ export default function AllConversationPage() {
               {['All', 'Admin', 'Manager', 'BDM', 'Institute', 'Distributor'].map(tab => (
                 <button
                   key={tab}
-                  onClick={() => setTypeFilter(tab)}
+                  onClick={() => handleFilterChange(tab)}
                   className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer border ${
                     typeFilter === tab
                       ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
@@ -311,7 +352,7 @@ export default function AllConversationPage() {
                   const isActive = activeContact === c.contact
                   return (
                     <button
-                      key={c.contact}
+                      key={c.id || c.contact}
                       onClick={() => setActiveContact(c.contact)}
                       className={`w-full flex items-start gap-3 p-3 rounded-xl transition-all text-left cursor-pointer border ${
                         isActive
@@ -345,7 +386,7 @@ export default function AllConversationPage() {
                           <span className="w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm shadow-indigo-500/25">
                             {c.unread_count}
                           </span>
-                        ) : c.latest_sender === 'Super Admin' ? (
+                        ) : c.latest_sender === currentUserName ? (
                           <CheckCheck className="w-3.5 h-3.5 text-indigo-500" />
                         ) : (
                           c.latest_message && <Check className="w-3.5 h-3.5 text-slate-400" />
@@ -360,13 +401,13 @@ export default function AllConversationPage() {
 
           {/* Right chat logs pane (2/3 width) */}
           <div className="flex-1 flex flex-col min-h-0 bg-[#F8FAFC] dark:bg-slate-900/40">
-            {activeContact ? (
+            {activeContact && activeContactObj ? (
               <>
                 {/* Active contact header */}
                 <div className="px-6 py-4 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3 shrink-0">
                   <ContactAvatar name={activeContact} type={activeContactObj?.type} size="10" />
                   <div>
-                    <h3 className="font-bold text-slate-850 dark:text-slate-100 text-base leading-tight tracking-tight">
+                    <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base leading-tight tracking-tight">
                       {activeContact}
                     </h3>
                     <div className="flex items-center gap-2 mt-0.5">
@@ -393,7 +434,9 @@ export default function AllConversationPage() {
                     </div>
                   ) : (
                     messages.map((msg, index) => {
-                      const isOutgoing = msg.sender === 'Super Admin'
+                      const isOutgoing = msg.is_outgoing !== undefined 
+                        ? msg.is_outgoing 
+                        : (msg.sender === currentUserName || msg.sender === 'Super Admin')
                       return (
                         <div
                           key={msg.id || index}

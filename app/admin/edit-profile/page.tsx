@@ -164,7 +164,7 @@ export default function EditProfilePage() {
 
   return (
     <>
-      <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto">
+      <div className="flex flex-col gap-6 p-6 w-full">
         
         {/* Header Title Card */}
         <div className="bg-white dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">

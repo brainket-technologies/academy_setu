@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { 
-  LayoutDashboard, Users, FileText, MessagesSquare, 
+  LayoutDashboard, Users, UserCheck, FileText, MessagesSquare, 
   Edit, LogOut, ChevronDown, X
 } from 'lucide-react'
 
@@ -44,13 +44,10 @@ export function BdmSidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: ()
   const allMenuItems: MenuItem[] = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/bdm/dashboard' },
     { 
-      icon: Users, label: 'Lead', href: '/bdm/lead', requiredPermission: 'Lead Permission'
+      icon: UserCheck, label: 'CRM', href: '/bdm/crm/leads', requiredPermission: 'Lead Permission'
     },
     { 
-      icon: FileText, label: 'Application', href: '#', requiredPermission: 'Application Permission',
-      subItems: [
-        { label: 'All Application', href: '/bdm/application' },
-      ]
+      icon: FileText, label: 'Application', href: '/bdm/application', requiredPermission: 'Application Permission'
     },
     { icon: MessagesSquare, label: 'All Conversation', href: '/bdm/conversation', requiredPermission: 'Conversation Permission' },
     { icon: Edit, label: 'Edit Profile', href: '/bdm/edit-profile' },

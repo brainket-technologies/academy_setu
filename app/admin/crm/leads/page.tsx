@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Search, Edit3, Trash2, Calendar, Clock, Loader2, 
   ChevronLeft, ChevronRight, Share2, Upload, AlertCircle, Users, Activity, X,
-  Download, FileUp, Save, Check
+  Download, FileUp, Save, Check, ArrowRightLeft
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
@@ -86,6 +86,13 @@ export default function AllLeadsPage() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
   const [selectedAssignee, setSelectedAssignee] = useState('')
   const [isAssigning, setIsAssigning] = useState(false)
+
+  // Transfer Lead states
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false)
+  const [transferLead, setTransferLead] = useState<Lead | null>(null)
+  const [transferTargetUser, setTransferTargetUser] = useState('')
+  const [transferReason, setTransferReason] = useState('')
+  const [isTransferring, setIsTransferring] = useState(false)
 
   // Search & Filter
   const [searchText, setSearchText] = useState('')
@@ -228,6 +235,50 @@ export default function AllLeadsPage() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     fetchLeads(1, searchText, filterSource, filterStatus, filterAssignedTo)
+  }
+
+  const handleOpenTransferModal = (lead: Lead) => {
+    setTransferLead(lead)
+    setTransferTargetUser('')
+    setTransferReason('')
+    setIsTransferModalOpen(true)
+    fetchAssignableUsers()
+  }
+
+  const handleTransferSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!transferLead) return
+    if (!transferTargetUser) {
+      toast.error('Please select a staff member (BDM or Manager) to transfer the lead to')
+      return
+    }
+
+    setIsTransferring(true)
+    try {
+      const res = await fetch(`/api/admin/crm/leads/${transferLead.id}/transfer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target_user_id: transferTargetUser,
+          reason: transferReason
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(data.message || 'Lead transferred successfully!')
+        setIsTransferModalOpen(false)
+        setTransferLead(null)
+        setTransferTargetUser('')
+        setTransferReason('')
+        fetchLeads(currentPage, searchText, filterSource, filterStatus, filterAssignedTo)
+      } else {
+        toast.error(data.error || 'Failed to transfer lead')
+      }
+    } catch {
+      toast.error('Something went wrong during lead transfer')
+    } finally {
+      setIsTransferring(false)
+    }
   }
 
   // Handle staff assignment inline update
@@ -1067,6 +1118,7 @@ export default function AllLeadsPage() {
                     const followUpFormatted = hist.follow_up_date
                       ? new Date(hist.follow_up_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
                       : null
+                    const isTransfer = Boolean(hist.remarks?.startsWith('🔄') || hist.remarks?.toLowerCase().includes('transferred'))
 
                     return (
                       <div key={hist.id} className="relative flex gap-5 pb-6 last:pb-0">
@@ -1074,23 +1126,35 @@ export default function AllLeadsPage() {
                         <div className="relative z-10 flex-shrink-0">
                           <div
                             className="w-5 h-5 mt-1 rounded-full border-2 border-white dark:border-slate-800 shadow-md flex items-center justify-center"
-                            style={{ backgroundColor: matchedHistStatus?.text_color || '#94a3b8' }}
+                            style={{ backgroundColor: isTransfer ? '#8b5cf6' : (matchedHistStatus?.text_color || '#94a3b8') }}
                           >
-                            <div className="w-1.5 h-1.5 rounded-full bg-white/80" />
+                            {isTransfer ? (
+                              <ArrowRightLeft className="w-2.5 h-2.5 text-white" />
+                            ) : (
+                              <div className="w-1.5 h-1.5 rounded-full bg-white/80" />
+                            )}
                           </div>
                         </div>
 
                         {/* Log card */}
-                        <div className="flex-1 bg-slate-50 dark:bg-slate-700/40 rounded-xl border border-slate-100 dark:border-slate-700 p-4 hover:shadow-sm transition-shadow">
+                        <div className={`flex-1 rounded-xl border p-4 hover:shadow-sm transition-shadow ${
+                          isTransfer 
+                            ? 'bg-purple-50/60 dark:bg-purple-950/20 border-purple-200/80 dark:border-purple-800/80 shadow-xs' 
+                            : 'bg-slate-50 dark:bg-slate-700/40 border-slate-100 dark:border-slate-700'
+                        }`}>
                           {/* Header row: status + date */}
                           <div className="flex items-start justify-between gap-3 mb-3">
                             <div className="flex items-center gap-2 flex-wrap">
                               {renderStatusBadge(histStatus)}
-                              {hist.communication_option && (
+                              {isTransfer ? (
+                                <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded-lg text-[10px] font-extrabold uppercase tracking-wider border border-purple-200 dark:border-purple-700 flex items-center gap-1">
+                                  <ArrowRightLeft className="w-3 h-3" /> Transferred
+                                </span>
+                              ) : hist.communication_option ? (
                                 <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-indigo-100 dark:border-indigo-800">
                                   {hist.communication_option}
                                 </span>
-                              )}
+                              ) : null}
                               {hist.communication_option === 'Call' && hist.call_duration && (
                                 <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
                                   ⏱ {hist.call_duration}
@@ -1111,7 +1175,7 @@ export default function AllLeadsPage() {
 
                           {/* Remarks */}
                           {hist.remarks && (
-                            <p className="text-sm text-slate-700 dark:text-slate-200 font-medium leading-relaxed mb-3">
+                            <p className={`text-sm font-medium leading-relaxed mb-3 ${isTransfer ? 'text-purple-900 dark:text-purple-200 font-semibold' : 'text-slate-700 dark:text-slate-200'}`}>
                               {hist.remarks}
                             </p>
                           )}
@@ -1297,18 +1361,18 @@ export default function AllLeadsPage() {
                                 <Edit3 className="w-3.5 h-3.5" />
                               </button>
                               <button
+                                onClick={() => handleOpenTransferModal(l)}
+                                className="w-7 h-7 flex items-center justify-center bg-purple-50/80 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-950/50 text-purple-600 dark:text-purple-400 rounded-lg transition-colors cursor-pointer"
+                                title="Transfer Lead to BDM / Manager"
+                              >
+                                <ArrowRightLeft className="w-3.5 h-3.5" />
+                              </button>
+                              <button
                                 onClick={() => handleOpenLogsModal(l)}
                                 className="w-7 h-7 flex items-center justify-center bg-emerald-50/80 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-lg transition-colors cursor-pointer"
                                 title="View Lead Logs"
                               >
                                 <Activity className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteClick(l.id)}
-                                className="w-7 h-7 flex items-center justify-center bg-red-50/80 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 text-red-550 dark:text-red-400 rounded-lg transition-colors cursor-pointer"
-                                title="Delete Lead"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </td>
@@ -1430,18 +1494,18 @@ export default function AllLeadsPage() {
                             <Edit3 className="w-4 h-4" />
                           </button>
                           <button
+                            onClick={() => handleOpenTransferModal(l)}
+                            className="p-1.5 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-purple-600 dark:text-purple-400 rounded-lg transition-colors cursor-pointer"
+                            title="Transfer Lead to BDM / Manager"
+                          >
+                            <ArrowRightLeft className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => handleOpenLogsModal(l)}
                             className="p-1.5 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-lg transition-colors cursor-pointer"
                             title="View Lead Logs"
                           >
                             <Activity className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteClick(l.id)}
-                            className="p-1.5 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-500 dark:text-red-400 rounded-lg transition-colors cursor-pointer"
-                            title="Delete Lead"
-                          >
-                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
@@ -1783,23 +1847,34 @@ export default function AllLeadsPage() {
                       const followUpFormatted = hist.follow_up_date
                         ? new Date(hist.follow_up_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
                         : null
+                      const isTransfer = Boolean(hist.remarks?.startsWith('🔄') || hist.remarks?.toLowerCase().includes('transferred'))
                       return (
                         <div key={hist.id} className="relative flex gap-4 pb-4 last:pb-0">
                           <div className="relative z-10 flex-shrink-0 mt-1">
                             <div
-                              className="w-[18px] h-[18px] rounded-full border-2 border-white dark:border-slate-800 shadow-md"
-                              style={{ backgroundColor: matchedStatus?.text_color || '#94a3b8' }}
-                            />
+                              className="w-[18px] h-[18px] rounded-full border-2 border-white dark:border-slate-800 shadow-md flex items-center justify-center"
+                              style={{ backgroundColor: isTransfer ? '#8b5cf6' : (matchedStatus?.text_color || '#94a3b8') }}
+                            >
+                              {isTransfer ? <ArrowRightLeft className="w-2.5 h-2.5 text-white" /> : null}
+                            </div>
                           </div>
-                          <div className="flex-1 bg-slate-50 dark:bg-slate-700/40 rounded-xl border border-slate-100 dark:border-slate-700 p-3">
+                          <div className={`flex-1 rounded-xl border p-3 ${
+                            isTransfer 
+                              ? 'bg-purple-50/60 dark:bg-purple-950/20 border-purple-200/80 dark:border-purple-800/80' 
+                              : 'bg-slate-50 dark:bg-slate-700/40 border-slate-100 dark:border-slate-700'
+                          }`}>
                             <div className="flex items-start justify-between gap-2 mb-1.5">
                               <div className="flex items-center gap-2 flex-wrap">
                                 {renderStatusBadge(histStatus)}
-                                {hist.communication_option && (
+                                {isTransfer ? (
+                                  <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded-lg text-[9px] font-extrabold uppercase border border-purple-200 dark:border-purple-700 flex items-center gap-1">
+                                    <ArrowRightLeft className="w-2.5 h-2.5" /> Transfer
+                                  </span>
+                                ) : hist.communication_option ? (
                                   <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px] font-bold uppercase border border-indigo-100 dark:border-indigo-800">
                                     {hist.communication_option}
                                   </span>
-                                )}
+                                ) : null}
                                 {hist.communication_option === 'Call' && hist.call_duration && (
                                   <span className="text-[10px] text-slate-500 font-semibold">⏱ {hist.call_duration}</span>
                                 )}
@@ -1810,7 +1885,9 @@ export default function AllLeadsPage() {
                               </div>
                             </div>
                             {hist.remarks && (
-                              <p className="text-xs text-slate-700 dark:text-slate-200 font-medium leading-relaxed">{hist.remarks}</p>
+                              <p className={`text-xs font-medium leading-relaxed ${isTransfer ? 'text-purple-900 dark:text-purple-200 font-semibold' : 'text-slate-700 dark:text-slate-200'}`}>
+                                {hist.remarks}
+                              </p>
                             )}
                             {followUpFormatted && (
                               <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-200 dark:border-slate-600">
@@ -1830,15 +1907,112 @@ export default function AllLeadsPage() {
         </div>
       )}
 
-      {/* Delete Lead confirmation */}
-      <DeleteConfirmationModal
-        isOpen={deleteTargetId !== null}
-        onClose={() => setDeleteTargetId(null)}
-        onConfirm={handleConfirmDelete}
-        loading={deleteLoading}
-        title="Delete Lead"
-        description="Are you sure you want to delete this lead? This action cannot be undone."
-      />
+      {/* Transfer Lead Modal */}
+      {isTransferModalOpen && transferLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-purple-50/50 dark:bg-purple-950/20">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                  <ArrowRightLeft className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  Transfer Lead
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Transfer lead ownership to a BDM or Manager
+                </p>
+              </div>
+              <button
+                onClick={() => { setIsTransferModalOpen(false); setTransferLead(null); }}
+                className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors text-slate-500 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <form onSubmit={handleTransferSubmit} className="p-6 flex flex-col gap-5">
+              {/* Lead Summary */}
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-700/40 rounded-xl border border-slate-200/60 dark:border-slate-600/60 flex flex-col gap-1.5 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-slate-700 dark:text-slate-200 text-sm">{transferLead.school_name}</span>
+                  {renderStatusBadge(transferLead.status)}
+                </div>
+                <div className="flex items-center gap-4 text-slate-500 dark:text-slate-400">
+                  <span>📱 {transferLead.mobile_no}</span>
+                  {transferLead.contact_person && <span>👤 {transferLead.contact_person}</span>}
+                </div>
+                {transferLead.assigned_user_name && (
+                  <div className="text-[11px] text-purple-600 dark:text-purple-400 font-semibold mt-1">
+                    Currently Assigned: {transferLead.assigned_user_name} ({transferLead.assigned_user_role || 'Staff'})
+                  </div>
+                )}
+              </div>
+
+              {/* Target Staff Selection */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-0.5">
+                  Transfer To (BDM / Manager)<span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={transferTargetUser}
+                  onChange={(e) => setTransferTargetUser(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-slate-800 dark:text-slate-200 font-semibold"
+                  required
+                >
+                  <option value="">Select BDM or Manager</option>
+                  {assignableUsers.map(staff => (
+                    <option key={staff.id} value={staff.id}>
+                      {staff.name} — {staff.role} ({staff.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Reason / Handover Note */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                  Transfer Reason / Handover Note (Optional)
+                </label>
+                <textarea
+                  rows={3}
+                  value={transferReason}
+                  onChange={(e) => setTransferReason(e.target.value)}
+                  placeholder="e.g. Territory reassignment, BDM on leave, higher authority escalation..."
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-slate-800 dark:text-slate-200 resize-none"
+                />
+              </div>
+
+              {/* Info alert */}
+              <div className="flex items-start gap-2.5 p-3 bg-purple-50/60 dark:bg-purple-950/30 rounded-xl border border-purple-100 dark:border-purple-900 text-xs text-purple-800 dark:text-purple-300">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-purple-600 dark:text-purple-400" />
+                <span>
+                  All previous conversation logs, remarks, and follow-up history are preserved and will be visible to the new assignee and administrators.
+                </span>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setIsTransferModalOpen(false); setTransferLead(null); }}
+                  className="px-5 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isTransferring || !transferTargetUser}
+                  className="px-6 py-2.5 text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-xl shadow-md flex items-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {isTransferring ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightLeft className="w-4 h-4" />}
+                  {isTransferring ? 'Transferring...' : 'Confirm Transfer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Bulk Assign Modal */}
       {isAssignModalOpen && (
@@ -1975,25 +2149,36 @@ export default function AllLeadsPage() {
                     const followUpFormatted = hist.follow_up_date
                       ? new Date(hist.follow_up_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
                       : null
+                    const isTransfer = Boolean(hist.remarks?.startsWith('🔄') || hist.remarks?.toLowerCase().includes('transferred'))
                     return (
                       <div key={hist.id} className="relative flex gap-4 pb-5 last:pb-0">
                         {/* Dot */}
                         <div className="relative z-10 flex-shrink-0 mt-1">
                           <div
-                            className="w-[18px] h-[18px] rounded-full border-2 border-white dark:border-slate-800 shadow-md"
-                            style={{ backgroundColor: matchedStatus?.text_color || '#94a3b8' }}
-                          />
+                            className="w-[18px] h-[18px] rounded-full border-2 border-white dark:border-slate-800 shadow-md flex items-center justify-center"
+                            style={{ backgroundColor: isTransfer ? '#8b5cf6' : (matchedStatus?.text_color || '#94a3b8') }}
+                          >
+                            {isTransfer ? <ArrowRightLeft className="w-2.5 h-2.5 text-white" /> : null}
+                          </div>
                         </div>
                         {/* Card */}
-                        <div className="flex-1 bg-slate-50 dark:bg-slate-700/40 rounded-xl border border-slate-100 dark:border-slate-700 p-4">
+                        <div className={`flex-1 rounded-xl border p-4 ${
+                          isTransfer 
+                            ? 'bg-purple-50/60 dark:bg-purple-950/20 border-purple-200/80 dark:border-purple-800/80 shadow-xs' 
+                            : 'bg-slate-50 dark:bg-slate-700/40 border-slate-100 dark:border-slate-700'
+                        }`}>
                           <div className="flex items-start justify-between gap-3 mb-2">
                             <div className="flex items-center gap-2 flex-wrap">
                               {renderStatusBadge(histStatus)}
-                              {hist.communication_option && (
+                              {isTransfer ? (
+                                <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded-lg text-[10px] font-extrabold uppercase border border-purple-200 dark:border-purple-700 flex items-center gap-1">
+                                  <ArrowRightLeft className="w-3 h-3" /> Transferred
+                                </span>
+                              ) : hist.communication_option ? (
                                 <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px] font-bold uppercase border border-indigo-100 dark:border-indigo-800">
                                   {hist.communication_option}
                                 </span>
-                              )}
+                              ) : null}
                               {hist.communication_option === 'Call' && hist.call_duration && (
                                 <span className="text-[10px] text-slate-500 font-semibold">⏱ {hist.call_duration}</span>
                               )}
@@ -2004,7 +2189,9 @@ export default function AllLeadsPage() {
                             </div>
                           </div>
                           {hist.remarks && (
-                            <p className="text-sm text-slate-700 dark:text-slate-200 font-medium leading-relaxed">{hist.remarks}</p>
+                            <p className={`text-sm font-medium leading-relaxed ${isTransfer ? 'text-purple-900 dark:text-purple-200 font-semibold' : 'text-slate-700 dark:text-slate-200'}`}>
+                              {hist.remarks}
+                            </p>
                           )}
                           {followUpFormatted && (
                             <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-200 dark:border-slate-600">

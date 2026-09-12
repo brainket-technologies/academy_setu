@@ -1083,14 +1083,6 @@ export default function ApplicationPage() {
                             >
                               <Edit3 className="w-4 h-4" />
                             </button>
-
-                            <button
-                              onClick={() => handleDeleteApplication(app.id)}
-                              className="p-1.5 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/40 dark:text-red-400 rounded-lg transition-colors cursor-pointer"
-                              title="Delete Application"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
                           </div>
                         </td>
 
@@ -2403,15 +2395,6 @@ export default function ApplicationPage() {
           </div>
         </div>
       )}
-
-      <DeleteConfirmationModal
-        isOpen={deleteTargetId !== null}
-        onClose={() => setDeleteTargetId(null)}
-        onConfirm={handleConfirmDelete}
-        loading={deleteLoading}
-        title="Delete Application"
-        description="Are you sure you want to delete this application? This action cannot be undone."
-      />
     </>
   )
 }

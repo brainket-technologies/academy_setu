@@ -49,7 +49,7 @@ export async function GET(request: Request) {
         COUNT(CASE WHEN a.status IN ('Applied', 'Requested') THEN 1 END)::int as new
       FROM applications a
       LEFT JOIN institutions i ON a.institution_id = i.id
-      ${userRole === 'Manager' || userRole === 'BDM' ? `WHERE i.assigned_to = '${userId}' OR a.created_by = '${userId}'` : ''}
+      ${userRole === 'BDM' ? `WHERE i.assigned_to = '${userId}' OR a.created_by = '${userId}'` : ''}
     `)
     const { total, new: newCount } = countsResult.rows[0]
 
@@ -61,10 +61,10 @@ export async function GET(request: Request) {
         i.assigned_to, u.name as assigned_user_name, u.role as assigned_user_role,
         p.plan_name,
         COALESCE(a.amount, b.amount, (
-          SELECT COALESCE(SUM(pbi.price + pbi.tax_price), 2000) 
+          SELECT SUM(pbi.price + pbi.tax_price) 
           FROM plan_billing_items pbi 
           WHERE pbi.plan_id = p.id AND pbi.billing_type = 'first'
-        ), 2000) as amount
+        )) as amount
       FROM applications a
       LEFT JOIN institutions i ON a.institution_id = i.id
       LEFT JOIN admins u ON i.assigned_to = u.id
@@ -74,7 +74,7 @@ export async function GET(request: Request) {
     const values: any[] = []
     const conditions: string[] = []
 
-    if (userRole === 'Manager' || userRole === 'BDM') {
+    if (userRole === 'BDM') {
       conditions.push(`(i.assigned_to = $${values.length + 1} OR a.created_by = $${values.length + 1})`)
       values.push(userId)
     }
@@ -150,8 +150,12 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const session = await getSession()
+    const bdmS = await getSession('bdm_session')
+    const mgrS = await getSession('manager_session')
+    const admS = await getSession('admin_session')
+    const session = bdmS || mgrS || admS
     const userId = session?.userId
+    const userRole = session?.role || (admS ? 'Admin' : (bdmS ? 'BDM' : (mgrS ? 'Manager' : 'User')))
 
     const body = await request.json()
     const { 
@@ -166,6 +170,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'All required fields are missing.' }, { status: 400 })
     }
 
+    // Auto-assign to BDM if created by BDM (or if assigned_to is specified)
+    let assignedTo = body.assigned_to || null
+    if (userRole === 'BDM' || bdmS) {
+      assignedTo = userId
+    }
+
     // 1. Create or update institution first
     const instResult = await pool.query(
       `INSERT INTO institutions (
@@ -173,14 +183,15 @@ export async function POST(request: Request) {
         contact_person, mobile_no, email_id, address, state, district, pincode,
         principal_name, principal_gender, principal_sign, principal_photo,
         director_name, director_gender, director_sign, director_photo,
-        status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, 'Pending')
+        status, assigned_to
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, 'Pending', $20)
        RETURNING id`,
       [
         school_name, school_code || '', affiliated_to || '', affiliation_code || '',
         contact_person, mobile_no, email_id || '', address, state, district, pincode,
         principal_name || '', principal_gender || 'Male', principal_sign || '', principal_photo || '',
-        director_name || '', director_gender || 'Male', director_sign || '', director_photo || ''
+        director_name || '', director_gender || 'Male', director_sign || '', director_photo || '',
+        assignedTo
       ]
     )
     const institutionId = instResult.rows[0].id

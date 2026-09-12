@@ -5,7 +5,10 @@ import { Search, Paperclip, Send, Loader2, CheckCheck, Check } from 'lucide-reac
 import { toast } from 'sonner'
 
 interface Contact {
+  id?: string
   contact: string
+  name?: string
+  type: string
   latest_message: string
   latest_timestamp: string | null
   unread_count: number
@@ -14,11 +17,14 @@ interface Contact {
 
 interface Message {
   id: string
+  sender_id?: string
+  receiver_id?: string
   sender: string
   receiver: string
   message: string
   is_read: boolean
   created_at: string
+  is_outgoing?: boolean
 }
 
 const formatMsgTime = (timestampStr: string | null) => {
@@ -44,37 +50,43 @@ const formatMsgTime = (timestampStr: string | null) => {
   }
 }
 
-// Custom decorative SVG Avatar icons matching Manager, BDM, Admin styles
-const ContactAvatar = ({ name, size = '12' }: { name: string; size?: string }) => {
-  let bgColor = 'bg-blue-600'
-  let textColor = 'text-blue-100'
-  let initials = name.substring(0, 2).toUpperCase()
+const CONTACT_TYPE_COLORS: Record<string, { bg: string; text: string }> = {
+  Admin: { bg: 'bg-purple-600', text: 'text-purple-50' },
+  Manager: { bg: 'bg-indigo-500', text: 'text-indigo-50' },
+  BDM: { bg: 'bg-blue-600', text: 'text-blue-50' },
+  Institute: { bg: 'bg-emerald-600', text: 'text-emerald-50' },
+  Distributor: { bg: 'bg-orange-500', text: 'text-orange-50' },
+}
 
-  if (name === 'Manager') {
-    bgColor = 'bg-blue-500'
-    textColor = 'text-blue-50'
-  } else if (name === 'BDM') {
-    bgColor = 'bg-blue-600'
-    textColor = 'text-blue-50'
-  } else if (name === 'Admin') {
-    bgColor = 'bg-purple-600'
-    textColor = 'text-purple-50'
-  }
+const TYPE_BADGE_COLORS: Record<string, string> = {
+  Admin: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300',
+  Manager: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300',
+  BDM: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+  Institute: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300',
+  Distributor: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
+}
+
+const ContactAvatar = ({ name, type, size = '10' }: { name: string; type?: string; size?: string }) => {
+  const resolved = type || name
+  const colors = CONTACT_TYPE_COLORS[resolved] || { bg: 'bg-slate-500', text: 'text-slate-50' }
+  const initials = (name || '?').substring(0, 2).toUpperCase()
 
   return (
-    <div className={`w-${size} h-${size} rounded-full ${bgColor} flex items-center justify-center font-bold text-xs shrink-0 border border-slate-100 dark:border-slate-700 shadow-sm`}>
-      <span className={textColor}>{initials}</span>
+    <div className={`w-${size} h-${size} rounded-full ${colors.bg} flex items-center justify-center font-bold text-xs shrink-0 border border-slate-100 dark:border-slate-700 shadow-sm`}>
+      <span className={colors.text}>{initials}</span>
     </div>
   )
 }
 
-export default function AllConversationPage() {
+export default function ManagerConversationPage() {
   const [contacts, setContacts] = useState<Contact[]>([])
+  const [currentUserName, setCurrentUserName] = useState<string>('Manager')
   const [loadingContacts, setLoadingContacts] = useState(true)
-  const [activeContact, setActiveContact] = useState<string>('Manager')
+  const [activeContact, setActiveContact] = useState<string>('')
   const [messages, setMessages] = useState<Message[]>([])
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [typeFilter, setTypeFilter] = useState<string>('All')
   
   // Message input
   const [inputMessage, setInputMessage] = useState('')
@@ -91,18 +103,20 @@ export default function AllConversationPage() {
   // Load Contacts list
   const fetchContacts = useCallback(async (selectDefault = false) => {
     try {
-      const res = await fetch('/api/admin/conversation')
+      const res = await fetch('/api/admin/conversation?portal=manager')
       const data = await res.json()
       if (data.success) {
-        setContacts(data.data)
-        if (selectDefault && data.data.length > 0) {
-          // If manager is present, select it. Else choose first.
-          const hasManager = data.data.some((c: Contact) => c.contact === 'Manager')
-          if (hasManager) {
-            setActiveContact('Manager')
-          } else {
-            setActiveContact(data.data[0].contact)
-          }
+        const cUser = data.currentUser?.name || 'Manager'
+        setCurrentUserName(cUser)
+        const validContacts = (data.data || []).filter((c: Contact) => 
+          c.contact.toLowerCase() !== cUser.toLowerCase()
+        )
+        setContacts(validContacts)
+        if (selectDefault && validContacts.length > 0) {
+          setActiveContact((prev) => {
+            if (prev && validContacts.some((c: Contact) => c.contact === prev)) return prev
+            return validContacts[0].contact
+          })
         }
       }
     } catch {
@@ -114,9 +128,10 @@ export default function AllConversationPage() {
 
   // Load Messages for active contact
   const fetchMessages = useCallback(async (contactName: string) => {
+    if (!contactName) return
     setLoadingMessages(true)
     try {
-      const res = await fetch(`/api/admin/conversation/${contactName}`)
+      const res = await fetch(`/api/admin/conversation/${encodeURIComponent(contactName)}?portal=manager`)
       const data = await res.json()
       if (data.success) {
         setMessages(data.data)
@@ -131,18 +146,22 @@ export default function AllConversationPage() {
 
   // Mark active messages as read
   const markAsRead = useCallback(async (contactName: string) => {
+    if (!contactName) return
     try {
-      await fetch(`/api/admin/conversation/${contactName}`, { method: 'PUT' })
-      // Refresh contacts to update unread badge counts
-      const res = await fetch('/api/admin/conversation')
+      await fetch(`/api/admin/conversation/${encodeURIComponent(contactName)}?portal=manager`, { method: 'PUT' })
+      const res = await fetch('/api/admin/conversation?portal=manager')
       const data = await res.json()
       if (data.success) {
-        setContacts(data.data)
+        const cUser = data.currentUser?.name || currentUserName
+        const validContacts = (data.data || []).filter((c: Contact) => 
+          c.contact.toLowerCase() !== cUser.toLowerCase()
+        )
+        setContacts(validContacts)
       }
     } catch (e) {
       console.error('Failed to mark read', e)
     }
-  }, [])
+  }, [currentUserName])
 
   // Trigger loads on mount
   useEffect(() => {
@@ -154,15 +173,16 @@ export default function AllConversationPage() {
     if (activeContact) {
       fetchMessages(activeContact)
       markAsRead(activeContact)
+    } else {
+      setMessages([])
     }
   }, [activeContact, fetchMessages, markAsRead])
 
-  // Periodic polling for new messages (e.g. simulated chat freshness)
+  // Periodic polling for new messages
   useEffect(() => {
     const interval = setInterval(() => {
       if (activeContact) {
-        // Refresh silently
-        fetch(`/api/admin/conversation/${activeContact}`)
+        fetch(`/api/admin/conversation/${encodeURIComponent(activeContact)}?portal=manager`)
           .then(r => r.json())
           .then(data => {
             if (data.success && data.data.length !== messages.length) {
@@ -170,45 +190,78 @@ export default function AllConversationPage() {
               setTimeout(scrollToBottom, 50)
             }
           })
+          .catch(() => {})
         
-        fetch('/api/admin/conversation')
+        fetch('/api/admin/conversation?portal=manager')
           .then(r => r.json())
           .then(data => {
             if (data.success) {
-              setContacts(data.data)
+              const cUser = data.currentUser?.name || currentUserName
+              const validContacts = (data.data || []).filter((c: Contact) => 
+                c.contact.toLowerCase() !== cUser.toLowerCase()
+              )
+              setContacts(validContacts)
             }
           })
+          .catch(() => {})
       }
     }, 4000)
     return () => clearInterval(interval)
-  }, [activeContact, messages.length])
+  }, [activeContact, currentUserName, messages.length])
+
+  // Filter contacts by search input and type filter (strictly exclude self)
+  const filteredContacts = contacts.filter(c => {
+    if (c.contact.toLowerCase() === currentUserName.toLowerCase()) return false
+    const matchSearch = c.contact.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.latest_message.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchType = typeFilter === 'All' || c.type === typeFilter
+    return matchSearch && matchType
+  })
+
+  // Handle filter change
+  const handleFilterChange = (tab: string) => {
+    setTypeFilter(tab)
+    const matching = contacts.filter(c => {
+      if (c.contact.toLowerCase() === currentUserName.toLowerCase()) return false
+      const matchSearch = c.contact.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.latest_message.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchType = tab === 'All' || c.type === tab
+      return matchSearch && matchType
+    })
+    if (matching.length > 0 && (!activeContact || !matching.some(c => c.contact === activeContact))) {
+      setActiveContact(matching[0].contact)
+    } else if (matching.length === 0) {
+      setActiveContact('')
+    }
+  }
 
   // Send message
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!inputMessage.trim() && !mockFile) return
+    if (!activeContact) return
 
     setSending(true)
     const currentMsgText = inputMessage.trim() || `[Attachment: ${mockFile}]`
     setInputMessage('')
     setMockFile('')
 
+    const activeContactObj = contacts.find(c => c.contact === activeContact)
+
     try {
-      const res = await fetch('/api/admin/conversation', {
+      const res = await fetch('/api/admin/conversation?portal=manager', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           receiver: activeContact,
+          receiver_id: activeContactObj?.id,
           message: currentMsgText
         })
       })
       const data = await res.json()
       if (data.success) {
-        // Optimistically append sent message
         setMessages(prev => [...prev, data.data])
         setTimeout(scrollToBottom, 50)
-        
-        // Refresh contacts list to update last message preview
         fetchContacts()
       } else {
         toast.error('Failed to send message')
@@ -229,18 +282,14 @@ export default function AllConversationPage() {
     }
   }
 
-  // Filter contacts by search input
-  const filteredContacts = contacts.filter(c => 
-    c.contact.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.latest_message.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const activeContactObj = contacts.find(c => c.contact === activeContact)
 
   return (
     <>
-      <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full h-[calc(100vh-120px)]">
+      <div className="flex flex-col gap-6 w-full h-[calc(100vh-120px)]">
         {/* Title Header Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm shrink-0">
-          <h1 className="text-2xl font-bold text-slate-850 dark:text-slate-100 tracking-tight">All Conversation</h1>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">All Conversation</h1>
         </div>
 
         {/* Messaging Layout Panel */}
@@ -257,21 +306,40 @@ export default function AllConversationPage() {
                   placeholder="Search"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm"
+                  className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm"
                 />
               </div>
             </div>
 
+            {/* Type Filter Tabs */}
+            <div className="px-3 pb-3 shrink-0 flex gap-1.5 flex-wrap border-b border-slate-100 dark:border-slate-700">
+              {['All', 'Admin', 'Manager', 'BDM', 'Institute', 'Distributor'].map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => handleFilterChange(tab)}
+                  className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer border ${
+                    typeFilter === tab
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                      : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-600 hover:border-indigo-400'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
             {/* People title */}
             <div className="px-5 py-3 border-b border-slate-50 dark:border-slate-700/50 shrink-0">
-              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 tracking-tight">People</h2>
+              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 tracking-tight">
+                People <span className="text-slate-400 font-normal text-xs">({filteredContacts.length})</span>
+              </h2>
             </div>
 
             {/* Scrollable list */}
             <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
               {loadingContacts ? (
                 <div className="py-12 text-center text-slate-400">
-                  <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-blue-600" />
+                  <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-600" />
                   <span className="text-xs font-semibold">Loading conversations...</span>
                 </div>
               ) : filteredContacts.length === 0 ? (
@@ -283,7 +351,7 @@ export default function AllConversationPage() {
                   const isActive = activeContact === c.contact
                   return (
                     <button
-                      key={c.contact}
+                      key={c.id || c.contact}
                       onClick={() => setActiveContact(c.contact)}
                       className={`w-full flex items-start gap-3 p-3 rounded-xl transition-all text-left cursor-pointer border ${
                         isActive
@@ -291,7 +359,7 @@ export default function AllConversationPage() {
                           : 'bg-transparent border-transparent hover:bg-slate-100/40 dark:hover:bg-slate-800/40'
                       }`}
                     >
-                      <ContactAvatar name={c.contact} size="10" />
+                      <ContactAvatar name={c.contact} type={c.type} size="10" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1 mb-0.5">
                           <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm tracking-tight truncate">
@@ -299,6 +367,11 @@ export default function AllConversationPage() {
                           </h4>
                           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold shrink-0">
                             {c.latest_timestamp ? formatMsgTime(c.latest_timestamp).split(', ')[0] : ''}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${TYPE_BADGE_COLORS[c.type] || 'bg-slate-100 text-slate-500'}`}>
+                            {c.type}
                           </span>
                         </div>
                         <p className="text-slate-500 dark:text-slate-400 text-xs font-medium truncate leading-normal pr-4">
@@ -309,11 +382,11 @@ export default function AllConversationPage() {
                       {/* Read status check / Badge count */}
                       <div className="shrink-0 flex flex-col items-end gap-1.5 self-center">
                         {c.unread_count > 0 ? (
-                          <span className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm shadow-blue-500/25">
+                          <span className="w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm shadow-indigo-500/25">
                             {c.unread_count}
                           </span>
-                        ) : c.latest_sender === 'Super Admin' ? (
-                          <CheckCheck className="w-3.5 h-3.5 text-blue-500" />
+                        ) : c.latest_sender === currentUserName ? (
+                          <CheckCheck className="w-3.5 h-3.5 text-indigo-500" />
                         ) : (
                           c.latest_message && <Check className="w-3.5 h-3.5 text-slate-400" />
                         )}
@@ -327,16 +400,23 @@ export default function AllConversationPage() {
 
           {/* Right chat logs pane (2/3 width) */}
           <div className="flex-1 flex flex-col min-h-0 bg-[#F8FAFC] dark:bg-slate-900/40">
-            {activeContact ? (
+            {activeContact && activeContactObj ? (
               <>
                 {/* Active contact header */}
                 <div className="px-6 py-4 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3 shrink-0">
-                  <ContactAvatar name={activeContact} size="10" />
+                  <ContactAvatar name={activeContact} type={activeContactObj?.type} size="10" />
                   <div>
-                    <h3 className="font-bold text-slate-850 dark:text-slate-100 text-base leading-tight tracking-tight">
+                    <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base leading-tight tracking-tight">
                       {activeContact}
                     </h3>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mt-0.5">Active Session</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {activeContactObj?.type && (
+                        <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${TYPE_BADGE_COLORS[activeContactObj.type] || 'bg-slate-100 text-slate-500'}`}>
+                          {activeContactObj.type}
+                        </span>
+                      )}
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Active Session</p>
+                    </div>
                   </div>
                 </div>
 
@@ -344,7 +424,7 @@ export default function AllConversationPage() {
                 <div className="flex-1 overflow-y-auto p-6 space-y-4">
                   {loadingMessages && messages.length === 0 ? (
                     <div className="flex h-full items-center justify-center text-slate-400 text-xs">
-                      <Loader2 className="w-6 h-6 animate-spin text-blue-600 mr-2" />
+                      <Loader2 className="w-6 h-6 animate-spin text-indigo-600 mr-2" />
                       Loading messages history...
                     </div>
                   ) : messages.length === 0 ? (
@@ -353,7 +433,9 @@ export default function AllConversationPage() {
                     </div>
                   ) : (
                     messages.map((msg, index) => {
-                      const isOutgoing = msg.sender === 'Super Admin'
+                      const isOutgoing = msg.is_outgoing !== undefined 
+                        ? msg.is_outgoing 
+                        : (msg.sender === currentUserName || msg.sender === 'Manager')
                       return (
                         <div
                           key={msg.id || index}
@@ -377,7 +459,7 @@ export default function AllConversationPage() {
                             {formatMsgTime(msg.created_at)}
                             {isOutgoing && (
                               msg.is_read ? (
-                                <CheckCheck className="w-3 h-3 text-blue-500" />
+                                <CheckCheck className="w-3 h-3 text-indigo-500" />
                               ) : (
                                 <Check className="w-3 h-3 text-slate-400" />
                               )
@@ -415,12 +497,12 @@ export default function AllConversationPage() {
                       />
 
                       {mockFile && (
-                        <div className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 shrink-0 shadow-sm border border-blue-150">
+                        <div className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 shrink-0 shadow-sm border border-indigo-150">
                           <span className="max-w-[100px] truncate">{mockFile}</span>
                           <button
                             type="button"
                             onClick={() => setMockFile('')}
-                            className="text-blue-700 font-black hover:text-red-500"
+                            className="text-indigo-700 font-black hover:text-red-500"
                           >
                             ×
                           </button>
@@ -432,7 +514,7 @@ export default function AllConversationPage() {
                     <button
                       type="submit"
                       disabled={sending || (!inputMessage.trim() && !mockFile)}
-                      className="w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 text-white flex items-center justify-center transition-all cursor-pointer shadow-md shadow-blue-500/10 shrink-0"
+                      className="w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 text-white flex items-center justify-center transition-all cursor-pointer shadow-md shadow-indigo-500/10 shrink-0"
                     >
                       {sending ? (
                         <Loader2 className="w-4 h-4 animate-spin" />

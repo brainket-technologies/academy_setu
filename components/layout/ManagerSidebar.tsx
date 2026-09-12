@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { 
-  LayoutDashboard, Users, FileText, MessagesSquare, 
+  LayoutDashboard, Users, UserCheck, FileText, MessagesSquare, 
   Edit, LogOut, ChevronDown, X
 } from 'lucide-react'
 import { useEffect } from 'react'
@@ -45,7 +45,7 @@ export function ManagerSidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?
   const allMenuItems: MenuItem[] = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/manager/dashboard' },
     { 
-      icon: Users, label: 'Lead', href: '/manager/lead', requiredPermission: 'Lead Permission'
+      icon: UserCheck, label: 'CRM', href: '/manager/lead', requiredPermission: 'Lead Permission'
     },
     { 
       icon: FileText, label: 'Application', href: '/manager/application', requiredPermission: 'Application Permission'

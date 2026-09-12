@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
     await ensureShopDb()
     const { searchParams } = new URL(request.url)
     const school = searchParams.get('school') || ''
+    const status = searchParams.get('status') || ''
     const fromDate = searchParams.get('fromDate') || ''
     const toDate = searchParams.get('toDate') || ''
     const search = searchParams.get('search') || ''
@@ -17,6 +18,11 @@ export async function GET(request: NextRequest) {
     if (school && school !== 'All' && school !== 'Select an Option') {
       params.push(school)
       query += ` AND school_name = $${params.length}`
+    }
+
+    if (status && status !== 'All' && status !== 'Select an Option') {
+      params.push(status)
+      query += ` AND status = $${params.length}`
     }
 
     if (fromDate) {
@@ -31,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       params.push(`%${search}%`)
-      query += ` AND (name ILIKE $${params.length} OR product_name ILIKE $${params.length} OR school_name ILIKE $${params.length})`
+      query += ` AND (name ILIKE $${params.length} OR product_name ILIKE $${params.length} OR school_name ILIKE $${params.length} OR mobile_no ILIKE $${params.length})`
     }
 
     query += ' ORDER BY enquiry_date DESC, created_at DESC'
@@ -48,15 +54,15 @@ export async function POST(request: NextRequest) {
   try {
     await ensureShopDb()
     const body = await request.json()
-    const { school_name, address, name, mobile_no, product_name, quantity, enquiry_date } = body
+    const { school_name, address, name, mobile_no, product_name, quantity, enquiry_date, status, remarks } = body
 
     if (!school_name || !address || !name || !mobile_no || !product_name || !quantity) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 })
     }
 
     const result = await pool.query(
-      `INSERT INTO product_enquiries (school_name, address, name, mobile_no, product_name, quantity, enquiry_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO product_enquiries (school_name, address, name, mobile_no, product_name, quantity, enquiry_date, status, remarks)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
         school_name,
@@ -65,7 +71,9 @@ export async function POST(request: NextRequest) {
         mobile_no,
         product_name,
         parseInt(quantity),
-        enquiry_date || new Date().toISOString().split('T')[0]
+        enquiry_date || new Date().toISOString().split('T')[0],
+        status || 'Pending',
+        remarks || ''
       ]
     )
 

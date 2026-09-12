@@ -83,6 +83,10 @@ export async function ensureShopDb(): Promise<void> {
     await pool.query(`ALTER TABLE product_dispatches ADD COLUMN IF NOT EXISTS courier_name VARCHAR(255) DEFAULT ''`)
     await pool.query(`ALTER TABLE product_dispatches ADD COLUMN IF NOT EXISTS courier_id VARCHAR(255) DEFAULT ''`)
 
+    await pool.query(`ALTER TABLE product_enquiries ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Pending'`)
+    await pool.query(`ALTER TABLE product_enquiries ADD COLUMN IF NOT EXISTS remarks TEXT DEFAULT ''`)
+    await pool.query(`ALTER TABLE product_enquiries ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`)
+
     // 2. Seed products if empty
     const productCount = await pool.query("SELECT COUNT(*)::int FROM products")
     if (productCount.rows[0].count === 0) {
