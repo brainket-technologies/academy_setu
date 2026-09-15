@@ -12,9 +12,9 @@ export async function GET(request: NextRequest) {
     const isManagerPortal = portal === 'manager' || (managerSession && !portal)
 
     let roleCondition = `(role ILIKE '%Manager%' OR role ILIKE '%BDM%' OR role ILIKE '%Admin%')`
-    if (portal === 'manager' || portal === 'bdm') {
-      // Manager and BDM can only assign/transfer to Admin or BDM (not to Manager/self)
-      roleCondition = `(role ILIKE '%BDM%' OR role ILIKE '%Admin%') AND role NOT ILIKE '%Manager%'`
+    if (portal === 'bdm') {
+      // BDM can transfer to Admin, Manager or fellow BDM
+      roleCondition = `(role ILIKE '%BDM%' OR role ILIKE '%Manager%' OR role ILIKE '%Admin%')`
     }
 
     const query = `

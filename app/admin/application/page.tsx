@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Search, Plus, Eye, Edit3, RefreshCw, X, MoreVertical, Loader2, Filter, ChevronDown, ChevronUp, UserCheck, Camera, Percent, Check, CreditCard, Building, Smartphone, QrCode, Wallet, ShieldCheck, Tag, Paperclip } from 'lucide-react'
+import { Search, Plus, Eye, Edit3, RefreshCw, X, MoreVertical, Loader2, Filter, ChevronDown, ChevronUp, UserCheck, Camera, Percent, Check, CreditCard, Building, Smartphone, QrCode, Wallet, ShieldCheck, Tag, Paperclip, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 import { SearchableDropdown } from '@/components/ui/SearchableDropdown'
@@ -26,6 +26,9 @@ interface Application {
   assigned_to?: string | null
   assigned_user_name?: string | null
   assigned_user_role?: string | null
+  created_by?: string | null
+  created_by_name?: string | null
+  created_by_role?: string | null
 }
 
 export default function ApplicationPage() {
@@ -140,12 +143,39 @@ export default function ApplicationPage() {
   const [enquiryStatus, setEnquiryStatus] = useState<string>('Applied')
   const [plan, setPlan] = useState<string>('')
   const [promoCode, setPromoCode] = useState<string>('')
-  const [paymentMode, setPaymentMode] = useState<string>('Payment Gateway')
+  const [paymentMode, setPaymentMode] = useState<string>('Bank Transfer')
   const [transactionId, setTransactionId] = useState<string>('')
   const [screenshotFilename, setScreenshotFilename] = useState<string>('')
   const [screenshotDataUrl, setScreenshotDataUrl] = useState<string>('')
   const [plans, setPlans] = useState<any[]>([])
   const [promoCodes, setPromoCodes] = useState<any[]>([])
+
+  // Multiple Transactions State
+  const [transactions, setTransactions] = useState<{ id: string; transactionId: string; amount: string; screenshotFilename: string; screenshotDataUrl: string }[]>([
+    { id: '1', transactionId: '', amount: '', screenshotFilename: '', screenshotDataUrl: '' }
+  ])
+
+  const handleAddTransaction = () => {
+    setTransactions(prev => [
+      ...prev,
+      { id: Date.now().toString(), transactionId: '', amount: '', screenshotFilename: '', screenshotDataUrl: '' }
+    ])
+  }
+
+  const handleRemoveTransaction = (index: number) => {
+    setTransactions(prev => {
+      if (prev.length <= 1) return prev
+      return prev.filter((_, i) => i !== index)
+    })
+  }
+
+  const handleTransactionChange = (index: number, field: 'transactionId' | 'amount' | 'screenshotFilename' | 'screenshotDataUrl', value: string) => {
+    setTransactions(prev => {
+      const updated = [...prev]
+      updated[index] = { ...updated[index], [field]: value }
+      return updated
+    })
+  }
 
   const PAYMENT_METHOD_OPTIONS = [
     { id: 'Payment Gateway', label: 'Payment Gateway', sub: 'Cards / Netbanking / UPI', icon: CreditCard },
@@ -318,37 +348,73 @@ export default function ApplicationPage() {
 
   const getCalculatedPrice = (selectedPlanId: string, appliedPromoCode: string) => {
     if (!selectedPlanId) {
-      return { basePrice: 0, discountAmount: 0, finalNet: 0 }
+      return { 
+        basePrice: 0, 
+        itemsSubtotal: 0, 
+        taxTotal: 0, 
+        discountAmount: 0, 
+        finalNet: 0, 
+        selectedPlanObj: null, 
+        selectedPromoObj: null 
+      }
     }
 
     const selectedPlanObj = plans.find(p => p.id === selectedPlanId || p.plan_name === selectedPlanId)
     if (!selectedPlanObj) {
-      return { basePrice: 0, discountAmount: 0, finalNet: 0 }
+      return { 
+        basePrice: 0, 
+        itemsSubtotal: 0, 
+        taxTotal: 0, 
+        discountAmount: 0, 
+        finalNet: 0, 
+        selectedPlanObj: null, 
+        selectedPromoObj: null 
+      }
     }
 
-    const itemsSum = (selectedPlanObj.first_billing_items || []).reduce((sum: number, item: any) => {
-      const itemTotal = Number(item.tax_price) > 0 
-        ? Number(item.tax_price) 
-        : (Number(item.price || 0) + (Number(item.price || 0) * Number(item.tax_percentage || 0) / 100))
-      return sum + itemTotal
-    }, 0)
-    const basePrice = itemsSum > 0 ? itemsSum : Number((selectedPlanObj as any).price || 0)
+    let itemsSubtotal = 0
+    let taxTotal = 0
+    let basePrice = 0
 
-    const promoObj = promoCodes.find(pc => pc.code === appliedPromoCode)
+    if (selectedPlanObj.first_billing_items && selectedPlanObj.first_billing_items.length > 0) {
+      for (const item of selectedPlanObj.first_billing_items) {
+        const p = Number(item.price || 0)
+        const tp = Number(item.tax_price || 0)
+        const taxPct = Number(item.tax_percentage || 0)
+        const calcTax = tp > 0 ? tp : (p * taxPct / 100)
+        itemsSubtotal += p
+        taxTotal += calcTax
+      }
+      basePrice = itemsSubtotal + taxTotal
+    } else {
+      basePrice = Number((selectedPlanObj as any).price || 0)
+      itemsSubtotal = basePrice
+      taxTotal = 0
+    }
+
+    const selectedPromoObj = promoCodes.find(
+      pc => pc.code && appliedPromoCode && pc.code.toLowerCase() === appliedPromoCode.trim().toLowerCase()
+    )
     let discountAmount = 0
-    if (promoObj) {
-      const val = Number(promoObj.discount_value || 0)
-      if (promoObj.discount_type === 'Fixed' || promoObj.discount_type === 'Amount') {
+    if (selectedPromoObj) {
+      const val = Number(selectedPromoObj.discount_value || 0)
+      if (selectedPromoObj.discount_type === 'Fixed' || selectedPromoObj.discount_type === 'Amount') {
         discountAmount = Math.min(val, basePrice)
       } else {
         discountAmount = (basePrice * val) / 100
       }
-    } else if (appliedPromoCode) {
-      discountAmount = 500
     }
 
     const finalNet = Math.max(0, basePrice - discountAmount)
-    return { basePrice, discountAmount, finalNet }
+    return { 
+      basePrice, 
+      itemsSubtotal, 
+      taxTotal, 
+      discountAmount, 
+      finalNet, 
+      selectedPlanObj, 
+      selectedPromoObj 
+    }
   }
 
   // Create Application Action
@@ -396,7 +462,15 @@ export default function ApplicationPage() {
           plan: plan,
           promo_code: promoCode,
           payment_mode: appStatus === 'Pending' ? paymentMode : null,
-          amount: appStatus === 'Pending' ? finalNet : null
+          amount: appStatus === 'Pending' ? finalNet : null,
+          transaction_id: transactions.map(t => t.transactionId).filter(Boolean).join(', ') || transactionId,
+          transactions: transactions,
+          screenshots: transactions.filter(t => t.screenshotFilename || t.transactionId).map(t => ({
+            transactionId: t.transactionId,
+            filename: t.screenshotFilename,
+            dataUrl: t.screenshotDataUrl,
+            amount: t.amount || 0
+          }))
         })
       })
 
@@ -404,6 +478,7 @@ export default function ApplicationPage() {
       if (resData.success) {
         toast.success('Application created successfully')
         setIsCreateModalOpen(false)
+        setTransactions([{ id: '1', transactionId: '', amount: '', screenshotFilename: '', screenshotDataUrl: '' }])
         // Reset form
         setSchoolName('')
         setSchoolCode('')
@@ -464,6 +539,7 @@ export default function ApplicationPage() {
     setPlan('')
     setPromoCode('')
     setPaymentMode('Payment Gateway')
+    setTransactions([{ id: '1', transactionId: '', amount: '', screenshotFilename: '', screenshotDataUrl: '' }])
   }
  
   const openEditModal = async (appId: string) => {
@@ -508,6 +584,25 @@ export default function ApplicationPage() {
         setPlan(foundPlan ? foundPlan.id : (app.plan_id || ''))
         setPromoCode(app.promo_code || '')
         setPaymentMode(app.payment_mode || 'Payment Gateway')
+        if (app.screenshots && Array.isArray(app.screenshots) && app.screenshots.length > 0) {
+          setTransactions(app.screenshots.map((s: any, idx: number) => ({
+            id: (idx + 1).toString(),
+            transactionId: s.transactionId || s.transaction_id || '',
+            amount: s.amount ? String(s.amount) : '',
+            screenshotFilename: s.filename || s.screenshot_filename || '',
+            screenshotDataUrl: s.dataUrl || s.screenshot_data_url || ''
+          })))
+        } else if (app.transaction_id) {
+          setTransactions([{
+            id: '1',
+            transactionId: app.transaction_id,
+            amount: app.amount ? String(app.amount) : '',
+            screenshotFilename: '',
+            screenshotDataUrl: ''
+          }])
+        } else {
+          setTransactions([{ id: '1', transactionId: '', amount: '', screenshotFilename: '', screenshotDataUrl: '' }])
+        }
         setIsCreateModalOpen(true)
       } else {
         toast.error('Failed to load application details')
@@ -588,10 +683,14 @@ export default function ApplicationPage() {
           promo_code: promoCode,
           payment_mode: paymentMode || 'Payment Gateway',
           amount: finalNet,
-          transaction_id: transactionId,
-          screenshot_filename: screenshotFilename,
-          screenshot_data_url: screenshotDataUrl,
-          screenshots: screenshotFilename ? [{ filename: screenshotFilename, dataUrl: screenshotDataUrl, amount: finalNet }] : []
+          transaction_id: transactions.map(t => t.transactionId).filter(Boolean).join(', ') || transactionId,
+          transactions: transactions,
+          screenshots: transactions.filter(t => t.screenshotFilename || t.transactionId).map(t => ({
+            transactionId: t.transactionId,
+            filename: t.screenshotFilename,
+            dataUrl: t.screenshotDataUrl,
+            amount: t.amount || 0
+          }))
         })
       })
 
@@ -630,10 +729,14 @@ export default function ApplicationPage() {
           promo_code: promoCode,
           payment_mode: paymentMode || 'Payment Gateway',
           amount: finalNet,
-          transaction_id: transactionId,
-          screenshot_filename: screenshotFilename,
-          screenshot_data_url: screenshotDataUrl,
-          screenshots: screenshotFilename ? [{ filename: screenshotFilename, dataUrl: screenshotDataUrl, amount: finalNet }] : []
+          transaction_id: transactions.map(t => t.transactionId).filter(Boolean).join(', ') || transactionId,
+          transactions: transactions,
+          screenshots: transactions.filter(t => t.screenshotFilename || t.transactionId).map(t => ({
+            transactionId: t.transactionId,
+            filename: t.screenshotFilename,
+            dataUrl: t.screenshotDataUrl,
+            amount: t.amount || 0
+          }))
         })
       })
 
@@ -743,6 +846,25 @@ export default function ApplicationPage() {
         setPlan(fullFoundPlan ? fullFoundPlan.id : (fullApp.plan_id || ''))
         setPromoCode(fullApp.promo_code || '')
         setPaymentMode(fullApp.payment_mode || 'Payment Gateway')
+        if (fullApp.screenshots && Array.isArray(fullApp.screenshots) && fullApp.screenshots.length > 0) {
+          setTransactions(fullApp.screenshots.map((s: any, idx: number) => ({
+            id: (idx + 1).toString(),
+            transactionId: s.transactionId || s.transaction_id || '',
+            amount: s.amount ? String(s.amount) : '',
+            screenshotFilename: s.filename || s.screenshot_filename || '',
+            screenshotDataUrl: s.dataUrl || s.screenshot_data_url || ''
+          })))
+        } else if (fullApp.transaction_id) {
+          setTransactions([{
+            id: '1',
+            transactionId: fullApp.transaction_id,
+            amount: fullApp.amount ? String(fullApp.amount) : '',
+            screenshotFilename: '',
+            screenshotDataUrl: ''
+          }])
+        } else {
+          setTransactions([{ id: '1', transactionId: '', amount: '', screenshotFilename: '', screenshotDataUrl: '' }])
+        }
       }
     } catch (e) {
       console.error('Failed to load application details for update status modal', e)
@@ -1013,6 +1135,7 @@ export default function ApplicationPage() {
                   <th className="px-4 py-3.5 text-center w-12">S.No.</th>
                   <th className="px-4 py-3.5 text-center whitespace-nowrap">Action</th>
                   <th className="px-4 py-3.5 whitespace-nowrap min-w-[140px]">Assigned To</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Added By</th>
                   <th className="px-4 py-3.5 whitespace-nowrap">Status</th>
                   <th className="px-4 py-3.5 whitespace-nowrap">Enquiry Status</th>
                   <th className="px-4 py-3.5 whitespace-nowrap min-w-[140px]">Selected Plan</th>
@@ -1028,7 +1151,7 @@ export default function ApplicationPage() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                 {loading ? (
                   <tr>
-                    <td colSpan={14} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
+                    <td colSpan={15} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
                         Loading applications...
@@ -1037,7 +1160,7 @@ export default function ApplicationPage() {
                   </tr>
                 ) : paginatedApps.length === 0 ? (
                   <tr>
-                    <td colSpan={14} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
+                    <td colSpan={15} className="px-6 py-10 text-center text-slate-400 dark:text-slate-500">
                       No applications found.
                     </td>
                   </tr>
@@ -1122,6 +1245,22 @@ export default function ApplicationPage() {
                               </option>
                             ))}
                           </select>
+                        </td>
+
+                        {/* Added By Column */}
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          {app.created_by_name ? (
+                            <div className="flex flex-col">
+                              <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
+                                {app.created_by_name}
+                              </span>
+                              <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                                ({app.created_by_role || 'Staff'})
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 text-xs italic">—</span>
+                          )}
                         </td>
 
                         {/* Status Column at Start */}
@@ -1658,15 +1797,15 @@ export default function ApplicationPage() {
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
                           <span>Plan <span className="text-red-500">*</span></span>
-                          {plan && <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">Selected</span>}
+                          {plan && <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-full">Selected</span>}
                         </label>
                         <select
                           value={plan}
                           onChange={(e) => setPlan(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer font-medium"
+                          className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer font-semibold"
                           required={appStatus === 'Pending' || appStatus === 'Completed' || enquiryStatus === 'Successfully Onboarded'}
                         >
-                          <option value="">Select Plan</option>
+                          <option value="">-- Select Plan --</option>
                           {plans.map((p) => (
                             <option key={p.id} value={p.id}>
                               {p.plan_name} ({p.segment || 'General'})
@@ -1675,19 +1814,47 @@ export default function ApplicationPage() {
                         </select>
                       </div>
 
-                      {/* Promo Code Pills */}
+                      {/* Promo Code Input & Pills */}
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
                           <span className="flex items-center gap-1">
                             <Tag className="w-3.5 h-3.5 text-indigo-500" /> Promo Code
                           </span>
                           {promoCode && (
-                            <button type="button" onClick={() => setPromoCode('')} className="text-[10px] text-rose-500 hover:underline cursor-pointer">
+                            <button type="button" onClick={() => setPromoCode('')} className="text-[10px] text-rose-500 hover:underline font-bold cursor-pointer">
                               Remove
                             </button>
                           )}
                         </label>
-                        <div className="flex flex-wrap gap-1.5">
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder={plan ? "Enter promo code..." : "Select plan first..."}
+                            value={promoCode}
+                            onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                            disabled={!plan}
+                            className="flex-1 px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs uppercase font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 disabled:opacity-50"
+                          />
+                          {promoCode && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const { discountAmount } = getCalculatedPrice(plan, promoCode)
+                                if (discountAmount > 0) {
+                                  toast.success(`Promo code ${promoCode} applied! Saved ₹${discountAmount.toLocaleString('en-IN')}`)
+                                } else {
+                                  toast.info(`Promo code applied: ${promoCode}`)
+                                }
+                              }}
+                              className="px-3 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors cursor-pointer shadow-xs"
+                            >
+                              Apply
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Promo Code Quick Pills */}
+                        <div className="flex flex-wrap gap-1.5 mt-1">
                           {(promoCodes.length > 0 ? promoCodes : [
                             { code: 'WELCOME10', discount_type: 'Percentage', discount_value: '10' },
                             { code: 'FESTIVE20', discount_type: 'Percentage', discount_value: '20' },
@@ -1695,27 +1862,31 @@ export default function ApplicationPage() {
                             { code: 'SPECIAL', discount_type: 'Fixed', discount_value: '1000' }
                           ]).map(pcItem => {
                             const codeStr = typeof pcItem === 'string' ? pcItem : pcItem.code
-                            const isApplied = promoCode === codeStr
+                            const isApplied = promoCode?.toUpperCase() === codeStr?.toUpperCase()
                             const discountTag = typeof pcItem === 'object' && pcItem.discount_value
-                              ? (pcItem.discount_type === 'Percentage' ? `${pcItem.discount_value}%` : `₹${pcItem.discount_value}`)
+                              ? (pcItem.discount_type === 'Percentage' ? `${pcItem.discount_value}% OFF` : `₹${pcItem.discount_value} OFF`)
                               : ''
                             return (
                               <button
                                 key={codeStr}
                                 type="button"
+                                disabled={!plan}
                                 onClick={() => {
                                   if (isApplied) setPromoCode('')
-                                  else { setPromoCode(codeStr); toast.success(`Promo code ${codeStr} applied!`) }
+                                  else { 
+                                    setPromoCode(codeStr)
+                                    toast.success(`Promo code ${codeStr} applied!`) 
+                                  }
                                 }}
-                                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                                   isApplied
                                     ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
-                                    : 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-indigo-300'
+                                    : 'bg-slate-50 dark:bg-slate-700/60 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-indigo-300'
                                 }`}
                               >
                                 <Percent className="w-3 h-3" />
                                 {codeStr}
-                                {discountTag && <span className={`text-[10px] ml-0.5 opacity-80 ${isApplied ? 'text-indigo-100' : 'text-indigo-600 dark:text-indigo-400'}`}>({discountTag})</span>}
+                                {discountTag && <span className={`text-[10px] ml-0.5 opacity-90 ${isApplied ? 'text-indigo-100' : 'text-indigo-600 dark:text-indigo-400 font-semibold'}`}>({discountTag})</span>}
                                 {isApplied && <Check className="w-3 h-3 ml-0.5" />}
                               </button>
                             )
@@ -1724,138 +1895,318 @@ export default function ApplicationPage() {
                       </div>
                     </div>
 
-                    {/* Payment Method Selector */}
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <CreditCard className="w-3.5 h-3.5 text-indigo-500" />
-                        Payment Method <span className="text-red-500">*</span>
-                      </label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-                        {PAYMENT_METHOD_OPTIONS.map((pm) => {
-                          const IconComp = pm.icon
-                          const isSelected = paymentMode === pm.id
+                    {/* If Plan is NOT selected, show clean prompt card and hide payment details */}
+                    {!plan ? (
+                      <div className="p-6 rounded-2xl bg-indigo-50/40 dark:bg-slate-800/40 border-2 border-dashed border-indigo-200/80 dark:border-slate-700 text-center flex flex-col items-center justify-center gap-2 py-8 my-2">
+                        <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-xs">
+                          <CreditCard className="w-5 h-5" />
+                        </div>
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">No Plan Selected</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-sm">
+                          Please select a subscription plan above to view itemized pricing, choose payment methods, and see the billing breakdown.
+                        </p>
+                      </div>
+                    ) : (
+                      /* If Plan IS selected, show Plan Details Overview, Payment Method, Transactions, and Billing Summary */
+                      <div className="flex flex-col gap-5 animate-in fade-in duration-200">
+                        
+                        {/* 1. Plan Details Overview Card */}
+                        {(() => {
+                          const { basePrice, itemsSubtotal, taxTotal, selectedPlanObj } = getCalculatedPrice(plan, promoCode)
+                          if (!selectedPlanObj) return null
+
                           return (
-                            <button
-                              key={pm.id}
-                              type="button"
-                              onClick={() => setPaymentMode(pm.id)}
-                              className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer relative ${
-                                isSelected
-                                  ? 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-600 dark:border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/20 shadow-sm'
-                                  : 'bg-white dark:bg-slate-700/60 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-slate-500'
-                              }`}
-                            >
-                              {isSelected && (
-                                <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm">
-                                  <Check className="w-2.5 h-2.5" />
-                                </span>
-                              )}
-                              <IconComp className={`w-5 h-5 mb-1 ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
-                              <span className="text-xs font-bold leading-tight">{pm.label}</span>
-                              <span className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5 line-clamp-1">{pm.sub}</span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Transaction ID & Payment Screenshot Proof Upload (for verification in Request tab) */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 dark:border-slate-700 pt-4">
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                          <CreditCard className="w-3.5 h-3.5 text-indigo-500" />
-                          Transaction ID / UTR No.
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Enter Transaction ID / UTR No."
-                          value={transactionId}
-                          onChange={(e) => setTransactionId(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                        />
-                      </div>
-
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                          <Paperclip className="w-3.5 h-3.5 text-indigo-500" />
-                          Payment Proof Screenshot
-                        </label>
-                        <div className="relative">
-                          <label className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm flex items-center justify-between cursor-pointer hover:border-indigo-400 transition-all shadow-sm">
-                            <span className={`text-xs truncate max-w-[200px] ${screenshotFilename ? 'font-bold text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}>
-                              {screenshotFilename || 'Attach payment screenshot...'}
-                            </span>
-                            <span className="bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-2.5 py-1 rounded-lg text-[11px] font-bold border border-indigo-200 dark:border-indigo-800">
-                              Browse
-                            </span>
-                            <input
-                              type="file"
-                              accept="image/*,.pdf"
-                              className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0]
-                                if (file) {
-                                  setScreenshotFilename(file.name)
-                                  const reader = new FileReader()
-                                  reader.onloadend = () => {
-                                    setScreenshotDataUrl(reader.result as string)
-                                    toast.success('Payment screenshot attached!')
-                                  }
-                                  reader.readAsDataURL(file)
-                                }
-                              }}
-                            />
-                          </label>
-                          {screenshotFilename && (
-                            <button
-                              type="button"
-                              onClick={() => { setScreenshotFilename(''); setScreenshotDataUrl('') }}
-                              className="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full p-1 shadow-md hover:bg-rose-700 transition-colors cursor-pointer"
-                              title="Remove Screenshot"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Summary & Net Payable Breakdown Card */}
-                    {(() => {
-                      const { basePrice, discountAmount, finalNet } = getCalculatedPrice(plan, promoCode)
-                      const selectedPlanObj = plans.find(p => p.id === plan || p.plan_name === plan)
-
-                      return (
-                        <div className="bg-slate-900 dark:bg-slate-950 rounded-2xl p-4 shadow-lg text-white border border-slate-800 flex flex-col gap-2">
-                          <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-2">
-                            <span className="font-semibold flex items-center gap-1.5">
-                              <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" /> Billing Breakdown Summary
-                            </span>
-                            <span className="bg-indigo-900/60 text-indigo-300 border border-indigo-700/50 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                              {paymentMode}
-                            </span>
-                          </div>
-                          <div className="flex flex-col gap-1.5 text-xs font-semibold pt-1">
-                            <div className="flex justify-between text-slate-300">
-                              <span>Plan Base Price {selectedPlanObj ? `(${selectedPlanObj.plan_name})` : ''}</span>
-                              <span>₹{basePrice.toLocaleString('en-IN')}</span>
-                            </div>
-                            {discountAmount > 0 && (
-                              <div className="flex justify-between text-emerald-400">
-                                <span>Discount ({promoCode})</span>
-                                <span>− ₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                            <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/70 via-slate-50 to-white dark:from-slate-800/80 dark:via-slate-800/50 dark:to-slate-900 border border-indigo-100 dark:border-slate-700 shadow-xs flex flex-col gap-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100/60 dark:border-slate-700/60 pb-2.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse" />
+                                  <h5 className="text-xs font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                                    {selectedPlanObj.plan_name}
+                                  </h5>
+                                  <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 rounded-md text-[10px] font-bold">
+                                    {selectedPlanObj.segment || 'General'}
+                                  </span>
+                                </div>
+                                {selectedPlanObj.first_billing_duration && (
+                                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                                    Billing Validity: <strong className="text-slate-700 dark:text-slate-200">{selectedPlanObj.first_billing_duration}</strong>
+                                  </span>
+                                )}
                               </div>
-                            )}
-                            <div className="flex justify-between text-white font-black text-base border-t border-slate-800 pt-2.5 mt-1">
-                              <span>Total Payable (Net)</span>
-                              <span className="text-indigo-400 text-lg">
-                                ₹{finalNet.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </span>
+
+                              {/* Itemized Billing Breakdown Table if items exist */}
+                              {selectedPlanObj.first_billing_items && selectedPlanObj.first_billing_items.length > 0 ? (
+                                <div className="flex flex-col gap-2">
+                                  <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                                    Plan Components & Taxes ({selectedPlanObj.first_billing_items.length} items):
+                                  </span>
+                                  <div className="overflow-hidden rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800">
+                                    <table className="w-full text-left text-xs border-collapse">
+                                      <thead className="bg-slate-50 dark:bg-slate-900/60 text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                                        <tr>
+                                          <th className="px-3 py-2">Item Description</th>
+                                          <th className="px-3 py-2 text-right">Base Price</th>
+                                          <th className="px-3 py-2 text-right">Tax (%)</th>
+                                          <th className="px-3 py-2 text-right">Tax (₹)</th>
+                                          <th className="px-3 py-2 text-right">Total (₹)</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60">
+                                        {selectedPlanObj.first_billing_items.map((item: any, idx: number) => {
+                                          const p = Number(item.price || 0)
+                                          const tp = Number(item.tax_price || 0)
+                                          const taxPct = Number(item.tax_percentage || 0)
+                                          const calcTax = tp > 0 ? tp : (p * taxPct / 100)
+                                          const rowTotal = p + calcTax
+
+                                          return (
+                                            <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30">
+                                              <td className="px-3 py-2 font-medium text-slate-700 dark:text-slate-200">
+                                                {item.item_description || `Item #${idx + 1}`}
+                                              </td>
+                                              <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-300">
+                                                ₹{p.toLocaleString('en-IN')}
+                                              </td>
+                                              <td className="px-3 py-2 text-right text-slate-500 dark:text-slate-400">
+                                                {taxPct}%
+                                              </td>
+                                              <td className="px-3 py-2 text-right text-slate-500 dark:text-slate-400">
+                                                ₹{calcTax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                              </td>
+                                              <td className="px-3 py-2 text-right font-bold text-indigo-600 dark:text-indigo-400">
+                                                ₹{rowTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                              </td>
+                                            </tr>
+                                          )
+                                        })}
+                                      </tbody>
+                                      <tfoot className="bg-slate-50/80 dark:bg-slate-900/60 border-t border-slate-200 dark:border-slate-700 text-xs font-bold">
+                                        <tr>
+                                          <td className="px-3 py-2 text-slate-700 dark:text-slate-300">Plan Gross Total</td>
+                                          <td className="px-3 py-2 text-right text-slate-700 dark:text-slate-300">₹{itemsSubtotal.toLocaleString('en-IN')}</td>
+                                          <td className="px-3 py-2"></td>
+                                          <td className="px-3 py-2 text-right text-slate-500 dark:text-slate-400">₹{taxTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                          <td className="px-3 py-2 text-right text-indigo-700 dark:text-indigo-300 font-extrabold">₹{basePrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                        </tr>
+                                      </tfoot>
+                                    </table>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-between text-xs pt-1">
+                                  <span className="text-slate-500 dark:text-slate-400">Plan Gross Price:</span>
+                                  <span className="font-extrabold text-indigo-600 dark:text-indigo-400 text-sm">₹{basePrice.toLocaleString('en-IN')}</span>
+                                </div>
+                              )}
                             </div>
+                          )
+                        })()}
+
+                        {/* 2. Payment Method Selector */}
+                        <div className="flex flex-col gap-2">
+                          <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <CreditCard className="w-3.5 h-3.5 text-indigo-500" />
+                            Payment Method <span className="text-red-500">*</span>
+                          </label>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                            {PAYMENT_METHOD_OPTIONS.map((pm) => {
+                              const IconComp = pm.icon
+                              const isSelected = paymentMode === pm.id
+                              return (
+                                <button
+                                  key={pm.id}
+                                  type="button"
+                                  onClick={() => setPaymentMode(pm.id)}
+                                  className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer relative ${
+                                    isSelected
+                                      ? 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-600 dark:border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/20 shadow-sm'
+                                      : 'bg-white dark:bg-slate-700/60 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-slate-500'
+                                  }`}
+                                >
+                                  {isSelected && (
+                                    <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm">
+                                      <Check className="w-2.5 h-2.5" />
+                                    </span>
+                                  )}
+                                  <IconComp className={`w-5 h-5 mb-1 ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
+                                  <span className="text-xs font-bold leading-tight">{pm.label}</span>
+                                  <span className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5 line-clamp-1">{pm.sub}</span>
+                                </button>
+                              )
+                            })}
                           </div>
                         </div>
-                      )
-                    })()}
+
+                        {/* 3. Multiple Transactions Section */}
+                        <div className="flex flex-col gap-3 border-t border-slate-100 dark:border-slate-700 pt-3">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                              <CreditCard className="w-3.5 h-3.5 text-indigo-500" />
+                              Transactions & Payment Proofs ({transactions.length})
+                            </label>
+                            <button
+                              type="button"
+                              onClick={handleAddTransaction}
+                              className="flex items-center gap-1 px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold border border-indigo-200 dark:border-indigo-800/60 transition-all cursor-pointer shadow-xs"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              Add Transaction
+                            </button>
+                          </div>
+
+                          <div className="space-y-3">
+                            {transactions.map((tx, idx) => (
+                              <div 
+                                key={tx.id || idx} 
+                                className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 relative flex flex-col gap-3"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <span className="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">
+                                      {idx + 1}
+                                    </span>
+                                    Transaction #{idx + 1}
+                                  </span>
+                                  {transactions.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveTransaction(idx)}
+                                      className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-slate-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
+                                      title="Remove Transaction"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                                      Transaction ID / UTR No.
+                                    </label>
+                                    <input
+                                      type="text"
+                                      placeholder="e.g. UTR12345678"
+                                      value={tx.transactionId}
+                                      onChange={(e) => handleTransactionChange(idx, 'transactionId', e.target.value)}
+                                      className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 font-mono"
+                                    />
+                                  </div>
+
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                                      Amount (₹) <span className="text-slate-400 font-normal">(optional)</span>
+                                    </label>
+                                    <input
+                                      type="number"
+                                      placeholder="Amount (₹)"
+                                      value={tx.amount || ''}
+                                      onChange={(e) => handleTransactionChange(idx, 'amount', e.target.value)}
+                                      className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200"
+                                    />
+                                  </div>
+
+                                  <div className="flex flex-col gap-1 sm:col-span-2 md:col-span-1">
+                                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                                      <Paperclip className="w-3 h-3 text-indigo-500" />
+                                      Payment Proof Screenshot
+                                    </label>
+                                    <div className="relative">
+                                      <label className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs flex items-center justify-between cursor-pointer hover:border-indigo-400 transition-all shadow-xs">
+                                        <span className={`text-xs truncate max-w-[130px] ${tx.screenshotFilename ? 'font-bold text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}>
+                                          {tx.screenshotFilename || 'Attach screenshot...'}
+                                        </span>
+                                        <span className="bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-lg text-[10px] font-bold border border-indigo-200 dark:border-indigo-800">
+                                          Browse
+                                        </span>
+                                        <input
+                                          type="file"
+                                          accept="image/*,.pdf"
+                                          className="hidden"
+                                          onChange={(e) => {
+                                            const file = e.target.files?.[0]
+                                            if (file) {
+                                              const reader = new FileReader()
+                                              reader.onloadend = () => {
+                                                handleTransactionChange(idx, 'screenshotFilename', file.name)
+                                                handleTransactionChange(idx, 'screenshotDataUrl', reader.result as string)
+                                                toast.success(`Proof attached for Transaction #${idx + 1}`)
+                                              }
+                                              reader.readAsDataURL(file)
+                                            }
+                                          }}
+                                        />
+                                      </label>
+                                      {tx.screenshotFilename && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            handleTransactionChange(idx, 'screenshotFilename', '')
+                                            handleTransactionChange(idx, 'screenshotDataUrl', '')
+                                          }}
+                                          className="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full p-1 shadow-md hover:bg-rose-700 transition-colors cursor-pointer"
+                                          title="Remove Screenshot"
+                                        >
+                                          <X className="w-2.5 h-2.5" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 4. Summary & Net Payable Breakdown Card */}
+                        {(() => {
+                          const { basePrice, itemsSubtotal, taxTotal, discountAmount, finalNet } = getCalculatedPrice(plan, promoCode)
+
+                          return (
+                            <div className="bg-slate-900 dark:bg-slate-950 rounded-2xl p-4 shadow-lg text-white border border-slate-800 flex flex-col gap-2.5">
+                              <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-2">
+                                <span className="font-semibold flex items-center gap-1.5">
+                                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" /> Billing Breakdown Summary
+                                </span>
+                                <span className="bg-indigo-900/60 text-indigo-300 border border-indigo-700/50 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                  {paymentMode}
+                                </span>
+                              </div>
+                              <div className="flex flex-col gap-1.5 text-xs font-semibold pt-1">
+                                <div className="flex justify-between text-slate-300">
+                                  <span>Plan Components Subtotal</span>
+                                  <span>₹{itemsSubtotal.toLocaleString('en-IN')}</span>
+                                </div>
+                                {taxTotal > 0 && (
+                                  <div className="flex justify-between text-slate-400">
+                                    <span>Taxes & GST</span>
+                                    <span>+ ₹{taxTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between text-slate-200 font-bold border-t border-slate-800/80 pt-1">
+                                  <span>Plan Gross Total</span>
+                                  <span>₹{basePrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                </div>
+                                {discountAmount > 0 && (
+                                  <div className="flex justify-between text-emerald-400 font-bold bg-emerald-950/40 p-1.5 rounded-lg border border-emerald-800/50">
+                                    <span>Promo Discount ({promoCode})</span>
+                                    <span>− ₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between text-white font-black text-base border-t border-slate-800 pt-2.5 mt-1">
+                                  <span>Total Payable (Net)</span>
+                                  <span className="text-indigo-400 text-lg">
+                                    ₹{finalNet.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })()}
+
+                      </div>
+                    )}
+
                   </div>
                 )}
               </div>
@@ -1950,16 +2301,17 @@ export default function ApplicationPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Plan Dropdown */}
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                        Plan <span className="text-red-500">*</span>
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>Plan <span className="text-red-500">*</span></span>
+                        {plan && <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-full">Selected</span>}
                       </label>
                       <select
                         value={plan}
                         onChange={(e) => setPlan(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer font-semibold"
                         required={appStatus === 'Pending' || appStatus === 'Completed' || enquiryStatus === 'Successfully Onboarded'}
                       >
-                        <option value="">Select Plan</option>
+                        <option value="">-- Select Plan --</option>
                         {plans.map((p) => (
                           <option key={p.id} value={p.id}>
                             {p.plan_name} ({p.segment || 'General'})
@@ -1968,30 +2320,79 @@ export default function ApplicationPage() {
                       </select>
                     </div>
 
-                    {/* Promo Code Pills */}
+                    {/* Promo Code Input & Pills */}
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                        <Tag className="w-3.5 h-3.5 text-indigo-500" /> Promo Code
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span className="flex items-center gap-1">
+                          <Tag className="w-3.5 h-3.5 text-indigo-500" /> Promo Code
+                        </span>
+                        {promoCode && (
+                          <button type="button" onClick={() => setPromoCode('')} className="text-[10px] text-rose-500 hover:underline font-bold cursor-pointer">
+                            Remove
+                          </button>
+                        )}
                       </label>
-                      <div className="flex flex-wrap gap-1.5">
-                        {(promoCodes.length > 0 ? promoCodes.map(pc => pc.code) : ['WELCOME10', 'FESTIVE20', 'FLAT500', 'NEWYEAR', 'SPECIAL']).map(codeStr => {
-                          const isApplied = promoCode === codeStr
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder={plan ? "Enter promo code..." : "Select plan first..."}
+                          value={promoCode}
+                          onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                          disabled={!plan}
+                          className="flex-1 px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs uppercase font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 disabled:opacity-50"
+                        />
+                        {promoCode && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const { discountAmount } = getCalculatedPrice(plan, promoCode)
+                              if (discountAmount > 0) {
+                                toast.success(`Promo code ${promoCode} applied! Saved ₹${discountAmount.toLocaleString('en-IN')}`)
+                              } else {
+                                toast.info(`Promo code applied: ${promoCode}`)
+                              }
+                            }}
+                            className="px-3 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors cursor-pointer shadow-xs"
+                          >
+                            Apply
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Promo Code Quick Pills */}
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {(promoCodes.length > 0 ? promoCodes : [
+                          { code: 'WELCOME10', discount_type: 'Percentage', discount_value: '10' },
+                          { code: 'FESTIVE20', discount_type: 'Percentage', discount_value: '20' },
+                          { code: 'FLAT500', discount_type: 'Fixed', discount_value: '500' },
+                          { code: 'SPECIAL', discount_type: 'Fixed', discount_value: '1000' }
+                        ]).map(pcItem => {
+                          const codeStr = typeof pcItem === 'string' ? pcItem : pcItem.code
+                          const isApplied = promoCode?.toUpperCase() === codeStr?.toUpperCase()
+                          const discountTag = typeof pcItem === 'object' && pcItem.discount_value
+                            ? (pcItem.discount_type === 'Percentage' ? `${pcItem.discount_value}% OFF` : `₹${pcItem.discount_value} OFF`)
+                            : ''
                           return (
                             <button
                               key={codeStr}
                               type="button"
+                              disabled={!plan}
                               onClick={() => {
                                 if (isApplied) setPromoCode('')
-                                else { setPromoCode(codeStr); toast.success(`Promo code ${codeStr} applied!`) }
+                                else { 
+                                  setPromoCode(codeStr)
+                                  toast.success(`Promo code ${codeStr} applied!`) 
+                                }
                               }}
-                              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                                 isApplied
                                   ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
-                                  : 'bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-indigo-300'
+                                  : 'bg-slate-50 dark:bg-slate-700/60 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-indigo-300'
                               }`}
                             >
                               <Percent className="w-3 h-3" />
                               {codeStr}
+                              {discountTag && <span className={`text-[10px] ml-0.5 opacity-90 ${isApplied ? 'text-indigo-100' : 'text-indigo-600 dark:text-indigo-400 font-semibold'}`}>({discountTag})</span>}
                               {isApplied && <Check className="w-3 h-3 ml-0.5" />}
                             </button>
                           )
@@ -2000,137 +2401,311 @@ export default function ApplicationPage() {
                     </div>
                   </div>
 
-                  {/* Payment Method Selector */}
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <CreditCard className="w-3.5 h-3.5 text-indigo-500" />
-                      Payment Method <span className="text-red-500">*</span>
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {PAYMENT_METHOD_OPTIONS.map((pm) => {
-                        const IconComp = pm.icon
-                        const isSelected = paymentMode === pm.id
+                  {/* If Plan is NOT selected, show clean prompt card and hide payment details */}
+                  {!plan ? (
+                    <div className="p-5 rounded-2xl bg-indigo-50/40 dark:bg-slate-800/40 border-2 border-dashed border-indigo-200/80 dark:border-slate-700 text-center flex flex-col items-center justify-center gap-2 py-6 my-1">
+                      <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-xs">
+                        <CreditCard className="w-4 h-4" />
+                      </div>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">No Plan Selected</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-xs">
+                        Select a plan above to view itemized pricing, choose payment methods, and see the billing breakdown.
+                      </p>
+                    </div>
+                  ) : (
+                    /* If Plan IS selected, show Plan Details Overview, Payment Method, Transactions, and Billing Summary */
+                    <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+                      
+                      {/* 1. Plan Details Overview Card */}
+                      {(() => {
+                        const { basePrice, itemsSubtotal, taxTotal, selectedPlanObj } = getCalculatedPrice(plan, promoCode)
+                        if (!selectedPlanObj) return null
+
                         return (
-                          <button
-                            key={pm.id}
-                            type="button"
-                            onClick={() => setPaymentMode(pm.id)}
-                            className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all cursor-pointer relative ${
-                              isSelected
-                                ? 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-600 dark:border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/20 shadow-sm'
-                                : 'bg-white dark:bg-slate-700/60 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-slate-500'
-                            }`}
-                          >
-                            {isSelected && (
-                              <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm">
-                                <Check className="w-2.5 h-2.5" />
-                              </span>
-                            )}
-                            <IconComp className={`w-4 h-4 mb-1 ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
-                            <span className="text-xs font-bold leading-tight">{pm.label}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Transaction ID & Payment Screenshot Proof Upload (for verification in Request tab) */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-slate-100 dark:border-slate-700 pt-3">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <CreditCard className="w-3.5 h-3.5 text-indigo-500" />
-                        Transaction ID / UTR
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Enter Transaction ID / UTR"
-                        value={transactionId}
-                        onChange={(e) => setTransactionId(e.target.value)}
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <Paperclip className="w-3.5 h-3.5 text-indigo-500" />
-                        Payment Screenshot Proof
-                      </label>
-                      <div className="relative">
-                        <label className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs flex items-center justify-between cursor-pointer hover:border-indigo-400 transition-all shadow-sm">
-                          <span className={`text-xs truncate max-w-[140px] ${screenshotFilename ? 'font-bold text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}>
-                            {screenshotFilename || 'Attach screenshot...'}
-                          </span>
-                          <span className="bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-lg text-[10px] font-bold border border-indigo-200 dark:border-indigo-800">
-                            Browse
-                          </span>
-                          <input
-                            type="file"
-                            accept="image/*,.pdf"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0]
-                              if (file) {
-                                setScreenshotFilename(file.name)
-                                const reader = new FileReader()
-                                reader.onloadend = () => {
-                                  setScreenshotDataUrl(reader.result as string)
-                                  toast.success('Payment screenshot attached!')
-                                }
-                                reader.readAsDataURL(file)
-                              }
-                            }}
-                          />
-                        </label>
-                        {screenshotFilename && (
-                          <button
-                            type="button"
-                            onClick={() => { setScreenshotFilename(''); setScreenshotDataUrl('') }}
-                            className="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full p-1 shadow-md hover:bg-rose-700 transition-colors cursor-pointer"
-                            title="Remove Screenshot"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Summary & Net Payable Breakdown Card */}
-                  {(() => {
-                    const { basePrice, discountAmount, finalNet } = getCalculatedPrice(plan, promoCode)
-                    const selectedPlanObj = plans.find(p => p.id === plan || p.plan_name === plan)
-
-                    return (
-                      <div className="bg-slate-900 dark:bg-slate-950 rounded-2xl p-4 shadow-lg text-white border border-slate-800 flex flex-col gap-2">
-                        <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-2">
-                          <span className="font-semibold flex items-center gap-1.5">
-                            <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" /> Billing Breakdown Summary
-                          </span>
-                          <span className="bg-indigo-900/60 text-indigo-300 border border-indigo-700/50 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                            {paymentMode}
-                          </span>
-                        </div>
-                        <div className="flex flex-col gap-1.5 text-xs font-semibold pt-1">
-                          <div className="flex justify-between text-slate-300">
-                            <span>Plan Base Price {selectedPlanObj ? `(${selectedPlanObj.plan_name})` : ''}</span>
-                            <span>₹{basePrice.toLocaleString('en-IN')}</span>
-                          </div>
-                          {discountAmount > 0 && (
-                            <div className="flex justify-between text-emerald-400">
-                              <span>Discount ({promoCode})</span>
-                              <span>− ₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          <div className="p-3.5 rounded-2xl bg-gradient-to-br from-indigo-50/70 via-slate-50 to-white dark:from-slate-800/80 dark:via-slate-800/50 dark:to-slate-900 border border-indigo-100 dark:border-slate-700 shadow-xs flex flex-col gap-2.5">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100/60 dark:border-slate-700/60 pb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse" />
+                                <h5 className="text-xs font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                                  {selectedPlanObj.plan_name}
+                                </h5>
+                                <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 rounded-md text-[10px] font-bold">
+                                  {selectedPlanObj.segment || 'General'}
+                                </span>
+                              </div>
+                              {selectedPlanObj.first_billing_duration && (
+                                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                                  Validity: <strong className="text-slate-700 dark:text-slate-200">{selectedPlanObj.first_billing_duration}</strong>
+                                </span>
+                              )}
                             </div>
-                          )}
-                          <div className="flex justify-between text-white font-black text-base border-t border-slate-800 pt-2.5 mt-1">
-                            <span>Total Payable (Net)</span>
-                            <span className="text-indigo-400 text-lg">
-                              ₹{finalNet.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </span>
+
+                            {/* Itemized Billing Breakdown Table if items exist */}
+                            {selectedPlanObj.first_billing_items && selectedPlanObj.first_billing_items.length > 0 ? (
+                              <div className="flex flex-col gap-1.5">
+                                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                                  Plan Components & Taxes:
+                                </span>
+                                <div className="overflow-hidden rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800">
+                                  <table className="w-full text-left text-xs border-collapse">
+                                    <thead className="bg-slate-50 dark:bg-slate-900/60 text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                                      <tr>
+                                        <th className="px-2.5 py-1.5">Item</th>
+                                        <th className="px-2.5 py-1.5 text-right">Base</th>
+                                        <th className="px-2.5 py-1.5 text-right">Tax</th>
+                                        <th className="px-2.5 py-1.5 text-right">Total</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60">
+                                      {selectedPlanObj.first_billing_items.map((item: any, idx: number) => {
+                                        const p = Number(item.price || 0)
+                                        const tp = Number(item.tax_price || 0)
+                                        const taxPct = Number(item.tax_percentage || 0)
+                                        const calcTax = tp > 0 ? tp : (p * taxPct / 100)
+                                        const rowTotal = p + calcTax
+
+                                        return (
+                                          <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30">
+                                            <td className="px-2.5 py-1.5 font-medium text-slate-700 dark:text-slate-200">
+                                              {item.item_description || `Item #${idx + 1}`}
+                                            </td>
+                                            <td className="px-2.5 py-1.5 text-right text-slate-600 dark:text-slate-300">
+                                              ₹{p.toLocaleString('en-IN')}
+                                            </td>
+                                            <td className="px-2.5 py-1.5 text-right text-slate-500 dark:text-slate-400 text-[11px]">
+                                              {taxPct}% (₹{calcTax.toLocaleString('en-IN')})
+                                            </td>
+                                            <td className="px-2.5 py-1.5 text-right font-bold text-indigo-600 dark:text-indigo-400">
+                                              ₹{rowTotal.toLocaleString('en-IN')}
+                                            </td>
+                                          </tr>
+                                        )
+                                      })}
+                                    </tbody>
+                                    <tfoot className="bg-slate-50/80 dark:bg-slate-900/60 border-t border-slate-200 dark:border-slate-700 text-xs font-bold">
+                                      <tr>
+                                        <td className="px-2.5 py-1.5 text-slate-700 dark:text-slate-300">Gross Total</td>
+                                        <td className="px-2.5 py-1.5 text-right text-slate-700 dark:text-slate-300">₹{itemsSubtotal.toLocaleString('en-IN')}</td>
+                                        <td className="px-2.5 py-1.5 text-right text-slate-500 dark:text-slate-400 text-[11px]">₹{taxTotal.toLocaleString('en-IN')}</td>
+                                        <td className="px-2.5 py-1.5 text-right text-indigo-700 dark:text-indigo-300 font-extrabold">₹{basePrice.toLocaleString('en-IN')}</td>
+                                      </tr>
+                                    </tfoot>
+                                  </table>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between text-xs pt-1">
+                                <span className="text-slate-500 dark:text-slate-400">Plan Gross Price:</span>
+                                <span className="font-extrabold text-indigo-600 dark:text-indigo-400 text-sm">₹{basePrice.toLocaleString('en-IN')}</span>
+                              </div>
+                            )}
                           </div>
+                        )
+                      })()}
+
+                      {/* 2. Payment Method Selector */}
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <CreditCard className="w-3.5 h-3.5 text-indigo-500" />
+                          Payment Method <span className="text-red-500">*</span>
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {PAYMENT_METHOD_OPTIONS.map((pm) => {
+                            const IconComp = pm.icon
+                            const isSelected = paymentMode === pm.id
+                            return (
+                              <button
+                                key={pm.id}
+                                type="button"
+                                onClick={() => setPaymentMode(pm.id)}
+                                className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all cursor-pointer relative ${
+                                  isSelected
+                                    ? 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-600 dark:border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/20 shadow-sm'
+                                    : 'bg-white dark:bg-slate-700/60 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-slate-500'
+                                }`}
+                              >
+                                {isSelected && (
+                                  <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm">
+                                    <Check className="w-2.5 h-2.5" />
+                                  </span>
+                                )}
+                                <IconComp className={`w-4 h-4 mb-1 ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
+                                <span className="text-xs font-bold leading-tight">{pm.label}</span>
+                              </button>
+                            )
+                          })}
                         </div>
                       </div>
-                    )
-                  })()}
+
+                      {/* 3. Multiple Transactions Section */}
+                      <div className="flex flex-col gap-3 border-t border-slate-100 dark:border-slate-700 pt-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <CreditCard className="w-3.5 h-3.5 text-indigo-500" />
+                            Transactions & Payment Proofs ({transactions.length})
+                          </label>
+                          <button
+                            type="button"
+                            onClick={handleAddTransaction}
+                            className="flex items-center gap-1 px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold border border-indigo-200 dark:border-indigo-800/60 transition-all cursor-pointer shadow-xs"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            Add Transaction
+                          </button>
+                        </div>
+
+                        <div className="space-y-3">
+                          {transactions.map((tx, idx) => (
+                            <div 
+                              key={tx.id || idx} 
+                              className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 relative flex flex-col gap-3"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                                  <span className="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">
+                                    {idx + 1}
+                                  </span>
+                                  Transaction #{idx + 1}
+                                </span>
+                                {transactions.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveTransaction(idx)}
+                                    className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-slate-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
+                                    title="Remove Transaction"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                                    Transaction ID / UTR No.
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. UTR12345678"
+                                    value={tx.transactionId}
+                                    onChange={(e) => handleTransactionChange(idx, 'transactionId', e.target.value)}
+                                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 font-mono"
+                                  />
+                                </div>
+
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                                    Amount (₹) <span className="text-slate-400 font-normal">(optional)</span>
+                                  </label>
+                                  <input
+                                    type="number"
+                                    placeholder="Amount (₹)"
+                                    value={tx.amount || ''}
+                                    onChange={(e) => handleTransactionChange(idx, 'amount', e.target.value)}
+                                    className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200"
+                                  />
+                                </div>
+
+                                <div className="flex flex-col gap-1 sm:col-span-2 md:col-span-1">
+                                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                                    <Paperclip className="w-3 h-3 text-indigo-500" />
+                                    Payment Proof Screenshot
+                                  </label>
+                                  <div className="relative">
+                                    <label className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs flex items-center justify-between cursor-pointer hover:border-indigo-400 transition-all shadow-xs">
+                                      <span className={`text-xs truncate max-w-[130px] ${tx.screenshotFilename ? 'font-bold text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}>
+                                        {tx.screenshotFilename || 'Attach screenshot...'}
+                                      </span>
+                                      <span className="bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-lg text-[10px] font-bold border border-indigo-200 dark:border-indigo-800">
+                                        Browse
+                                      </span>
+                                      <input
+                                        type="file"
+                                        accept="image/*,.pdf"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0]
+                                          if (file) {
+                                            const reader = new FileReader()
+                                            reader.onloadend = () => {
+                                              handleTransactionChange(idx, 'screenshotFilename', file.name)
+                                              handleTransactionChange(idx, 'screenshotDataUrl', reader.result as string)
+                                              toast.success(`Proof attached for Transaction #${idx + 1}`)
+                                            }
+                                            reader.readAsDataURL(file)
+                                          }
+                                        }}
+                                      />
+                                    </label>
+                                    {tx.screenshotFilename && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          handleTransactionChange(idx, 'screenshotFilename', '')
+                                          handleTransactionChange(idx, 'screenshotDataUrl', '')
+                                        }}
+                                        className="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full p-1 shadow-md hover:bg-rose-700 transition-colors cursor-pointer"
+                                        title="Remove Screenshot"
+                                      >
+                                        <X className="w-2.5 h-2.5" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 4. Summary & Net Payable Breakdown Card */}
+                      {(() => {
+                        const { basePrice, itemsSubtotal, taxTotal, discountAmount, finalNet } = getCalculatedPrice(plan, promoCode)
+
+                        return (
+                          <div className="bg-slate-900 dark:bg-slate-950 rounded-2xl p-4 shadow-lg text-white border border-slate-800 flex flex-col gap-2.5">
+                            <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-2">
+                              <span className="font-semibold flex items-center gap-1.5">
+                                <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" /> Billing Breakdown Summary
+                              </span>
+                              <span className="bg-indigo-900/60 text-indigo-300 border border-indigo-700/50 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                {paymentMode}
+                              </span>
+                            </div>
+                            <div className="flex flex-col gap-1.5 text-xs font-semibold pt-1">
+                              <div className="flex justify-between text-slate-300">
+                                <span>Plan Components Subtotal</span>
+                                <span>₹{itemsSubtotal.toLocaleString('en-IN')}</span>
+                              </div>
+                              {taxTotal > 0 && (
+                                <div className="flex justify-between text-slate-400">
+                                  <span>Taxes & GST</span>
+                                  <span>+ ₹{taxTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between text-slate-200 font-bold border-t border-slate-800/80 pt-1">
+                                <span>Plan Gross Total</span>
+                                <span>₹{basePrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                              </div>
+                              {discountAmount > 0 && (
+                                <div className="flex justify-between text-emerald-400 font-bold bg-emerald-950/40 p-1.5 rounded-lg border border-emerald-800/50">
+                                  <span>Promo Discount ({promoCode})</span>
+                                  <span>− ₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between text-white font-black text-base border-t border-slate-800 pt-2.5 mt-1">
+                                <span>Total Payable (Net)</span>
+                                <span className="text-indigo-400 text-lg">
+                                  ₹{finalNet.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })()}
+
+                    </div>
+                  )}
                 </div>
               )}
 

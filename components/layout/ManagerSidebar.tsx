@@ -45,7 +45,11 @@ export function ManagerSidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?
   const allMenuItems: MenuItem[] = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/manager/dashboard' },
     { 
-      icon: UserCheck, label: 'CRM', href: '/manager/lead', requiredPermission: 'Lead Permission'
+      icon: UserCheck, label: 'CRM', href: '#', requiredPermission: 'Lead Permission',
+      subItems: [
+        { label: 'All Leads', href: '/manager/lead' },
+        { label: 'Follow Up', href: '/manager/crm/followup' }
+      ]
     },
     { 
       icon: FileText, label: 'Application', href: '/manager/application', requiredPermission: 'Application Permission'

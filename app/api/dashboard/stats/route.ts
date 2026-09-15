@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { getSession } from '@/lib/session'
 
@@ -6,38 +6,51 @@ import { getSession } from '@/lib/session'
 function parseCallDurationMinutes(durationStr: string | null | undefined): number {
   if (!durationStr) return 0
   const str = durationStr.toString().trim().toLowerCase()
-  if (!str) return 0
-
-  // If pure number (e.g. '5', '12', '2.5')
-  const num = parseFloat(str)
-  if (!isNaN(num) && !str.includes('sec') && !str.includes('s')) {
-    return Math.round(num)
-  }
+  if (!str || str === '0' || str === '0 min' || str === '0 sec') return 0
 
   // If text like '2 min 30 sec' or '5m 10s' or '45 sec'
   let minutes = 0
+  let matched = false
   const minMatch = str.match(/(\d+(\.\d+)?)\s*(min|m)\b/)
   if (minMatch) {
     minutes += parseFloat(minMatch[1])
+    matched = true
   }
 
   const secMatch = str.match(/(\d+(\.\d+)?)\s*(sec|s)\b/)
   if (secMatch) {
     minutes += parseFloat(secMatch[1]) / 60
+    matched = true
   }
 
-  if (minutes === 0 && !isNaN(num)) {
-    minutes = num
+  if (!matched) {
+    const num = parseFloat(str)
+    if (!isNaN(num)) {
+      minutes = num
+    }
   }
 
   return Math.round(minutes)
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    let session = await getSession('bdm_session') || await getSession('manager_session') || await getSession('admin_session') || await getSession()
+    const referer = request.headers.get('referer') || ''
+    let session = null
+
+    if (referer.includes('/manager')) {
+      session = await getSession('manager_session')
+    } else if (referer.includes('/bdm')) {
+      session = await getSession('bdm_session')
+    } else if (referer.includes('/admin')) {
+      session = await getSession('admin_session')
+    }
+
+    if (!session) {
+      session = (await getSession('manager_session')) || (await getSession('bdm_session')) || (await getSession('admin_session')) || (await getSession())
+    }
+
     if (!session || !session.userId) {
-      // Check legacy admin as fallback
       const adminFallback = await pool.query('SELECT id, role, name FROM admins LIMIT 1')
       if (adminFallback.rows.length > 0) {
         session = { userId: adminFallback.rows[0].id, role: adminFallback.rows[0].role || 'Admin' } as any
@@ -59,96 +72,103 @@ export async function GET() {
     // Build role-based filter conditions
     let leadsCondition = ''
     let appsCondition = ''
+    let historyFilter = 'WHERE 1=1'
     
-    if (userRole === 'BDM') {
-      leadsCondition = `WHERE (COALESCE(assigned_to_id::text, assigned_to::text) = '${userId}')`
-      appsCondition = `
-        LEFT JOIN institutions i ON applications.institution_id = i.id 
-        WHERE (COALESCE(i.assigned_to::text, '') = '${userId}' OR applications.created_by::text = '${userId}')
-      `
-    } else if (userRole === 'Manager') {
+    if (userRole === 'BDM' || userRole === 'Manager') {
       leadsCondition = `WHERE (COALESCE(assigned_to_id::text, assigned_to::text) = '${userId}' OR created_by::text = '${userId}')`
       appsCondition = `
         LEFT JOIN institutions i ON applications.institution_id = i.id 
         WHERE (COALESCE(i.assigned_to::text, '') = '${userId}' OR applications.created_by::text = '${userId}')
       `
-    }
-
-    // 2. Total Leads
-    const leadsRes = await pool.query(`SELECT COUNT(*) FROM leads ${leadsCondition}`)
-    const totalLeads = parseInt(leadsRes.rows[0]?.count || '0')
-
-    // 3. Total Applications
-    const appsRes = await pool.query(`SELECT COUNT(*) FROM applications ${appsCondition}`)
-    const totalApplications = parseInt(appsRes.rows[0]?.count || '0')
-
-    // 4. Followups
-    let historyFilter = `WHERE 1=1`
-    if (userRole === 'BDM') {
-      historyFilter += ` AND (COALESCE(l.assigned_to_id::text, l.assigned_to::text) = '${userId}')`
-    } else if (userRole === 'Manager') {
       historyFilter += ` AND (COALESCE(l.assigned_to_id::text, l.assigned_to::text) = '${userId}' OR l.created_by::text = '${userId}')`
     }
 
+    // 2. Total Leads
+    const leadsRes = await pool.query(`SELECT COUNT(*)::int AS count FROM leads ${leadsCondition}`)
+    const totalLeads = parseInt(leadsRes.rows[0]?.count || '0')
+
+    // 3. Total Applications
+    const appsRes = await pool.query(`SELECT COUNT(*)::int AS count FROM applications ${appsCondition}`)
+    const totalApplications = parseInt(appsRes.rows[0]?.count || '0')
+
+    // 4. Followups (accurately checking latest follow-up date for active leads)
     const pendingFollowupsRes = await pool.query(`
-      SELECT COUNT(DISTINCT l.id) 
-      FROM lead_history h
-      JOIN leads l ON h.lead_id = l.id
-      ${historyFilter} AND h.follow_up_date IS NOT NULL AND h.follow_up_date >= CURRENT_DATE
+      WITH latest_history AS (
+        SELECT DISTINCT ON (lead_id) lead_id, follow_up_date, status_id, created_at
+        FROM lead_history
+        ORDER BY lead_id, created_at DESC
+      )
+      SELECT COUNT(DISTINCT l.id)::int AS count 
+      FROM leads l
+      JOIN latest_history lh ON lh.lead_id = l.id
+      LEFT JOIN lead_statuses ls ON l.status_id = ls.id
+      ${historyFilter}
+      AND lh.follow_up_date IS NOT NULL
+      AND (ls.name IS NULL OR ls.name NOT IN ('DONE', 'NOT INTERESTED', 'Converted', 'Closed', 'Admitted', 'Rejected'))
     `)
     const totalPendingFollowup = parseInt(pendingFollowupsRes.rows[0]?.count || '0')
 
     const todayPendingFollowupsRes = await pool.query(`
-      SELECT COUNT(DISTINCT l.id) 
-      FROM lead_history h
-      JOIN leads l ON h.lead_id = l.id
-      ${historyFilter} AND h.follow_up_date::date = CURRENT_DATE
+      WITH latest_history AS (
+        SELECT DISTINCT ON (lead_id) lead_id, follow_up_date, status_id, created_at
+        FROM lead_history
+        ORDER BY lead_id, created_at DESC
+      )
+      SELECT COUNT(DISTINCT l.id)::int AS count 
+      FROM leads l
+      JOIN latest_history lh ON lh.lead_id = l.id
+      LEFT JOIN lead_statuses ls ON l.status_id = ls.id
+      ${historyFilter}
+      AND lh.follow_up_date::date = CURRENT_DATE
+      AND (ls.name IS NULL OR ls.name NOT IN ('DONE', 'NOT INTERESTED', 'Converted', 'Closed', 'Admitted', 'Rejected'))
     `)
     const todayPendingFollowup = parseInt(todayPendingFollowupsRes.rows[0]?.count || '0')
 
-    // 5. Total Call Time & Logs
+    // 5. Total Call Time & Logs (only sum actual recorded durations)
     const callsRes = await pool.query(`
       SELECT h.call_duration, h.communication_option, h.created_at
       FROM lead_history h
       JOIN leads l ON h.lead_id = l.id
-      ${historyFilter} AND (h.communication_option = 'Call' OR (h.call_duration IS NOT NULL AND h.call_duration != ''))
+      ${historyFilter} AND (h.call_duration IS NOT NULL AND TRIM(h.call_duration) != '')
     `)
 
     let totalCallMinutes = 0
     callsRes.rows.forEach(row => {
       const mins = parseCallDurationMinutes(row.call_duration)
-      totalCallMinutes += (mins > 0 ? mins : 2) // Default 2 mins per logged call if duration blank
+      totalCallMinutes += mins
     })
 
-    // 6. Login Time & Durations
+    // 6. Login Time & Durations (in IST / local timezone)
     const now = new Date()
-    let loginTimeDisplay = '09:00 AM'
+    let loginTimeDisplay = '10:00 AM'
     let totalLoginMinutes = 0
 
     if (userRecord.last_login_at) {
       const loginDate = new Date(userRecord.last_login_at)
-      loginTimeDisplay = loginDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+      loginTimeDisplay = loginDate.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: true,
+        timeZone: 'Asia/Kolkata' 
+      })
       
-      // Calculate minutes since login today
       const diffMs = now.getTime() - loginDate.getTime()
-      totalLoginMinutes = Math.max(15, Math.floor(diffMs / (1000 * 60)))
+      totalLoginMinutes = Math.max(1, Math.floor(diffMs / (1000 * 60)))
       
-      // Cap at reasonable daily hours if login was yesterday
+      // If login was previous day, limit to a standard workday session duration
       if (loginDate.toDateString() !== now.toDateString()) {
         totalLoginMinutes = 120
       }
     } else {
-      totalLoginMinutes = 45
+      totalLoginMinutes = 15
     }
 
     // Inactive Time = Total Login Duration minus Active Call Time (minimum 0)
     const inactiveMinutes = Math.max(0, totalLoginMinutes - totalCallMinutes)
 
-    // 7. Payment History (Real Application Revenue for logged-in user)
+    // 7. Payment History (Real Application Revenue)
     let paymentFilter = ''
     if (userRole === 'BDM') {
-      paymentFilter = `WHERE (applications.created_by::text = '${userId}' OR applications.institution_id IN (SELECT id FROM institutions WHERE assigned_to::text = '${userId}'))`
-    } else if (userRole === 'Manager') {
       paymentFilter = `WHERE (applications.created_by::text = '${userId}' OR applications.institution_id IN (SELECT id FROM institutions WHERE assigned_to::text = '${userId}'))`
     }
 
@@ -166,7 +186,7 @@ export async function GET() {
     `)
     const todayPaymentVal = parseFloat(todayPaymentRes.rows[0]?.today_total || '0')
 
-    // 8. Monthly Analytics for Chart (Filtered by user's collections)
+    // 8. Monthly Analytics for Chart
     const monthlyGraphQuery = await pool.query(`
       SELECT 
         TO_CHAR(created_at, 'Mon') as month_name,
@@ -196,12 +216,12 @@ export async function GET() {
         totalApplications,
         totalPendingFollowup,
         todayPendingFollowup,
-        totalCallTime: totalCallMinutes, // numeric minutes
+        totalCallTime: totalCallMinutes,
         totalCallTimeFormatted: `${totalCallMinutes} min`,
         todayLoginTime: loginTimeDisplay,
-        totalLoginDuration: totalLoginMinutes, // numeric minutes
+        totalLoginDuration: totalLoginMinutes,
         totalLoginDurationFormatted: totalLoginMinutes > 60 ? `${Math.floor(totalLoginMinutes/60)}h ${totalLoginMinutes%60}m` : `${totalLoginMinutes} min`,
-        inactiveTime: inactiveMinutes, // numeric minutes
+        inactiveTime: inactiveMinutes,
         inactiveTimeFormatted: `${inactiveMinutes} min`,
         totalPayment: totalPaymentVal.toFixed(2),
         todayPayment: todayPaymentVal.toFixed(2),

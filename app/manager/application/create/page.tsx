@@ -4,11 +4,44 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, Camera, Check, ArrowLeft, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { SearchableDropdown } from '@/components/ui/SearchableDropdown'
 
 export default function CreateApplicationPage() {
   const router = useRouter()
-  const [step, setStep] = useState(1) // 1 = Personal Details, 2 = Status
   const [submitting, setSubmitting] = useState(false)
+
+  // State and District dynamic settings state
+  const [statesData, setStatesData] = useState<any[]>([])
+  const [districtsList, setDistrictsList] = useState<string[]>([])
+
+  useEffect(() => {
+    fetch('/api/admin/settings/state-city')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setStatesData(data.data)
+        }
+      })
+      .catch(err => console.error('Failed to load states/cities', err))
+  }, [])
+
+  // Computed state and district options strictly from Settings (/api/admin/settings/state-city)
+  const allStatesList = React.useMemo(() => {
+    return statesData
+      .map((s: any) => s.state_name)
+      .filter(Boolean)
+      .sort((a: string, b: string) => a.localeCompare(b))
+  }, [statesData])
+
+  const getDistrictsForState = (stName: string): string[] => {
+    if (!stName) {
+      const allDistricts = new Set<string>()
+      statesData.forEach((s: any) => (s.districts || []).forEach((d: string) => allDistricts.add(d)))
+      return Array.from(allDistricts).sort((a, b) => a.localeCompare(b))
+    }
+    const stateObj = statesData.find((s: any) => s.state_name?.toLowerCase() === stName.toLowerCase())
+    return (stateObj?.districts || []).slice().sort((a: string, b: string) => a.localeCompare(b))
+  }
 
   // Step 1: Personal Details State
   const [schoolName, setSchoolName] = useState('')
@@ -33,7 +66,7 @@ export default function CreateApplicationPage() {
   const [directorSign, setDirectorSign] = useState('')
   const [directorPhoto, setDirectorPhoto] = useState<string | null>(null)
 
-  // Step 2: Status State
+  // Status State - defaults to 'Applied'
   const [status, setStatus] = useState<'Applied' | 'Pending' | 'Paid' | 'Unpaid' | 'Active' | 'Inactive'>('Applied')
   const [enquiryStatus, setEnquiryStatus] = useState<string>('Applied')
   const [plan, setPlan] = useState('')
@@ -42,6 +75,7 @@ export default function CreateApplicationPage() {
   const [promoCodes, setPromoCodes] = useState<any[]>([])
 
   useEffect(() => {
+    // Fetch plans and promo codes
     const fetchPlansAndPromo = async () => {
       try {
         const [planRes, promoRes] = await Promise.all([
@@ -59,7 +93,19 @@ export default function CreateApplicationPage() {
     fetchPlansAndPromo()
   }, [])
 
-  // Simulated image uploading to base64
+  const handleStateChange = (stateVal: string) => {
+    setStateName(stateVal)
+    const stateObj = statesData.find(s => s.state_name === stateVal)
+    if (stateObj) {
+      setDistrictsList(stateObj.districts || [])
+      setDistrictName('')
+    } else {
+      setDistrictsList([])
+      setDistrictName('')
+    }
+  }
+
+  // Image uploading to base64
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'principal' | 'director') => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -76,8 +122,24 @@ export default function CreateApplicationPage() {
     reader.readAsDataURL(file)
   }
 
-  // Validate Step 1
-  const validateStep1 = () => {
+  const handleSignUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'principal' | 'director') => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      if (target === 'principal') {
+        setPrincipalSign(reader.result as string)
+      } else {
+        setDirectorSign(reader.result as string)
+      }
+      toast.success('Signature uploaded successfully')
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // Validate fields
+  const validateForm = () => {
     if (!schoolName.trim()) return 'School Name is required.'
     if (!contactPerson.trim()) return 'Contact Person Name is required.'
     if (!mobileNo.trim()) return 'Mobile Number is required.'
@@ -90,29 +152,15 @@ export default function CreateApplicationPage() {
     return null
   }
 
-  const handleNext = (e: React.FormEvent) => {
-    e.preventDefault()
-    const error = validateStep1()
-    if (error) {
-      toast.error(error)
-      return
-    }
-    setStep(2)
-  }
-
-  const handleBack = () => {
-    setStep(1)
-  }
-
   const handleCancel = () => {
     router.push('/manager/application')
   }
 
-  const handleCreate = async () => {
-    const error = validateStep1()
+  const handleCreate = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    const error = validateForm()
     if (error) {
       toast.error(error)
-      setStep(1)
       return
     }
 
@@ -178,404 +226,352 @@ export default function CreateApplicationPage() {
           </button>
         </div>
 
-        {/* Outer step wizard card */}
+        {/* Outer Form Card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-8">
           
-          {/* Stepper Tabs Selector */}
-          <div className="border border-slate-200 dark:border-slate-600 rounded-xl overflow-hidden flex shadow-sm">
-            <div 
-              className={`flex-1 py-3 text-center font-bold text-sm transition-all ${
-                step === 1 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-600'
-              }`}
-            >
-              Personal Details
+          <form onSubmit={handleCreate} className="flex flex-col gap-8">
+            
+            <div className="border-b border-slate-100 dark:border-slate-700 pb-3">
+              <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Personal Details</h3>
             </div>
-            <div 
-              className={`flex-1 py-3 text-center font-bold text-sm transition-all ${
-                step === 2 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-600'
-              }`}
-            >
-              Status
-            </div>
-          </div>
 
-          {/* Stepper Line indicators */}
-          <div className="px-12 py-3 flex items-center justify-center relative">
-            <div className="w-full bg-slate-200 dark:bg-slate-600 h-0.5 absolute top-1/2 left-0 -translate-y-1/2 z-0" />
-            <div 
-              className="bg-blue-500 h-0.5 absolute top-1/2 left-0 -translate-y-1/2 z-0 transition-all duration-300"
-              style={{ width: step === 1 ? '50%' : '100%' }}
-            />
-
-            <div className="w-full flex justify-between relative z-10">
-              {/* Circle step 1 */}
-              <div 
-                className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${
-                  step === 2 
-                    ? 'bg-blue-500 border-blue-500 text-white' 
-                    : 'bg-white dark:bg-slate-700 border-blue-500 text-blue-600'
-                }`}
-              >
-                {step === 2 ? (
-                  <Check className="w-3.5 h-3.5" />
-                ) : (
-                  <span className="w-2 h-2 rounded-full bg-blue-500" />
-                )}
+            <div className="flex flex-col gap-5">
+              {/* School Name */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  School Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter School Name"
+                  value={schoolName}
+                  onChange={(e) => setSchoolName(e.target.value)}
+                  className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  required
+                />
               </div>
 
-              {/* Circle step 2 */}
-            <div 
-                className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${
-                  step === 2 
-                    ? 'bg-white dark:bg-slate-700 border-blue-500 text-blue-600' 
-                    : 'bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500'
-                }`}
-              >
-                {step === 2 && <span className="w-2 h-2 rounded-full bg-blue-500" />}
+              {/* Code grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">School Code</label>
+                  <input
+                    type="text"
+                    placeholder="Enter School Code"
+                    value={schoolCode}
+                    onChange={(e) => setSchoolCode(e.target.value)}
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Affiliated To</label>
+                  <input
+                    type="text"
+                    placeholder="Enter Affiliated to"
+                    value={affiliatedTo}
+                    onChange={(e) => setAffiliatedTo(e.target.value)}
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Affiliation Code</label>
+                  <input
+                    type="text"
+                    placeholder="Enter Affiliation Code"
+                    value={affiliationCode}
+                    onChange={(e) => setAffiliationCode(e.target.value)}
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  />
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* Step 1: Personal Details Forms */}
-          {step === 1 && (
-            <form onSubmit={handleNext} className="flex flex-col gap-8">
-              
-              <div className="border-b border-slate-100 dark:border-slate-700 pb-3">
-                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Personal Details</h3>
-              </div>
-
-              <div className="flex flex-col gap-5">
-                {/* School Name */}
+              {/* Contact grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    School Name <span className="text-red-500">*</span>
+                    Contact Person Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
-                    placeholder="Enter School Name"
-                    value={schoolName}
-                    onChange={(e) => setSchoolName(e.target.value)}
+                    placeholder="Enter Contact Person Name"
+                    value={contactPerson}
+                    onChange={(e) => setContactPerson(e.target.value)}
                     className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     required
                   />
                 </div>
-
-                {/* Code grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">School Code</label>
-                    <input
-                      type="text"
-                      placeholder="Enter School Code"
-                      value={schoolCode}
-                      onChange={(e) => setSchoolCode(e.target.value)}
-                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Affiliated To</label>
-                    <input
-                      type="text"
-                      placeholder="Enter Affiliated to"
-                      value={affiliatedTo}
-                      onChange={(e) => setAffiliatedTo(e.target.value)}
-                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Affiliation Code</label>
-                    <input
-                      type="text"
-                      placeholder="Enter Affiliation Code"
-                      value={affiliationCode}
-                      onChange={(e) => setAffiliationCode(e.target.value)}
-                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Contact grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                      Contact Person Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Enter Contact Person Name"
-                      value={contactPerson}
-                      onChange={(e) => setContactPerson(e.target.value)}
-                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                      required
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                      Mobile No. <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Enter Mobile No."
-                      value={mobileNo}
-                      onChange={(e) => setMobileNo(e.target.value)}
-                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                      required
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Email ID</label>
-                    <input
-                      type="email"
-                      placeholder="Enter Email ID"
-                      value={emailId}
-                      onChange={(e) => setEmailId(e.target.value)}
-                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Address */}
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    Address <span className="text-red-500">*</span>
+                    Mobile No. <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
-                    placeholder="Enter School Address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Enter Mobile No."
+                    value={mobileNo}
+                    onChange={(e) => setMobileNo(e.target.value)}
                     className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     required
                   />
                 </div>
-
-                {/* Location Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                      State <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Enter State"
-                      value={stateName}
-                      onChange={(e) => setStateName(e.target.value)}
-                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                      required
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                      District <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Enter District"
-                      value={districtName}
-                      onChange={(e) => setDistrictName(e.target.value)}
-                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                      required
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                      Pincode <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Enter Pincode"
-                      value={pincode}
-                      onChange={(e) => setPincode(e.target.value)}
-                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                      required
-                    />
-                  </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Email ID</label>
+                  <input
+                    type="email"
+                    placeholder="Enter Email ID"
+                    value={emailId}
+                    onChange={(e) => setEmailId(e.target.value)}
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  />
                 </div>
+              </div>
 
-                {/* Professional Signatures / Photo blocks */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                   
-                  {/* Principal Details Panel */}
-                  <div className="bg-slate-50/50 dark:bg-slate-700/30 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 flex gap-4">
-                    <div className="flex-1 flex flex-col gap-3">
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400">
-                          Principal Name <span className="text-red-500">*</span>
-                        </label>
+              {/* Address */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  Address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter School Address"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  required
+                />
+              </div>
+
+              {/* Location Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <SearchableDropdown
+                  label="State *"
+                  placeholder="Select State"
+                  searchPlaceholder="Search State..."
+                  options={allStatesList}
+                  value={stateName}
+                  onChange={(val) => handleStateChange(val)}
+                />
+                <SearchableDropdown
+                  label="District *"
+                  placeholder="Select District"
+                  searchPlaceholder="Search District..."
+                  options={getDistrictsForState(stateName)}
+                  value={districtName}
+                  onChange={(val) => setDistrictName(val)}
+                  disabled={!stateName}
+                />
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    Pincode <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter Pincode"
+                    value={pincode}
+                    onChange={(e) => setPincode(e.target.value)}
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Professional Signatures / Photo blocks */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                 
+                {/* Principal Details Panel */}
+                <div className="bg-slate-50/50 dark:bg-slate-700/30 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 flex gap-4">
+                  <div className="flex-1 flex flex-col gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                        Principal Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Enter Principal Name"
+                        value={principalName}
+                        onChange={(e) => setPrincipalName(e.target.value)}
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                        required
+                      />
+                    </div>
+                    
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Gender</span>
+                      <div className="flex gap-4 mt-1">
+                        {['Male', 'Female', 'Others'].map(g => (
+                          <label key={g} className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer">
+                            <input 
+                              type="radio" 
+                              name="principal_gender" 
+                              value={g}
+                              checked={principalGender === g}
+                              onChange={() => setPrincipalGender(g as any)}
+                              className="text-blue-600 focus:ring-blue-500"
+                            />
+                            {g}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Principal Sign.</label>
+                      <div className="flex gap-2">
                         <input
                           type="text"
-                          placeholder="Enter Principal Name"
-                          value={principalName}
-                          onChange={(e) => setPrincipalName(e.target.value)}
-                          className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                          required
-                        />
-                      </div>
-                      
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Gender</span>
-                        <div className="flex gap-4 mt-1">
-                          {['Male', 'Female', 'Others'].map(g => (
-                            <label key={g} className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer">
-                              <input 
-                                type="radio" 
-                                name="principal_gender" 
-                                value={g}
-                                checked={principalGender === g}
-                                onChange={() => setPrincipalGender(g as any)}
-                                className="text-blue-600 focus:ring-blue-500"
-                              />
-                              {g}
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Principal Sign.</label>
-                        <input
-                          type="text"
-                          placeholder="Upload Principal Sign."
-                          value={principalSign}
+                          placeholder="Upload or type Principal Sign."
+                          value={principalSign.startsWith('data:') ? 'Signature Image Uploaded' : principalSign}
                           onChange={(e) => setPrincipalSign(e.target.value)}
-                          className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                          className="flex-1 px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                         />
-                      </div>
-                    </div>
-
-                    {/* Principal Photo Card */}
-                    <div className="w-32 flex flex-col gap-2 shrink-0">
-                      <div className="h-32 bg-white dark:bg-slate-700 rounded-2xl border border-slate-200 dark:border-slate-600 flex flex-col items-center justify-center relative overflow-hidden shadow-inner group">
-                        {principalPhoto ? (
-                          <img src={principalPhoto} alt="Principal" className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="flex flex-col items-center gap-1 text-slate-400">
-                            <div className="p-2.5 bg-blue-50 dark:bg-blue-900/40 rounded-xl text-blue-600 dark:text-blue-400">
-                              <Camera className="w-5 h-5" />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      <label className="w-full py-1.5 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-[10px] font-bold text-slate-500 dark:text-slate-400 text-center transition-colors cursor-pointer block shadow-sm">
-                        Upload Photo
-                        <input 
-                          type="file" 
-                          accept="image/*"
-                          onChange={(e) => handlePhotoUpload(e, 'principal')}
-                          className="hidden" 
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Director Details Panel */}
-                  <div className="bg-slate-50/50 dark:bg-slate-700/30 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 flex gap-4">
-                    <div className="flex-1 flex flex-col gap-3">
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400">
-                          Director Name <span className="text-red-500">*</span>
+                        <label className="px-3 py-2 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-500 dark:text-slate-400 transition-colors cursor-pointer shrink-0 shadow-sm">
+                          Upload
+                          <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={(e) => handleSignUpload(e, 'principal')}
+                            className="hidden" 
+                          />
                         </label>
-                        <input
-                          type="text"
-                          placeholder="Enter Director Name"
-                          value={directorName}
-                          onChange={(e) => setDirectorName(e.target.value)}
-                          className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                          required
-                        />
                       </div>
-                      
-                      <div className="flex flex-col gap-1.5">
-                        <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Gender</span>
-                        <div className="flex gap-4 mt-1">
-                          {['Male', 'Female', 'Others'].map(g => (
-                            <label key={g} className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer">
-                              <input 
-                                type="radio" 
-                                name="director_gender" 
-                                value={g}
-                                checked={directorGender === g}
-                                onChange={() => setDirectorGender(g as any)}
-                                className="text-blue-600 focus:ring-blue-500"
-                              />
-                              {g}
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Director Sign.</label>
-                        <input
-                          type="text"
-                          placeholder="Upload Director Sign."
-                          value={directorSign}
-                          onChange={(e) => setDirectorSign(e.target.value)}
-                          className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Director Photo Card */}
-                    <div className="w-32 flex flex-col gap-2 shrink-0">
-                      <div className="h-32 bg-white dark:bg-slate-700 rounded-2xl border border-slate-200 dark:border-slate-600 flex flex-col items-center justify-center relative overflow-hidden shadow-inner group">
-                        {directorPhoto ? (
-                          <img src={directorPhoto} alt="Director" className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="flex flex-col items-center gap-1 text-slate-400">
-                            <div className="p-2.5 bg-blue-50 dark:bg-blue-900/40 rounded-xl text-blue-600 dark:text-blue-400">
-                              <Camera className="w-5 h-5" />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      <label className="w-full py-1.5 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-[10px] font-bold text-slate-500 dark:text-slate-400 text-center transition-colors cursor-pointer block shadow-sm">
-                        Upload Photo
-                        <input 
-                          type="file" 
-                          accept="image/*"
-                          onChange={(e) => handlePhotoUpload(e, 'director')}
-                          className="hidden" 
-                        />
-                      </label>
                     </div>
                   </div>
 
+                  {/* Principal Photo Card */}
+                  <div className="w-32 flex flex-col gap-2 shrink-0">
+                    <div className="h-32 bg-white dark:bg-slate-700 rounded-2xl border border-slate-200 dark:border-slate-600 flex flex-col items-center justify-center relative overflow-hidden shadow-inner group">
+                      {principalPhoto ? (
+                        <>
+                          <img src={principalPhoto} alt="Principal" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setPrincipalPhoto(null)}
+                            className="absolute top-1.5 right-1.5 p-1 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors z-10 cursor-pointer shadow-sm"
+                            title="Remove Photo"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1 text-slate-400">
+                          <div className="p-2.5 bg-blue-50 dark:bg-blue-900/40 rounded-xl text-blue-600 dark:text-blue-400">
+                            <Camera className="w-5 h-5" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <label className="w-full py-1.5 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-[10px] font-bold text-slate-500 dark:text-slate-400 text-center transition-colors cursor-pointer block shadow-sm">
+                      Upload Photo
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={(e) => handlePhotoUpload(e, 'principal')}
+                        className="hidden" 
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Director Details Panel */}
+                <div className="bg-slate-50/50 dark:bg-slate-700/30 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 flex gap-4">
+                  <div className="flex-1 flex flex-col gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                        Director Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Enter Director Name"
+                        value={directorName}
+                        onChange={(e) => setDirectorName(e.target.value)}
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                        required
+                      />
+                    </div>
+                    
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Gender</span>
+                      <div className="flex gap-4 mt-1">
+                        {['Male', 'Female', 'Others'].map(g => (
+                          <label key={g} className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 cursor-pointer">
+                            <input 
+                              type="radio" 
+                              name="director_gender" 
+                              value={g}
+                              checked={directorGender === g}
+                              onChange={() => setDirectorGender(g as any)}
+                              className="text-blue-600 focus:ring-blue-500"
+                            />
+                            {g}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Director Sign.</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Upload or type Director Sign."
+                          value={directorSign.startsWith('data:') ? 'Signature Image Uploaded' : directorSign}
+                          onChange={(e) => setDirectorSign(e.target.value)}
+                          className="flex-1 px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                        />
+                        <label className="px-3 py-2 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-500 dark:text-slate-400 transition-colors cursor-pointer shrink-0 shadow-sm">
+                          Upload
+                          <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={(e) => handleSignUpload(e, 'director')}
+                            className="hidden" 
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Director Photo Card */}
+                  <div className="w-32 flex flex-col gap-2 shrink-0">
+                    <div className="h-32 bg-white dark:bg-slate-700 rounded-2xl border border-slate-200 dark:border-slate-600 flex flex-col items-center justify-center relative overflow-hidden shadow-inner group">
+                      {directorPhoto ? (
+                        <>
+                          <img src={directorPhoto} alt="Director" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setDirectorPhoto(null)}
+                            className="absolute top-1.5 right-1.5 p-1 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors z-10 cursor-pointer shadow-sm"
+                            title="Remove Photo"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1 text-slate-400">
+                          <div className="p-2.5 bg-blue-50 dark:bg-blue-900/40 rounded-xl text-blue-600 dark:text-blue-400">
+                            <Camera className="w-5 h-5" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <label className="w-full py-1.5 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-[10px] font-bold text-slate-500 dark:text-slate-400 text-center transition-colors cursor-pointer block shadow-sm">
+                      Upload Photo
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={(e) => handlePhotoUpload(e, 'director')}
+                        className="hidden" 
+                      />
+                    </label>
+                  </div>
                 </div>
 
               </div>
 
-              {/* Step 1 Actions */}
-              <div className="flex justify-center gap-4 border-t border-slate-100 dark:border-slate-700 pt-6">
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  className="px-8 py-2.5 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-10 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-blue-600/10 cursor-pointer"
-                >
-                  Save & Next
-                </button>
-              </div>
-            </form>
-          )}
+            </div>
 
-          {/* Step 2: Status Forms */}
-          {step === 2 && (
-            <div className="flex flex-col gap-8">
-              
-              <div className="border-b border-slate-100 dark:border-slate-700 pb-3">
-                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Status</h3>
-              </div>
-
+            {/* Status Details */}
+            <div className="border-t border-slate-100 dark:border-slate-700 pt-6 mt-6 flex flex-col gap-6">
+              <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Status & Plan Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Status Dropdown */}
                 <div className="flex flex-col gap-2">
@@ -589,7 +585,7 @@ export default function CreateApplicationPage() {
                         setEnquiryStatus('Payment Pending')
                       }
                     }}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm cursor-pointer text-slate-800 dark:text-slate-200"
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
                   >
                     <option value="Applied">Applied</option>
                     <option value="Pending">Pending</option>
@@ -606,7 +602,7 @@ export default function CreateApplicationPage() {
                   <select
                     value={enquiryStatus}
                     onChange={(e) => setEnquiryStatus(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm cursor-pointer text-slate-800 dark:text-slate-200"
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
                   >
                     <option value="Applied">Applied</option>
                     <option value="In Review">In Review</option>
@@ -617,70 +613,72 @@ export default function CreateApplicationPage() {
                 </div>
               </div>
 
-              {/* Plan and Promo Code Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                {/* Plan Dropdown */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Plan</label>
-                  <select
-                    value={plan}
-                    onChange={(e) => setPlan(e.target.value)}
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm cursor-pointer text-slate-800 dark:text-slate-200"
-                  >
-                    <option value="">Select Plan</option>
-                    {plans.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.plan_name} ({p.segment})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Promo Code Dropdown */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Promo Code</label>
-                  <div className="relative">
+              {status === 'Pending' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4 animate-in fade-in duration-200">
+                  {/* Plan Dropdown */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      Plan <span className="text-red-500">*</span>
+                    </label>
                     <select
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value)}
-                      className="w-full pl-4 pr-12 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm cursor-pointer appearance-none text-slate-800 dark:text-slate-200"
+                      value={plan}
+                      onChange={(e) => setPlan(e.target.value)}
+                      className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer"
+                      required={status === 'Pending'}
                     >
-                      <option value="">Select Promo Code</option>
-                      {promoCodes.map((pc) => (
-                        <option key={pc.id} value={pc.code}>
-                          {pc.code} ({pc.discount_name})
+                      <option value="">Select Plan</option>
+                      {plans.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.plan_name} ({p.segment})
                         </option>
                       ))}
                     </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold bg-blue-50 dark:bg-blue-900/40 border border-blue-100 dark:border-blue-800 rounded-lg p-1 px-2 pointer-events-none">
-                      <span className="text-xs font-bold leading-none">%</span>
+                  </div>
+
+                  {/* Promo Code Dropdown */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Promo Code</label>
+                    <div className="relative">
+                      <select
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value)}
+                        className="w-full pl-4 pr-12 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm text-slate-800 dark:text-slate-200 cursor-pointer appearance-none"
+                      >
+                        <option value="">Select Promo Code</option>
+                        {promoCodes.map((pc) => (
+                          <option key={pc.id} value={pc.code}>
+                            {pc.code} ({pc.discount_name})
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold bg-blue-50 dark:bg-blue-900/40 border border-blue-100 dark:border-blue-800 rounded-lg p-1 px-2 pointer-events-none">
+                        <span className="text-xs font-bold leading-none">%</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Step 2 Actions */}
-              <div className="flex justify-center gap-4 border-t border-slate-100 dark:border-slate-700 pt-6 mt-4">
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="px-8 py-2.5 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm cursor-pointer flex items-center gap-2"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back
-                </button>
-                <button
-                  onClick={handleCreate}
-                  disabled={submitting}
-                  className="px-10 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-blue-600/10 cursor-pointer flex items-center justify-center gap-2"
-                >
-                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Create
-                </button>
-              </div>
-
+              )}
             </div>
-          )}
+
+            {/* Actions */}
+            <div className="flex justify-center gap-4 border-t border-slate-100 dark:border-slate-700 pt-6">
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="px-8 py-2.5 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-10 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-blue-600/10 cursor-pointer flex items-center justify-center gap-2"
+              >
+                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                Create
+              </button>
+            </div>
+          </form>
 
         </div>
       </div>

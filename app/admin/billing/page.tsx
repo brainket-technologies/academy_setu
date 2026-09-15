@@ -5,10 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { 
   Search, Plus, Edit3, Trash2, FileText, Download, Loader2, 
   ChevronLeft, ChevronRight, X, Percent, Tag, Ticket, Check, Paperclip, Calendar,
-  Building2, Phone, Mail, User, MapPin, ShieldCheck, Award
+  Building2, Phone, Mail, User, MapPin, ShieldCheck, Award,
+  CreditCard, Smartphone, QrCode, Building, Receipt, CheckCircle2, DollarSign, Clock, Sparkles
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
+import { SearchableDropdown } from '@/components/ui/SearchableDropdown'
 
 interface Bill {
   id: string
@@ -34,6 +36,13 @@ interface Segment {
 interface InstituteOption {
   id: string
   name: string
+  code?: string
+  contact_person?: string
+  mobile_no?: string
+  email_id?: string
+  address?: string
+  district?: string
+  state?: string
   segment_name?: string | null
   segment_id?: string | null
 }
@@ -121,6 +130,67 @@ function BillingDashboardContent() {
   const addPayment = () => setPayments([...payments, { id: Date.now(), txnId: '', amount: '', screenshot: '', screenshotData: '' }])
   const updatePayment = (id: number, field: string, value: string) => setPayments(payments.map(p => p.id === id ? { ...p, [field]: value } : p))
   const removePayment = (id: number) => setPayments(payments.filter(p => p.id !== id))
+
+  // Invoice Line Items & Metadata
+  const [invoiceNo, setInvoiceNo] = useState(() => `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`)
+  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().substring(0, 10))
+  const [invoiceDueDate, setInvoiceDueDate] = useState(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 7)
+    return d.toISOString().substring(0, 10)
+  })
+  const [invoicePaymentTerms, setInvoicePaymentTerms] = useState('Due on Receipt')
+  const [invoicePoNumber, setInvoicePoNumber] = useState('')
+  const [invoiceNotes, setInvoiceNotes] = useState('Subscription & service charges for Academy Setu ERP Platform.')
+  const [invoiceTerms, setInvoiceTerms] = useState('Payment is non-refundable. Validity starts upon service activation.')
+  const [invoiceItems, setInvoiceItems] = useState<Array<{
+    id: string
+    description: string
+    quantity: number
+    price: number
+    tax_percentage: number
+    tax_price: number
+    total: number
+  }>>([])
+
+  const handleAddInvoiceItem = () => {
+    setInvoiceItems(prev => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        description: '',
+        quantity: 1,
+        price: 0,
+        tax_percentage: 0,
+        tax_price: 0,
+        total: 0
+      }
+    ])
+  }
+
+  const handleRemoveInvoiceItem = (id: string) => {
+    setInvoiceItems(prev => {
+      if (prev.length <= 1) return prev
+      return prev.filter(item => item.id !== id)
+    })
+  }
+
+  const handleInvoiceItemChange = (id: string, field: 'description' | 'quantity' | 'price' | 'tax_percentage', value: any) => {
+    setInvoiceItems(prev => prev.map(item => {
+      if (item.id !== id) return item
+      const updated = { ...item, [field]: value }
+      const price = Number(field === 'price' ? value : item.price) || 0
+      const qty = Number(field === 'quantity' ? value : item.quantity) || 1
+      const taxPct = Number(field === 'tax_percentage' ? value : item.tax_percentage) || 0
+      const sub = price * qty
+      const taxPrice = (sub * taxPct) / 100
+      return {
+        ...updated,
+        tax_price: taxPrice,
+        total: sub + taxPrice
+      }
+    }))
+  }
 
   // Transaction History States (Tab 2)
   const [bills, setBills] = useState<Bill[]>([])
@@ -407,11 +477,27 @@ function BillingDashboardContent() {
 
   // Helper for gross amount
   const getTotalEntered = () => payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+
+  const getInvoiceSubtotal = () => {
+    if (invoiceItems.length > 0) {
+      return invoiceItems.reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 1)), 0)
+    }
+    return getPlanPrice(selectedPlan)
+  }
+
+  const getInvoiceTaxTotal = () => {
+    if (invoiceItems.length > 0) {
+      return invoiceItems.reduce((sum, item) => sum + Number(item.tax_price || 0), 0)
+    }
+    return 0
+  }
   
   const getGrossAmount = () => {
+    if (invoiceItems.length > 0) {
+      return invoiceItems.reduce((sum, item) => sum + Number(item.total || 0), 0)
+    }
     if (!selectedPlan) return 0
     if (purchaseMode === 'edit') return getTotalEntered()
-    if (paymentModeOption !== 'gateway') return getTotalEntered()
     return getPlanPrice(selectedPlan)
   }
 
@@ -433,9 +519,39 @@ function BillingDashboardContent() {
     return Math.max(0, grossPrice - discount)
   }
 
-  // Pre-fill manual amount field when plan or promo changes
+  // Pre-fill manual amount field and line items when plan or promo changes
   useEffect(() => {
     if (selectedPlan) {
+      const items = purchaseMode === 'renew' && selectedPlan.renewal_billing_items?.length ? selectedPlan.renewal_billing_items : selectedPlan.first_billing_items
+      if (items && items.length > 0) {
+        setInvoiceItems(items.map((it: any, idx: number) => {
+          const price = Number(it.price) || 0
+          const taxPct = Number(it.tax_percentage) || 0
+          const taxPrice = getItemTaxAmount(it)
+          const total = getItemTotal(it)
+          return {
+            id: String(idx + 1),
+            description: it.item_description || selectedPlan.plan_name,
+            quantity: 1,
+            price: price,
+            tax_percentage: taxPct,
+            tax_price: taxPrice,
+            total: total
+          }
+        }))
+      } else {
+        const basePrice = Number((selectedPlan as any).price) || 1200
+        setInvoiceItems([{
+          id: '1',
+          description: `${selectedPlan.plan_name} Platform Subscription`,
+          quantity: 1,
+          price: basePrice,
+          tax_percentage: 0,
+          tax_price: 0,
+          total: basePrice
+        }])
+      }
+
       setPayments(prev => {
         if (prev.length === 1 && !prev[0].txnId && !prev[0].screenshot) {
           return [{ ...prev[0], amount: String(getFinalAmount()) }]
@@ -443,7 +559,7 @@ function BillingDashboardContent() {
         return prev
       })
     }
-  }, [selectedPlan, appliedPromo, purchaseMode])
+  }, [selectedPlan, purchaseMode])
 
   // Trigger checkout creation
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
@@ -658,8 +774,65 @@ function BillingDashboardContent() {
     toast.success(`Preparing invoice for ${schoolName}...`)
     
     const fullPlan = plans.find(p => p.plan_name === planName) || filteredPlansList.find(p => p.plan_name === planName);
+    const schoolInfo = schools.find(s => s.name === schoolName) || instDetails;
     const planDesc = fullPlan?.description || '';
     const planMenus = fullPlan?.menus || [];
+
+    // Parse itemized line items if available
+    const items = fullPlan?.first_billing_items && fullPlan.first_billing_items.length > 0
+      ? fullPlan.first_billing_items
+      : null;
+
+    let subtotalNum = 0;
+    let taxTotalNum = 0;
+    let rowsHTML = '';
+
+    if (items && items.length > 0) {
+      items.forEach((item, idx) => {
+        const p = Number(item.price) || 0;
+        const taxP = getItemTaxAmount(item);
+        const tot = getItemTotal(item);
+        subtotalNum += p;
+        taxTotalNum += taxP;
+        rowsHTML += `
+          <tr>
+            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0;">
+              <strong style="color: #0f172a; font-size: 13px;">${item.item_description || `Item #${idx + 1}`}</strong>
+              <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Plan Component / Core Module Service</div>
+            </td>
+            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #334155; font-size: 13px;">1</td>
+            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #334155; font-size: 13px;">₹${p.toFixed(2)}</td>
+            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 700; color: #0f172a; font-size: 13px;">₹${tot.toFixed(2)}</td>
+          </tr>
+        `;
+      });
+    } else {
+      const gross = Number(amount) || 0;
+      subtotalNum = gross;
+      taxTotalNum = 0;
+      rowsHTML = `
+        <tr>
+          <td style="padding: 14px; border-bottom: 1px solid #e2e8f0;">
+            <strong style="color: #0f172a; font-size: 14px;">${planName || 'CRM Platform Subscription'}</strong>
+            <div style="font-size: 11px; color: #64748b; margin-top: 3px;">
+              ${planDesc || 'Academy Setu ERP & Cloud Management Software Subscription License'}
+            </div>
+            ${planMenus && planMenus.length > 0 ? `
+              <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px;">
+                ${planMenus.map((m: string) => `<span style="padding: 2px 6px; background: #e0e7ff; color: #4338ca; border-radius: 4px; font-size: 10px; font-weight: 600;">${m}</span>`).join('')}
+              </div>
+            ` : ''}
+          </td>
+          <td style="padding: 14px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #334155; font-size: 13px;">1</td>
+          <td style="padding: 14px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #334155; font-size: 13px;">₹${gross.toFixed(2)}</td>
+          <td style="padding: 14px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 700; color: #0f172a; font-size: 13px;">₹${gross.toFixed(2)}</td>
+        </tr>
+      `;
+    }
+
+    const totalCalculated = Number(amount) || (subtotalNum + taxTotalNum);
+    const invoiceNum = `INV-${new Date(date || new Date()).getFullYear()}-${(txnId ? txnId.replace(/[^a-zA-Z0-9]/g, '').slice(-4) : '1001').toUpperCase()}`;
+    const formattedDate = new Date(date || new Date()).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
     const invoiceHTML = `
       <!DOCTYPE html>
@@ -667,111 +840,229 @@ function BillingDashboardContent() {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Tax Invoice - ${schoolName}</title>
+        <title>Invoice - ${schoolName}</title>
         <style>
-          @page { size: A4 portrait; margin: 10mm; }
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; background: #fff; margin: 0; padding: 20px; }
-          .invoice-container { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border: 2px solid #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); min-height: 270mm; display: flex; flex-direction: column; box-sizing: border-box; }
-          .header { display: flex; justify-content: space-between; border-bottom: 3px solid #4f46e5; padding-bottom: 20px; margin-bottom: 30px; }
-          .brand h1 { margin: 0; color: #4f46e5; font-size: 32px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
-          .brand p { margin: 5px 0 0; color: #6b7280; font-size: 13px; }
-          .invoice-meta { text-align: right; }
-          .invoice-meta h2 { margin: 0 0 10px; color: #111827; font-size: 22px; font-weight: 800; text-transform: uppercase; }
-          .meta-row { font-size: 13px; color: #4b5563; margin-bottom: 4px; }
-          .meta-row strong { color: #111827; }
-          .billing-section { display: flex; justify-content: space-between; margin-bottom: 30px; }
-          .billing-box { width: 100%; }
-          .billing-box h3 { font-size: 13px; text-transform: uppercase; color: #9ca3af; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 12px; }
-          .billing-box p { margin: 4px 0; font-size: 14px; color: #1f2937; font-weight: 500; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-          th { background: #f9fafb; text-align: left; padding: 10px 14px; font-size: 13px; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; }
-          td { padding: 14px; border-bottom: 1px solid #e5e7eb; color: #1f2937; font-size: 14px; vertical-align: top; }
-          .amount-col { text-align: right; }
-          .summary-section { display: flex; justify-content: flex-end; margin-top: auto; }
-          .summary-box { width: 320px; }
-          .summary-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; color: #4b5563; }
-          .summary-row.total { border-top: 2px solid #e5e7eb; margin-top: 10px; padding-top: 15px; font-size: 18px; font-weight: 800; color: #111827; }
-          .footer { margin-top: 30px; text-align: center; padding-top: 15px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px; }
-          @media print { 
-            body { padding: 0; background: #fff; } 
-            .invoice-container { box-shadow: none; border: 2px solid #cbd5e1 !important; padding: 25px; max-width: 100%; height: 97vh; min-height: 97vh; margin: 0; page-break-after: avoid; page-break-inside: avoid; } 
+          @page { size: A4 portrait; margin: 8mm; }
+          * { box-sizing: border-box; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; background: #f1f5f9; margin: 0; padding: 15px; }
+          .invoice-card { 
+            max-width: 820px; 
+            margin: 0 auto; 
+            background: #ffffff; 
+            padding: 30px 34px; 
+            border: 2px solid #0f172a; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.06); 
+            min-height: 268mm; 
+            display: flex; 
+            flex-direction: column; 
+            box-sizing: border-box;
+          }
+          
+          /* Top Header */
+          .header-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 22px; }
+          .logo-box { width: 140px; height: 70px; border: 1.5px dashed #94a3b8; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #475569; font-size: 12px; font-weight: 800; background: #f8fafc; margin-bottom: 12px; }
+          .from-box { border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; background: #f8fafc; font-size: 12px; }
+          .from-title { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; margin-bottom: 3px; display: block; }
+          .from-name { font-weight: 800; color: #0f172a; font-size: 13px; }
+          .from-sub { color: #64748b; font-size: 11px; margin-top: 2px; line-height: 1.35; }
+          
+          .invoice-right { display: flex; flex-direction: column; align-items: flex-end; }
+          .invoice-title { font-size: 34px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px; margin: 0 0 10px 0; text-transform: uppercase; }
+          .inv-num-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+          .inv-num-label { font-size: 14px; font-weight: 800; color: #64748b; }
+          .inv-num-val { border: 1.5px solid #0f172a; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 800; color: #0f172a; background: #f8fafc; font-family: monospace; }
+          
+          .meta-grid { display: grid; grid-template-columns: 105px 140px; gap: 6px; font-size: 11px; }
+          .meta-lbl { color: #64748b; font-weight: 700; text-align: right; padding-top: 4px; }
+          .meta-box { border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 8px; font-weight: 700; color: #0f172a; background: #fff; }
+          
+          /* Bill To / Ship To */
+          .address-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+          .addr-col { display: flex; flex-direction: column; gap: 4px; }
+          .addr-lbl { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b; }
+          .addr-box { border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; min-height: 70px; background: #fff; }
+          .addr-school { font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 3px; }
+          .addr-text { font-size: 11px; color: #64748b; line-height: 1.35; }
+
+          /* Line Items Table */
+          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; border-radius: 8px; overflow: hidden; border: 1px solid #0f172a; }
+          .items-table thead tr { background: #0f172a; color: #ffffff; }
+          .items-table th { padding: 9px 12px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; border: none; }
+          .items-table tbody tr { background: #ffffff; }
+          .items-table tbody tr:nth-child(even) { background: #f8fafc; }
+          
+          /* Bottom Split */
+          .bottom-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; margin-top: auto; }
+          .section-lbl { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 4px; display: block; }
+          .notes-box, .terms-box { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 10px; font-size: 11px; color: #64748b; background: #f8fafc; margin-bottom: 10px; line-height: 1.35; }
+          .pay-proof { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 10px; font-size: 11px; background: #f8fafc; margin-bottom: 10px; }
+          .pay-proof strong { color: #0f172a; }
+
+          /* Summary Calculations */
+          .summary-card { border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px; background: #f8fafc; display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+          .sum-row { display: flex; justify-content: space-between; align-items: center; color: #475569; }
+          .sum-val { font-weight: 700; color: #0f172a; }
+          .sum-divider { height: 1px; background: #cbd5e1; margin: 3px 0; }
+          .total-row { font-size: 15px; font-weight: 900; color: #0f172a; }
+          
+          .balance-due-box { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-top: 8px; border-top: 2px solid #0f172a; }
+          .bal-lbl { font-size: 15px; font-weight: 900; color: #0f172a; }
+          .bal-val { font-size: 16px; font-weight: 900; color: #0f172a; }
+          .paid-badge { display: inline-block; padding: 2px 8px; background: #dcfce7; color: #15803d; border: 1.5px solid #86efac; border-radius: 6px; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
+
+          @media print {
+            body { padding: 0; background: #fff; margin: 0; }
+            .invoice-card { 
+              box-shadow: none; 
+              border: 2px solid #0f172a !important; 
+              border-radius: 8px; 
+              padding: 20px 24px; 
+              width: 100%; 
+              max-width: 100%; 
+              min-height: 268mm; 
+              height: 268mm;
+              margin: 0;
+              box-sizing: border-box;
+              -webkit-print-color-adjust: exact; 
+              print-color-adjust: exact; 
+            }
+            .items-table thead tr { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #0f172a !important; color: #fff !important; }
+            .paid-badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
         </style>
       </head>
       <body>
-        <div class="invoice-container">
-          <div class="header">
-            <div class="brand">
-              <h1>Academy Setu</h1>
-              <p>BrainKet Technologies</p>
-              <p>Official CRM Partner</p>
-            </div>
-            <div class="invoice-meta">
-              <h2>Tax Invoice</h2>
-              <div class="meta-row"><strong>Date:</strong> ${new Date(date || new Date()).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-              <div class="meta-row"><strong>Transaction ID:</strong> ${txnId || 'N/A'}</div>
-              <div class="meta-row"><strong>Payment Mode:</strong> <span style="text-transform: uppercase;">${paymentMode}</span></div>
-            </div>
-          </div>
+        <div class="invoice-card">
           
-          <div class="billing-section">
-            <div class="billing-box">
-              <h3>Billed To (Institute)</h3>
-              <p style="font-size: 20px; font-weight: 800; color: #4f46e5; margin-bottom: 8px;">${schoolName}</p>
+          <!-- Header -->
+          <div class="header-grid">
+            <div>
+              <div class="logo-box">
+                <div style="font-size: 20px; margin-bottom: 2px;">🎓</div>
+                <span>ACADEMY SETU</span>
+              </div>
+              <div class="from-box">
+                <span class="from-title">Who is this from?</span>
+                <div class="from-name">Academy Setu Technologies Pvt. Ltd.</div>
+                <div class="from-sub">
+                  Educational ERP &amp; Cloud Platform Solutions<br>
+                  Email: support@academysetu.com | Ph: +91 98765 43210<br>
+                  GSTIN: 07AAAAA0000A1Z5
+                </div>
+              </div>
+            </div>
+
+            <div class="invoice-right">
+              <h1 class="invoice-title">INVOICE</h1>
+              <div class="inv-num-row">
+                <span class="inv-num-label">#</span>
+                <div class="inv-num-val">${invoiceNum}</div>
+              </div>
+
+              <div class="meta-grid">
+                <span class="meta-lbl">Date</span>
+                <div class="meta-box">${formattedDate}</div>
+                <span class="meta-lbl">Payment Terms</span>
+                <div class="meta-box">Due on Receipt</div>
+                <span class="meta-lbl">Due Date</span>
+                <div class="meta-box">${formattedDate}</div>
+                <span class="meta-lbl">PO Number</span>
+                <div class="meta-box">PO-${new Date().getFullYear()}</div>
+              </div>
             </div>
           </div>
-      
-          <table>
+
+          <!-- Bill To & Ship To -->
+          <div class="address-grid">
+            <div class="addr-col">
+              <span class="addr-lbl">Bill To</span>
+              <div class="addr-box">
+                <div class="addr-school">${schoolName}</div>
+                <div class="addr-text">
+                  ${schoolInfo?.contact_person ? `Attn: <strong>${schoolInfo.contact_person}</strong><br>` : ''}
+                  ${schoolInfo?.mobile_no ? `Phone: ${schoolInfo.mobile_no}<br>` : ''}
+                  ${schoolInfo?.email_id ? `Email: ${schoolInfo.email_id}<br>` : ''}
+                  ${[schoolInfo?.address, schoolInfo?.district, schoolInfo?.state].filter(Boolean).join(', ') || 'Institution Registered Campus'}
+                </div>
+              </div>
+            </div>
+            
+            <div class="addr-col">
+              <span class="addr-lbl">Ship To <span style="font-weight: 400; color: #94a3b8;">(optional)</span></span>
+              <div class="addr-box">
+                <div class="addr-school">${schoolName}</div>
+                <div class="addr-text">
+                  Campus Software Provisioning &amp; Access<br>
+                  ${[schoolInfo?.district, schoolInfo?.state].filter(Boolean).join(', ') || 'Headquarter Campus'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Items Table -->
+          <table class="items-table">
             <thead>
               <tr>
-                <th>Description</th>
-                <th class="amount-col">Amount</th>
+                <th style="text-align: left; width: 55%;">Plan Name</th>
+                <th style="text-align: center; width: 15%;">Quantity</th>
+                <th style="text-align: right; width: 15%;">Rate</th>
+                <th style="text-align: right; width: 15%;">Amount</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>
-                  <strong style="font-size: 16px;">${planName}</strong><br>
-                  <span style="font-size: 13px; color: #6b7280;">Academy Setu CRM Software Subscription Plan</span>
-                  
-                  ${planDesc ? `<div style="margin-top: 10px; font-size: 13px; color: #4b5563; border-left: 2px solid #e5e7eb; padding-left: 10px;">${planDesc}</div>` : ''}
-                  
-                  ${planMenus && planMenus.length > 0 ? `
-                    <div style="margin-top: 15px;">
-                      <strong style="font-size: 12px; color: #9ca3af; text-transform: uppercase;">Modules Included:</strong>
-                      <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;">
-                        ${planMenus.map((m: string) => `<span style="padding: 3px 8px; background: #e0e7ff; color: #4338ca; border-radius: 4px; font-size: 11px; font-weight: 600;">${m}</span>`).join('')}
-                      </div>
-                    </div>
-                  ` : ''}
-                </td>
-                <td class="amount-col">₹${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-              </tr>
+              ${rowsHTML}
             </tbody>
           </table>
-      
-          <div class="summary-section">
-            <div class="summary-box">
-              <div class="summary-row">
+
+          <!-- Bottom Row -->
+          <div class="bottom-grid">
+            <div>
+              <div class="pay-proof">
+                <span class="section-lbl">Payment Details</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                  <div>
+                    <div><strong>Mode:</strong> ${paymentMode || 'Bank Transfer'}</div>
+                    <div style="font-family: monospace; font-size: 11px; margin-top: 2px;"><strong>Txn / UTR:</strong> ${txnId || 'N/A'}</div>
+                  </div>
+                  <span class="paid-badge">✓ PAID</span>
+                </div>
+              </div>
+
+              <span class="section-lbl">Notes</span>
+              <div class="notes-box">
+                Thank you for partnering with Academy Setu CRM. All software licenses and features are provisioned for your institute.
+              </div>
+
+              <span class="section-lbl">Terms</span>
+              <div class="terms-box">
+                Terms and conditions - 1. All payments are non-refundable. 2. Subscription access is granted for the contracted term. 3. System-generated electronic tax invoice.
+              </div>
+            </div>
+
+            <div class="summary-card">
+              <div class="sum-row">
                 <span>Subtotal</span>
-                <span>₹${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                <span class="sum-val">₹${subtotalNum.toFixed(2)}</span>
               </div>
-              <div class="summary-row" style="color: #10b981;">
-                <span>Discount Applied</span>
-                <span>- ₹0.00</span>
+              <div class="sum-row">
+                <span>Tax / GST</span>
+                <span class="sum-val">₹${taxTotalNum.toFixed(2)}</span>
               </div>
-              <div class="summary-row total">
-                <span>Total Paid</span>
-                <span>₹${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              <div class="sum-row" style="color: #059669;">
+                <span>+ Discount</span>
+                <span class="sum-val" style="color: #059669;">₹0.00</span>
+              </div>
+              <div class="sum-divider"></div>
+              <div class="sum-row total-row">
+                <span>Total</span>
+                <span class="sum-val" style="font-size: 16px;">₹${totalCalculated.toFixed(2)}</span>
               </div>
             </div>
           </div>
-      
-          <div class="footer">
-            <p><strong style="color: #4f46e5;">Thank you for choosing Academy Setu!</strong></p>
-            <p>This is a computer-generated invoice and requires no physical signature.</p>
-          </div>
+
         </div>
+
         <script>
           window.onload = () => {
             window.print();
@@ -875,64 +1166,54 @@ function BillingDashboardContent() {
                 <form onSubmit={handleSelectionSubmit} className="flex items-end justify-between flex-wrap gap-5">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5 flex-1 min-w-0">
                     {/* Segment Select */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                        Segment<span className="text-red-500 ml-0.5">*</span>
-                      </label>
-                      <select
-                        value={selectedSegment}
-                        onChange={e => {
-                          setSelectedSegment(e.target.value)
-                          setSelectedSchool('')
-                          setIsSubmitted(false)
-                          setInstActivePlan(null)
-                          setInstUpcomingPlans([])
-                          setInstPlanHistory([])
-                          setShowAllPlansOverride(false)
-                        }}
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
-                        required
-                      >
-                        <option value="">Select Segment</option>
-                        {segments.map(s => (
-                          <option key={s.id} value={s.name}>{s.name}</option>
-                        ))}
-                      </select>
-                    </div>
+                    <SearchableDropdown
+                      label="Segment *"
+                      placeholder="Select Segment"
+                      searchPlaceholder="Search segment..."
+                      options={segments.map(s => ({
+                        label: s.name === 'Insitute' ? 'Institute' : s.name,
+                        value: s.name
+                      }))}
+                      value={selectedSegment}
+                      onChange={val => {
+                        setSelectedSegment(val)
+                        setSelectedSchool('')
+                        setIsSubmitted(false)
+                        setInstActivePlan(null)
+                        setInstUpcomingPlans([])
+                        setInstPlanHistory([])
+                        setShowAllPlansOverride(false)
+                      }}
+                      allowClear={false}
+                    />
 
                     {/* School Select */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                        School/College Name <span className="text-[10px] text-slate-400 font-normal lowercase">(optional)</span>
-                      </label>
-                      <select
-                        value={selectedSchool}
-                        onChange={e => {
-                          const val = e.target.value
-                          setSelectedSchool(val)
-                          setIsSubmitted(false)
-                          setInstActivePlan(null)
-                          setInstUpcomingPlans([])
-                          setInstPlanHistory([])
-                          setShowAllPlansOverride(false)
-                          const found = schools.find(s => s.name === val)
-                          if (found && found.segment_name) {
-                            setSelectedSegment(found.segment_name)
-                          }
-                        }}
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm text-slate-800 dark:text-slate-200"
-                      >
-                        <option value="">Select School</option>
-                        {schools
-                          .filter(s => !selectedSegment || s.segment_name === selectedSegment)
-                          .map(s => (
-                            <option key={s.id} value={s.name}>
-                              {s.name} {s.segment_name ? `(${s.segment_name})` : '(No Segment)'}
-                            </option>
-                          ))
+                    <SearchableDropdown
+                      label="School/College Name (optional)"
+                      placeholder="Select School"
+                      searchPlaceholder="Search school/college name..."
+                      options={schools
+                        .filter(s => !selectedSegment || s.segment_name === selectedSegment)
+                        .map(s => ({
+                          label: `${s.name}${s.segment_name ? ` (${s.segment_name})` : ''}`,
+                          value: s.name
+                        }))
+                      }
+                      value={selectedSchool}
+                      onChange={val => {
+                        setSelectedSchool(val)
+                        setIsSubmitted(false)
+                        setInstActivePlan(null)
+                        setInstUpcomingPlans([])
+                        setInstPlanHistory([])
+                        setShowAllPlansOverride(false)
+                        const found = schools.find(s => s.name === val)
+                        if (found && found.segment_name) {
+                          setSelectedSegment(found.segment_name)
                         }
-                      </select>
-                    </div>
+                      }}
+                      allowClear={true}
+                    />
                   </div>
 
                   <button
@@ -1810,11 +2091,14 @@ function BillingDashboardContent() {
               )}
             </>
 
-            {/* Modal for Step 2 */}
+            {/* Modal for Step 2: Invoice Template Layout */}
             {wizardStep === 2 && (
-              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto p-4 lg:p-5 relative animate-in fade-in zoom-in duration-200">
+              <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+                <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-700 shadow-2xl w-full max-w-5xl max-h-[92vh] overflow-y-auto p-5 sm:p-7 relative animate-in fade-in zoom-in duration-200 flex flex-col gap-6">
+                  
+                  {/* Modal Close Button */}
                   <button
+                    type="button"
                     onClick={() => {
                       if (purchaseMode === 'edit') {
                         setWizardStep(0)
@@ -1828,332 +2112,626 @@ function BillingDashboardContent() {
                         }
                       }
                     }}
-                    className="absolute top-4 right-4 p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer z-10"
+                    className="absolute top-5 right-5 p-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer z-10 shadow-sm"
+                    title="Close Invoice"
                   >
                     <X className="w-5 h-5" />
                   </button>
-                  
-                  <div className="flex flex-col gap-3 mx-auto w-full mt-2">
-                    
-                    {/* 1. Plan Detail & Institute Header */}
-                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
-                      <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-3 px-4 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div>
-                          <p className="text-[9px] font-bold text-indigo-200 uppercase tracking-widest mb-0.5">Purchasing Plan For</p>
-                          <h2 className="text-sm font-black leading-tight">{selectedSchool || '—'}</h2>
+
+                  {/* ================= INVOICE HEADER ================= */}
+                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 pb-6 border-b border-slate-200 dark:border-slate-700">
+                    {/* Left: Brand Logo / Provider Info */}
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/20 shrink-0">
+                          <Receipt className="w-6 h-6" />
                         </div>
+                        <div>
+                          <h2 className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tight leading-tight">
+                            ACADEMY SETU
+                          </h2>
+                          <p className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+                            Educational ERP & Cloud Management Solutions
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Provider Box */}
+                      <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-700/60 text-xs text-slate-600 dark:text-slate-300 flex flex-col gap-1 max-w-sm">
+                        <span className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Who is this from?</span>
+                        <p className="font-bold text-slate-800 dark:text-slate-200">Academy Setu Technologies Pvt. Ltd.</p>
+                        <p className="text-[11px] text-slate-500">Platform Accounts & Billing Support Desk</p>
                         {selectedSegment && (
-                          <span className="self-start sm:self-auto px-2 py-0.5 bg-white/20 text-white border border-white/30 rounded-full text-[9px] font-bold uppercase tracking-wider shrink-0">{selectedSegment}</span>
+                          <span className="self-start mt-0.5 px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded text-[10px] font-bold">
+                            Segment: {selectedSegment}
+                          </span>
                         )}
                       </div>
+                    </div>
+
+                    {/* Right: Invoice Title & Metadata */}
+                    <div className="flex flex-col items-start md:items-end gap-3 min-w-[280px]">
+                      <div className="text-left md:text-right">
+                        <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
+                          INVOICE
+                        </h1>
+                        <div className="flex items-center md:justify-end gap-1.5 mt-0.5">
+                          <span className="text-xs font-bold text-slate-400">#</span>
+                          <input 
+                            type="text" 
+                            value={invoiceNo}
+                            onChange={(e) => setInvoiceNo(e.target.value)}
+                            className="px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-800 dark:text-slate-200 w-36 text-left md:text-right focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Invoice Date Details Grid */}
+                      <div className="grid grid-cols-2 gap-2 text-xs w-full">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</span>
+                          <input 
+                            type="date" 
+                            value={invoiceDate}
+                            onChange={(e) => setInvoiceDate(e.target.value)}
+                            className="px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment Terms</span>
+                          <select 
+                            value={invoicePaymentTerms}
+                            onChange={(e) => setInvoicePaymentTerms(e.target.value)}
+                            className="px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          >
+                            <option value="Due on Receipt">Due on Receipt</option>
+                            <option value="Immediate">Immediate</option>
+                            <option value="Net 15">Net 15</option>
+                            <option value="Net 30">Net 30</option>
+                          </select>
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Due Date</span>
+                          <input 
+                            type="date" 
+                            value={invoiceDueDate}
+                            onChange={(e) => setInvoiceDueDate(e.target.value)}
+                            className="px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">PO Number</span>
+                          <input 
+                            type="text" 
+                            placeholder="Optional PO#" 
+                            value={invoicePoNumber}
+                            onChange={(e) => setInvoicePoNumber(e.target.value)}
+                            className="px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ================= BILL TO (INSTITUTE DETAILS) ================= */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/70 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/60">
+                    {/* Billed To */}
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-indigo-500" />
+                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                          BILL TO (INSTITUTION)
+                        </span>
+                      </div>
+                      <h3 className="text-base font-black text-slate-800 dark:text-slate-100 leading-tight">
+                        {selectedSchool || instDetails?.name || 'Client School'}
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-300 mt-1">
+                        {instDetails?.code && (
+                          <div><span className="text-slate-400 text-[10px] font-semibold">School Code:</span> <span className="font-bold">{instDetails.code}</span></div>
+                        )}
+                        {instDetails?.contact_person && (
+                          <div><span className="text-slate-400 text-[10px] font-semibold">Contact:</span> <span className="font-bold">{instDetails.contact_person}</span></div>
+                        )}
+                        {instDetails?.mobile_no && (
+                          <div><span className="text-slate-400 text-[10px] font-semibold">Mobile:</span> <span className="font-bold">{instDetails.mobile_no}</span></div>
+                        )}
+                        {instDetails?.email_id && (
+                          <div><span className="text-slate-400 text-[10px] font-semibold">Email:</span> <span className="font-bold">{instDetails.email_id}</span></div>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-start gap-1">
+                        <MapPin className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
+                        {[instDetails?.address, instDetails?.district, instDetails?.state, instDetails?.pincode].filter(Boolean).join(', ') || 'Institution registered address on file'}
+                      </p>
+                    </div>
+
+                    {/* Selected Plan Details & Validity Card */}
+                    <div className="flex flex-col justify-between p-3.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 shadow-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                          <Award className="w-3.5 h-3.5 text-amber-500" /> PLAN PACKAGE
+                        </span>
+                        <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-bold border border-indigo-200 dark:border-indigo-800">
+                          {purchaseMode === 'renew' ? 'Renewal Plan' : purchaseMode === 'change' ? 'Plan Upgrade' : 'New Plan'}
+                        </span>
+                      </div>
                       {selectedPlan && (
-                        <div className="p-3 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-black text-slate-800 dark:text-slate-100">{selectedPlan.plan_name}</p>
-                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                              <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600">Validity: {selectedPlan.first_billing_duration || 365} days</span>
-                              <span className="text-[10px] text-slate-500 font-medium bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded">{dates.validFrom} → {dates.validTo}</span>
-                            </div>
-                          </div>
-                          <div className="text-left sm:text-right shrink-0">
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Plan Price</p>
-                            <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">
-                              ₹{getPlanPrice(selectedPlan).toLocaleString('en-IN')}
+                        <div className="flex flex-col gap-1 mt-2">
+                          <p className="text-sm font-black text-slate-800 dark:text-slate-100">{selectedPlan.plan_name}</p>
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
+                            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600 flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-slate-500" />
+                              Duration: {purchaseMode === 'renew' ? (selectedPlan.renewal_billing_duration || 365) : (selectedPlan.first_billing_duration || 365)} Days
+                            </span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                              {dates.validFrom} → {dates.validTo}
                             </span>
                           </div>
                         </div>
                       )}
                     </div>
+                  </div>
 
-                    {/* 2. Promo Code */}
-                    <div className="bg-white dark:bg-slate-800 rounded-xl p-3 px-4 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-1.5">
-                      <h3 className="text-xs font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-slate-100 dark:border-slate-700">
-                        <Percent className="w-3.5 h-3.5 text-indigo-500" /> Promo Code
-                      </h3>
-                      {promoCodes.length === 0 ? (
-                        <p className="text-[10px] text-slate-400 font-medium mt-1">No promo codes available.</p>
-                      ) : (
-                        <div className="flex flex-wrap gap-1.5 mt-1">
-                          {promoCodes.map(pc => (
-                            <button
-                              key={pc.id}
-                              type="button"
-                              onClick={() => {
-                                if (appliedPromo?.id === pc.id) {
-                                  setAppliedPromo(null)
-                                } else {
-                                  setAppliedPromo(pc)
-                                  toast.success(`Promo code ${pc.code} applied!`)
-                                }
-                              }}
-                              className={`group relative flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold transition-all border shadow-sm cursor-pointer ${
-                                appliedPromo?.id === pc.id
-                                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-indigo-600/20'
-                                  : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30'
+                  {/* ================= ITEMIZED BILLING LINE ITEMS TABLE ================= */}
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                        <Receipt className="w-4 h-4 text-indigo-600" />
+                        Itemized Billing Details
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={handleAddInvoiceItem}
+                        className="flex items-center gap-1 px-3 py-1 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold border border-indigo-200 dark:border-indigo-800 transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Add Line Item
+                      </button>
+                    </div>
+
+                    <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-900 text-white dark:bg-slate-800 font-bold uppercase text-[10px] tracking-wider">
+                          <tr>
+                            <th className="py-3 px-3 text-center w-12">S.No.</th>
+                            <th className="py-3 px-3">Plan Name</th>
+                            <th className="py-3 px-3 text-center w-20">Qty</th>
+                            <th className="py-3 px-3 text-right w-28">Rate (₹)</th>
+                            <th className="py-3 px-3 text-center w-20">Tax (%)</th>
+                            <th className="py-3 px-3 text-right w-24">Tax (₹)</th>
+                            <th className="py-3 px-3 text-right w-28">Amount (₹)</th>
+                            <th className="py-3 px-2 text-center w-10"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800/50">
+                          {invoiceItems.map((item, idx) => (
+                            <tr key={item.id || idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-800 transition-colors">
+                              <td className="py-2.5 px-3 text-center text-slate-400 font-bold text-[11px]">{idx + 1}</td>
+                              <td className="py-2.5 px-3">
+                                <input
+                                  type="text"
+                                  value={item.description}
+                                  onChange={(e) => handleInvoiceItemChange(item.id, 'description', e.target.value)}
+                                  placeholder="Plan Name"
+                                  className="w-full px-2 py-1 bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-600 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-700 rounded text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none transition-all"
+                                />
+                              </td>
+                              <td className="py-2.5 px-3 text-center">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={item.quantity || 1}
+                                  onChange={(e) => handleInvoiceItemChange(item.id, 'quantity', e.target.value)}
+                                  className="w-14 px-1.5 py-1 bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-600 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-700 rounded text-xs text-center font-bold text-slate-800 dark:text-slate-200 focus:outline-none transition-all"
+                                />
+                              </td>
+                              <td className="py-2.5 px-3 text-right">
+                                <input
+                                  type="number"
+                                  value={item.price}
+                                  onChange={(e) => handleInvoiceItemChange(item.id, 'price', e.target.value)}
+                                  className="w-24 px-2 py-1 bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-600 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-700 rounded text-xs text-right font-bold text-slate-800 dark:text-slate-200 focus:outline-none transition-all"
+                                />
+                              </td>
+                              <td className="py-2.5 px-3 text-center">
+                                <input
+                                  type="number"
+                                  value={item.tax_percentage}
+                                  onChange={(e) => handleInvoiceItemChange(item.id, 'tax_percentage', e.target.value)}
+                                  className="w-14 px-1 py-1 bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-600 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-700 rounded text-xs text-center font-semibold text-slate-600 dark:text-slate-300 focus:outline-none transition-all"
+                                />
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-medium text-slate-500 dark:text-slate-400">
+                                ₹{Number(item.tax_price || 0).toFixed(2)}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-black text-slate-800 dark:text-slate-100">
+                                ₹{Number(item.total || 0).toFixed(2)}
+                              </td>
+                              <td className="py-2.5 px-2 text-center">
+                                {invoiceItems.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveInvoiceItem(item.id)}
+                                    className="p-1 text-slate-300 hover:text-red-500 rounded transition-colors cursor-pointer"
+                                    title="Remove item"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-slate-50/80 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 text-xs font-bold">
+                          <tr>
+                            <td colSpan={3} className="py-2 px-3 text-slate-500">Subtotal (Excl. Tax): ₹{getInvoiceSubtotal().toFixed(2)}</td>
+                            <td colSpan={3} className="py-2 px-3 text-right text-slate-500">Total Tax: ₹{getInvoiceTaxTotal().toFixed(2)}</td>
+                            <td className="py-2 px-3 text-right text-slate-900 dark:text-white font-black">₹{getGrossAmount().toFixed(2)}</td>
+                            <td></td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* ================= BOTTOM SPLIT SECTION (PAYMENT & TOTALS) ================= */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
+                    
+                    {/* LEFT COLUMN: Payment Mode, Multiple Transactions, Notes & Terms (7 Cols) */}
+                    <div className="lg:col-span-7 flex flex-col gap-4">
+                      
+                      {/* Payment Mode Selector */}
+                      <div className="bg-slate-50/60 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-3">
+                        <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-2">
+                          <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                            <CreditCard className="w-4 h-4 text-indigo-500" />
+                            Payment Method
+                          </h4>
+                          <span className="text-[10px] font-bold text-slate-400">Select Mode</span>
+                        </div>
+
+                        {/* Mode Buttons */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {(['gateway', 'bank', 'upi', 'qr'] as const).map(mode => (
+                            <button 
+                              key={mode} 
+                              type="button" 
+                              onClick={() => setPaymentModeOption(mode)}
+                              className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl border-2 text-[11px] font-bold transition-all cursor-pointer ${
+                                paymentModeOption === mode 
+                                  ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 shadow-sm ring-1 ring-indigo-500/20' 
+                                  : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800'
                               }`}
                             >
-                              <Percent className="w-3 h-3" />
-                              {pc.code}
-                              {appliedPromo?.id === pc.id && (
-                                <span className="ml-1 flex items-center justify-center bg-white/20 rounded-full w-3 h-3 text-[8px]">✓</span>
-                              )}
-                              {/* Hover Tooltip */}
-                              <div className="opacity-0 invisible group-hover:opacity-100 group-hover:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-[200px] p-2 bg-slate-800 text-white text-[10px] rounded-lg shadow-xl z-20 pointer-events-none transition-all">
-                                <div className="font-bold text-indigo-300 mb-0.5">{pc.code}</div>
-                                <div className="font-medium">Discount: {pc.discount_type === 'Fixed' ? `₹${pc.discount_value} Off` : `${pc.discount_value}% Off`}</div>
-                                {pc.description && <div className="mt-1 text-slate-300 leading-tight border-t border-slate-600 pt-1">{pc.description}</div>}
-                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
-                              </div>
+                              <span className="text-sm leading-none">
+                                {mode === 'gateway' ? '💳' : mode === 'bank' ? '🏦' : mode === 'upi' ? '📱' : '📷'}
+                              </span>
+                              {mode === 'gateway' ? 'Gateway' : mode === 'bank' ? 'Bank' : mode === 'upi' ? 'UPI' : 'QR Code'}
                             </button>
                           ))}
                         </div>
-                      )}
-                    </div>
 
-                    {/* 3. Payment Mode */}
-                    <div className="bg-white dark:bg-slate-800 rounded-xl p-3 px-4 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-3">
-                      <h3 className="text-xs font-extrabold text-slate-800 dark:text-slate-100 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2">
-                        Payment Mode
-                      </h3>
-
-                      {/* Mode pill tabs */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {(['gateway', 'bank', 'upi', 'qr'] as const).map(mode => (
-                          <button key={mode} type="button" onClick={() => setPaymentModeOption(mode)}
-                            className={`flex flex-row justify-center items-center gap-1.5 py-1.5 px-2 rounded-lg border-2 text-[10px] font-bold transition-all cursor-pointer ${paymentModeOption === mode ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 shadow-sm' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 bg-slate-50 dark:bg-slate-900/30'}`}
-                          >
-                            <span className="text-sm leading-none">{mode === 'gateway' ? '💳' : mode === 'bank' ? '🏦' : mode === 'upi' ? '📱' : '📷'}</span>
-                            {mode === 'gateway' ? 'Gateway' : mode === 'bank' ? 'Bank' : mode === 'upi' ? 'UPI' : 'QR Code'}
-                          </button>
-                        ))}
-                      </div>
-
-                      <form id="checkout-form" onSubmit={handleCheckoutSubmit} className="flex flex-col gap-3">
-                        {/* 1. Payment Gateway */}
-                        {paymentModeOption === 'gateway' && (
-                          <div className="flex flex-col gap-2 p-2 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-100 dark:border-slate-800">
-                            <div className="flex items-center justify-between p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
-                              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Razorpay Gateway 1</span>
-                              <div className="flex items-center gap-2">
-                                <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900 rounded-full text-[9px] font-bold">Pending</span>
-                                <button type="button" onClick={() => handleGenerateLink('Razorpay')} className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-md cursor-pointer transition-colors shadow-sm">Generate</button>
+                        {/* Payment Mode Forms */}
+                        <form id="checkout-form" onSubmit={handleCheckoutSubmit} className="flex flex-col gap-3 mt-1">
+                          {/* 1. Gateway */}
+                          {paymentModeOption === 'gateway' && (
+                            <div className="flex flex-col gap-2 p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs">
+                              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Razorpay Online Gateway</span>
+                                <button type="button" onClick={() => handleGenerateLink('Razorpay')} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg cursor-pointer transition-colors shadow-sm">Generate Link</button>
                               </div>
-                            </div>
-                            <div className="flex items-center justify-between p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
-                              <span className="text-xs font-bold text-slate-800 dark:text-slate-100">PhonePe Gateway 1</span>
-                              <button type="button" onClick={() => handleGenerateLink('Phonepe')} className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-md cursor-pointer transition-colors shadow-sm">Generate</button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* 2. Bank */}
-                        {paymentModeOption === 'bank' && (
-                          <div className="flex flex-col gap-3">
-                            <div className="p-3 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-100 dark:border-slate-800">
-                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-2">Bank Account Details</p>
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                                <div><span className="text-slate-400 text-[10px] font-semibold block mb-0.5">Account No.</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankAccountNo}</span></div>
-                                <div><span className="text-slate-400 text-[10px] font-semibold block mb-0.5">IFSC Code</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankIfsc}</span></div>
-                                <div><span className="text-slate-400 text-[10px] font-semibold block mb-0.5">Holder Name</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankHolderName}</span></div>
+                              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">PhonePe Payment Gateway</span>
+                                <button type="button" onClick={() => handleGenerateLink('Phonepe')} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg cursor-pointer transition-colors shadow-sm">Generate Link</button>
                               </div>
-                            </div>
-                            <div className="flex flex-col gap-3">
-                              {payments.map((p, index) => (
-                                <div key={p.id} className="relative grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
-                                  {index > 0 && (
-                                    <button type="button" onClick={() => removePayment(p.id)} className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-1 cursor-pointer transition-colors shadow-sm z-10" title="Remove Payment">
-                                      <X className="w-3 h-3" />
-                                    </button>
-                                  )}
-                                  <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
-                                    <input type="text" placeholder="Enter Transaction ID" value={p.txnId} onChange={e => updatePayment(p.id, 'txnId', e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                                  </div>
-                                  <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount *</label>
-                                    <input type="number" placeholder="Enter Amount" value={p.amount} onChange={e => updatePayment(p.id, 'amount', e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                                  </div>
-                                  <div className="flex flex-col gap-1 sm:col-span-2">
-                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
-                                    <label className="relative cursor-pointer block">
-                                      <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => {
-                                        const file = e.target.files?.[0];
-                                        if (file) {
-                                          const reader = new FileReader();
-                                          reader.onloadend = () => {
-                                            setPayments(prev => prev.map(pay => pay.id === p.id ? { ...pay, screenshot: file.name, screenshotData: reader.result as string } : pay));
-                                          };
-                                          reader.readAsDataURL(file);
-                                        }
-                                      }} />
-                                      <div className={`w-full px-3 py-2 pr-8 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs truncate ${p.screenshot ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400'}`}>
-                                        {p.screenshot || 'Attach a file'}
-                                      </div>
-                                      <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2" />
-                                    </label>
-                                  </div>
-                                </div>
-                              ))}
-                              <button type="button" onClick={addPayment} className="self-start flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline cursor-pointer transition-colors px-1">
-                                <Plus className="w-3.5 h-3.5" /> Add Another Payment
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* 3. UPI */}
-                        {paymentModeOption === 'upi' && (
-                          <div className="flex flex-col gap-3">
-                            <div className="p-3 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-100 dark:border-slate-800">
-                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">UPI Details</p>
-                              <div className="text-xs"><span className="text-slate-400 text-[10px] font-semibold block mb-0.5">UPI ID</span><span className="font-bold text-slate-800 dark:text-slate-200">{upiId}</span></div>
-                            </div>
-                            <div className="flex flex-col gap-3">
-                              {payments.map((p, index) => (
-                                <div key={p.id} className="relative grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
-                                  {index > 0 && (
-                                    <button type="button" onClick={() => removePayment(p.id)} className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-1 cursor-pointer transition-colors shadow-sm z-10" title="Remove Payment">
-                                      <X className="w-3 h-3" />
-                                    </button>
-                                  )}
-                                  <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
-                                    <input type="text" placeholder="Enter Transaction ID" value={p.txnId} onChange={e => updatePayment(p.id, 'txnId', e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                                  </div>
-                                  <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount *</label>
-                                    <input type="number" placeholder="Enter Amount" value={p.amount} onChange={e => updatePayment(p.id, 'amount', e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                                  </div>
-                                  <div className="flex flex-col gap-1 sm:col-span-2">
-                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
-                                    <label className="relative cursor-pointer block">
-                                      <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => {
-                                        const file = e.target.files?.[0];
-                                        if (file) {
-                                          const reader = new FileReader();
-                                          reader.onloadend = () => {
-                                            setPayments(prev => prev.map(pay => pay.id === p.id ? { ...pay, screenshot: file.name, screenshotData: reader.result as string } : pay));
-                                          };
-                                          reader.readAsDataURL(file);
-                                        }
-                                      }} />
-                                      <div className={`w-full px-3 py-2 pr-8 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs truncate ${p.screenshot ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400'}`}>
-                                        {p.screenshot || 'Attach a file'}
-                                      </div>
-                                      <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2" />
-                                    </label>
-                                  </div>
-                                </div>
-                              ))}
-                              <button type="button" onClick={addPayment} className="self-start flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline cursor-pointer transition-colors px-1">
-                                <Plus className="w-3.5 h-3.5" /> Add Another Payment
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* 4. QR Code */}
-                        {paymentModeOption === 'qr' && (
-                          <div className="flex flex-col gap-3">
-                            <div className="p-3 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-100 dark:border-slate-800 flex items-center gap-4">
-                              <div className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm shrink-0">
-                                <svg className="w-16 h-16 text-slate-900 dark:text-white" viewBox="0 0 100 100" fill="currentColor">
-                                  <path d="M0,0 h30 v30 h-30 z M10,10 h10 v10 h-10 z" /><path d="M70,0 h30 v30 h-30 z M80,10 h10 v10 h-10 z" /><path d="M0,70 h30 v30 h-30 z M10,80 h10 v10 h-10 z" />
-                                  <rect x="40" y="5" width="10" height="15" /><rect x="55" y="15" width="10" height="10" /><rect x="45" y="40" width="15" height="15" /><rect x="15" y="45" width="10" height="10" /><rect x="75" y="45" width="15" height="10" /><rect x="40" y="70" width="15" height="10" /><rect x="55" y="85" width="10" height="10" /><rect x="75" y="75" width="15" height="15" /><rect x="85" y="60" width="10" height="10" />
-                                </svg>
-                              </div>
-                              <div>
-                                <p className="text-xs font-extrabold text-slate-700 dark:text-slate-200">Scan QR to Pay</p>
-                                <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">Use any UPI app to scan and pay, then enter the transaction ID below.</p>
-                              </div>
-                            </div>
-                            <div className="flex flex-col gap-3">
-                              {payments.map((p, index) => (
-                                <div key={p.id} className="relative grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
-                                  {index > 0 && (
-                                    <button type="button" onClick={() => removePayment(p.id)} className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-1 cursor-pointer transition-colors shadow-sm z-10" title="Remove Payment">
-                                      <X className="w-3 h-3" />
-                                    </button>
-                                  )}
-                                  <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
-                                    <input type="text" placeholder="Enter Transaction ID" value={p.txnId} onChange={e => updatePayment(p.id, 'txnId', e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                                  </div>
-                                  <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount *</label>
-                                    <input type="number" placeholder="Enter Amount" value={p.amount} onChange={e => updatePayment(p.id, 'amount', e.target.value)} required className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-800 dark:text-slate-200 placeholder:text-slate-400" />
-                                  </div>
-                                  <div className="flex flex-col gap-1 sm:col-span-2">
-                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
-                                    <label className="relative cursor-pointer block">
-                                      <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => {
-                                        const file = e.target.files?.[0];
-                                        if (file) {
-                                          const reader = new FileReader();
-                                          reader.onloadend = () => {
-                                            setPayments(prev => prev.map(pay => pay.id === p.id ? { ...pay, screenshot: file.name, screenshotData: reader.result as string } : pay));
-                                          };
-                                          reader.readAsDataURL(file);
-                                        }
-                                      }} />
-                                      <div className={`w-full px-3 py-2 pr-8 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs truncate ${p.screenshot ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400'}`}>
-                                        {p.screenshot || 'Attach a file'}
-                                      </div>
-                                      <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2" />
-                                    </label>
-                                  </div>
-                                </div>
-                              ))}
-                              <button type="button" onClick={addPayment} className="self-start flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline cursor-pointer transition-colors px-1">
-                                <Plus className="w-3.5 h-3.5" /> Add Another Payment
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </form>
-                    </div>
-
-                    {/* 4. Final Summary & Submit */}
-                    {selectedPlan && (
-                      <div className="bg-slate-800 dark:bg-slate-900/80 rounded-xl p-4 shadow-md text-white mt-1 border border-slate-700">
-                        <div className="flex flex-col gap-1.5 text-xs font-semibold mb-3">
-                          <div className="flex justify-between text-slate-300">
-                            <span>{paymentModeOption !== 'gateway' ? 'Gross Amount (Entered)' : 'Plan Price'}</span>
-                            <span>₹{getGrossAmount().toLocaleString('en-IN')}</span>
-                          </div>
-                          {appliedPromo && (
-                            <div className="flex justify-between text-emerald-400">
-                              <span>Discount ({appliedPromo.code})</span>
-                              <span>− ₹{getPromoDiscountAmount(selectedPlan, appliedPromo).toFixed(2)}</span>
                             </div>
                           )}
-                          <div className="flex justify-between text-white font-black text-lg border-t border-slate-600/50 pt-2 mt-1">
-                            <span>Total Payable (Net)</span>
-                            <span className="text-indigo-400">
+
+                          {/* 2. Bank Transfer */}
+                          {paymentModeOption === 'bank' && (
+                            <div className="flex flex-col gap-3">
+                              <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Bank Account Details</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                                  <div><span className="text-slate-400 text-[10px] font-semibold block">Account No.</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankAccountNo}</span></div>
+                                  <div><span className="text-slate-400 text-[10px] font-semibold block">IFSC Code</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankIfsc}</span></div>
+                                  <div><span className="text-slate-400 text-[10px] font-semibold block">Holder Name</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankHolderName}</span></div>
+                                </div>
+                              </div>
+
+                              {/* Multi-Payment Rows */}
+                              <div className="flex flex-col gap-2.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                                    Attached Transactions ({payments.length})
+                                  </span>
+                                  <button type="button" onClick={addPayment} className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">
+                                    <Plus className="w-3.5 h-3.5" /> Add Another Payment
+                                  </button>
+                                </div>
+
+                                {payments.map((p, index) => (
+                                  <div key={p.id} className="relative grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xs">
+                                    {index > 0 && (
+                                      <button type="button" onClick={() => removePayment(p.id)} className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-1 cursor-pointer transition-colors shadow-sm z-10" title="Remove Payment">
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                    <div className="flex flex-col gap-1">
+                                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID / UTR *</label>
+                                      <input type="text" placeholder="Enter UTR / Txn ID" value={p.txnId} onChange={e => updatePayment(p.id, 'txnId', e.target.value)} required className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount (₹) *</label>
+                                      <input type="number" placeholder="Amount" value={p.amount} onChange={e => updatePayment(p.id, 'amount', e.target.value)} required className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                    </div>
+                                    <div className="flex flex-col gap-1 sm:col-span-2">
+                                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Payment Proof Screenshot</label>
+                                      <label className="relative cursor-pointer block">
+                                        <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => {
+                                          const file = e.target.files?.[0];
+                                          if (file) {
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => {
+                                              setPayments(prev => prev.map(pay => pay.id === p.id ? { ...pay, screenshot: file.name, screenshotData: reader.result as string } : pay));
+                                            };
+                                            reader.readAsDataURL(file);
+                                          }
+                                        }} />
+                                        <div className={`w-full px-3 py-1.5 pr-8 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs truncate ${p.screenshot ? 'text-slate-800 dark:text-slate-200 font-medium' : 'text-slate-400'}`}>
+                                          {p.screenshot || 'Attach payment receipt / screenshot...'}
+                                        </div>
+                                        <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2" />
+                                      </label>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 3. UPI */}
+                          {paymentModeOption === 'upi' && (
+                            <div className="flex flex-col gap-3">
+                              <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">UPI Details</p>
+                                <div className="text-xs"><span className="text-slate-400 text-[10px] font-semibold block">VPA / UPI ID:</span><span className="font-bold text-slate-800 dark:text-slate-200">{upiId}</span></div>
+                              </div>
+                              <div className="flex flex-col gap-2.5">
+                                {payments.map((p, index) => (
+                                  <div key={p.id} className="relative grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xs">
+                                    {index > 0 && (
+                                      <button type="button" onClick={() => removePayment(p.id)} className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-1 cursor-pointer transition-colors shadow-sm z-10" title="Remove Payment">
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                    <div className="flex flex-col gap-1">
+                                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
+                                      <input type="text" placeholder="Enter UPI Ref / Txn ID" value={p.txnId} onChange={e => updatePayment(p.id, 'txnId', e.target.value)} required className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount (₹) *</label>
+                                      <input type="number" placeholder="Amount" value={p.amount} onChange={e => updatePayment(p.id, 'amount', e.target.value)} required className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                    </div>
+                                    <div className="flex flex-col gap-1 sm:col-span-2">
+                                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
+                                      <label className="relative cursor-pointer block">
+                                        <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => {
+                                          const file = e.target.files?.[0];
+                                          if (file) {
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => {
+                                              setPayments(prev => prev.map(pay => pay.id === p.id ? { ...pay, screenshot: file.name, screenshotData: reader.result as string } : pay));
+                                            };
+                                            reader.readAsDataURL(file);
+                                          }
+                                        }} />
+                                        <div className={`w-full px-3 py-1.5 pr-8 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs truncate ${p.screenshot ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400'}`}>
+                                          {p.screenshot || 'Attach payment screenshot...'}
+                                        </div>
+                                        <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2" />
+                                      </label>
+                                    </div>
+                                  </div>
+                                ))}
+                                <button type="button" onClick={addPayment} className="self-start flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">
+                                  <Plus className="w-3.5 h-3.5" /> Add Another Payment
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 4. QR Code */}
+                          {paymentModeOption === 'qr' && (
+                            <div className="flex flex-col gap-3">
+                              <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-4">
+                                <div className="p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shrink-0">
+                                  <QrCode className="w-12 h-12 text-indigo-600 dark:text-indigo-400" />
+                                </div>
+                                <div>
+                                  <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Scan QR Code to Pay</p>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">Scan via any UPI App (GPay, PhonePe, Paytm), then attach UTR & proof.</p>
+                                </div>
+                              </div>
+                              <div className="flex flex-col gap-2.5">
+                                {payments.map((p, index) => (
+                                  <div key={p.id} className="relative grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xs">
+                                    {index > 0 && (
+                                      <button type="button" onClick={() => removePayment(p.id)} className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-1 cursor-pointer transition-colors shadow-sm z-10" title="Remove Payment">
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                    <div className="flex flex-col gap-1">
+                                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
+                                      <input type="text" placeholder="Enter Transaction ID" value={p.txnId} onChange={e => updatePayment(p.id, 'txnId', e.target.value)} required className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount (₹) *</label>
+                                      <input type="number" placeholder="Amount" value={p.amount} onChange={e => updatePayment(p.id, 'amount', e.target.value)} required className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                    </div>
+                                    <div className="flex flex-col gap-1 sm:col-span-2">
+                                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
+                                      <label className="relative cursor-pointer block">
+                                        <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => {
+                                          const file = e.target.files?.[0];
+                                          if (file) {
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => {
+                                              setPayments(prev => prev.map(pay => pay.id === p.id ? { ...pay, screenshot: file.name, screenshotData: reader.result as string } : pay));
+                                            };
+                                            reader.readAsDataURL(file);
+                                          }
+                                        }} />
+                                        <div className={`w-full px-3 py-1.5 pr-8 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs truncate ${p.screenshot ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400'}`}>
+                                          {p.screenshot || 'Attach payment screenshot...'}
+                                        </div>
+                                        <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2" />
+                                      </label>
+                                    </div>
+                                  </div>
+                                ))}
+                                <button type="button" onClick={addPayment} className="self-start flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">
+                                  <Plus className="w-3.5 h-3.5" /> Add Another Payment
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </form>
+                      </div>
+
+                      {/* Notes & Terms Box */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Notes</label>
+                          <textarea 
+                            rows={2}
+                            value={invoiceNotes}
+                            onChange={(e) => setInvoiceNotes(e.target.value)}
+                            placeholder="Notes - any relevant information not already covered"
+                            className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Terms</label>
+                          <textarea 
+                            rows={2}
+                            value={invoiceTerms}
+                            onChange={(e) => setInvoiceTerms(e.target.value)}
+                            placeholder="Terms and conditions - late fees, payment methods, delivery schedule"
+                            className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* RIGHT COLUMN: Promo Code & Invoice Summary Totals (5 Cols) */}
+                    <div className="lg:col-span-5 flex flex-col gap-4">
+                      
+                      {/* Promo Code Coupon Selector */}
+                      <div className="p-4 bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                            <Percent className="w-3.5 h-3.5 text-indigo-500" /> Apply Promo Code
+                          </span>
+                          {appliedPromo && (
+                            <button 
+                              type="button" 
+                              onClick={() => setAppliedPromo(null)}
+                              className="text-[10px] text-rose-500 font-bold hover:underline cursor-pointer"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+
+                        {promoCodes.length === 0 ? (
+                          <p className="text-[10px] text-slate-400">No promo codes available.</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {promoCodes.map(pc => {
+                              const isSelected = appliedPromo?.id === pc.id
+                              return (
+                                <button
+                                  key={pc.id}
+                                  type="button"
+                                  onClick={() => {
+                                    if (isSelected) setAppliedPromo(null)
+                                    else {
+                                      setAppliedPromo(pc)
+                                      toast.success(`Promo code ${pc.code} applied!`)
+                                    }
+                                  }}
+                                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${
+                                    isSelected
+                                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
+                                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-300'
+                                  }`}
+                                >
+                                  <Percent className="w-3 h-3" />
+                                  {pc.code}
+                                  {isSelected && <Check className="w-3 h-3 ml-0.5" />}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Invoice Summary Calculation Breakdown */}
+                      <div className="bg-slate-900 text-white dark:bg-slate-850 p-5 rounded-2xl shadow-xl border border-slate-800 flex flex-col gap-3">
+                        <h4 className="text-xs font-extrabold uppercase tracking-widest text-slate-400 border-b border-slate-800 pb-2">
+                          INVOICE SUMMARY
+                        </h4>
+
+                        <div className="flex flex-col gap-2 text-xs font-semibold">
+                          <div className="flex justify-between text-slate-300">
+                            <span>Subtotal</span>
+                            <span>₹{getInvoiceSubtotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          </div>
+
+                          <div className="flex justify-between text-slate-300">
+                            <span>Total Tax / GST</span>
+                            <span>₹{getInvoiceTaxTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          </div>
+
+                          {appliedPromo && (
+                            <div className="flex justify-between text-emerald-400 font-bold">
+                              <span>Discount ({appliedPromo.code})</span>
+                              <span>− ₹{getPromoDiscountAmount(selectedPlan, appliedPromo).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          )}
+
+                          <div className="border-t border-slate-800 pt-2.5 mt-1 flex justify-between items-center">
+                            <span className="font-extrabold text-sm uppercase text-slate-100">Total</span>
+                            <span className="text-lg font-black text-white">
                               ₹{getFinalAmount().toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </span>
                           </div>
                         </div>
 
-                        <button
-                          type="submit"
-                          form="checkout-form"
-                          disabled={submitting}
-                          className="w-full py-2.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-60 text-white font-black text-xs rounded-lg transition-all cursor-pointer shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2"
-                        >
-                          {submitting ? (
-                            <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
-                          ) : (
-                            '🚀 Submit Request'
-                          )}
-                        </button>
+                        {/* Submit Button */}
+                        <div className="pt-2 flex flex-col gap-2">
+                          <button
+                            type="submit"
+                            form="checkout-form"
+                            disabled={submitting}
+                            className="w-full py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-60 text-white font-black text-sm rounded-xl transition-all cursor-pointer shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2"
+                          >
+                            {submitting ? (
+                              <><Loader2 className="w-4 h-4 animate-spin" /> Processing Invoice...</>
+                            ) : (
+                              '🚀 Submit Invoice & Process'
+                            )}
+                          </button>
 
-                        <p className="text-[9px] text-slate-400 text-center leading-relaxed mt-2">
-                          A request will be created under the <strong className="text-slate-300">Request</strong> menu for review.
-                        </p>
+                          <p className="text-[10px] text-slate-400 text-center leading-relaxed">
+                            This creates the verified bill and syncs with the <strong className="text-slate-300">Request</strong> and <strong className="text-slate-300">Billing</strong> records.
+                          </p>
+                        </div>
                       </div>
-                    )}
+                    </div>
                   </div>
+
                 </div>
               </div>
             )}
@@ -2170,52 +2748,49 @@ function BillingDashboardContent() {
             <div className="flex items-end justify-between flex-wrap gap-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 flex-1 min-w-0">
                 {/* Segment Select */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Segment</label>
-                  <select
-                    value={filterSegment}
-                    onChange={(e) => setFilterSegment(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer"
-                  >
-                    <option value="">Select Segment</option>
-                    {segments.map(s => (
-                      <option key={s.id} value={s.name}>{s.name === 'Insitute' ? 'Institute' : s.name}</option>
-                    ))}
-                  </select>
-                </div>
+                <SearchableDropdown
+                  label="Segment"
+                  placeholder="All Segments"
+                  searchPlaceholder="Search segment..."
+                  options={segments.map(s => ({
+                    label: s.name === 'Insitute' ? 'Institute' : s.name,
+                    value: s.name
+                  }))}
+                  value={filterSegment}
+                  onChange={val => setFilterSegment(val)}
+                  allowClear={true}
+                />
 
                 {/* School Select */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">School</label>
-                  <select
-                    value={filterSchool}
-                    onChange={(e) => setFilterSchool(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer"
-                  >
-                    <option value="">Select School</option>
-                    {Array.from(new Set(schools.map(s => s.name))).map(name => (
-                      <option key={name} value={name}>{name}</option>
-                    ))}
-                  </select>
-                </div>
+                <SearchableDropdown
+                  label="School"
+                  placeholder="All Schools"
+                  searchPlaceholder="Search school..."
+                  options={Array.from(new Set(schools.map(s => s.name))).map(name => ({
+                    label: name,
+                    value: name
+                  }))}
+                  value={filterSchool}
+                  onChange={val => setFilterSchool(val)}
+                  allowClear={true}
+                />
 
                 {/* Payment Mode Select */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Payment Mode</label>
-                  <select
-                    value={filterPaymentMode}
-                    onChange={(e) => setFilterPaymentMode(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm cursor-pointer"
-                  >
-                    <option value="">Select Payment Mode</option>
-                    <option value="Bank Account">Bank Account</option>
-                    <option value="UPI ID">UPI ID</option>
-                    <option value="QR Mode">QR Mode</option>
-                    <option value="Payment Gateway">Payment Gateway</option>
-                    <option value="Bank Transfer">Bank Transfer</option>
-                    <option value="QR Code">QR Code</option>
-                  </select>
-                </div>
+                <SearchableDropdown
+                  label="Payment Mode"
+                  placeholder="All Payment Modes"
+                  searchPlaceholder="Search mode..."
+                  options={[
+                    'Payment Gateway',
+                    'Bank Transfer',
+                    'UPI ID',
+                    'QR Code',
+                    'Cash / Cheque'
+                  ]}
+                  value={filterPaymentMode}
+                  onChange={val => setFilterPaymentMode(val)}
+                  allowClear={true}
+                />
 
                 {/* Select Date */}
                 <div className="flex flex-col gap-1.5">

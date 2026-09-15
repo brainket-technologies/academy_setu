@@ -59,6 +59,7 @@ export async function GET(request: Request) {
         a.id, a.application_no, a.plan_id, a.promo_code, a.payment_mode, i.name as school_name, i.contact_person, 
         i.state, i.district, a.status, a.enquiry_status, a.created_at, 
         i.assigned_to, u.name as assigned_user_name, u.role as assigned_user_role,
+        a.created_by, creator.name as created_by_name, creator.role as created_by_role,
         p.plan_name,
         COALESCE(a.amount, b.amount, (
           SELECT SUM(pbi.price + pbi.tax_price) 
@@ -68,6 +69,7 @@ export async function GET(request: Request) {
       FROM applications a
       LEFT JOIN institutions i ON a.institution_id = i.id
       LEFT JOIN admins u ON i.assigned_to = u.id
+      LEFT JOIN admins creator ON a.created_by = creator.id
       LEFT JOIN plans p ON a.plan_id = p.id
       LEFT JOIN bills b ON (b.institution_id = a.institution_id AND b.plan_id = a.plan_id)
     `
@@ -115,11 +117,11 @@ export async function GET(request: Request) {
     }
 
     if (search) {
-      conditions.push('(i.name ILIKE $' + (values.length + 1) + 
-                      ' OR i.contact_person ILIKE $' + (values.length + 1) + 
-                      ' OR i.state ILIKE $' + (values.length + 1) + 
-                      ' OR i.district ILIKE $' + (values.length + 1) + 
-                      ' OR a.application_no ILIKE $' + (values.length + 1) + ')')
+      conditions.push('(i.name ILIKE $' + (values.length + 1) +
+        ' OR i.contact_person ILIKE $' + (values.length + 1) +
+        ' OR i.state ILIKE $' + (values.length + 1) +
+        ' OR i.district ILIKE $' + (values.length + 1) +
+        ' OR a.application_no ILIKE $' + (values.length + 1) + ')')
       values.push(`%${search}%`)
     }
 
@@ -131,7 +133,7 @@ export async function GET(request: Request) {
       query += ' WHERE ' + conditions.join(' AND ')
     }
 
-    query += ' ORDER BY created_at DESC'
+    query += ' ORDER BY a.created_at DESC'
     const result = await pool.query(query, values)
 
     return NextResponse.json({
@@ -150,15 +152,25 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const bdmS = await getSession('bdm_session')
-    const mgrS = await getSession('manager_session')
-    const admS = await getSession('admin_session')
-    const session = bdmS || mgrS || admS
+    const referer = request.headers.get('referer') || ''
+    let session = null
+
+    if (referer.includes('/manager')) {
+      session = await getSession('manager_session')
+    } else if (referer.includes('/bdm')) {
+      session = await getSession('bdm_session')
+    } else if (referer.includes('/admin')) {
+      session = await getSession('admin_session')
+    }
+
+    if (!session) {
+      session = (await getSession('manager_session')) || (await getSession('bdm_session')) || (await getSession('admin_session'))
+    }
     const userId = session?.userId
-    const userRole = session?.role || (admS ? 'Admin' : (bdmS ? 'BDM' : (mgrS ? 'Manager' : 'User')))
+    const userRole = session?.role || (referer.includes('/manager') ? 'Manager' : (referer.includes('/bdm') ? 'BDM' : 'Admin'))
 
     const body = await request.json()
-    const { 
+    const {
       school_name, school_code, affiliated_to, affiliation_code,
       contact_person, mobile_no, email_id, address, state, district, pincode,
       principal_name, principal_gender, principal_sign, principal_photo,
@@ -170,9 +182,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'All required fields are missing.' }, { status: 400 })
     }
 
-    // Auto-assign to BDM if created by BDM (or if assigned_to is specified)
+    // Auto-assign to BDM only when creating from BDM portal
     let assignedTo = body.assigned_to || null
-    if (userRole === 'BDM' || bdmS) {
+    if (userRole === 'BDM' || (referer.includes('/bdm') && session?.role === 'BDM')) {
       assignedTo = userId
     }
 
@@ -223,6 +235,36 @@ export async function POST(request: Request) {
         status || 'Applied', enquiry_status || 'Applied', promo_code || '', planId, userId, payment_mode || 'Payment Gateway', amount ? parseFloat(amount) : null
       ]
     )
+
+    // Also record transaction & screenshots in requests table for moderation/verification if present
+    const { transaction_id, transactions, screenshots, screenshot_filename, screenshot_data_url } = body
+    const finalScreenshots = Array.isArray(screenshots) && screenshots.length > 0
+      ? screenshots
+      : (Array.isArray(transactions) && transactions.length > 0
+        ? transactions.map((t: any) => ({
+          transactionId: t.transactionId || '',
+          filename: t.screenshotFilename || '',
+          dataUrl: t.screenshotDataUrl || '',
+          amount: t.amount || 0
+        }))
+        : (screenshot_filename ? [{ filename: screenshot_filename, dataUrl: screenshot_data_url || '', amount: amount || 0 }] : [])
+      )
+
+    const allTxIds = Array.isArray(transactions) && transactions.length > 0
+      ? transactions.map((t: any) => t.transactionId).filter(Boolean).join(', ')
+      : (transaction_id || '')
+
+    if (payment_mode && (finalScreenshots.length > 0 || allTxIds || status === 'Pending' || enquiry_status === 'Successfully Onboarded')) {
+      try {
+        await pool.query(
+          `INSERT INTO requests (institution_id, plan_id, payment_mode, transaction_id, amount, status, screenshots)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [institutionId, planId, payment_mode || 'Bank Transfer', allTxIds, amount ? parseFloat(amount) : 0, 'Pending', JSON.stringify(finalScreenshots)]
+        )
+      } catch (reqErr) {
+        console.error('Request creation note:', reqErr)
+      }
+    }
 
     return NextResponse.json({ success: true, data: { ...result.rows[0], school_name: school_name, contact_person: contact_person, state: state, district: district } })
   } catch (error) {

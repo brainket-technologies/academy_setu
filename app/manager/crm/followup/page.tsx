@@ -242,6 +242,13 @@ function ManagerFollowupContent() {
     }
   }
 
+  // Helper to check if status requires follow up date
+  const requiresFollowUp = (statusName: string) => {
+    if (!statusName) return false
+    const matched = statuses.find(s => s.name.toLowerCase() === statusName.toLowerCase())
+    return matched ? Boolean(matched.show_on_bdm) : false
+  }
+
   // Submit follow-up / communication log
   const handleSubmitFollowUp = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -254,6 +261,10 @@ function ManagerFollowupContent() {
       toast.error('Please select a status')
       return
     }
+    if (requiresFollowUp(leadStatus) && !followUpDate) {
+      toast.error('Please select Next Follow-Up Date & Time')
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -264,7 +275,7 @@ function ManagerFollowupContent() {
           communication_option: commOption,
           call_duration: commOption === 'Call' ? callDuration : '',
           remarks: remarks.trim(),
-          follow_up_date: followUpDate || null,
+          follow_up_date: requiresFollowUp(leadStatus) ? (followUpDate || null) : null,
           status: leadStatus
         })
       })
@@ -911,23 +922,19 @@ function ManagerFollowupContent() {
                   />
                 </div>
 
-                {/* 3. Next Follow-up Date & Status */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Next Follow-Up Date & Time</label>
-                    <input
-                      type="datetime-local"
-                      value={followUpDate}
-                      onChange={(e) => setFollowUpDate(e.target.value)}
-                      className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                    />
-                  </div>
-
+                {/* 3. Status & Conditional Next Follow-up Date */}
+                <div className={`grid gap-4 ${requiresFollowUp(leadStatus) ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Update Status <span className="text-red-500">*</span></label>
                     <select
                       value={leadStatus}
-                      onChange={(e) => setLeadStatus(e.target.value)}
+                      onChange={(e) => {
+                        const newStatus = e.target.value
+                        setLeadStatus(newStatus)
+                        if (!requiresFollowUp(newStatus)) {
+                          setFollowUpDate('')
+                        }
+                      }}
                       required
                       className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
                     >
@@ -937,6 +944,19 @@ function ManagerFollowupContent() {
                       ))}
                     </select>
                   </div>
+
+                  {requiresFollowUp(leadStatus) && (
+                    <div className="flex flex-col gap-1.5 animate-in fade-in duration-200">
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Next Follow-Up Date & Time <span className="text-red-500">*</span></label>
+                      <input
+                        type="datetime-local"
+                        value={followUpDate}
+                        onChange={(e) => setFollowUpDate(e.target.value)}
+                        required={requiresFollowUp(leadStatus)}
+                        className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Submit button */}

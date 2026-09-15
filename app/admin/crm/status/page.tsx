@@ -1,7 +1,10 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Search, Loader2, Edit3, Trash2, Calendar, Clock, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
+import { 
+  Search, Loader2, Edit3, Trash2, Calendar, Clock, 
+  ChevronLeft, ChevronRight, Plus, X, ArrowUp, ArrowDown, ArrowUpDown
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
@@ -11,12 +14,14 @@ interface LeadStatus {
   text_color: string
   bg_color: string
   show_on_bdm: boolean
+  order_index?: number
   created_at: string
 }
 
 export default function LeadStatusPage() {
   const [statuses, setStatuses] = useState<LeadStatus[]>([])
   const [loading, setLoading] = useState(true)
+  const [reordering, setReordering] = useState(false)
 
   // Search
   const [searchText, setSearchText] = useState('')
@@ -25,6 +30,7 @@ export default function LeadStatusPage() {
   // Form states
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [statusName, setStatusName] = useState('')
+  const [orderIndex, setOrderIndex] = useState<number | string>('')
   const [color, setColor] = useState('#10B981')
   const [textColor, setTextColor] = useState('#10B981')
   const [bgColor, setBgColor] = useState('#10B9811F')
@@ -71,6 +77,49 @@ export default function LeadStatusPage() {
     setCurrentPage(1)
   }
 
+  // Handle move up / move down
+  const handleMove = async (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= statuses.length) return
+
+    const newStatuses = [...statuses]
+    const temp = newStatuses[index]
+    newStatuses[index] = newStatuses[targetIndex]
+    newStatuses[targetIndex] = temp
+
+    // Re-assign order_index in state for display
+    const updatedWithOrder = newStatuses.map((st, i) => ({
+      ...st,
+      order_index: i + 1
+    }))
+
+    setStatuses(updatedWithOrder)
+
+    try {
+      setReordering(true)
+      const res = await fetch('/api/admin/crm/status/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderedIds: updatedWithOrder.map(s => s.id) })
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Status order updated!')
+        if (data.data) {
+          setStatuses(data.data)
+        }
+      } else {
+        toast.error(data.error || 'Failed to update order')
+        fetchStatuses(searchText)
+      }
+    } catch {
+      toast.error('Error updating status order')
+      fetchStatuses(searchText)
+    } finally {
+      setReordering(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!statusName.trim()) {
@@ -89,20 +138,15 @@ export default function LeadStatusPage() {
           name: statusName.trim(),
           text_color: textColor,
           bg_color: bgColor,
-          show_on_bdm: showOnBdm
+          show_on_bdm: showOnBdm,
+          order_index: orderIndex !== '' ? Number(orderIndex) : undefined
         })
       })
       const data = await res.json()
       if (data.success) {
         toast.success(editingId ? 'Status updated successfully!' : 'Status created successfully!')
-        setStatusName('')
-        setColor('#10B981')
-        setTextColor('#10B981')
-        setBgColor('#10B9811F')
-        setShowOnBdm(true)
-        setEditingId(null)
-        setIsModalOpen(false)
-        fetchStatuses()
+        handleCancelEdit()
+        fetchStatuses(searchText)
       } else {
         toast.error(data.error || 'Failed to save status')
       }
@@ -116,6 +160,7 @@ export default function LeadStatusPage() {
   const handleStartEdit = (status: LeadStatus) => {
     setEditingId(status.id)
     setStatusName(status.name)
+    setOrderIndex(status.order_index ?? '')
     const baseColor = status.text_color || '#10B981'
     setColor(baseColor)
     setTextColor(baseColor)
@@ -127,6 +172,7 @@ export default function LeadStatusPage() {
   const handleCancelEdit = () => {
     setEditingId(null)
     setStatusName('')
+    setOrderIndex('')
     setColor('#10B981')
     setTextColor('#10B981')
     setBgColor('#10B9811F')
@@ -148,7 +194,7 @@ export default function LeadStatusPage() {
       const data = await res.json()
       if (data.success) {
         toast.success('Status deleted successfully')
-        fetchStatuses()
+        fetchStatuses(searchText)
       } else {
         toast.error(data.error || 'Failed to delete status')
       }
@@ -187,8 +233,20 @@ export default function LeadStatusPage() {
     <>
       <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
         {/* Title Header Card */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm shrink-0">
-          <h1 className="text-2xl font-bold text-slate-850 dark:text-slate-100 tracking-tight">Lead Status</h1>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl px-8 py-5 border border-slate-100 dark:border-slate-700 shadow-sm shrink-0 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-850 dark:text-slate-100 tracking-tight">Lead Status</h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Configure status colors, visibility, and display order across all CRM dropdowns and filters.
+            </p>
+          </div>
+          <button
+            onClick={() => { handleCancelEdit(); setIsModalOpen(true); }}
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md transition-colors cursor-pointer shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            Create Status
+          </button>
         </div>
 
         {/* Table Card */}
@@ -202,16 +260,13 @@ export default function LeadStatusPage() {
                 placeholder="Search by name..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 shadow-sm"
+                className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 shadow-sm"
               />
             </form>
-            <button
-              onClick={() => { handleCancelEdit(); setIsModalOpen(true); }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md transition-colors cursor-pointer shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              Create Status
-            </button>
+            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700/50 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
+              <ArrowUpDown className="w-3.5 h-3.5 text-blue-500" />
+              Use <span className="text-blue-600 dark:text-blue-400 font-bold">↑ / ↓</span> to reorder status sequence
+            </div>
           </div>
 
           {/* Statuses Log Table */}
@@ -219,7 +274,9 @@ export default function LeadStatusPage() {
             <table className="w-full border-collapse text-left text-sm">
               <thead className="bg-[#EBF6F6]/50 dark:bg-slate-700/50">
                 <tr>
-                  <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 w-16">S. No.</th>
+                  <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 w-32 text-center">
+                    Order
+                  </th>
                   <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Name</th>
                   <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700">Created At</th>
                   <th className="px-5 py-4 font-semibold text-slate-750 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700 text-center w-28">Action</th>
@@ -243,11 +300,37 @@ export default function LeadStatusPage() {
                   </tr>
                 ) : (
                   paginatedStatuses.map((st, idx) => {
-                    const sNo = (currentPage - 1) * pageSize + idx + 1
+                    const globalIndex = (currentPage - 1) * pageSize + idx
                     const { date, time } = formatDateTime(st.created_at)
                     return (
                       <tr key={st.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
-                        <td className="px-5 py-4 font-medium text-slate-550 dark:text-slate-400">{sNo}.</td>
+                        <td className="px-5 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center justify-center">
+                              {st.order_index ?? (globalIndex + 1)}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                disabled={globalIndex === 0 || reordering}
+                                onClick={() => handleMove(globalIndex, 'up')}
+                                title="Move Up"
+                                className="w-6 h-6 rounded flex items-center justify-center bg-slate-100 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                              >
+                                <ArrowUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={globalIndex === statuses.length - 1 || reordering}
+                                onClick={() => handleMove(globalIndex, 'down')}
+                                title="Move Down"
+                                className="w-6 h-6 rounded flex items-center justify-center bg-slate-100 dark:bg-slate-700 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                              >
+                                <ArrowDown className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </td>
                         <td className="px-5 py-4">
                           <span 
                             className="inline-block px-3 py-1 rounded-full text-xs font-bold shadow-sm"
@@ -319,8 +402,8 @@ export default function LeadStatusPage() {
                     onClick={() => setCurrentPage(pg)}
                     className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                       pg === currentPage
-                        ? 'bg-[#0E9485] text-white shadow-sm'
-                        : 'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-700'
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 bg-white dark:bg-slate-700'
                     }`}
                   >
                     {pg}
@@ -362,19 +445,33 @@ export default function LeadStatusPage() {
             </h2>
             
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-              {/* Status Name input */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                  Status Name <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  type="text" 
-                  placeholder="Enter Status Name" 
-                  value={statusName} 
-                  onChange={(e) => setStatusName(e.target.value)} 
-                  required 
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 shadow-sm" 
-                />
+              {/* Status Name & Order Index */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="sm:col-span-2 flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                    Status Name <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    placeholder="Enter Status Name" 
+                    value={statusName} 
+                    onChange={(e) => setStatusName(e.target.value)} 
+                    required 
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 shadow-sm" 
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                    Order Index
+                  </label>
+                  <input 
+                    type="number" 
+                    placeholder="Auto" 
+                    value={orderIndex} 
+                    onChange={(e) => setOrderIndex(e.target.value)} 
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 shadow-sm" 
+                  />
+                </div>
               </div>
 
               {/* Single Color Picker */}
@@ -392,7 +489,7 @@ export default function LeadStatusPage() {
                       setTextColor(val)
                       setBgColor(val.length === 7 && val.startsWith('#') ? val + '1F' : val)
                     }} 
-                    className="w-full pl-4 pr-11 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 shadow-sm" 
+                    className="w-full pl-4 pr-11 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-800 dark:text-slate-200 shadow-sm" 
                   />
                   <div 
                     className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden flex items-center justify-center shrink-0 shadow-sm cursor-pointer"
@@ -432,7 +529,7 @@ export default function LeadStatusPage() {
                 <button 
                   type="button" 
                   onClick={() => setShowOnBdm(!showOnBdm)} 
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${showOnBdm ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'}`}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${showOnBdm ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'}`}
                 >
                   <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${showOnBdm ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
@@ -442,7 +539,7 @@ export default function LeadStatusPage() {
               <button 
                 type="submit" 
                 disabled={submitting} 
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex justify-center items-center gap-2"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-blue-600/10 cursor-pointer flex justify-center items-center gap-2"
               >
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 {editingId ? 'Update Status' : 'Create Status'}

@@ -205,20 +205,40 @@ function UserWizardContent() {
   }
 
   const handleSubmit = async () => {
+    const trimmedEmail = (formData.email || formData.username || '').trim()
+    const trimmedName = (formData.name || '').trim()
+
+    if (!trimmedName) {
+      toast.error('Full Name is required')
+      return
+    }
+    if (!trimmedEmail) {
+      toast.error('Email Address is required')
+      return
+    }
+    if (!userId && !formData.password) {
+      toast.error('Password is required')
+      return
+    }
+    if (formData.password && formData.password !== formData.confirmPassword) {
+      toast.error('Passwords do not match')
+      return
+    }
+
     setSubmitting(true)
     try {
       const url = userId ? `/api/admin/users/${userId}` : '/api/admin/users'
       const method = userId ? 'PUT' : 'POST'
 
-      const payload = {
-        name: formData.name,
-        email: formData.email,
+      const payload: Record<string, any> = {
+        name: trimmedName,
+        email: trimmedEmail,
         role: formData.role,
         phone: formData.phone,
         id_no: formData.id_no || `AS${Math.floor(100 + Math.random() * 900)}`,
-        avatar_url: formData.avatar_url || 'https://i.pravatar.cc/150?u=' + formData.email,
+        avatar_url: formData.avatar_url || 'https://i.pravatar.cc/150?u=' + trimmedEmail,
         is_active: true,
-        joining_date: formData.joining_date,
+        joining_date: formData.joining_date || null,
         permissions: formData.permissions,
         gender: formData.gender,
         address: formData.address,
@@ -231,12 +251,12 @@ function UserWizardContent() {
         login_time_type: formData.login_time_type,
         login_time: formData.login_time_type === 'Custom' ? formData.login_time : null,
         logout_time: formData.login_time_type === 'Custom' ? formData.logout_time : null,
-        login_expire_date: formData.login_expire_date,
-        device_permission_count: parseInt(formData.device_permission_count)
+        login_expire_date: formData.login_expire_date || null,
+        device_permission_count: parseInt(formData.device_permission_count) || 1
       }
 
       if (formData.password) {
-        Object.assign(payload, { password: formData.password })
+        payload.password = formData.password
       }
 
       const res = await fetch(url, {
@@ -324,31 +344,31 @@ function UserWizardContent() {
             <div className="grid grid-cols-3 gap-2 border border-slate-100 dark:border-slate-700 rounded-xl overflow-hidden p-1 bg-slate-50/50 dark:bg-slate-800/30">
               <button
                 type="button"
-                className={`py-3 rounded-lg font-bold text-xs transition-all ${activeStep === 1
+                className={`py-3 rounded-lg font-bold text-xs transition-all cursor-pointer ${activeStep === 1
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
                   }`}
-                onClick={() => activeStep > 1 && setActiveStep(1)}
+                onClick={() => (userId || activeStep > 1) && setActiveStep(1)}
               >
                 Personal Details
               </button>
               <button
                 type="button"
-                className={`py-3 rounded-lg font-bold text-xs transition-all ${activeStep === 2
+                className={`py-3 rounded-lg font-bold text-xs transition-all cursor-pointer ${activeStep === 2
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
                   }`}
-                onClick={() => activeStep > 2 && setActiveStep(2)}
+                onClick={() => (userId || activeStep > 2) && setActiveStep(2)}
               >
                 Address Details
               </button>
               <button
                 type="button"
-                className={`py-3 rounded-lg font-bold text-xs transition-all ${activeStep === 3
+                className={`py-3 rounded-lg font-bold text-xs transition-all cursor-pointer ${activeStep === 3
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
                   }`}
-                onClick={() => activeStep > 3 && setActiveStep(3)}
+                onClick={() => (userId || activeStep > 3) && setActiveStep(3)}
               >
                 Log in Criteria
               </button>
@@ -535,12 +555,19 @@ function UserWizardContent() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-450 mb-1.5">Email Id</label>
+                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-450 mb-1.5">Email Id *</label>
                     <input
                       type="email"
                       placeholder="Enter Email ID"
                       value={formData.email}
-                      onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                      onChange={e => {
+                        const val = e.target.value
+                        setFormData(prev => ({
+                          ...prev,
+                          email: val,
+                          username: !prev.username || prev.username === prev.email ? val : prev.username
+                        }))
+                      }}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all font-semibold"
                     />
                   </div>
@@ -599,7 +626,14 @@ function UserWizardContent() {
                     type="text"
                     placeholder="Enter User Name"
                     value={formData.username}
-                    onChange={e => setFormData(prev => ({ ...prev, username: e.target.value }))}
+                    onChange={e => {
+                      const val = e.target.value
+                      setFormData(prev => ({
+                        ...prev,
+                        username: val,
+                        email: !prev.email ? val : prev.email
+                      }))
+                    }}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 text-slate-750 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none transition-all font-semibold"
                   />
                 </div>
@@ -657,6 +691,17 @@ function UserWizardContent() {
               >
                 Cancel
               </button>
+              {userId && (
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={handleSubmit}
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-md shadow-emerald-600/10 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Save Changes
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleNext}
@@ -801,6 +846,17 @@ function UserWizardContent() {
               >
                 Cancel
               </button>
+              {userId && (
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={handleSubmit}
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-md shadow-emerald-600/10 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Save Changes
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleNext}
@@ -914,6 +970,17 @@ function UserWizardContent() {
               >
                 Cancel
               </button>
+              {userId && (
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={handleSubmit}
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-md shadow-emerald-600/10 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Save Changes
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleNext}
@@ -1170,7 +1237,7 @@ function UserWizardContent() {
                   className="px-10 py-2.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-600/10 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Final Submit
+                  {userId ? 'Update User' : 'Final Submit'}
                 </button>
               </div>
             </div>

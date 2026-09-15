@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import bcrypt from 'bcryptjs'
+import { apiCache } from '@/lib/api-cache'
 
 export async function DELETE(
   request: NextRequest,
@@ -23,6 +24,8 @@ export async function DELETE(
     if (result.rowCount === 0) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 })
     }
+
+    apiCache.invalidate('users')
 
     return NextResponse.json({
       success: true,
@@ -52,12 +55,15 @@ export async function PUT(
       logout_time, login_expire_date, device_permission_count
     } = body
 
-    if (!name || !email || !role) {
-      return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 })
+    const cleanEmail = (email || '').trim().toLowerCase()
+    const cleanName = (name || '').trim()
+
+    if (!cleanName || !cleanEmail || !role) {
+      return NextResponse.json({ success: false, error: 'Missing required fields (Name, Email, Role)' }, { status: 400 })
     }
 
     // Check email uniqueness if email changed
-    const checkEmail = await pool.query('SELECT id FROM admins WHERE email = $1 AND id <> $2 LIMIT 1', [email, id])
+    const checkEmail = await pool.query('SELECT id FROM admins WHERE LOWER(TRIM(email)) = LOWER($1) AND id <> $2 LIMIT 1', [cleanEmail, id])
     if (checkEmail.rows.length > 0) {
       return NextResponse.json({ success: false, error: 'Email already in use by another account' }, { status: 400 })
     }
@@ -79,8 +85,8 @@ export async function PUT(
         RETURNING *
       `
       result = await pool.query(query, [
-        name,
-        email,
+        cleanName,
+        cleanEmail,
         passwordHash,
         role,
         phone || '',
@@ -119,8 +125,8 @@ export async function PUT(
         RETURNING *
       `
       result = await pool.query(query, [
-        name,
-        email,
+        cleanName,
+        cleanEmail,
         role,
         phone || '',
         id_no || '',
@@ -148,6 +154,8 @@ export async function PUT(
     if (result.rowCount === 0) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 })
     }
+
+    apiCache.invalidate('users')
 
     return NextResponse.json({
       success: true,

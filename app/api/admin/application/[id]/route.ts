@@ -17,11 +17,14 @@ export async function GET(
         i.director_name, i.director_gender, i.director_sign, i.director_photo,
         i.segment_id, i.assigned_to,
         u.name as assigned_user_name, u.role as assigned_user_role,
-        p.plan_name
+        p.plan_name,
+        r.transaction_id,
+        r.screenshots
       FROM applications a
       LEFT JOIN institutions i ON a.institution_id = i.id
       LEFT JOIN admins u ON i.assigned_to = u.id
       LEFT JOIN plans p ON a.plan_id = p.id
+      LEFT JOIN requests r ON r.institution_id = a.institution_id
       WHERE a.id = $1 LIMIT 1
     `, [id])
 
@@ -43,12 +46,12 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
-    const { 
+    const {
       school_name, school_code, affiliated_to, affiliation_code,
       contact_person, mobile_no, email_id, address, state, district, pincode,
       principal_name, principal_gender, principal_sign, principal_photo,
       director_name, director_gender, director_sign, director_photo,
-      status, enquiry_status, plan_id, promo_code, assigned_to, payment_mode, amount 
+      status, enquiry_status, plan_id, promo_code, assigned_to, payment_mode, amount
     } = body
 
     // First, update the institution with address/personal details
@@ -88,7 +91,7 @@ export async function PUT(
       addInstField('director_gender', director_gender)
       addInstField('director_sign', director_sign)
       addInstField('director_photo', director_photo)
-      
+
       let finalAssignedTo = assigned_to
       if (assigned_to === '') {
         finalAssignedTo = null
@@ -163,14 +166,26 @@ export async function PUT(
         await pool.query("UPDATE institutions SET status = 'Active', updated_at = NOW() WHERE id = $1", [institutionId])
       }
 
-      const { transaction_id, screenshots, screenshot_filename, screenshot_data_url } = body
+      const { transaction_id, transactions, screenshots, screenshot_filename, screenshot_data_url } = body
       const screenshotsArr = Array.isArray(screenshots) && screenshots.length > 0
         ? screenshots
-        : (screenshot_filename ? [{ filename: screenshot_filename, dataUrl: screenshot_data_url || '', amount: amount || 0 }] : [])
+        : (Array.isArray(transactions) && transactions.length > 0
+          ? transactions.map((t: any) => ({
+            transactionId: t.transactionId || '',
+            filename: t.screenshotFilename || '',
+            dataUrl: t.screenshotDataUrl || '',
+            amount: t.amount || 0
+          }))
+          : (screenshot_filename ? [{ filename: screenshot_filename, dataUrl: screenshot_data_url || '', amount: amount || 0 }] : [])
+        )
+
+      const allTxIds = Array.isArray(transactions) && transactions.length > 0
+        ? transactions.map((t: any) => t.transactionId).filter(Boolean).join(', ')
+        : (transaction_id || '')
 
       const finalAmount = amount ? parseFloat(amount) : 0
 
-      if (enquiry_status === 'Successfully Onboarded' || status === 'Completed' || screenshotsArr.length > 0 || transaction_id) {
+      if (enquiry_status === 'Successfully Onboarded' || status === 'Completed' || screenshotsArr.length > 0 || allTxIds) {
         const existingReq = await pool.query('SELECT id FROM requests WHERE institution_id = $1 LIMIT 1', [institutionId])
         if (existingReq.rows.length > 0) {
           await pool.query(
@@ -182,13 +197,13 @@ export async function PUT(
                  screenshots = CASE WHEN $5::jsonb != '[]'::jsonb THEN $5::jsonb ELSE screenshots END,
                  updated_at = NOW()
              WHERE id = $6`,
-            [cleanPlanId, payment_mode || 'Payment Gateway', transaction_id || '', finalAmount, JSON.stringify(screenshotsArr), existingReq.rows[0].id]
+            [cleanPlanId, payment_mode || 'Payment Gateway', allTxIds, finalAmount, JSON.stringify(screenshotsArr), existingReq.rows[0].id]
           )
         } else {
           await pool.query(
             `INSERT INTO requests (institution_id, plan_id, payment_mode, transaction_id, amount, status, screenshots)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [institutionId, cleanPlanId, payment_mode || 'Payment Gateway', transaction_id || '', finalAmount, 'Pending', JSON.stringify(screenshotsArr)]
+            [institutionId, cleanPlanId, payment_mode || 'Payment Gateway', allTxIds, finalAmount, 'Pending', JSON.stringify(screenshotsArr)]
           )
         }
       }

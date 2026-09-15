@@ -144,6 +144,8 @@ export async function POST(request: NextRequest) {
       device_permission_count ? parseInt(String(device_permission_count)) : 1
     ])
 
+    apiCache.invalidate('users')
+
     return NextResponse.json({
       success: true,
       data: result.rows[0]

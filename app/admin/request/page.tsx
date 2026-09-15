@@ -151,7 +151,254 @@ function RequestDashboardContent() {
   }
 
   const handleDownloadPDF = (req: RequestItem) => {
-    toast.success(`Downloading invoice for ${req.school_name} request...`)
+    toast.success(`Preparing invoice for ${req.school_name}...`)
+
+    const amountNum = Number(req.amount) || 0
+    const invoiceNum = `INV-${new Date(req.created_at || new Date()).getFullYear()}-${(req.transaction_id ? req.transaction_id.replace(/[^a-zA-Z0-9]/g, '').slice(-4) : 'REQ1').toUpperCase()}`
+    const formattedDate = new Date(req.created_at || new Date()).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+
+    const invoiceHTML = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Invoice - ${req.school_name}</title>
+        <style>
+          @page { size: A4 portrait; margin: 8mm; }
+          * { box-sizing: border-box; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; background: #f1f5f9; margin: 0; padding: 15px; }
+          .invoice-card { 
+            max-width: 820px; 
+            margin: 0 auto; 
+            background: #ffffff; 
+            padding: 30px 34px; 
+            border: 2px solid #0f172a; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.06); 
+            min-height: 268mm; 
+            display: flex; 
+            flex-direction: column; 
+            box-sizing: border-box;
+          }
+          
+          /* Top Header */
+          .header-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 22px; }
+          .logo-box { width: 140px; height: 70px; border: 1.5px dashed #94a3b8; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #475569; font-size: 12px; font-weight: 800; background: #f8fafc; margin-bottom: 12px; }
+          .from-box { border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; background: #f8fafc; font-size: 12px; }
+          .from-title { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; margin-bottom: 3px; display: block; }
+          .from-name { font-weight: 800; color: #0f172a; font-size: 13px; }
+          .from-sub { color: #64748b; font-size: 11px; margin-top: 2px; line-height: 1.35; }
+          
+          .invoice-right { display: flex; flex-direction: column; align-items: flex-end; }
+          .invoice-title { font-size: 34px; font-weight: 900; color: #0f172a; letter-spacing: -0.5px; margin: 0 0 10px 0; text-transform: uppercase; }
+          .inv-num-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+          .inv-num-label { font-size: 14px; font-weight: 800; color: #64748b; }
+          .inv-num-val { border: 1.5px solid #0f172a; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 800; color: #0f172a; background: #f8fafc; font-family: monospace; }
+          
+          .meta-grid { display: grid; grid-template-columns: 105px 140px; gap: 6px; font-size: 11px; }
+          .meta-lbl { color: #64748b; font-weight: 700; text-align: right; padding-top: 4px; }
+          .meta-box { border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 8px; font-weight: 700; color: #0f172a; background: #fff; }
+          
+          /* Bill To / Ship To */
+          .address-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+          .addr-col { display: flex; flex-direction: column; gap: 4px; }
+          .addr-lbl { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b; }
+          .addr-box { border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; min-height: 70px; background: #fff; }
+          .addr-school { font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 3px; }
+          .addr-text { font-size: 11px; color: #64748b; line-height: 1.35; }
+
+          /* Line Items Table */
+          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; border-radius: 8px; overflow: hidden; border: 1px solid #0f172a; }
+          .items-table thead tr { background: #0f172a; color: #ffffff; }
+          .items-table th { padding: 9px 12px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; border: none; }
+          .items-table tbody tr { background: #ffffff; }
+          .items-table tbody tr:nth-child(even) { background: #f8fafc; }
+          
+          /* Bottom Split */
+          .bottom-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; margin-top: auto; }
+          .section-lbl { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 4px; display: block; }
+          .notes-box, .terms-box { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 10px; font-size: 11px; color: #64748b; background: #f8fafc; margin-bottom: 10px; line-height: 1.35; }
+          .pay-proof { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 10px; font-size: 11px; background: #f8fafc; margin-bottom: 10px; }
+          .pay-proof strong { color: #0f172a; }
+
+          /* Summary Calculations */
+          .summary-card { border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px; background: #f8fafc; display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+          .sum-row { display: flex; justify-content: space-between; align-items: center; color: #475569; }
+          .sum-val { font-weight: 700; color: #0f172a; }
+          .sum-divider { height: 1px; background: #cbd5e1; margin: 3px 0; }
+          .total-row { font-size: 15px; font-weight: 900; color: #0f172a; }
+
+          @media print {
+            body { padding: 0; background: #fff; margin: 0; }
+            .invoice-card { 
+              box-shadow: none; 
+              border: 2px solid #0f172a !important; 
+              border-radius: 8px; 
+              padding: 20px 24px; 
+              width: 100%; 
+              max-width: 100%; 
+              min-height: 268mm; 
+              height: 268mm;
+              margin: 0;
+              box-sizing: border-box;
+              -webkit-print-color-adjust: exact; 
+              print-color-adjust: exact; 
+            }
+            .items-table thead tr { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #0f172a !important; color: #fff !important; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="invoice-card">
+          
+          <!-- Header -->
+          <div class="header-grid">
+            <div>
+              <div class="logo-box">
+                <div style="font-size: 20px; margin-bottom: 2px;">🎓</div>
+                <span>ACADEMY SETU</span>
+              </div>
+              <div class="from-box">
+                <span class="from-title">Who is this from?</span>
+                <div class="from-name">Academy Setu Technologies Pvt. Ltd.</div>
+                <div class="from-sub">
+                  Educational ERP &amp; Cloud Platform Solutions<br>
+                  Email: support@academysetu.com | Ph: +91 98765 43210<br>
+                  GSTIN: 07AAAAA0000A1Z5
+                </div>
+              </div>
+            </div>
+
+            <div class="invoice-right">
+              <h1 class="invoice-title">INVOICE</h1>
+              <div class="inv-num-row">
+                <span class="inv-num-label">#</span>
+                <div class="inv-num-val">${invoiceNum}</div>
+              </div>
+
+              <div class="meta-grid">
+                <span class="meta-lbl">Date</span>
+                <div class="meta-box">${formattedDate}</div>
+                <span class="meta-lbl">Payment Terms</span>
+                <div class="meta-box">Due on Receipt</div>
+                <span class="meta-lbl">Due Date</span>
+                <div class="meta-box">${formattedDate}</div>
+                <span class="meta-lbl">PO Number</span>
+                <div class="meta-box">PO-${new Date().getFullYear()}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bill To & Ship To -->
+          <div class="address-grid">
+            <div class="addr-col">
+              <span class="addr-lbl">Bill To</span>
+              <div class="addr-box">
+                <div class="addr-school">${req.school_name}</div>
+                <div class="addr-text">
+                  Campus Software Provisioning &amp; License Subscription
+                </div>
+              </div>
+            </div>
+            
+            <div class="addr-col">
+              <span class="addr-lbl">Ship To <span style="font-weight: 400; color: #94a3b8;">(optional)</span></span>
+              <div class="addr-box">
+                <div class="addr-school">${req.school_name}</div>
+                <div class="addr-text">
+                  Main Institutional Campus
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Items Table -->
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th style="text-align: left; width: 55%;">Plan Name</th>
+                <th style="text-align: center; width: 15%;">Quantity</th>
+                <th style="text-align: right; width: 15%;">Rate</th>
+                <th style="text-align: right; width: 15%;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding: 14px; border-bottom: 1px solid #e2e8f0;">
+                  <strong style="color: #0f172a; font-size: 14px;">${req.plan_name || 'CRM Subscription Plan'}</strong>
+                  <div style="font-size: 11px; color: #64748b; margin-top: 3px;">
+                    Academy Setu ERP &amp; Cloud Management Software License
+                  </div>
+                </td>
+                <td style="padding: 14px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #334155; font-size: 13px;">1</td>
+                <td style="padding: 14px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #334155; font-size: 13px;">₹${amountNum.toFixed(2)}</td>
+                <td style="padding: 14px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 700; color: #0f172a; font-size: 13px;">₹${amountNum.toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Bottom Row -->
+          <div class="bottom-grid">
+            <div>
+              <div class="pay-proof">
+                <span class="section-lbl">Payment Details</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                  <div>
+                    <div><strong>Mode:</strong> ${req.payment_mode || 'Bank Transfer'}</div>
+                    <div style="font-family: monospace; font-size: 11px; margin-top: 2px;"><strong>Txn / UTR:</strong> ${req.transaction_id || 'N/A'}</div>
+                  </div>
+                  <span class="paid-badge">✓ ${req.status || 'PAID'}</span>
+                </div>
+              </div>
+
+              <span class="section-lbl">Notes</span>
+              <div class="notes-box">
+                Thank you for partnering with Academy Setu CRM. All software licenses and features are provisioned for your institute.
+              </div>
+
+              <span class="section-lbl">Terms</span>
+              <div class="terms-box">
+                Terms and conditions - 1. All payments are non-refundable. 2. Subscription access is granted for the contracted term. 3. System-generated electronic tax invoice.
+              </div>
+            </div>
+
+            <div class="summary-card">
+              <div class="sum-row">
+                <span>Subtotal</span>
+                <span class="sum-val">₹${amountNum.toFixed(2)}</span>
+              </div>
+              <div class="sum-row">
+                <span>Tax / GST</span>
+                <span class="sum-val">₹0.00</span>
+              </div>
+              <div class="sum-row" style="color: #059669;">
+                <span>+ Discount</span>
+                <span class="sum-val" style="color: #059669;">₹0.00</span>
+              </div>
+              <div class="sum-divider"></div>
+              <div class="sum-row total-row">
+                <span>Total</span>
+                <span class="sum-val" style="font-size: 16px;">₹${amountNum.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <script>
+          window.onload = () => {
+            window.print();
+            setTimeout(() => window.close(), 250);
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([invoiceHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
   }
 
   const startEntry = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1

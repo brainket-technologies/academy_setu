@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { 
   Search, Edit3, Trash2, Calendar, Clock, Loader2, 
   ChevronLeft, ChevronRight, Share2, Upload, AlertCircle, Users, Activity, X,
-  Download, FileUp, Save, Check, ArrowRightLeft, PhoneCall
+  Download, FileUp, Save, Check, ArrowRightLeft, PhoneCall, Phone, MessageSquare, History
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
@@ -73,7 +73,7 @@ export default function AllLeadsPage() {
   const [stateName, setStateName] = useState('')
   const [district, setDistrict] = useState('')
   const [noOfStudents, setNoOfStudents] = useState('')
-  const [baseStatus, setBaseStatus] = useState('Created')
+  const [baseStatus, setBaseStatus] = useState('')
   const [baseFollowUpDate, setBaseFollowUpDate] = useState('') // previous/existing follow-up date (read-only in edit)
   const [newEditFollowUpDate, setNewEditFollowUpDate] = useState('') // new date input in edit mode
 
@@ -130,6 +130,7 @@ export default function AllLeadsPage() {
   const [inlineStateName, setInlineStateName] = useState('')
   const [inlineDistrict, setInlineDistrict] = useState('')
   const [inlineNoOfStudents, setInlineNoOfStudents] = useState('')
+  const [inlineStatus, setInlineStatus] = useState('')
   const [savingLeadDetails, setSavingLeadDetails] = useState(false)
 
   // Import/Export states
@@ -142,6 +143,12 @@ export default function AllLeadsPage() {
   const [logsModalLead, setLogsModalLead] = useState<Lead | null>(null)
   const [logsModalHistory, setLogsModalHistory] = useState<LeadHistory[]>([])
   const [logsModalLoading, setLogsModalLoading] = useState(false)
+  const [logsCommOption, setLogsCommOption] = useState<'Call' | 'Message'>('Call')
+  const [logsCallDuration, setLogsCallDuration] = useState('')
+  const [logsRemarks, setLogsRemarks] = useState('')
+  const [logsStatus, setLogsStatus] = useState('')
+  const [logsFollowUpDate, setLogsFollowUpDate] = useState('')
+  const [logsSubmitting, setLogsSubmitting] = useState(false)
 
   const fetchLeads = useCallback(async (page = 1, search = '', source = '', status = '') => {
     try {
@@ -175,8 +182,9 @@ export default function AllLeadsPage() {
     try {
       const res = await fetch('/api/admin/crm/status')
       const data = await res.json()
-      if (data.success) {
+      if (data.success && data.data) {
         setStatuses(data.data)
+        setBaseStatus(prev => prev || data.data[0]?.name || '')
       }
     } catch {
       console.error('Failed to load statuses')
@@ -284,7 +292,7 @@ export default function AllLeadsPage() {
     setStateName('')
     setDistrict('')
     setNoOfStudents('')
-    setBaseStatus('Created')
+    setBaseStatus(statuses[0]?.name || '')
     setBaseFollowUpDate('')
     setNewEditFollowUpDate('')
     setModalLeadHistory([])
@@ -294,6 +302,7 @@ export default function AllLeadsPage() {
 
   const handleOpenAddModal = () => {
     resetAddEditModal()
+    setBaseStatus(statuses[0]?.name || '')
     setIsAddEditModalOpen(true)
   }
 
@@ -412,6 +421,7 @@ export default function AllLeadsPage() {
     setInlineStateName(lead.state || '')
     setInlineDistrict(lead.district || '')
     setInlineNoOfStudents(lead.no_of_students?.toString() || '')
+    setInlineStatus(lead.status || '')
 
     try {
       const res = await fetch(`/api/admin/crm/leads/${lead.id}`)
@@ -419,6 +429,7 @@ export default function AllLeadsPage() {
       if (data.success) {
         setEditingLead(data.data)
         setLeadHistory(data.data.history || [])
+        if (data.data.status) setInlineStatus(data.data.status)
       }
     } catch {
       toast.error('Failed to load lead timeline details')
@@ -437,6 +448,11 @@ export default function AllLeadsPage() {
   // Open Lead Logs popup modal
   const handleOpenLogsModal = async (lead: Lead) => {
     setLogsModalLead(lead)
+    setLogsCommOption('Call')
+    setLogsCallDuration('')
+    setLogsRemarks('')
+    setLogsStatus(lead.status || statuses[0]?.name || '')
+    setLogsFollowUpDate(lead.latest_follow_up ? new Date(lead.latest_follow_up).toISOString().slice(0, 10) : '')
     setIsLogsModalOpen(true)
     setLogsModalLoading(true)
     setLogsModalHistory([])
@@ -445,11 +461,77 @@ export default function AllLeadsPage() {
       const data = await res.json()
       if (data.success) {
         setLogsModalHistory(data.data.history || [])
+        if (data.data.status) {
+          setLogsStatus(data.data.status)
+        }
       }
     } catch {
       toast.error('Failed to load lead logs')
     } finally {
       setLogsModalLoading(false)
+    }
+  }
+
+  // Submit communication & status log from inside the modal
+  const handleSubmitLogsModalUpdate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!logsModalLead) return
+    if (!logsRemarks.trim()) {
+      toast.error('Please enter remarks')
+      return
+    }
+    if (!logsStatus) {
+      toast.error('Please select a status')
+      return
+    }
+    if (requiresFollowUp(logsStatus) && !logsFollowUpDate) {
+      toast.error('Please select Next Follow-Up Date')
+      return
+    }
+
+    setLogsSubmitting(true)
+    try {
+      const res = await fetch(`/api/admin/crm/leads/${logsModalLead.id}/history`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          communication_option: logsCommOption,
+          call_duration: logsCommOption === 'Call' ? logsCallDuration : '',
+          remarks: logsRemarks.trim(),
+          follow_up_date: requiresFollowUp(logsStatus) ? (logsFollowUpDate || null) : null,
+          status: logsStatus
+        })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Lead updated & activity logged!')
+        setLogsRemarks('')
+        setLogsCallDuration('')
+        // Update the lead object in modal
+        setLogsModalLead(prev => prev ? {
+          ...prev,
+          status: logsStatus,
+          latest_follow_up: requiresFollowUp(logsStatus) ? logsFollowUpDate : undefined
+        } : null)
+
+        // Refetch logs to get the full formatted history
+        const refreshRes = await fetch(`/api/admin/crm/leads/${logsModalLead.id}`)
+        const refreshData = await refreshRes.json()
+        if (refreshData.success) {
+          setLogsModalHistory(refreshData.data.history || [])
+        }
+
+        // Also refresh background leads list
+        fetchLeads(currentPage, searchText, filterSource, filterStatus)
+      } else {
+        toast.error(data.error || 'Failed to submit update')
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('Something went wrong submitting update')
+    } finally {
+      setLogsSubmitting(false)
     }
   }
 
@@ -475,6 +557,7 @@ export default function AllLeadsPage() {
           state: inlineStateName,
           district: inlineDistrict,
           no_of_students: parseInt(inlineNoOfStudents || '0'),
+          status: inlineStatus
         })
       })
       const data = await res.json()
@@ -490,6 +573,7 @@ export default function AllLeadsPage() {
           state: inlineStateName,
           district: inlineDistrict,
           no_of_students: parseInt(inlineNoOfStudents || '0'),
+          status: inlineStatus
         } : null)
         fetchLeads(currentPage, searchText, filterSource, filterStatus)
       } else {
@@ -799,17 +883,26 @@ export default function AllLeadsPage() {
                 <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   Lead Details
                 </h3>
-                <button
-                  type="button"
-                  onClick={handleSaveLeadDetails}
-                  disabled={savingLeadDetails}
-                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer disabled:opacity-60"
-                >
-                  {savingLeadDetails ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                  Save Details
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="px-4 py-1.5 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                  >
+                    Back to Leads
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveLeadDetails}
+                    disabled={savingLeadDetails}
+                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer disabled:opacity-60"
+                  >
+                    {savingLeadDetails ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                    Save Details
+                  </button>
+                </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Lead Source</label>
                   <select
@@ -828,6 +921,19 @@ export default function AllLeadsPage() {
                     onChange={(e) => setInlineSchoolName(e.target.value)}
                     className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                   />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Status</label>
+                  <select
+                    value={inlineStatus}
+                    onChange={(e) => setInlineStatus(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                  >
+                    <option value="">Select Status</option>
+                    {statuses.map(st => (
+                      <option key={st.id} value={st.name}>{st.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -893,137 +999,7 @@ export default function AllLeadsPage() {
               </div>
             </div>
 
-            {/* Card 2: Update Lead (Form) */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-5">
-              <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-50 dark:border-slate-700/50 pb-2">
-                Update Lead
-              </h3>
-              <form onSubmit={handleUpdateFollowUp} className="flex flex-col gap-5">
-                {/* Communication Option Radio */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider flex items-center gap-0.5">
-                    Communication Option<span className="text-red-500">*</span>
-                  </label>
-                  <div className="flex items-center gap-6 mt-1.5">
-                    {(['Call', 'Message'] as const).map(opt => (
-                      <label key={opt} className="flex items-center gap-2 text-sm text-slate-750 dark:text-slate-300 font-semibold cursor-pointer">
-                        <input
-                          type="radio"
-                          name="comm_option"
-                          value={opt}
-                          checked={communicationOption === opt}
-                          onChange={() => setCommunicationOption(opt)}
-                          className="text-[#0E9485] focus:ring-[#0E9485] w-4 h-4"
-                        />
-                        {opt}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Conditional Call Duration Input */}
-                {communicationOption === 'Call' && (
-                  <div className="flex flex-col gap-1.5 animate-in slide-in-from-top-2 duration-150">
-                    <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider">Call Duration</label>
-                    <input
-                      type="text"
-                      placeholder="Enter Call Duration (e.g. 5 min)"
-                      value={callDuration}
-                      onChange={(e) => setCallDuration(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
-                    />
-                  </div>
-                )}
-
-                {/* Remarks */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider flex items-center gap-0.5">
-                    Remarks<span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter Remarks"
-                    value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
-                    required
-                  />
-                </div>
-
-                {/* Status Dropdown & Conditional Follow Up Date */}
-                <div className="flex flex-col gap-5">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider flex items-center gap-0.5">
-                      Status<span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={editStatus}
-                      onChange={(e) => setEditStatus(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
-                      required
-                    >
-                      <option value="">Select Status</option>
-                      {statuses.map(st => (
-                        <option key={st.id} value={st.name}>{st.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {requiresFollowUp(editStatus) && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-200">
-                      {/* Previous Follow-Up Date (read-only) */}
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider">
-                          Previous Follow-Up Date
-                        </label>
-                        <div className="w-full px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl text-sm text-amber-700 dark:text-amber-300 font-semibold flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-amber-500 shrink-0" />
-                          {editingLead?.latest_follow_up
-                            ? new Date(editingLead.latest_follow_up).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                            : <span className="text-slate-400 font-normal italic">Not set</span>
-                          }
-                        </div>
-                      </div>
-
-                      {/* New Follow-Up Date */}
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider flex items-center gap-0.5">
-                          Next Follow-Up Date<span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="date"
-                          value={followUpDate}
-                          onChange={(e) => setFollowUpDate(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
-                          required={requiresFollowUp(editStatus)}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Form Buttons */}
-                <div className="flex justify-end gap-3 mt-2">
-                  <button
-                    type="button"
-                    onClick={handleCancelEdit}
-                    className="px-6 py-2.5 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-755 transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submittingUpdate}
-                    className="px-10 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm transition-all shadow-md shadow-indigo-500/10 cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    {submittingUpdate && <Loader2 className="w-4 h-4 animate-spin" />}
-                    Update
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            {/* Card 3: Lead Activity Timeline */}
+            {/* Lead Activity Timeline */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col gap-4">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/50 pb-3">
                 <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -1854,154 +1830,297 @@ export default function AllLeadsPage() {
         </div>
       )}
 
-      {/* Lead Logs Popup Modal */}
+      {/* Lead Logs Popup Modal (2-Column Split: Log Update Form + Activity Timeline) */}
       {isLogsModalOpen && logsModalLead && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-5xl h-[88vh] max-h-[760px] flex flex-col overflow-hidden border border-slate-100 dark:border-slate-700 animate-in zoom-in-95 duration-200">
             {/* Header */}
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/60 dark:bg-slate-900/30 shrink-0">
-              <div>
-                <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-emerald-500" />
-                  Lead Activity Logs
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">{logsModalLead.school_name}</span>
-                  {logsModalLead.district || logsModalLead.state ? ` · ${[logsModalLead.district, logsModalLead.state].filter(Boolean).join(', ')}` : ''}
-                </p>
-              </div>
-              <button
-                onClick={() => { setIsLogsModalOpen(false); setLogsModalLead(null); setLogsModalHistory([]) }}
-                className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors text-slate-500 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Lead summary strip */}
-            <div className="px-6 py-3 bg-slate-50 dark:bg-slate-900/20 border-b border-slate-100 dark:border-slate-700 flex items-center gap-6 shrink-0 flex-wrap text-xs">
-              <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
-                <span className="font-semibold text-slate-400">Mobile:</span>
-                <span className="font-bold">{logsModalLead.mobile_no}</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
-                <span className="font-semibold text-slate-400">Source:</span>
-                <span className="font-bold">{logsModalLead.lead_source}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {renderStatusBadge(logsModalLead.status)}
-              </div>
-              {logsModalLead.latest_follow_up && (
-                <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
-                  <Calendar className="w-3 h-3" />
-                  Follow-up: {new Date(logsModalLead.latest_follow_up).toLocaleDateString('en-GB')}
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/70 dark:bg-slate-800/70 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center shrink-0">
+                  <Activity className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
-              )}
-            </div>
-
-            {/* Timeline */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {logsModalLoading ? (
-                <div className="flex items-center justify-center gap-2 py-12 text-slate-400">
-                  <Loader2 className="w-5 h-5 animate-spin text-emerald-500" />
-                  <span className="text-sm">Loading activity logs...</span>
-                </div>
-              ) : logsModalHistory.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center mx-auto mb-3">
-                    <Clock className="w-6 h-6 text-slate-400" />
+                <div>
+                  <h2 className="text-base font-bold text-slate-850 dark:text-slate-100 leading-tight">
+                    {logsModalLead.school_name || 'Lead Activity'}
+                  </h2>
+                  <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex-wrap">
+                    {logsModalLead.contact_person && <span className="font-semibold text-slate-700 dark:text-slate-300">{logsModalLead.contact_person}</span>}
+                    {(logsModalLead.district || logsModalLead.state) && (
+                      <span>{[logsModalLead.district, logsModalLead.state].filter(Boolean).join(', ')}</span>
+                    )}
+                    <span>• Mobile: <strong className="text-slate-700 dark:text-slate-200">{logsModalLead.mobile_no}</strong></span>
+                    <span>• Source: <strong className="text-slate-700 dark:text-slate-200">{logsModalLead.lead_source}</strong></span>
                   </div>
-                  <p className="text-sm font-semibold text-slate-400 dark:text-slate-500">No activity logs yet.</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-600 mt-1">Use the ✏️ Edit button to add logs.</p>
                 </div>
-              ) : (
-                <div className="flex flex-col gap-0 relative">
-                  <div className="absolute left-[9px] top-3 bottom-3 w-0.5 bg-slate-200 dark:bg-slate-700 z-0" />
-                  {logsModalHistory.map((hist, idx) => {
-                    const { date: logDate, time: logTime } = formatDateTime(hist.created_at)
-                    const histStatus = hist.status_name || hist.status
-                    const matchedStatus = statuses.find(s => s.name?.toLowerCase() === histStatus?.toLowerCase())
-                    const followUpFormatted = hist.follow_up_date
-                      ? new Date(hist.follow_up_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                      : null
-                    const isTransfer = Boolean(hist.remarks?.startsWith('🔄') || hist.remarks?.toLowerCase().includes('transferred'))
-                    return (
-                      <div key={hist.id} className="relative flex gap-4 pb-5 last:pb-0">
-                        {/* Dot */}
-                        <div className="relative z-10 flex-shrink-0 mt-1">
-                          <div
-                            className="w-[18px] h-[18px] rounded-full border-2 border-white dark:border-slate-800 shadow-md flex items-center justify-center"
-                            style={{ backgroundColor: isTransfer ? '#8b5cf6' : (matchedStatus?.text_color || '#94a3b8') }}
-                          >
-                            {isTransfer ? <ArrowRightLeft className="w-2.5 h-2.5 text-white" /> : null}
-                          </div>
-                        </div>
-                        {/* Card */}
-                        <div className={`flex-1 rounded-xl border p-4 ${
-                          isTransfer 
-                            ? 'bg-purple-50/60 dark:bg-purple-950/20 border-purple-200/80 dark:border-purple-800/80 shadow-xs' 
-                            : 'bg-slate-50 dark:bg-slate-700/40 border-slate-100 dark:border-slate-700'
-                        }`}>
-                          <div className="flex items-start justify-between gap-3 mb-2">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {renderStatusBadge(histStatus)}
-                              {isTransfer ? (
-                                <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded-lg text-[10px] font-extrabold uppercase border border-purple-200 dark:border-purple-700 flex items-center gap-1">
-                                  <ArrowRightLeft className="w-3 h-3" /> Transferred
-                                </span>
-                              ) : hist.communication_option ? (
-                                <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px] font-bold uppercase border border-indigo-100 dark:border-indigo-800">
-                                  {hist.communication_option}
-                                </span>
-                              ) : null}
-                              {hist.communication_option === 'Call' && hist.call_duration && (
-                                <span className="text-[10px] text-slate-500 font-semibold">⏱ {hist.call_duration}</span>
-                              )}
-                            </div>
-                            <div className="text-right shrink-0">
-                              <div className="text-[10px] font-semibold text-slate-400">{logDate}</div>
-                              <div className="text-[10px] text-slate-400">{logTime}</div>
-                            </div>
-                          </div>
-                          {hist.remarks && (
-                            <p className={`text-sm font-medium leading-relaxed ${isTransfer ? 'text-purple-900 dark:text-purple-200 font-semibold' : 'text-slate-700 dark:text-slate-200'}`}>
-                              {hist.remarks}
-                            </p>
-                          )}
-                          {followUpFormatted && (
-                            <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-200 dark:border-slate-600">
-                              <Calendar className="w-3.5 h-3.5 text-emerald-500" />
-                              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Next Follow-Up: {followUpFormatted}</span>
-                            </div>
-                          )}
-                        </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {renderStatusBadge(logsModalLead.status)}
+                <button
+                  onClick={() => { setIsLogsModalOpen(false); setLogsModalLead(null); setLogsModalHistory([]) }}
+                  className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* 2-Column Split Body */}
+            <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-12 min-h-0">
+              
+              {/* Left Column: Log Update Form (45% / 5 cols) */}
+              <div className="md:col-span-5 border-r border-slate-100 dark:border-slate-700 bg-slate-50/40 dark:bg-slate-900/20 p-5 overflow-y-auto flex flex-col justify-between">
+                <form onSubmit={handleSubmitLogsModalUpdate} className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-700/60">
+                    <h3 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                      Log Communication & Update
+                    </h3>
+                  </div>
+
+                  {/* Mode Selector */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Communication Mode</label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setLogsCommOption('Call')}
+                        className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border cursor-pointer ${
+                          logsCommOption === 'Call'
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                            : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600'
+                        }`}
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        Phone Call
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLogsCommOption('Message')}
+                        className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border cursor-pointer ${
+                          logsCommOption === 'Message'
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                            : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600'
+                        }`}
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        Message / SMS
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Call Duration (Conditional) */}
+                  {logsCommOption === 'Call' && (
+                    <div className="flex flex-col gap-1.5 animate-in slide-in-from-top-1 duration-150">
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Call Duration</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 2 min 30 sec"
+                        value={logsCallDuration}
+                        onChange={(e) => setLogsCallDuration(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                      />
+                    </div>
+                  )}
+
+                  {/* Remarks & Quick Chips */}
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                        Response / Remarks <span className="text-red-500">*</span>
+                      </label>
+                      <span className="text-[10px] text-slate-400">Click to fill</span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 mb-1">
+                      {['Not answering', 'Busy', 'Call later', 'Asked for demo', 'Meeting scheduled', 'Interested', 'Follow up next week', 'Wrong number'].map((item, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setLogsRemarks(item)}
+                          className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 hover:text-indigo-600 dark:hover:text-indigo-300 text-[11px] font-semibold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 transition-colors cursor-pointer"
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
+
+                    <textarea
+                      rows={3}
+                      placeholder="Enter customer response, notes, or discussion details..."
+                      value={logsRemarks}
+                      onChange={(e) => setLogsRemarks(e.target.value)}
+                      required
+                      className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    />
+                  </div>
+
+                  {/* Status & Conditional Follow Up Date */}
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                        Update Status <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={logsStatus}
+                        onChange={(e) => {
+                          const newSt = e.target.value
+                          setLogsStatus(newSt)
+                          if (!requiresFollowUp(newSt)) {
+                            setLogsFollowUpDate('')
+                          }
+                        }}
+                        required
+                        className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer"
+                      >
+                        <option value="">Select Status</option>
+                        {statuses.map(st => (
+                          <option key={st.id} value={st.name}>{st.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {requiresFollowUp(logsStatus) && (
+                      <div className="flex flex-col gap-1.5 animate-in fade-in duration-200">
+                        <label className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                          Next Follow-Up Date <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={logsFollowUpDate}
+                          onChange={(e) => setLogsFollowUpDate(e.target.value)}
+                          required={requiresFollowUp(logsStatus)}
+                          className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                        />
                       </div>
-                    )
-                  })}
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={logsSubmitting}
+                    className="w-full mt-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-500/20 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    {logsSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Save Update & Log Activity
+                      </>
+                    )}
+                  </button>
+                </form>
+              </div>
+
+              {/* Right Column: Activity Timeline (55% / 7 cols) */}
+              <div className="md:col-span-7 p-6 flex flex-col overflow-hidden bg-white dark:bg-slate-800">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700 shrink-0">
+                  <h3 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <History className="w-4 h-4 text-indigo-500" />
+                    Activity Timeline
+                  </h3>
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/50 px-2.5 py-0.5 rounded-full">
+                    {logsModalHistory.length} log{logsModalHistory.length !== 1 ? 's' : ''}
+                  </span>
                 </div>
-              )}
+
+                <div className="flex-1 overflow-y-auto pr-2 mt-4">
+                  {logsModalLoading ? (
+                    <div className="flex items-center justify-center gap-2 py-20 text-slate-400">
+                      <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+                      <span className="text-xs font-semibold">Loading timeline logs...</span>
+                    </div>
+                  ) : logsModalHistory.length === 0 ? (
+                    <div className="text-center py-20">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center mx-auto mb-3 border border-slate-100 dark:border-slate-700">
+                        <Clock className="w-6 h-6 text-slate-400" />
+                      </div>
+                      <p className="text-sm font-bold text-slate-600 dark:text-slate-300">No activity logged yet</p>
+                      <p className="text-xs text-slate-400 mt-1">Use the form on the left to record the first communication.</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3.5">
+                      {logsModalHistory.map((hist) => {
+                        const { date: logDate, time: logTime } = formatDateTime(hist.created_at)
+                        const histStatus = hist.status_name || hist.status
+                        const isTransfer = Boolean(hist.remarks?.startsWith('🔄') || hist.remarks?.toLowerCase().includes('transferred'))
+                        const followUpFormatted = hist.follow_up_date
+                          ? new Date(hist.follow_up_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                          : null
+
+                        return (
+                          <div
+                            key={hist.id}
+                            className={`rounded-2xl border p-4 transition-all ${
+                              isTransfer
+                                ? 'bg-purple-50/50 dark:bg-purple-950/20 border-purple-200/80 dark:border-purple-800/80'
+                                : 'bg-slate-50/70 dark:bg-slate-700/30 border-slate-100 dark:border-slate-700 hover:border-slate-200 dark:hover:border-slate-600'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {renderStatusBadge(histStatus)}
+                                {isTransfer ? (
+                                  <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded-lg text-[10px] font-extrabold uppercase border border-purple-200 dark:border-purple-700 flex items-center gap-1">
+                                    <ArrowRightLeft className="w-3 h-3" /> Transferred
+                                  </span>
+                                ) : hist.communication_option ? (
+                                  <span className="px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded-lg text-[10px] font-bold uppercase border border-indigo-100 dark:border-indigo-800 flex items-center gap-1">
+                                    {hist.communication_option === 'Call' ? <Phone className="w-2.5 h-2.5" /> : <MessageSquare className="w-2.5 h-2.5" />}
+                                    {hist.communication_option}
+                                  </span>
+                                ) : null}
+                                {hist.communication_option === 'Call' && hist.call_duration && (
+                                  <span className="text-[11px] text-slate-500 font-semibold bg-white dark:bg-slate-700 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-600">
+                                    ⏱ {hist.call_duration}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="text-right shrink-0 text-[11px] text-slate-400 font-medium">
+                                <span>{logDate}</span> <span className="text-slate-300 dark:text-slate-600">•</span> <span>{logTime}</span>
+                              </div>
+                            </div>
+
+                            {hist.remarks && (
+                              <p className={`text-xs font-medium leading-relaxed mt-1 ${isTransfer ? 'text-purple-950 dark:text-purple-200' : 'text-slate-700 dark:text-slate-200'}`}>
+                                {hist.remarks}
+                              </p>
+                            )}
+
+                            {followUpFormatted && (
+                              <div className="flex items-center gap-1.5 mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-600/60">
+                                <Calendar className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                  Next Follow-Up: {followUpFormatted}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between shrink-0 bg-slate-50/50 dark:bg-slate-900/20">
-              <span className="text-xs text-slate-400 font-semibold">
-                {logsModalHistory.length} log{logsModalHistory.length !== 1 ? 's' : ''}
+            <div className="px-6 py-3.5 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between shrink-0 bg-slate-50/70 dark:bg-slate-800/70">
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                Lead ID: <span className="font-mono text-[11px] text-slate-600 dark:text-slate-300">{logsModalLead.id.slice(0, 8)}...</span>
               </span>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => { setIsLogsModalOpen(false); setLogsModalLead(null); setLogsModalHistory([]) }}
-                  className="px-5 py-2 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => { setIsLogsModalOpen(false); handleStartEdit(logsModalLead) }}
-                  className="px-5 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md flex items-center gap-2 transition-colors cursor-pointer"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  Edit & Update Lead
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => { setIsLogsModalOpen(false); setLogsModalLead(null); setLogsModalHistory([]) }}
+                className="px-6 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-xl transition-all shadow-xs cursor-pointer"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

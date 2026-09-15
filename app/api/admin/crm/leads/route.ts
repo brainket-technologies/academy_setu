@@ -21,7 +21,20 @@ export async function GET(request: NextRequest) {
     const toDate = searchParams.get('to_date') || ''
     const dateType = searchParams.get('date_type') || (orderBy.includes('followup') ? 'followup' : 'created')
 
-    const session = (await getSession('bdm_session')) || (await getSession('manager_session')) || (await getSession('admin_session'))
+    const referer = request.headers.get('referer') || ''
+    let session = null
+
+    if (referer.includes('/manager')) {
+      session = await getSession('manager_session')
+    } else if (referer.includes('/bdm')) {
+      session = await getSession('bdm_session')
+    } else if (referer.includes('/admin')) {
+      session = await getSession('admin_session')
+    }
+
+    if (!session) {
+      session = (await getSession('manager_session')) || (await getSession('bdm_session')) || (await getSession('admin_session'))
+    }
     const userRole = session?.role
     const userId = session?.userId
     let assigned_to = searchParams.get('assigned_to') || ''
@@ -36,7 +49,10 @@ export async function GET(request: NextRequest) {
 
       if (userRole === 'BDM') {
         params.push(userId as string)
-        conditions.push(`COALESCE(l.assigned_to_id::text, l.assigned_to::text) = $${params.length}`)
+        conditions.push(`(COALESCE(l.assigned_to_id::text, l.assigned_to::text) = $${params.length} OR l.created_by::text = $${params.length})`)
+      } else if (userRole === 'Manager') {
+        params.push(userId as string)
+        conditions.push(`(COALESCE(l.assigned_to_id::text, l.assigned_to::text) = $${params.length} OR l.created_by::text = $${params.length})`)
       }
 
 
@@ -141,9 +157,22 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = (await getSession('bdm_session')) || (await getSession('manager_session')) || (await getSession('admin_session'))
-    const userId = session?.userId
-    const userRole = session?.role
+    const referer = request.headers.get('referer') || ''
+    let session = null
+
+    if (referer.includes('/manager')) {
+      session = await getSession('manager_session')
+    } else if (referer.includes('/bdm')) {
+      session = await getSession('bdm_session')
+    } else if (referer.includes('/admin')) {
+      session = await getSession('admin_session')
+    }
+
+    if (!session) {
+      session = (await getSession('manager_session')) || (await getSession('bdm_session')) || (await getSession('admin_session'))
+    }
+    const userId = session?.userId || null
+    const userRole = session?.role || null
 
     const body = await request.json()
     const { 
@@ -177,18 +206,40 @@ export async function POST(request: NextRequest) {
       if (statusRes.rows.length > 0) finalStatusId = statusRes.rows[0].id
     }
 
-    const assignedToId = (userRole === 'BDM') ? userId : (body.assigned_to || null)
+    // Auto-assign to the creating user if no specific assigned_to is chosen, or if user is BDM
+    let targetAssignedTo = (userRole === 'BDM') ? userId : body.assigned_to
+    if (!targetAssignedTo || targetAssignedTo === 'unassigned') {
+      targetAssignedTo = userId
+    }
+
+    let finalAssignedToId = targetAssignedTo
+    if (finalAssignedToId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(finalAssignedToId)) {
+      const adminRes = await pool.query('SELECT id FROM admins WHERE name = $1 LIMIT 1', [finalAssignedToId])
+      if (adminRes.rows.length > 0) finalAssignedToId = adminRes.rows[0].id
+    }
+
+    const assignedToId = finalAssignedToId || userId || null
 
     const result = await pool.query(
       `INSERT INTO leads (
         lead_source, mobile_no, email_id, contact_person, 
         institution_name, state, district, no_of_students, status_id,
         created_at, updated_at, created_by, assigned_to, assigned_to_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW(), $10, $11, $11)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW(), $10, $11, $12)
        RETURNING *`,
       [
-        lead_source, mobile_no, email_id || '', contact_person || '',
-        school_name, state || '', district || '', parseInt(no_of_students || '0'), finalStatusId, userId, assignedToId
+        lead_source, 
+        cleanMobile, 
+        email_id || '', 
+        contact_person || '',
+        school_name, 
+        state || '', 
+        district || '', 
+        parseInt(no_of_students || '0'), 
+        finalStatusId, 
+        userId, 
+        assignedToId ? String(assignedToId) : null,
+        assignedToId || null
       ]
     )
 
@@ -199,14 +250,10 @@ export async function POST(request: NextRequest) {
       await pool.query(
         `INSERT INTO lead_history (lead_id, communication_option, call_duration, remarks, follow_up_date, status_id, created_at)
          VALUES ($1, 'Message', '', 'Lead created', $2, $3, NOW())`,
-        [newLead.id, follow_up_date || null, finalStatusId]
+        [newLead.id, follow_up_date ? follow_up_date : null, finalStatusId]
       )
-    } catch {
-      await pool.query(
-        `INSERT INTO lead_history (lead_id, communication_option, call_duration, remarks, follow_up_date, status, created_at)
-         VALUES ($1, 'Message', '', 'Lead created', $2, 'Created', NOW())`,
-        [newLead.id, follow_up_date || null]
-      )
+    } catch (histErr) {
+      console.error('Lead history creation note:', histErr)
     }
 
     // Invalidate cache
