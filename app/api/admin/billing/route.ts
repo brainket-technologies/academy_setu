@@ -80,7 +80,18 @@ export async function POST(request: NextRequest) {
 
     // Resolve plan_id
     let finalPlanId = plan_id
-    if (!finalPlanId && plan_name) {
+    if (finalPlanId) {
+      const planCheck = await pool.query('SELECT id FROM plans WHERE id = $1', [finalPlanId])
+      if (!planCheck.rows[0]) {
+        // If finalPlanId is not a valid plan id (e.g. was a bill id), try looking up by plan_name
+        if (plan_name) {
+          const planRes = await pool.query('SELECT id FROM plans WHERE plan_name ILIKE $1 LIMIT 1', [plan_name])
+          finalPlanId = planRes.rows[0]?.id || null
+        } else {
+          finalPlanId = null
+        }
+      }
+    } else if (plan_name) {
       const planRes = await pool.query('SELECT id FROM plans WHERE plan_name ILIKE $1 LIMIT 1', [plan_name])
       finalPlanId = planRes.rows[0]?.id || null
     }
@@ -154,7 +165,7 @@ export async function POST(request: NextRequest) {
     // Insert into requests so it shows up in the Request menu
     await pool.query(
       `INSERT INTO requests (institution_id, plan_id, school_name, plan_name, payment_mode, transaction_id, amount, status, screenshots, request_type)
-       VALUES ($1, $2, (SELECT name FROM institutions WHERE id = $1 LIMIT 1), (SELECT plan_name FROM plans WHERE id = $2 LIMIT 1), $3, $4, $5, $6, $7, $8)`,
+       VALUES ($1, $2, (SELECT name FROM institutions WHERE id = $1 LIMIT 1), COALESCE((SELECT plan_name FROM plans WHERE id = $2 LIMIT 1), $9), $3, $4, $5, $6, $7, $8)`,
       [
         finalInstitutionId,
         finalPlanId,
@@ -163,7 +174,8 @@ export async function POST(request: NextRequest) {
         parseFloat(amount),
         isPaid ? 'Accept' : (status === 'Failed' ? 'Reject' : 'Pending'),
         JSON.stringify(screenshots || []),
-        billType
+        billType,
+        plan_name || 'Standard Plan'
       ]
     )
 

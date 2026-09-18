@@ -698,7 +698,7 @@ function BillingDashboardContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           institution_id: institutionId,
-          plan_id: selectedPlan?.id || null,
+          plan_id: (selectedPlan as any)?.plan_id || selectedPlan?.id || instActivePlan?.plan_id || null,
           segment: fromSegment || selectedSegment,
           school_name: billInstName || selectedSchool,
           plan_name: billPlanName || selectedPlan?.plan_name,
@@ -1896,9 +1896,13 @@ function BillingDashboardContent() {
                               </div>
                             ) : (
                               (() => {
-                                const activeFullPlan = (instActivePlan?.renewal_billing_items && instActivePlan.renewal_billing_items.length > 0)
-                                  ? instActivePlan
-                                  : (filteredPlansList.find(p => p.id === instActivePlan.plan_id) || plans.find(p => p.id === instActivePlan.plan_id) || instActivePlan);
+                                const basePlan = filteredPlansList.find(p => p.id === instActivePlan.plan_id) || plans.find(p => p.id === instActivePlan.plan_id);
+                                const activeFullPlan = {
+                                  ...(basePlan || {}),
+                                  ...instActivePlan,
+                                  id: instActivePlan.plan_id || basePlan?.id || instActivePlan.id,
+                                  plan_id: instActivePlan.plan_id || basePlan?.id
+                                };
                                 
                                 const renewalItems = activeFullPlan?.renewal_billing_items || instActivePlan?.renewal_billing_items || [];
                                 const hasRenewal = renewalItems.length > 0 || (Number(instActivePlan?.renewal_billing_duration || activeFullPlan?.renewal_billing_duration || 0) > 0);
