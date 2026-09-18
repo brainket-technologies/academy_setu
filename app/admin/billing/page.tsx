@@ -1933,10 +1933,10 @@ function BillingDashboardContent() {
 
                                 const hasPendingRenewal = instHasPendingRenewal;
                                 const isRenewalPaid = instHasPaidRenewal || instUpcomingPlans.some((p: any) => p.bill_type === 'renew');
-                                const hasUpcomingNonRenewalPlan = instUpcomingPlans.some((p: any) => p.bill_type !== 'renew');
+                                const hasUpcomingPlan = instUpcomingPlans.length > 0;
 
-                                // If an upcoming plan is already accepted/scheduled to take over after the current plan and renewal is not paid, don't show the renewal card
-                                if (!hasRenewal || (!isRenewalPaid && hasUpcomingNonRenewalPlan)) return null;
+                                // If renewal is already paid (shown under UPCOMING PLANS) or any upcoming plan is scheduled, hide this renewal card
+                                if (!hasRenewal || isRenewalPaid || hasUpcomingPlan) return null;
 
                                 return (
                                   <div className="mt-6 rounded-2xl border border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/30 dark:bg-indigo-900/10 overflow-hidden">
