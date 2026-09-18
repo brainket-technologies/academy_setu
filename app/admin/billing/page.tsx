@@ -2109,7 +2109,7 @@ function BillingDashboardContent() {
                                       const confirm = window.confirm(`Activate "${plan.plan_name}" instantly today?\n\nAny existing active plan will be terminated immediately and moved to history regardless of its remaining duration/expiry date.`);
                                       if (!confirm) return;
                                       try {
-                                        const instId = instDetails?.id || (instDetails as any)?.institution_id || institutionsList.find((i: any) => i.name === selectedSchool)?.id;
+                                        const instId = instDetails?.id || (instDetails as any)?.institution_id || schools.find((i: any) => i.name === selectedSchool)?.id;
                                         const res = await fetch('/api/admin/billing/institute-plans', {
                                           method: 'PATCH',
                                           headers: { 'Content-Type': 'application/json' },
