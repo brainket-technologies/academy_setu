@@ -2185,7 +2185,7 @@ function BillingDashboardContent() {
                                     </div>
                                   </div>
                                 </div>
-                                <div className="px-5 py-4 bg-blue-100/30 dark:bg-blue-900/20 border-t border-blue-100/50 dark:border-blue-900/50 flex flex-wrap items-center justify-end gap-3">
+                                <div className="px-5 py-4 bg-blue-100/30 dark:bg-blue-900/20 border-t border-blue-100/50 dark:border-blue-900/50 flex flex-wrap items-center justify-between gap-3">
                                   <button
                                     onClick={async () => {
                                       const confirm = window.confirm(`Activate "${plan.plan_name}" instantly today?\n\nAny existing active plan will be terminated immediately and moved to history regardless of its remaining duration/expiry date.`);
@@ -2222,8 +2222,13 @@ function BillingDashboardContent() {
                                     <Zap className="w-3.5 h-3.5 text-amber-300" />
                                     Activate Instantly
                                   </button>
-                                  <button onClick={() => handleDownloadPDF(selectedSchool, plan.amount, plan.plan_name || 'Upcoming Plan', plan.payment_date, plan.transaction_id, plan.payment_mode)} className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm cursor-pointer" title="Download Bill">
-                                    <Download className="w-4 h-4" />
+                                  <button
+                                    onClick={() => handleDownloadPDF(selectedSchool, plan.amount, plan.plan_name || 'Upcoming Plan', plan.payment_date, plan.transaction_id, plan.payment_mode)}
+                                    className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 text-slate-700 dark:text-slate-200 hover:text-indigo-600 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-2"
+                                    title="Download Invoice"
+                                  >
+                                    <Download className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                                    Invoice
                                   </button>
                                 </div>
                               </div>
