@@ -1856,7 +1856,11 @@ function BillingDashboardContent() {
                                 <div className="px-5 py-4 border-b border-amber-200/60 dark:border-amber-900/50 flex items-center justify-between flex-wrap gap-2">
                                   <h4 className="text-sm font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wider flex items-center gap-2">
                                     <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                                    Plan Upgrade / Change Request (Under Review)
+                                    {instPendingChangeRequest.bill_type === 'upcoming'
+                                      ? 'Upcoming Plan Request (Under Review)'
+                                      : instPendingChangeRequest.bill_type === 'new'
+                                      ? 'Plan Purchase Request (Under Review)'
+                                      : 'Plan Upgrade / Change Request (Under Review)'}
                                   </h4>
                                   <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 rounded-full text-xs font-black uppercase tracking-wider shadow-xs flex items-center gap-1.5">
                                     <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
@@ -1871,11 +1875,19 @@ function BillingDashboardContent() {
                                           {instPendingChangeRequest.plan_name || 'Requested Plan'}
                                         </h5>
                                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                                          Instant Upgrade
+                                          {instPendingChangeRequest.bill_type === 'upcoming'
+                                            ? 'Upcoming Plan'
+                                            : instPendingChangeRequest.bill_type === 'new'
+                                            ? 'New Plan Request'
+                                            : 'Instant Upgrade'}
                                         </span>
                                       </div>
                                       <p className="text-xs text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">
-                                        A request to switch to this plan has been submitted and is awaiting approval on the <strong>Request</strong> page. Once approved, this plan will activate immediately and the current plan will be archived.
+                                        {instPendingChangeRequest.bill_type === 'upcoming'
+                                          ? 'A request to schedule this upcoming plan has been submitted and is awaiting approval on the Request page. Once approved, this plan will activate automatically after your current plan expires.'
+                                          : instPendingChangeRequest.bill_type === 'new'
+                                          ? 'A request for this plan has been submitted and is awaiting approval on the Request page.'
+                                          : 'A request to switch to this plan has been submitted and is awaiting approval on the Request page. Once approved, this plan will activate immediately and the current plan will be archived.'}
                                       </p>
                                     </div>
                                     <div className="flex flex-wrap gap-6 items-center">
@@ -1891,7 +1903,7 @@ function BillingDashboardContent() {
                                 </div>
                                 <div className="px-5 py-3.5 bg-amber-100/40 dark:bg-amber-900/30 border-t border-amber-200/50 dark:border-amber-900/40 flex items-center justify-between text-xs text-amber-800 dark:text-amber-300 font-semibold">
                                   <span>Transaction ID: {instPendingChangeRequest.transaction_id || 'N/A'}</span>
-                                  <span className="italic">Renewal of current plan will be restored if this request is rejected.</span>
+                                  <span className="italic">Renewal of current plan will be restored if this request is rejected or deleted.</span>
                                 </div>
                               </div>
                             ) : (
