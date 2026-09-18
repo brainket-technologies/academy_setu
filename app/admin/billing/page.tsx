@@ -231,6 +231,7 @@ function BillingDashboardContent() {
   const [instPlanHistory, setInstPlanHistory] = useState<any[]>([])
   const [instHasPendingRenewal, setInstHasPendingRenewal] = useState<boolean>(false)
   const [instHasPaidRenewal, setInstHasPaidRenewal] = useState<boolean>(false)
+  const [instPendingChangeRequest, setInstPendingChangeRequest] = useState<any>(null)
   const [segmentInstitutesList, setSegmentInstitutesList] = useState<any[]>([])
   const [showAllPlansOverride, setShowAllPlansOverride] = useState(false)
   const [purchaseMode, setPurchaseMode] = useState<'new' | 'renew' | 'change' | 'upcoming' | 'edit'>('new')
@@ -427,6 +428,7 @@ function BillingDashboardContent() {
     setInstActivePlan(null)
     setInstUpcomingPlans([])
     setInstPlanHistory([])
+    setInstPendingChangeRequest(null)
     setInstDetails(null)
 
     if (selectedSchool) {
@@ -443,6 +445,7 @@ function BillingDashboardContent() {
             setInstPlanHistory(data.planHistory || [])
             setInstHasPendingRenewal(data.hasPendingRenewal || false)
             setInstHasPaidRenewal(data.hasPaidRenewal || false)
+            setInstPendingChangeRequest(data.pendingChangeRequest || null)
           }
         } catch (err) {
           console.error('Failed to load institute plans', err)
@@ -751,6 +754,8 @@ function BillingDashboardContent() {
             setInstUpcomingPlans(plData.upcomingPlans || [])
             setInstPlanHistory(plData.planHistory || [])
             setInstHasPendingRenewal(plData.hasPendingRenewal || false)
+            setInstHasPaidRenewal(plData.hasPaidRenewal || false)
+            setInstPendingChangeRequest(plData.pendingChangeRequest || null)
           }
           setInstPlansLoading(false)
           setIsSubmitted(true)
@@ -1834,157 +1839,202 @@ function BillingDashboardContent() {
                               </div>
                             </div>
                             
-                            {(() => {
-                            const activeFullPlan = (instActivePlan?.renewal_billing_items && instActivePlan.renewal_billing_items.length > 0)
-                              ? instActivePlan
-                              : (filteredPlansList.find(p => p.id === instActivePlan.plan_id) || plans.find(p => p.id === instActivePlan.plan_id) || instActivePlan);
-                            
-                            const renewalItems = activeFullPlan?.renewal_billing_items || instActivePlan?.renewal_billing_items || [];
-                            const hasRenewal = renewalItems.length > 0 || (Number(instActivePlan?.renewal_billing_duration || activeFullPlan?.renewal_billing_duration || 0) > 0);
-                            
-                            if (!hasRenewal) return null;
-                            
-                            const renewalPrice = renewalItems.length > 0
-                              ? renewalItems.reduce((acc: number, item: any) => acc + getItemTotal(item), 0)
-                              : Number(instActivePlan.amount || 0);
-                            const renewalDuration = instActivePlan?.renewal_billing_duration || activeFullPlan?.renewal_billing_duration || 365;
-                            
-                            const validFrom = new Date(instActivePlan.end_date);
-                            const validTill = new Date(validFrom.getTime() + renewalDuration * 24 * 60 * 60 * 1000);
-                            
-                            const daysLeftToRenew = Math.max(0, Math.ceil((validFrom.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
-
-                            const hasPendingRenewal = instHasPendingRenewal;
-                            const isRenewalPaid = instHasPaidRenewal || instUpcomingPlans.some((p: any) => p.bill_type === 'renew');
-
-                            return (
-                              <div className="mt-6 rounded-2xl border border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/30 dark:bg-indigo-900/10 overflow-hidden">
-                                <div className="px-5 py-4 border-b border-indigo-100/50 dark:border-indigo-900/50 flex items-center justify-between flex-wrap gap-2">
-                                  <h4 className="text-sm font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-2">
-                                    Renewal Details (Active Plan)
+                            {instPendingChangeRequest ? (
+                              <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50/60 dark:border-amber-900/40 dark:bg-amber-950/20 overflow-hidden shadow-xs">
+                                <div className="px-5 py-4 border-b border-amber-200/60 dark:border-amber-900/50 flex items-center justify-between flex-wrap gap-2">
+                                  <h4 className="text-sm font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wider flex items-center gap-2">
+                                    <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                                    Plan Upgrade / Change Request (Under Review)
                                   </h4>
-                                  {isRenewalPaid ? (
-                                    <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-full text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-1.5">
-                                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                      Paid
-                                    </span>
-                                  ) : hasPendingRenewal ? (
-                                    <span className="px-3 py-1 bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded-full text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-1.5">
-                                      <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                                      Requested
-                                    </span>
-                                  ) : (
-                                    <span className="px-3 py-1 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 rounded-full text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-1.5">
-                                      <AlertCircle className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400" />
-                                      Not Paid
-                                    </span>
-                                  )}
+                                  <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 rounded-full text-xs font-black uppercase tracking-wider shadow-xs flex items-center gap-1.5">
+                                    <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                    Pending Approval
+                                  </span>
                                 </div>
                                 <div className="p-5">
                                   <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
                                     <div className="flex-1">
                                       <div className="flex items-center gap-3 flex-wrap">
-                                        <h5 className="text-base font-black text-slate-800 dark:text-slate-100">{activeFullPlan.plan_name} (Renewal)</h5>
-                                        {(() => {
-                                          const brochure = activeFullPlan?.brochure_url || instActivePlan?.brochure_url;
-                                          if (brochure) {
-                                            return (
-                                              <button
-                                                onClick={() => handleDownloadBrochure(brochure, activeFullPlan?.plan_name || instActivePlan?.plan_name)}
-                                                className="px-2.5 py-1 bg-transparent hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/80 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                                                title="Download Brochure"
-                                              >
-                                                <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                                Brochure
-                                              </button>
-                                            );
-                                          }
-                                          return null;
-                                        })()}
+                                        <h5 className="text-base font-black text-slate-800 dark:text-slate-100">
+                                          {instPendingChangeRequest.plan_name || 'Requested Plan'}
+                                        </h5>
+                                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                          Instant Upgrade
+                                        </span>
                                       </div>
-                                      <div className="flex flex-col gap-2 mt-1 mb-1">
-                                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 max-w-lg line-clamp-2">
-                                          This is the renewal configuration for your current active plan.
-                                        </p>
-                                        {activeFullPlan.menus && activeFullPlan.menus.length > 0 && (
-                                          <div className="mt-1">
-                                            {!showRenewalFeatures ? (
-                                              <button 
-                                                onClick={() => setShowRenewalFeatures(true)}
-                                                className="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline cursor-pointer transition-colors"
-                                              >
-                                                Show all features
-                                              </button>
-                                            ) : (
-                                              <div className="flex flex-col gap-2 mt-1">
-                                                <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto pr-1 pb-1">
-                                                  {activeFullPlan.menus.map((m: string) => (
-                                                    <span key={m} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-md text-[10px] font-bold border border-indigo-100 dark:border-indigo-800">
-                                                      {m}
-                                                    </span>
-                                                  ))}
-                                                </div>
-                                                <button 
-                                                  onClick={() => setShowRenewalFeatures(false)}
-                                                  className="text-[10px] font-bold text-slate-500 hover:text-slate-700 self-start hover:underline cursor-pointer transition-colors"
-                                                >
-                                                  Hide features
-                                                </button>
-                                              </div>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
+                                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">
+                                        A request to switch to this plan has been submitted and is awaiting approval on the <strong>Request</strong> page. Once approved, this plan will activate immediately and the current plan will be archived.
+                                      </p>
                                     </div>
                                     <div className="flex flex-wrap gap-6 items-center">
-                                      {hasPendingRenewal && (
-                                        <div className="flex flex-col gap-2">
-                                          <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm">
-                                            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                                            <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Valid From: <span className="font-bold text-slate-700 dark:text-slate-300 ml-1">{formatDateOnly(instActivePlan.end_date)}</span></div>
-                                          </div>
-                                          <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm">
-                                            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                                            <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Valid Till: <span className="font-bold text-slate-700 dark:text-slate-300 ml-1">{formatDateOnly(validTill.toISOString())}</span></div>
-                                          </div>
-                                        </div>
-                                      )}
                                       <div className="text-right flex flex-col justify-center">
-                                        <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Renewal Price</div>
-                                        <span className="text-2xl font-black text-slate-800 dark:text-slate-100">₹{renewalPrice.toFixed(2)}</span>
-                                        <div className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5">
-                                          {daysLeftToRenew} days left
+                                        <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Requested Price</div>
+                                        <span className="text-2xl font-black text-slate-800 dark:text-slate-100">₹{instPendingChangeRequest.amount}</span>
+                                        <div className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 mt-0.5">
+                                          Mode: {instPendingChangeRequest.payment_mode || 'Manual'}
                                         </div>
                                       </div>
                                     </div>
                                   </div>
                                 </div>
-                                <div className="px-5 py-4 bg-indigo-100/30 dark:bg-indigo-900/20 border-t border-indigo-100/50 dark:border-indigo-900/50 flex flex-wrap items-center gap-3">
-                                  <button
-                                    disabled={hasPendingRenewal || isRenewalPaid}
-                                    onClick={() => {
-                                      setPurchaseMode('renew')
-                                      if (activeFullPlan) {
-                                        setSelectedPlan(activeFullPlan)
-                                        setWizardStep(2)
-                                      } else {
-                                        toast.error('Plan details not found')
-                                      }
-                                    }}
-                                    className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 ${
-                                      isRenewalPaid
-                                        ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 cursor-not-allowed shadow-none border border-emerald-200 dark:border-emerald-800'
-                                        : hasPendingRenewal
-                                        ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-400 cursor-not-allowed shadow-none'
-                                        : 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer'
-                                    }`}
-                                  >
-                                    {isRenewalPaid ? 'Plan Renewed (Paid)' : hasPendingRenewal ? 'Renewal Requested' : 'Renew Plan'}
-                                  </button>
+                                <div className="px-5 py-3.5 bg-amber-100/40 dark:bg-amber-900/30 border-t border-amber-200/50 dark:border-amber-900/40 flex items-center justify-between text-xs text-amber-800 dark:text-amber-300 font-semibold">
+                                  <span>Transaction ID: {instPendingChangeRequest.transaction_id || 'N/A'}</span>
+                                  <span className="italic">Renewal of current plan will be restored if this request is rejected.</span>
                                 </div>
                               </div>
-                            );
-                          })()}
+                            ) : (
+                              (() => {
+                                const activeFullPlan = (instActivePlan?.renewal_billing_items && instActivePlan.renewal_billing_items.length > 0)
+                                  ? instActivePlan
+                                  : (filteredPlansList.find(p => p.id === instActivePlan.plan_id) || plans.find(p => p.id === instActivePlan.plan_id) || instActivePlan);
+                                
+                                const renewalItems = activeFullPlan?.renewal_billing_items || instActivePlan?.renewal_billing_items || [];
+                                const hasRenewal = renewalItems.length > 0 || (Number(instActivePlan?.renewal_billing_duration || activeFullPlan?.renewal_billing_duration || 0) > 0);
+                                
+                                if (!hasRenewal) return null;
+                                
+                                const renewalPrice = renewalItems.length > 0
+                                  ? renewalItems.reduce((acc: number, item: any) => acc + getItemTotal(item), 0)
+                                  : Number(instActivePlan.amount || 0);
+                                const renewalDuration = instActivePlan?.renewal_billing_duration || activeFullPlan?.renewal_billing_duration || 365;
+                                
+                                const validFrom = new Date(instActivePlan.end_date);
+                                const validTill = new Date(validFrom.getTime() + renewalDuration * 24 * 60 * 60 * 1000);
+                                
+                                const daysLeftToRenew = Math.max(0, Math.ceil((validFrom.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+
+                                const hasPendingRenewal = instHasPendingRenewal;
+                                const isRenewalPaid = instHasPaidRenewal || instUpcomingPlans.some((p: any) => p.bill_type === 'renew');
+
+                                return (
+                                  <div className="mt-6 rounded-2xl border border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/30 dark:bg-indigo-900/10 overflow-hidden">
+                                    <div className="px-5 py-4 border-b border-indigo-100/50 dark:border-indigo-900/50 flex items-center justify-between flex-wrap gap-2">
+                                      <h4 className="text-sm font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-2">
+                                        Renewal Details (Active Plan)
+                                      </h4>
+                                      {isRenewalPaid ? (
+                                        <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-full text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-1.5">
+                                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                          Paid
+                                        </span>
+                                      ) : hasPendingRenewal ? (
+                                        <span className="px-3 py-1 bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded-full text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-1.5">
+                                          <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                          Requested
+                                        </span>
+                                      ) : (
+                                        <span className="px-3 py-1 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 rounded-full text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-1.5">
+                                          <AlertCircle className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400" />
+                                          Not Paid
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="p-5">
+                                      <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                                        <div className="flex-1">
+                                          <div className="flex items-center gap-3 flex-wrap">
+                                            <h5 className="text-base font-black text-slate-800 dark:text-slate-100">{activeFullPlan.plan_name} (Renewal)</h5>
+                                            {(() => {
+                                              const brochure = activeFullPlan?.brochure_url || instActivePlan?.brochure_url;
+                                              if (brochure) {
+                                                return (
+                                                  <button
+                                                    onClick={() => handleDownloadBrochure(brochure, activeFullPlan?.plan_name || instActivePlan?.plan_name)}
+                                                    className="px-2.5 py-1 bg-transparent hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/80 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                                    title="Download Brochure"
+                                                  >
+                                                    <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                                    Brochure
+                                                  </button>
+                                                );
+                                              }
+                                              return null;
+                                            })()}
+                                          </div>
+                                          <div className="flex flex-col gap-2 mt-1 mb-1">
+                                            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 max-w-lg line-clamp-2">
+                                              This is the renewal configuration for your current active plan.
+                                            </p>
+                                            {activeFullPlan.menus && activeFullPlan.menus.length > 0 && (
+                                              <div className="mt-1">
+                                                {!showRenewalFeatures ? (
+                                                  <button 
+                                                    onClick={() => setShowRenewalFeatures(true)}
+                                                    className="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline cursor-pointer transition-colors"
+                                                  >
+                                                    Show all features
+                                                  </button>
+                                                ) : (
+                                                  <div className="flex flex-col gap-2 mt-1">
+                                                    <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto pr-1 pb-1">
+                                                      {activeFullPlan.menus.map((m: string) => (
+                                                        <span key={m} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-md text-[10px] font-bold border border-indigo-100 dark:border-indigo-800">
+                                                          {m}
+                                                        </span>
+                                                      ))}
+                                                    </div>
+                                                    <button 
+                                                      onClick={() => setShowRenewalFeatures(false)}
+                                                      className="text-[10px] font-bold text-slate-500 hover:text-slate-700 self-start hover:underline cursor-pointer transition-colors"
+                                                    >
+                                                      Hide features
+                                                    </button>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="flex flex-wrap gap-6 items-center">
+                                          {hasPendingRenewal && (
+                                            <div className="flex flex-col gap-2">
+                                              <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm">
+                                                <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                                                <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Valid From: <span className="font-bold text-slate-700 dark:text-slate-300 ml-1">{formatDateOnly(instActivePlan.end_date)}</span></div>
+                                              </div>
+                                              <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm">
+                                                <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                                                <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Valid Till: <span className="font-bold text-slate-700 dark:text-slate-300 ml-1">{formatDateOnly(validTill.toISOString())}</span></div>
+                                              </div>
+                                            </div>
+                                          )}
+                                          <div className="text-right flex flex-col justify-center">
+                                            <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Renewal Price</div>
+                                            <span className="text-2xl font-black text-slate-800 dark:text-slate-100">₹{renewalPrice.toFixed(2)}</span>
+                                            <div className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5">
+                                              {daysLeftToRenew} days left
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="px-5 py-4 bg-indigo-100/30 dark:bg-indigo-900/20 border-t border-indigo-100/50 dark:border-indigo-900/50 flex flex-wrap items-center gap-3">
+                                      <button
+                                        disabled={hasPendingRenewal || isRenewalPaid}
+                                        onClick={() => {
+                                          setPurchaseMode('renew')
+                                          if (activeFullPlan) {
+                                            setSelectedPlan(activeFullPlan)
+                                            setWizardStep(2)
+                                          } else {
+                                            toast.error('Plan details not found')
+                                          }
+                                        }}
+                                        className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 ${
+                                          isRenewalPaid
+                                            ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 cursor-not-allowed shadow-none border border-emerald-200 dark:border-emerald-800'
+                                            : hasPendingRenewal
+                                            ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-400 cursor-not-allowed shadow-none'
+                                            : 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer'
+                                        }`}
+                                      >
+                                        {isRenewalPaid ? 'Plan Renewed (Paid)' : hasPendingRenewal ? 'Renewal Requested' : 'Renew Plan'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })()
+                            )}
                         </div>
                         ) : (
                           <div className="py-6 text-center text-slate-400 dark:text-slate-500 text-sm font-medium flex flex-col items-center justify-center gap-3">

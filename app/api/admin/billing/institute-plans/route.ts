@@ -124,11 +124,21 @@ async function getInstitutePlansData(institutionId: string) {
   const instDetailsRes = await pool.query('SELECT * FROM institutions WHERE id = $1', [institutionId])
   const institutionDetails = instDetailsRes.rows[0] || null
 
-  const pendingCheck = await pool.query(
+  const pendingChangeCheck = await pool.query(
+    `SELECT b.id, b.plan_id, b.amount, b.bill_type, b.transaction_id, b.payment_mode, b.created_at, p.plan_name, p.first_billing_duration, p.renewal_billing_duration
+     FROM bills b
+     LEFT JOIN plans p ON b.plan_id = p.id
+     WHERE b.institution_id = $1 AND b.status = 'Pending' AND (b.bill_type = 'change' OR b.bill_type = 'upgrade')
+     ORDER BY b.created_at DESC LIMIT 1`,
+    [institutionId]
+  )
+  const pendingChangeRequest = pendingChangeCheck.rows[0] || null
+
+  const pendingRenewalCheck = await pool.query(
     `SELECT id FROM bills WHERE institution_id = $1 AND status = 'Pending' AND bill_type = 'renew' LIMIT 1`,
     [institutionId]
   )
-  const hasPendingRenewal = pendingCheck.rows.length > 0
+  const hasPendingRenewal = pendingRenewalCheck.rows.length > 0
 
   // Check if renewal is already paid specifically for current active plan
   const hasPaidRenewal = activePlan 
@@ -141,7 +151,8 @@ async function getInstitutePlansData(institutionId: string) {
     upcomingPlans,
     planHistory,
     hasPendingRenewal,
-    hasPaidRenewal
+    hasPaidRenewal,
+    pendingChangeRequest
   }
 }
 
