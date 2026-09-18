@@ -6,7 +6,7 @@ import {
   Search, Plus, Edit3, Trash2, FileText, Download, Loader2, 
   ChevronLeft, ChevronRight, X, Percent, Tag, Ticket, Check, Paperclip, Calendar,
   Building2, Phone, Mail, User, MapPin, ShieldCheck, Award,
-  CreditCard, Smartphone, QrCode, Building, Receipt, CheckCircle2, DollarSign, Clock, Sparkles, AlertCircle
+  CreditCard, Smartphone, QrCode, Building, Receipt, CheckCircle2, DollarSign, Clock, Sparkles, AlertCircle, Zap
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
@@ -488,7 +488,7 @@ function BillingDashboardContent() {
   // Calculate pricing values
   const getPlanPrice = (plan: Plan | null) => {
     if (!plan) return 0
-    const items = purchaseMode === 'renew' && plan.renewal_billing_items?.length ? plan.renewal_billing_items : plan.first_billing_items
+    const items = (purchaseMode === 'renew' || purchaseMode === 'upcoming') && plan.renewal_billing_items?.length ? plan.renewal_billing_items : plan.first_billing_items
     if (!items || items.length === 0) {
       if ((plan as any).amount) return Number((plan as any).amount)
       if ((plan as any).price) return Number((plan as any).price)
@@ -500,7 +500,7 @@ function BillingDashboardContent() {
   // Calculate plan validity dates
   const getPlanDates = (plan: Plan | null) => {
     const from = new Date()
-    const duration = purchaseMode === 'renew' ? (plan?.renewal_billing_duration || 365) : (plan?.first_billing_duration || 365)
+    const duration = (purchaseMode === 'renew' || purchaseMode === 'upcoming') && plan?.renewal_billing_duration ? plan.renewal_billing_duration : (plan?.first_billing_duration || 365)
     const to = new Date()
     to.setDate(from.getDate() + duration)
     
@@ -602,7 +602,7 @@ function BillingDashboardContent() {
   // Pre-fill manual amount field and line items when plan or promo changes
   useEffect(() => {
     if (selectedPlan && purchaseMode !== 'edit') {
-      const items = purchaseMode === 'renew' && selectedPlan.renewal_billing_items?.length ? selectedPlan.renewal_billing_items : selectedPlan.first_billing_items
+      const items = (purchaseMode === 'renew' || purchaseMode === 'upcoming') && selectedPlan.renewal_billing_items?.length ? selectedPlan.renewal_billing_items : selectedPlan.first_billing_items
       if (items && items.length > 0) {
         setInvoiceItems(items.map((it: any, idx: number) => {
           const price = Number(it.price) || 0
@@ -1833,13 +1833,19 @@ function BillingDashboardContent() {
                             </div>
                             
                             {(() => {
-                            const activeFullPlan = filteredPlansList.find(p => p.id === instActivePlan.plan_id) || plans.find(p => p.id === instActivePlan.plan_id);
-                            const hasRenewal = activeFullPlan && activeFullPlan.renewal_billing_items && activeFullPlan.renewal_billing_items.length > 0;
+                            const activeFullPlan = (instActivePlan?.renewal_billing_items && instActivePlan.renewal_billing_items.length > 0)
+                              ? instActivePlan
+                              : (filteredPlansList.find(p => p.id === instActivePlan.plan_id) || plans.find(p => p.id === instActivePlan.plan_id) || instActivePlan);
+                            
+                            const renewalItems = activeFullPlan?.renewal_billing_items || instActivePlan?.renewal_billing_items || [];
+                            const hasRenewal = renewalItems.length > 0 || (Number(instActivePlan?.renewal_billing_duration || activeFullPlan?.renewal_billing_duration || 0) > 0);
                             
                             if (!hasRenewal) return null;
                             
-                            const renewalPrice = (activeFullPlan?.renewal_billing_items || []).reduce((acc: number, item: any) => acc + getItemTotal(item), 0);
-                            const renewalDuration = activeFullPlan.renewal_billing_duration || 0;
+                            const renewalPrice = renewalItems.length > 0
+                              ? renewalItems.reduce((acc: number, item: any) => acc + getItemTotal(item), 0)
+                              : Number(instActivePlan.amount || 0);
+                            const renewalDuration = instActivePlan?.renewal_billing_duration || activeFullPlan?.renewal_billing_duration || 365;
                             
                             const validFrom = new Date(instActivePlan.end_date);
                             const validTill = new Date(validFrom.getTime() + renewalDuration * 24 * 60 * 60 * 1000);
@@ -1847,7 +1853,7 @@ function BillingDashboardContent() {
                             const daysLeftToRenew = Math.max(0, Math.ceil((validFrom.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
 
                             const hasPendingRenewal = instHasPendingRenewal;
-                            const isRenewalPaid = instHasPaidRenewal || instUpcomingPlans.some((p: any) => p.bill_type === 'renew' || p.plan_id === activeFullPlan?.id);
+                            const isRenewalPaid = instHasPaidRenewal || instUpcomingPlans.some((p: any) => p.bill_type === 'renew');
 
                             return (
                               <div className="mt-6 rounded-2xl border border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/30 dark:bg-indigo-900/10 overflow-hidden">
@@ -2096,6 +2102,42 @@ function BillingDashboardContent() {
                                   </div>
                                 </div>
                                 <div className="px-5 py-4 bg-blue-100/30 dark:bg-blue-900/20 border-t border-blue-100/50 dark:border-blue-900/50 flex flex-wrap items-center justify-end gap-3">
+                                  <button
+                                    onClick={async () => {
+                                      const confirm = window.confirm(`Activate "${plan.plan_name}" instantly today?\n\nAny existing active plan will be terminated immediately and moved to history regardless of its remaining duration/expiry date.`);
+                                      if (!confirm) return;
+                                      try {
+                                        const instId = instDetails?.id || (instDetails as any)?.institution_id || institutionsList.find((i: any) => i.name === selectedSchool)?.id;
+                                        const res = await fetch('/api/admin/billing/institute-plans', {
+                                          method: 'PATCH',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ bill_id: plan.id, institution_id: instId })
+                                        });
+                                        const d = await res.json();
+                                        if (d.success) {
+                                          toast.success(`Plan "${plan.plan_name}" activated instantly!`);
+                                          if (instId) {
+                                            const r2 = await fetch(`/api/admin/billing/institute-plans?institution_id=${instId}`);
+                                            const d2 = await r2.json();
+                                            if (d2.success) {
+                                              setInstActivePlan(d2.activePlan || null);
+                                              setInstUpcomingPlans(d2.upcomingPlans || []);
+                                              setInstPlanHistory(d2.planHistory || []);
+                                            }
+                                          }
+                                          fetchBills(currentPage);
+                                        } else {
+                                          toast.error(d.error || 'Failed to activate plan');
+                                        }
+                                      } catch (err) {
+                                        toast.error('Failed to activate plan');
+                                      }
+                                    }}
+                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
+                                  >
+                                    <Zap className="w-3.5 h-3.5 text-amber-300" />
+                                    Activate Instantly
+                                  </button>
                                   <button onClick={() => handleDownloadPDF(selectedSchool, plan.amount, plan.plan_name || 'Upcoming Plan', plan.payment_date, plan.transaction_id, plan.payment_mode)} className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm cursor-pointer" title="Download Bill">
                                     <Download className="w-4 h-4" />
                                   </button>

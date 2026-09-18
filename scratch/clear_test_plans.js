@@ -22,10 +22,10 @@ async function clearData() {
     }
 
     try {
-      await pool.query('UPDATE institutions SET plan_id = NULL, current_plan_id = NULL, plan_valid_until = NULL, plan_start_date = NULL, plan_end_date = NULL, active_plan_id = NULL');
-      console.log('Reset plan fields on institutions table.');
+      const resApps = await pool.query('UPDATE applications SET plan_id = NULL');
+      console.log(`Reset plan_id on ${resApps.rowCount} applications.`);
     } catch (e) {
-      console.log('Institutions update skipped:', e.message);
+      console.log('Applications update note:', e.message);
     }
 
     console.log('SUCCESS: All plans, bills, and payment requests cleared cleanly for testing!');
