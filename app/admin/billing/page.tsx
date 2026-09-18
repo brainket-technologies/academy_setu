@@ -2273,10 +2273,16 @@ function BillingDashboardContent() {
                               (p.renewal_billing_duration && p.renewal_billing_duration > 0 && renewalPrice > 0)
                             );
 
+                            const isCurrentActive = Boolean(instActivePlan && instActivePlan.plan_id === p.id);
+
                             return (
                               <div
                                 key={p.id}
-                                className="bg-white dark:bg-slate-800 rounded-2xl p-7 border border-slate-200 dark:border-slate-700/60 shadow-sm flex flex-col md:flex-row gap-6 justify-between items-start md:items-center relative hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 transition-all"
+                                className={`bg-white dark:bg-slate-800 rounded-2xl p-7 border shadow-sm flex flex-col md:flex-row gap-6 justify-between items-start md:items-center relative hover:shadow-md transition-all ${
+                                  isCurrentActive 
+                                    ? 'border-emerald-300 dark:border-emerald-700/80 bg-emerald-50/10 dark:bg-emerald-950/10' 
+                                    : 'border-slate-200 dark:border-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600'
+                                }`}
                               >
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-3 flex-wrap">
@@ -2284,6 +2290,12 @@ function BillingDashboardContent() {
                                     {p.segment && (
                                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/60">
                                         {p.segment}
+                                      </span>
+                                    )}
+                                    {isCurrentActive && (
+                                      <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1.5 shadow-xs">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                        Current Active Plan
                                       </span>
                                     )}
                                   </div>
@@ -2363,15 +2375,38 @@ function BillingDashboardContent() {
                                       <FileText className="w-4 h-4" />
                                       View Plan
                                     </button>
-                                    <button
-                                      onClick={() => {
-                                        setSelectedPlan(p)
-                                        setWizardStep(2)
-                                      }}
-                                      className="flex-1 md:flex-none px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
-                                    >
-                                      Buy Now
-                                    </button>
+                                    {purchaseMode === 'change' && isCurrentActive ? (
+                                      <button
+                                        disabled
+                                        className="flex-1 md:flex-none px-6 py-2.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-extrabold cursor-not-allowed shadow-none flex items-center justify-center gap-1.5"
+                                      >
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                        Currently Active
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={() => {
+                                          setSelectedPlan(p)
+                                          setWizardStep(2)
+                                        }}
+                                        className={`flex-1 md:flex-none px-6 py-2.5 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-1.5 ${
+                                          purchaseMode === 'change' 
+                                            ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/10' 
+                                            : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/10'
+                                        }`}
+                                      >
+                                        {purchaseMode === 'change' ? (
+                                          <>
+                                            <Zap className="w-3.5 h-3.5 text-amber-200" />
+                                            Switch to this Plan
+                                          </>
+                                        ) : purchaseMode === 'upcoming' ? (
+                                          'Queue Upcoming Plan'
+                                        ) : (
+                                          'Buy Now'
+                                        )}
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
                               </div>
