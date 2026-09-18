@@ -1424,6 +1424,9 @@ function BillingDashboardContent() {
                         const dActivePlan = instData.activePlan;
                         const dUpcomingPlans = instData.upcomingPlans || [];
                         const dPlanHistory = instData.planHistory || [];
+                        const dPendingChange = instData.pendingChangeRequest || null;
+                        const dHasPendingRenewal = instData.hasPendingRenewal || false;
+                        const dHasPaidRenewal = instData.hasPaidRenewal || false;
 
                         return (
                           <div key={dDetails?.id || iIdx} className="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700/70 shadow-md flex flex-col gap-6">
@@ -1565,6 +1568,9 @@ function BillingDashboardContent() {
                                         setInstActivePlan(dActivePlan)
                                         setInstUpcomingPlans(dUpcomingPlans)
                                         setInstPlanHistory(dPlanHistory)
+                                        setInstHasPendingRenewal(dHasPendingRenewal)
+                                        setInstHasPaidRenewal(dHasPaidRenewal)
+                                        setInstPendingChangeRequest(dPendingChange)
                                       }}
                                       className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
                                     >
@@ -1585,6 +1591,12 @@ function BillingDashboardContent() {
                                     onClick={() => {
                                       setSelectedSchool(dDetails?.name)
                                       setInstDetails(dDetails)
+                                      setInstActivePlan(null)
+                                      setInstUpcomingPlans(dUpcomingPlans)
+                                      setInstPlanHistory(dPlanHistory)
+                                      setInstHasPendingRenewal(dHasPendingRenewal)
+                                      setInstHasPaidRenewal(dHasPaidRenewal)
+                                      setInstPendingChangeRequest(dPendingChange)
                                       setPurchaseMode('new')
                                       setShowAllPlansOverride(true)
                                     }}

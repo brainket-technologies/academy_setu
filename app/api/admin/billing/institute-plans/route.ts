@@ -125,20 +125,41 @@ async function getInstitutePlansData(institutionId: string) {
   const institutionDetails = instDetailsRes.rows[0] || null
 
   const pendingChangeCheck = await pool.query(
-    `SELECT b.id, b.plan_id, b.amount, b.bill_type, b.transaction_id, b.payment_mode, b.created_at, p.plan_name, p.first_billing_duration, p.renewal_billing_duration
-     FROM bills b
-     LEFT JOIN plans p ON b.plan_id = p.id
-     WHERE b.institution_id = $1 AND b.status = 'Pending' AND (b.bill_type = 'change' OR b.bill_type = 'upgrade')
-     ORDER BY b.created_at DESC LIMIT 1`,
+    `SELECT r.id, r.plan_id, r.amount, r.request_type as bill_type, r.transaction_id, r.payment_mode, r.created_at, 
+            COALESCE(p.plan_name, r.plan_name) as plan_name, p.first_billing_duration, p.renewal_billing_duration
+     FROM requests r
+     LEFT JOIN plans p ON r.plan_id = p.id
+     WHERE (r.institution_id = $1 OR r.school_name = (SELECT name FROM institutions WHERE id = $1 LIMIT 1))
+       AND r.status = 'Pending' 
+       AND (r.request_type = 'change' OR r.request_type = 'upgrade')
+     ORDER BY r.created_at DESC LIMIT 1`,
     [institutionId]
   )
-  const pendingChangeRequest = pendingChangeCheck.rows[0] || null
+  let pendingChangeRequest = pendingChangeCheck.rows[0] || null
+
+  if (!pendingChangeRequest) {
+    const billPending = await pool.query(
+      `SELECT b.id, b.plan_id, b.amount, b.bill_type, b.transaction_id, b.payment_mode, b.created_at, 
+              p.plan_name, p.first_billing_duration, p.renewal_billing_duration
+       FROM bills b
+       LEFT JOIN plans p ON b.plan_id = p.id
+       WHERE b.institution_id = $1 AND b.status = 'Pending' AND (b.bill_type = 'change' OR b.bill_type = 'upgrade')
+       ORDER BY b.created_at DESC LIMIT 1`,
+      [institutionId]
+    )
+    pendingChangeRequest = billPending.rows[0] || null
+  }
 
   const pendingRenewalCheck = await pool.query(
-    `SELECT id FROM bills WHERE institution_id = $1 AND status = 'Pending' AND bill_type = 'renew' LIMIT 1`,
+    `SELECT r.id FROM requests r 
+     WHERE (r.institution_id = $1 OR r.school_name = (SELECT name FROM institutions WHERE id = $1 LIMIT 1))
+       AND r.status = 'Pending' AND r.request_type = 'renew' LIMIT 1`,
     [institutionId]
   )
-  const hasPendingRenewal = pendingRenewalCheck.rows.length > 0
+  const hasPendingRenewal = pendingRenewalCheck.rows.length > 0 || (await pool.query(
+    `SELECT id FROM bills WHERE institution_id = $1 AND status = 'Pending' AND bill_type = 'renew' LIMIT 1`,
+    [institutionId]
+  )).rows.length > 0
 
   // Check if renewal is already paid specifically for current active plan
   const hasPaidRenewal = activePlan 
