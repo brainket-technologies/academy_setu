@@ -2273,14 +2273,19 @@ function BillingDashboardContent() {
                               (p.renewal_billing_duration && p.renewal_billing_duration > 0 && renewalPrice > 0)
                             );
 
-                            const isCurrentActive = Boolean(instActivePlan && instActivePlan.plan_id === p.id);
+                            const isCurrentActive = Boolean(
+                              instActivePlan && (
+                                (instActivePlan.plan_id && (instActivePlan.plan_id === p.id || String(instActivePlan.plan_id) === String(p.id))) ||
+                                (instActivePlan.plan_name && p.plan_name && instActivePlan.plan_name.toLowerCase().trim() === p.plan_name.toLowerCase().trim())
+                              )
+                            );
 
                             return (
                               <div
                                 key={p.id}
                                 className={`bg-white dark:bg-slate-800 rounded-2xl p-7 border shadow-sm flex flex-col md:flex-row gap-6 justify-between items-start md:items-center relative hover:shadow-md transition-all ${
                                   isCurrentActive 
-                                    ? 'border-emerald-300 dark:border-emerald-700/80 bg-emerald-50/10 dark:bg-emerald-950/10' 
+                                    ? 'border-emerald-300 dark:border-emerald-700/80 bg-emerald-50/15 dark:bg-emerald-950/15' 
                                     : 'border-slate-200 dark:border-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600'
                                 }`}
                               >
@@ -2375,13 +2380,13 @@ function BillingDashboardContent() {
                                       <FileText className="w-4 h-4" />
                                       View Plan
                                     </button>
-                                    {purchaseMode === 'change' && isCurrentActive ? (
+                                    {isCurrentActive && (purchaseMode === 'change' || purchaseMode === 'new') ? (
                                       <button
                                         disabled
                                         className="flex-1 md:flex-none px-6 py-2.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-extrabold cursor-not-allowed shadow-none flex items-center justify-center gap-1.5"
                                       >
                                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                        Currently Active
+                                        Current Active Plan
                                       </button>
                                     ) : (
                                       <button
