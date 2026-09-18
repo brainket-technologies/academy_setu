@@ -1826,8 +1826,9 @@ function BillingDashboardContent() {
                                       setPurchaseMode('change')
                                       setShowAllPlansOverride(true)
                                     }}
-                                    className="px-5 py-2 bg-transparent hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-600 dark:border-indigo-500 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
                                   >
+                                    <Zap className="w-3.5 h-3.5 text-amber-300" />
                                     Change Plan (Instant)
                                   </button>
                                   <button
@@ -2495,7 +2496,7 @@ function BillingDashboardContent() {
                                             Switch to this Plan
                                           </>
                                         ) : purchaseMode === 'upcoming' ? (
-                                          'Add upcoming Plan'
+                                          'Add Upcoming Plan'
                                         ) : (
                                           'Buy Now'
                                         )}
