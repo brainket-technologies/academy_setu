@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 
 async function getInstitutePlansData(institutionId: string) {
+  // Ensure bill_type column exists
+  await pool.query(`ALTER TABLE bills ADD COLUMN IF NOT EXISTS bill_type VARCHAR(50) DEFAULT 'new'`).catch(() => {})
+
   const res = await pool.query(
-    `SELECT b.id, b.plan_id, b.payment_date, b.amount, b.transaction_id, b.payment_mode,
-            p.plan_name, p.first_billing_duration, p.brochure_url
+    `SELECT b.id, b.plan_id, b.payment_date, b.amount, b.transaction_id, b.payment_mode, b.bill_type, b.created_at,
+            p.plan_name, p.first_billing_duration, p.renewal_billing_duration, p.brochure_url
      FROM bills b
      JOIN plans p ON b.plan_id = p.id
      WHERE b.institution_id = $1 AND b.status = 'Paid'
-     ORDER BY b.payment_date DESC, b.created_at DESC`,
+     ORDER BY b.created_at ASC`,
     [institutionId]
   )
 
@@ -17,32 +20,56 @@ async function getInstitutePlansData(institutionId: string) {
   today.setHours(0, 0, 0, 0)
 
   const processedPlans: any[] = []
-  let nextPlanStart: Date | null = null
 
   for (const bill of bills) {
-    const duration = Number(bill.first_billing_duration) || 365
-    const paymentDateObj = new Date(bill.payment_date)
+    const isRenew = bill.bill_type === 'renew'
+    const isChange = bill.bill_type === 'change'
+    const duration = (isRenew && bill.renewal_billing_duration) 
+      ? Number(bill.renewal_billing_duration) 
+      : (Number(bill.first_billing_duration) || 365)
+
+    const paymentDateObj = new Date(bill.payment_date || bill.created_at)
     paymentDateObj.setHours(0, 0, 0, 0)
 
     let startDateObj = paymentDateObj
-    let endDateObj = new Date(startDateObj.getTime())
-    endDateObj.setDate(startDateObj.getDate() + duration)
 
-    if (nextPlanStart && endDateObj > nextPlanStart) {
-      endDateObj = new Date(nextPlanStart.getTime())
+    // If this bill is an instant "change":
+    if (isChange) {
+      // Starts today, and caps all previously running plans to today
+      for (const prev of processedPlans) {
+        const prevEnd = new Date(prev.end_date)
+        if (prevEnd > startDateObj) {
+          prev.end_date = startDateObj.toISOString().split('T')[0]
+        }
+      }
+    } else {
+      // If it's a renewal, upcoming, or regular new plan:
+      // If there's an earlier plan whose end_date is after this bill's payment date, queue it after that plan
+      if (processedPlans.length > 0) {
+        const lastPlan = processedPlans[processedPlans.length - 1]
+        const lastPlanEnd = new Date(lastPlan.end_date)
+        lastPlanEnd.setHours(0, 0, 0, 0)
+        
+        if (lastPlanEnd > startDateObj) {
+          startDateObj = lastPlanEnd
+        }
+      }
     }
 
-    nextPlanStart = startDateObj
+    const endDateObj = new Date(startDateObj.getTime())
+    endDateObj.setDate(startDateObj.getDate() + duration)
 
-    processedPlans.unshift({
+    processedPlans.push({
       id: bill.id,
       plan_id: bill.plan_id,
       plan_name: bill.plan_name,
+      bill_type: bill.bill_type || 'new',
       amount: Number(bill.amount),
       payment_date: bill.payment_date,
       payment_mode: bill.payment_mode,
       transaction_id: bill.transaction_id,
       first_billing_duration: bill.first_billing_duration,
+      renewal_billing_duration: bill.renewal_billing_duration,
       brochure_url: bill.brochure_url || '',
       start_date: startDateObj.toISOString().split('T')[0],
       end_date: endDateObj.toISOString().split('T')[0],
@@ -60,13 +87,24 @@ async function getInstitutePlansData(institutionId: string) {
     end.setHours(23, 59, 59, 999)
 
     if (today >= start && today <= end) {
-      activePlan = plan
+      if (!activePlan) {
+        activePlan = plan
+      } else {
+        // If an active plan already exists, any subsequent plan covering current/future period is queued as upcoming
+        upcomingPlans.push(plan)
+      }
     } else if (start > today) {
       upcomingPlans.push(plan)
     } else {
       planHistory.push(plan)
     }
   }
+
+  // Sort upcoming plans chronologically (earliest start date first)
+  upcomingPlans.sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
+
+  // Sort plan history descending (most recently expired first)
+  planHistory.sort((a, b) => new Date(b.end_date).getTime() - new Date(a.end_date).getTime())
 
   const instDetailsRes = await pool.query('SELECT * FROM institutions WHERE id = $1', [institutionId])
   const institutionDetails = instDetailsRes.rows[0] || null
@@ -77,12 +115,18 @@ async function getInstitutePlansData(institutionId: string) {
   )
   const hasPendingRenewal = pendingCheck.rows.length > 0
 
+  // Check if renewal is already paid for current active plan
+  const hasPaidRenewal = activePlan 
+    ? upcomingPlans.some(p => p.bill_type === 'renew' || p.plan_id === activePlan.plan_id || p.start_date === activePlan.end_date)
+    : false
+
   return {
     institutionDetails,
     activePlan,
     upcomingPlans,
     planHistory,
-    hasPendingRenewal
+    hasPendingRenewal,
+    hasPaidRenewal
   }
 }
 
@@ -150,7 +194,6 @@ export async function GET(request: NextRequest) {
 }
 
 // PATCH: Immediately activate a plan (Change Plan)
-// Sets payment_date = today on the target bill so it wins the "active" slot in the chain
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json()
@@ -163,7 +206,7 @@ export async function PATCH(request: NextRequest) {
     const today = new Date().toISOString().split('T')[0]
 
     await pool.query(
-      `UPDATE bills SET payment_date = $1, updated_at = NOW() WHERE id = $2 AND institution_id = $3`,
+      `UPDATE bills SET payment_date = $1, bill_type = 'change', updated_at = NOW() WHERE id = $2 AND institution_id = $3`,
       [today, bill_id, institution_id]
     )
 

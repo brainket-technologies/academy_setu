@@ -6,7 +6,7 @@ import {
   Search, Plus, Edit3, Trash2, FileText, Download, Loader2, 
   ChevronLeft, ChevronRight, X, Percent, Tag, Ticket, Check, Paperclip, Calendar,
   Building2, Phone, Mail, User, MapPin, ShieldCheck, Award,
-  CreditCard, Smartphone, QrCode, Building, Receipt, CheckCircle2, DollarSign, Clock, Sparkles
+  CreditCard, Smartphone, QrCode, Building, Receipt, CheckCircle2, DollarSign, Clock, Sparkles, AlertCircle
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
@@ -43,6 +43,7 @@ interface InstituteOption {
   address?: string
   district?: string
   state?: string
+  pincode?: string
   segment_name?: string | null
   segment_id?: string | null
 }
@@ -113,6 +114,7 @@ function BillingDashboardContent() {
   const [promoActiveTab, setPromoActiveTab] = useState<'amount' | 'percentage'>('amount')
   const [allPromoCodes, setAllPromoCodes] = useState<any[]>([])
   const [showViewPlanModal, setShowViewPlanModal] = useState<Plan | null>(null)
+  const [viewPlanTab, setViewPlanTab] = useState<'first' | 'renewal'>('first')
 
   // Payment Mode selections & fields (Step 2)
   const [paymentModeOption, setPaymentModeOption] = useState<'gateway' | 'bank' | 'upi' | 'qr'>('gateway')
@@ -228,12 +230,87 @@ function BillingDashboardContent() {
   const [instUpcomingPlans, setInstUpcomingPlans] = useState<any[]>([])
   const [instPlanHistory, setInstPlanHistory] = useState<any[]>([])
   const [instHasPendingRenewal, setInstHasPendingRenewal] = useState<boolean>(false)
+  const [instHasPaidRenewal, setInstHasPaidRenewal] = useState<boolean>(false)
   const [segmentInstitutesList, setSegmentInstitutesList] = useState<any[]>([])
   const [showAllPlansOverride, setShowAllPlansOverride] = useState(false)
   const [purchaseMode, setPurchaseMode] = useState<'new' | 'renew' | 'change' | 'upcoming' | 'edit'>('new')
   const [showActivePlanFeatures, setShowActivePlanFeatures] = useState(false)
   const [showRenewalFeatures, setShowRenewalFeatures] = useState(false)
   const [showUpcomingFeatures, setShowUpcomingFeatures] = useState<Record<string, boolean>>({})
+  
+  // Fully Editable Bill State Variables
+  const [fromCompanyName, setFromCompanyName] = useState('Academy Setu Technologies Pvt. Ltd.')
+  const [fromCompanySubtitle, setFromCompanySubtitle] = useState('Platform Accounts & Billing Support Desk')
+  const [fromSegment, setFromSegment] = useState('')
+
+  const [billInstName, setBillInstName] = useState('')
+  const [billInstCode, setBillInstCode] = useState('')
+  const [billInstContact, setBillInstContact] = useState('')
+  const [billInstMobile, setBillInstMobile] = useState('')
+  const [billInstEmail, setBillInstEmail] = useState('')
+  const [billInstAddress, setBillInstAddress] = useState('')
+
+  const [billPlanName, setBillPlanName] = useState('')
+  const [billPlanBadge, setBillPlanBadge] = useState('New Plan')
+  const [billPlanDuration, setBillPlanDuration] = useState('365')
+  const [billValidFrom, setBillValidFrom] = useState(() => new Date().toISOString().substring(0, 10))
+  const [billValidTo, setBillValidTo] = useState(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 365)
+    return d.toISOString().substring(0, 10)
+  })
+
+  // Synchronize editable bill institute details
+  useEffect(() => {
+    if (instDetails) {
+      setBillInstName(instDetails.name || selectedSchool || '')
+      setBillInstCode(instDetails.code || '')
+      setBillInstContact(instDetails.contact_person || '')
+      setBillInstMobile(instDetails.mobile_no || '')
+      setBillInstEmail(instDetails.email_id || '')
+      const addr = [instDetails.address, instDetails.district, instDetails.state, instDetails.pincode].filter(Boolean).join(', ')
+      setBillInstAddress(addr)
+    } else if (selectedSchool) {
+      setBillInstName(selectedSchool)
+      const sch = schools.find(s => s.name === selectedSchool)
+      if (sch) {
+        setBillInstCode(sch.code || '')
+        setBillInstContact(sch.contact_person || '')
+        setBillInstMobile(sch.mobile_no || '')
+        setBillInstEmail(sch.email_id || '')
+        const addr = [sch.address, sch.district, sch.state, sch.pincode].filter(Boolean).join(', ')
+        setBillInstAddress(addr)
+      }
+    }
+  }, [instDetails, selectedSchool, schools])
+
+  // Synchronize plan package fields
+  useEffect(() => {
+    if (selectedPlan) {
+      setBillPlanName(selectedPlan.plan_name || '')
+      if (purchaseMode !== 'edit') {
+        setBillPlanBadge(
+          purchaseMode === 'renew' ? 'Renewal Plan' :
+          purchaseMode === 'change' ? 'Plan Upgrade' :
+          purchaseMode === 'upcoming' ? 'Upcoming Plan' : 'New Plan'
+        )
+      }
+      const dur = purchaseMode === 'renew' ? (selectedPlan.renewal_billing_duration || 365) : (selectedPlan.first_billing_duration || 365)
+      setBillPlanDuration(String(dur))
+      const from = new Date()
+      const to = new Date()
+      to.setDate(from.getDate() + Number(dur || 365))
+      setBillValidFrom(from.toISOString().substring(0, 10))
+      setBillValidTo(to.toISOString().substring(0, 10))
+    }
+  }, [selectedPlan, purchaseMode])
+
+  useEffect(() => {
+    if (selectedSegment) {
+      setFromSegment(selectedSegment)
+    }
+  }, [selectedSegment])
+
   // Delete modal states
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
@@ -285,7 +362,7 @@ function BillingDashboardContent() {
         setSchools(schoolData.data)
       }
 
-      const planRes = await fetch('/api/admin/plan')
+      const planRes = await fetch('/api/admin/plan?pageSize=100')
       const planData = await planRes.json()
       if (planData.success) {
         setPlans(planData.data)
@@ -365,6 +442,7 @@ function BillingDashboardContent() {
             setInstUpcomingPlans(data.upcomingPlans || [])
             setInstPlanHistory(data.planHistory || [])
             setInstHasPendingRenewal(data.hasPendingRenewal || false)
+            setInstHasPaidRenewal(data.hasPaidRenewal || false)
           }
         } catch (err) {
           console.error('Failed to load institute plans', err)
@@ -412,7 +490,9 @@ function BillingDashboardContent() {
     if (!plan) return 0
     const items = purchaseMode === 'renew' && plan.renewal_billing_items?.length ? plan.renewal_billing_items : plan.first_billing_items
     if (!items || items.length === 0) {
-      return 1200 // Default fallback base price
+      if ((plan as any).amount) return Number((plan as any).amount)
+      if ((plan as any).price) return Number((plan as any).price)
+      return 0
     }
     return items.reduce((sum: number, item: any) => sum + getItemTotal(item), 0)
   }
@@ -521,7 +601,7 @@ function BillingDashboardContent() {
 
   // Pre-fill manual amount field and line items when plan or promo changes
   useEffect(() => {
-    if (selectedPlan) {
+    if (selectedPlan && purchaseMode !== 'edit') {
       const items = purchaseMode === 'renew' && selectedPlan.renewal_billing_items?.length ? selectedPlan.renewal_billing_items : selectedPlan.first_billing_items
       if (items && items.length > 0) {
         setInvoiceItems(items.map((it: any, idx: number) => {
@@ -566,15 +646,25 @@ function BillingDashboardContent() {
     e.preventDefault()
     if (!selectedPlan) return
 
-    // If manual mode, require some validation
-    if (paymentModeOption !== 'gateway') {
-      if (payments.some(p => !p.txnId)) { toast.error('Transaction ID is required for all payments'); return }
-      if (payments.some(p => !p.amount || parseFloat(p.amount) <= 0)) { toast.error('Valid Amount is required for all payments'); return }
+    // If manual mode, require some validation (only for new plan purchases, not when editing from transaction history)
+    if (purchaseMode !== 'edit' && paymentModeOption !== 'gateway') {
+      if (payments.some(p => !p.txnId?.trim())) { 
+        toast.error('Transaction ID / UTR is required for all attached payments')
+        return 
+      }
+      if (payments.some(p => !p.amount || parseFloat(p.amount) <= 0)) { 
+        toast.error('Valid amount is required for all attached payments')
+        return 
+      }
+      if (payments.some(p => !p.screenshot?.trim() && !p.screenshotData?.trim())) { 
+        toast.error('Payment proof screenshot / receipt is required for all attached payments')
+        return 
+      }
       
-      const planAmount = getPlanPrice(selectedPlan)
-      const enteredAmount = getGrossAmount()
-      if (enteredAmount < planAmount) {
-        toast.error(`Gross amount (₹${enteredAmount}) cannot be less than the plan price (₹${planAmount})`)
+      const totalRequired = getFinalAmount()
+      const totalAttached = getTotalEntered()
+      if (totalAttached < totalRequired) {
+        toast.error(`Attached payment amount (₹${totalAttached.toFixed(2)}) is less than total required (₹${totalRequired.toFixed(2)}). Please enter the full amount before submitting.`)
         return
       }
     }
@@ -589,12 +679,13 @@ function BillingDashboardContent() {
       }[paymentModeOption]
 
       const finalVal = getFinalAmount()
-      const finalTxn = paymentModeOption === 'gateway' ? `TXN${Math.floor(100000 + Math.random() * 900000)}` : payments.map(p => p.txnId).join(', ')
-      const finalStatus = 'Pending'
+      const isGateway = paymentModeOption === 'gateway'
+      const finalTxn = isGateway ? `TXN${Math.floor(100000 + Math.random() * 900000)}` : payments.map(p => p.txnId).join(', ')
+      const finalStatus = isGateway ? 'Paid' : 'Pending'
 
-      // Resolve institution_id from loaded schools list
-      const selectedSchoolObj = schools.find(s => s.name === selectedSchool)
-      const institutionId = selectedSchoolObj?.id || null
+      // Resolve institution_id from loaded schools list or active edited state
+      const selectedSchoolObj = schools.find(s => s.name === (billInstName || selectedSchool))
+      const institutionId = selectedSchoolObj?.id || (instDetails?.id) || null
 
       const url = purchaseMode === 'edit' && editingId ? `/api/admin/billing/${editingId}` : '/api/admin/billing'
       const method = purchaseMode === 'edit' && editingId ? 'PUT' : 'POST'
@@ -604,18 +695,19 @@ function BillingDashboardContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           institution_id: institutionId,
-          plan_id: selectedPlan.id,
-          segment: selectedSegment,
-          school_name: selectedSchool,
-          plan_name: selectedPlan.plan_name,
+          plan_id: selectedPlan?.id || null,
+          segment: fromSegment || selectedSegment,
+          school_name: billInstName || selectedSchool,
+          plan_name: billPlanName || selectedPlan?.plan_name,
           payment_mode: modeLabel,
-          payment_date: new Date().toISOString().substring(0, 10),
+          payment_date: invoiceDate || new Date().toISOString().substring(0, 10),
           amount: finalVal,
           transaction_id: finalTxn,
           status: finalStatus,
           promo_code_id: appliedPromo?.id || null,
-          is_renewal: purchaseMode === 'renew',
-          screenshots: paymentModeOption === 'gateway' ? [] : payments.map(p => ({ amount: parseFloat(p.amount) || 0, filename: p.screenshot || '', dataUrl: p.screenshotData || '' }))
+          is_renewal: purchaseMode === 'renew' || billPlanBadge === 'Renewal Plan',
+          bill_type: purchaseMode,
+          screenshots: isGateway ? [] : payments.map(p => ({ amount: parseFloat(p.amount) || 0, filename: p.screenshot || '', dataUrl: p.screenshotData || '' }))
         })
       })
 
@@ -635,7 +727,11 @@ function BillingDashboardContent() {
           setEditingId(null)
           fetchBills(currentPage)
         } else {
-          toast.success(paymentModeOption === 'gateway' ? 'Payment request submitted successfully!' : 'Bill created successfully!')
+          if (isGateway) {
+            toast.success('Payment completed! Plan has been directly activated.')
+          } else {
+            toast.success('Payment request submitted! Admin approval required on the Request page.')
+          }
           setWizardStep(1)
         }
         
@@ -687,7 +783,7 @@ function BillingDashboardContent() {
   }, [createParam])
 
   // Start editing a bill using the advanced modal
-  const handleStartEdit = (bill: Bill) => {
+  const handleStartEdit = async (bill: Bill) => {
     setActiveTab('purchase')
     // 1. Open the wizard directly to Step 2
     setWizardStep(2)
@@ -695,14 +791,90 @@ function BillingDashboardContent() {
     setEditingId(bill.id)
     
     // 2. Pre-fill the states needed for Step 2
-    const inst = schools.find(i => i.id === bill.institution_id)
-    if (inst) setSelectedSchool(inst.name)
+    const inst = schools.find(i => i.id === bill.institution_id || i.name === bill.school_name)
+    if (inst) {
+      setSelectedSchool(inst.name)
+      setBillInstName(inst.name || bill.school_name || '')
+      setBillInstCode(inst.code || '')
+      setBillInstContact(inst.contact_person || '')
+      setBillInstMobile(inst.mobile_no || '')
+      setBillInstEmail(inst.email_id || '')
+      const addr = [inst.address, inst.district, inst.state, inst.pincode].filter(Boolean).join(', ')
+      setBillInstAddress(addr)
+    } else {
+      setSelectedSchool(bill.school_name || '')
+      setBillInstName(bill.school_name || '')
+      if (bill.institution_id) {
+        try {
+          const instRes = await fetch(`/api/admin/institute/${bill.institution_id}`)
+          const instData = await instRes.json()
+          if (instData.success && instData.data) {
+            const d = instData.data
+            setBillInstName(d.name || bill.school_name || '')
+            setBillInstCode(d.code || '')
+            setBillInstContact(d.contact_person || '')
+            setBillInstMobile(d.mobile_no || '')
+            setBillInstEmail(d.email_id || '')
+            const addr = [d.address, d.district, d.state, d.pincode].filter(Boolean).join(', ')
+            setBillInstAddress(addr)
+          }
+        } catch (e) {
+          console.error(e)
+        }
+      }
+    }
     
-    const segment = segments.find(s => s.id === inst?.segment_id)?.name
-    if (segment) setSelectedSegment(segment)
+    const segment = segments.find(s => s.id === inst?.segment_id)?.name || bill.segment
+    if (segment) {
+      setSelectedSegment(segment)
+      setFromSegment(segment)
+    }
     
-    const plan = plans.find(p => p.id === bill.plan_id)
-    if (plan) setSelectedPlan(plan)
+    const plan = plans.find(p => p.id === bill.plan_id || p.plan_name === bill.plan_name)
+    if (plan) {
+      setSelectedPlan(plan)
+      setBillPlanName(plan.plan_name || bill.plan_name || '')
+      const dur = plan.renewal_billing_duration || plan.first_billing_duration || 365
+      setBillPlanDuration(String(dur))
+    } else {
+      setSelectedPlan({ id: bill.plan_id || 'custom', plan_name: bill.plan_name || 'Custom Plan' } as any)
+      setBillPlanName(bill.plan_name || 'Custom Plan')
+    }
+
+    setBillPlanBadge('Active Plan')
+    if (bill.payment_date) {
+      const pDate = bill.payment_date.substring(0, 10)
+      setInvoiceDate(pDate)
+      setBillValidFrom(pDate)
+      const to = new Date(pDate)
+      to.setDate(to.getDate() + Number(billPlanDuration || 365))
+      setBillValidTo(to.toISOString().substring(0, 10))
+    }
+    
+    setInvoiceNo(`INV-${new Date(bill.payment_date || new Date()).getFullYear()}-${(bill.transaction_id ? bill.transaction_id.replace(/[^a-zA-Z0-9]/g, '').slice(-4) : String(Math.floor(1000 + Math.random() * 9000))).toUpperCase()}`)
+
+    // Pre-fill invoice line items from bill or plan
+    if (plan && plan.first_billing_items?.length) {
+      setInvoiceItems(plan.first_billing_items.map((it: any, idx: number) => ({
+        id: String(idx + 1),
+        description: it.item_description || plan.plan_name,
+        quantity: 1,
+        price: Number(it.price) || 0,
+        tax_percentage: Number(it.tax_percentage) || 0,
+        tax_price: getItemTaxAmount(it),
+        total: getItemTotal(it)
+      })))
+    } else {
+      setInvoiceItems([{
+        id: '1',
+        description: bill.plan_name || 'Platform Subscription License',
+        quantity: 1,
+        price: Number(bill.amount) || 0,
+        tax_percentage: 0,
+        tax_price: 0,
+        total: Number(bill.amount) || 0
+      }])
+    }
     
     // 3. Pre-fill payment mode
     const modeMap: Record<string, 'gateway' | 'bank' | 'upi' | 'qr'> = {
@@ -1288,19 +1460,6 @@ function BillingDashboardContent() {
                                       No Active Plan
                                     </span>
                                   )}
-                                  {!dActivePlan && (
-                                    <button
-                                      onClick={() => {
-                                        setSelectedSchool(dDetails?.name)
-                                        setInstDetails(dDetails)
-                                        setPurchaseMode('new')
-                                        setShowAllPlansOverride(true)
-                                      }}
-                                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
-                                    >
-                                      + Purchase Plan
-                                    </button>
-                                  )}
                                 </div>
                               </div>
 
@@ -1361,33 +1520,39 @@ function BillingDashboardContent() {
                               {dActivePlan ? (
                                 <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/30 dark:bg-indigo-900/10 overflow-hidden p-5 flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
                                   <div>
-                                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
-                                      Active Plan
-                                    </span>
-                                    <h5 className="text-base font-black text-slate-800 dark:text-slate-100 mt-1">{dActivePlan.plan_name}</h5>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                    <div className="flex items-center gap-2.5 flex-wrap">
+                                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 flex items-center gap-1 shadow-xs">
+                                        <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                        Paid
+                                      </span>
+                                      <h5 className="text-base font-black text-slate-800 dark:text-slate-100">{dActivePlan.plan_name}</h5>
+                                      {(() => {
+                                        const fullPlan = filteredPlansList.find(p => p.id === dActivePlan.plan_id) || plans.find(p => p.id === dActivePlan.plan_id);
+                                        const brochure = dActivePlan.brochure_url || fullPlan?.brochure_url;
+                                        if (brochure) {
+                                          return (
+                                            <button
+                                              onClick={() => handleDownloadBrochure(brochure, dActivePlan.plan_name)}
+                                              className="px-2.5 py-0.5 bg-transparent hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/80 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                              title="Download Brochure"
+                                            >
+                                              <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                              Brochure
+                                            </button>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
+                                    </div>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                                       Valid: {formatDateOnly(dActivePlan.start_date)} to {formatDateOnly(dActivePlan.end_date)}
                                     </p>
                                   </div>
-                                  <div className="flex items-center gap-4">
-                                    <span className="text-xl font-black text-slate-800 dark:text-slate-100">₹{dActivePlan.amount}</span>
-                                    {(() => {
-                                      const fullPlan = filteredPlansList.find(p => p.id === dActivePlan.plan_id) || plans.find(p => p.id === dActivePlan.plan_id);
-                                      const brochure = dActivePlan.brochure_url || fullPlan?.brochure_url;
-                                      if (brochure) {
-                                        return (
-                                          <button
-                                            onClick={() => handleDownloadBrochure(brochure, dActivePlan.plan_name)}
-                                            className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:border-indigo-300 transition-all shadow-sm cursor-pointer flex items-center gap-1.5 font-bold text-xs"
-                                            title="Download Brochure"
-                                          >
-                                            <FileText className="w-4 h-4 text-indigo-500" />
-                                            Brochure
-                                          </button>
-                                        );
-                                      }
-                                      return null;
-                                    })()}
+                                  <div className="flex items-center gap-5">
+                                    <div className="text-right">
+                                      <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Amount Paid</div>
+                                      <span className="text-xl font-black text-slate-800 dark:text-slate-100">₹{dActivePlan.amount}</span>
+                                    </div>
                                     <button
                                       onClick={() => {
                                         setSelectedSchool(dDetails?.name)
@@ -1404,7 +1569,13 @@ function BillingDashboardContent() {
                                 </div>
                               ) : (
                                 <div className="p-4 bg-slate-50 dark:bg-slate-900/30 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between">
-                                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">No active plan for this institute.</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded-full border border-rose-200 dark:border-rose-800 flex items-center gap-1">
+                                      <AlertCircle className="w-3 h-3 text-rose-500" />
+                                      Not Paid
+                                    </span>
+                                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">No active plan for this institute.</span>
+                                  </div>
                                   <button
                                     onClick={() => {
                                       setSelectedSchool(dDetails?.name)
@@ -1464,17 +1635,6 @@ function BillingDashboardContent() {
                                 <span className="w-2 h-2 rounded-full bg-amber-500" />
                                 No Active Plan
                               </span>
-                            )}
-                            {!instActivePlan && (
-                              <button
-                                onClick={() => {
-                                  setPurchaseMode('new')
-                                  setShowAllPlansOverride(true)
-                                }}
-                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
-                              >
-                                + Purchase New Plan
-                              </button>
                             )}
                           </div>
                         </div>
@@ -1541,24 +1701,49 @@ function BillingDashboardContent() {
                           <div className="flex flex-col gap-6">
                             {/* Ongoing Plan */}
                             <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/30 dark:bg-indigo-900/10 overflow-hidden">
-                              <div className="px-5 py-4 border-b border-indigo-100/50 dark:border-indigo-900/50 flex items-center justify-between">
+                              <div className="px-5 py-4 border-b border-indigo-100/50 dark:border-indigo-900/50 flex items-center justify-between flex-wrap gap-2">
                                 <h4 className="text-sm font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-2">
                                   Ongoing Plan
                                 </h4>
-                                {(() => {
-                                  const activeValidTill = new Date(instActivePlan.end_date);
-                                  const activeDaysLeft = Math.max(0, Math.ceil((activeValidTill.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
-                                  return (
-                                    <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-black uppercase tracking-wider shadow-sm">
-                                      {activeDaysLeft} Days Left
-                                    </span>
-                                  )
-                                })()}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-full text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-1.5">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                    Paid
+                                  </span>
+                                  {(() => {
+                                    const activeValidTill = new Date(instActivePlan.end_date);
+                                    const activeDaysLeft = Math.max(0, Math.ceil((activeValidTill.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+                                    return (
+                                      <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-black uppercase tracking-wider shadow-sm">
+                                        {activeDaysLeft} Days Left
+                                      </span>
+                                    )
+                                  })()}
+                                </div>
                               </div>
                               <div className="p-5">
                                 <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
                                   <div className="flex-1">
-                                    <h5 className="text-base font-black text-slate-800 dark:text-slate-100">{instActivePlan.plan_name}</h5>
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                      <h5 className="text-base font-black text-slate-800 dark:text-slate-100">{instActivePlan.plan_name}</h5>
+                                      {(() => {
+                                        const fullPlan = filteredPlansList.find(p => p.id === instActivePlan.plan_id) || plans.find(p => p.id === instActivePlan.plan_id);
+                                        const brochure = instActivePlan.brochure_url || fullPlan?.brochure_url;
+                                        if (brochure) {
+                                          return (
+                                            <button
+                                              onClick={() => handleDownloadBrochure(brochure, instActivePlan.plan_name)}
+                                              className="px-2.5 py-1 bg-transparent hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/80 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                              title="Download Brochure"
+                                            >
+                                              <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                              Brochure
+                                            </button>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
+                                    </div>
                                     {(() => {
                                       const fullPlan = filteredPlansList.find(p => p.id === instActivePlan.plan_id) || plans.find(p => p.id === instActivePlan.plan_id);
                                       if (!fullPlan) return null;
@@ -1610,34 +1795,11 @@ function BillingDashboardContent() {
                                         <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Valid Till: <span className="font-bold text-slate-700 dark:text-slate-300 ml-1">{formatDateOnly(instActivePlan.end_date)}</span></div>
                                       </div>
                                     </div>
-                                    {(() => {
-                                      const activeValidTill = new Date(instActivePlan.end_date);
-                                      const activeDaysLeft = Math.max(0, Math.ceil((activeValidTill.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
-                                      return (
-                                        <div className="text-right p-3 bg-gradient-to-br from-indigo-500 to-violet-600 text-white rounded-xl shadow-sm">
-                                          <div className="text-[10px] font-bold text-indigo-100 uppercase tracking-wider">Amount Paid</div>
-                                          <span className="text-2xl font-black">₹{instActivePlan.amount}</span>
-                                        </div>
-                                      )
-                                    })()}
+                                    <div className="text-right flex flex-col justify-center">
+                                      <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Amount Paid</div>
+                                      <span className="text-2xl font-black text-slate-800 dark:text-slate-100">₹{instActivePlan.amount}</span>
+                                    </div>
                                     <div className="flex items-center gap-2">
-                                      {(() => {
-                                        const fullPlan = filteredPlansList.find(p => p.id === instActivePlan.plan_id) || plans.find(p => p.id === instActivePlan.plan_id);
-                                        const brochure = instActivePlan.brochure_url || fullPlan?.brochure_url;
-                                        if (brochure) {
-                                          return (
-                                            <button
-                                              onClick={() => handleDownloadBrochure(brochure, instActivePlan.plan_name)}
-                                              className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:border-indigo-300 transition-all shadow-sm cursor-pointer flex items-center gap-1.5 font-bold text-xs"
-                                              title="Download Brochure"
-                                            >
-                                              <FileText className="w-4 h-4 text-indigo-500" />
-                                              Brochure
-                                            </button>
-                                          );
-                                        }
-                                        return null;
-                                      })()}
                                       <button
                                         onClick={() => handleDownloadPDF(selectedSchool, instActivePlan.amount, instActivePlan.plan_name || 'Active Plan', instActivePlan.payment_date, instActivePlan.transaction_id, instActivePlan.payment_mode)}
                                         className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm cursor-pointer" title="Download Bill"
@@ -1685,23 +1847,53 @@ function BillingDashboardContent() {
                             const daysLeftToRenew = Math.max(0, Math.ceil((validFrom.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
 
                             const hasPendingRenewal = instHasPendingRenewal;
+                            const isRenewalPaid = instHasPaidRenewal || instUpcomingPlans.some((p: any) => p.bill_type === 'renew' || p.plan_id === activeFullPlan?.id);
 
                             return (
                               <div className="mt-6 rounded-2xl border border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/30 dark:bg-indigo-900/10 overflow-hidden">
-                                <div className="px-5 py-4 border-b border-indigo-100/50 dark:border-indigo-900/50 flex items-center justify-between">
+                                <div className="px-5 py-4 border-b border-indigo-100/50 dark:border-indigo-900/50 flex items-center justify-between flex-wrap gap-2">
                                   <h4 className="text-sm font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-2">
                                     Renewal Details (Active Plan)
                                   </h4>
-                                  {hasPendingRenewal && (
-                                    <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 rounded-full text-xs font-black uppercase tracking-wider shadow-sm">
-                                      Renewal Requested
+                                  {isRenewalPaid ? (
+                                    <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-full text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-1.5">
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                      Paid
+                                    </span>
+                                  ) : hasPendingRenewal ? (
+                                    <span className="px-3 py-1 bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded-full text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-1.5">
+                                      <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                      Requested
+                                    </span>
+                                  ) : (
+                                    <span className="px-3 py-1 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 rounded-full text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-1.5">
+                                      <AlertCircle className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400" />
+                                      Not Paid
                                     </span>
                                   )}
                                 </div>
                                 <div className="p-5">
                                   <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
                                     <div className="flex-1">
-                                      <h5 className="text-base font-black text-slate-800 dark:text-slate-100">{activeFullPlan.plan_name} (Renewal)</h5>
+                                      <div className="flex items-center gap-3 flex-wrap">
+                                        <h5 className="text-base font-black text-slate-800 dark:text-slate-100">{activeFullPlan.plan_name} (Renewal)</h5>
+                                        {(() => {
+                                          const brochure = activeFullPlan?.brochure_url || instActivePlan?.brochure_url;
+                                          if (brochure) {
+                                            return (
+                                              <button
+                                                onClick={() => handleDownloadBrochure(brochure, activeFullPlan?.plan_name || instActivePlan?.plan_name)}
+                                                className="px-2.5 py-1 bg-transparent hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/80 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                                title="Download Brochure"
+                                              >
+                                                <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                                Brochure
+                                              </button>
+                                            );
+                                          }
+                                          return null;
+                                        })()}
+                                      </div>
                                       <div className="flex flex-col gap-2 mt-1 mb-1">
                                         <p className="text-xs font-medium text-slate-500 dark:text-slate-400 max-w-lg line-clamp-2">
                                           This is the renewal configuration for your current active plan.
@@ -1749,10 +1941,10 @@ function BillingDashboardContent() {
                                           </div>
                                         </div>
                                       )}
-                                      <div className="text-right p-3 bg-gradient-to-br from-indigo-500 to-violet-600 text-white rounded-xl shadow-sm">
-                                        <div className="text-[10px] font-bold text-indigo-100 uppercase tracking-wider">Renewal Price</div>
-                                        <span className="text-2xl font-black">₹{renewalPrice.toFixed(2)}</span>
-                                        <div className="text-[10px] font-medium text-indigo-200 mt-0.5">
+                                      <div className="text-right flex flex-col justify-center">
+                                        <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Renewal Price</div>
+                                        <span className="text-2xl font-black text-slate-800 dark:text-slate-100">₹{renewalPrice.toFixed(2)}</span>
+                                        <div className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5">
                                           {daysLeftToRenew} days left
                                         </div>
                                       </div>
@@ -1761,7 +1953,7 @@ function BillingDashboardContent() {
                                 </div>
                                 <div className="px-5 py-4 bg-indigo-100/30 dark:bg-indigo-900/20 border-t border-indigo-100/50 dark:border-indigo-900/50 flex flex-wrap items-center gap-3">
                                   <button
-                                    disabled={hasPendingRenewal}
+                                    disabled={hasPendingRenewal || isRenewalPaid}
                                     onClick={() => {
                                       setPurchaseMode('renew')
                                       if (activeFullPlan) {
@@ -1772,29 +1964,15 @@ function BillingDashboardContent() {
                                       }
                                     }}
                                     className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 ${
-                                      hasPendingRenewal
+                                      isRenewalPaid
+                                        ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 cursor-not-allowed shadow-none border border-emerald-200 dark:border-emerald-800'
+                                        : hasPendingRenewal
                                         ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-400 cursor-not-allowed shadow-none'
                                         : 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer'
                                     }`}
                                   >
-                                    {hasPendingRenewal ? 'Renewal Requested' : 'Renew Plan'}
+                                    {isRenewalPaid ? 'Plan Renewed (Paid)' : hasPendingRenewal ? 'Renewal Requested' : 'Renew Plan'}
                                   </button>
-                                  {(() => {
-                                    const brochure = activeFullPlan?.brochure_url || instActivePlan?.brochure_url;
-                                    if (brochure) {
-                                      return (
-                                        <button
-                                          onClick={() => handleDownloadBrochure(brochure, activeFullPlan?.plan_name || instActivePlan?.plan_name)}
-                                          className="px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:border-indigo-300 transition-all shadow-sm cursor-pointer flex items-center gap-1.5 font-bold text-xs"
-                                          title="Download Brochure"
-                                        >
-                                          <FileText className="w-4 h-4 text-indigo-500" />
-                                          Brochure
-                                        </button>
-                                      );
-                                    }
-                                    return null;
-                                  })()}
                                 </div>
                               </div>
                             );
@@ -1822,18 +2000,43 @@ function BillingDashboardContent() {
                           <div className="flex flex-col gap-6 mt-6">
                             {instUpcomingPlans.map((plan: any) => (
                               <div key={plan.id} className="rounded-2xl border border-blue-100 bg-blue-50/50 dark:border-blue-900/30 dark:bg-blue-900/10 overflow-hidden">
-                                <div className="px-5 py-4 border-b border-blue-100/50 dark:border-blue-900/50 flex items-center justify-between">
+                                <div className="px-5 py-4 border-b border-blue-100/50 dark:border-blue-900/50 flex items-center justify-between flex-wrap gap-2">
                                   <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider flex items-center gap-2">
                                     Queued Plan
                                   </h4>
-                                  <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full text-xs font-black uppercase tracking-wider shadow-sm">
-                                    Queued
-                                  </span>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-full text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-1.5">
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                      Paid
+                                    </span>
+                                    <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full text-xs font-black uppercase tracking-wider shadow-sm">
+                                      Upcoming
+                                    </span>
+                                  </div>
                                 </div>
                                 <div className="p-5">
                                   <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
                                     <div className="flex-1">
-                                      <h5 className="text-base font-black text-slate-800 dark:text-slate-100">{plan.plan_name}</h5>
+                                      <div className="flex items-center gap-3 flex-wrap">
+                                        <h5 className="text-base font-black text-slate-800 dark:text-slate-100">{plan.plan_name}</h5>
+                                        {(() => {
+                                          const fullPlan = filteredPlansList.find(p => p.id === plan.plan_id) || plans.find(p => p.id === plan.plan_id);
+                                          const brochure = plan.brochure_url || fullPlan?.brochure_url;
+                                          if (brochure) {
+                                            return (
+                                              <button
+                                                onClick={() => handleDownloadBrochure(brochure, plan.plan_name)}
+                                                className="px-2.5 py-1 bg-transparent hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/80 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                                title="Download Brochure"
+                                              >
+                                                <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                                Brochure
+                                              </button>
+                                            );
+                                          }
+                                          return null;
+                                        })()}
+                                      </div>
                                       {(() => {
                                         const fullPlan = filteredPlansList.find(p => p.id === plan.plan_id) || plans.find(p => p.id === plan.plan_id);
                                         if (!fullPlan) return null;
@@ -1885,31 +2088,14 @@ function BillingDashboardContent() {
                                           <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Valid Till: <span className="font-bold text-slate-700 dark:text-slate-300 ml-1">{formatDateOnly(plan.end_date)}</span></div>
                                         </div>
                                       </div>
-                                      <div className="text-right p-3 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl shadow-sm">
-                                        <div className="text-[10px] font-bold text-blue-100 uppercase tracking-wider">Price Paid</div>
-                                        <span className="text-2xl font-black">₹{plan.amount}</span>
+                                      <div className="text-right flex flex-col justify-center">
+                                        <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Price Paid</div>
+                                        <span className="text-2xl font-black text-slate-800 dark:text-slate-100">₹{plan.amount}</span>
                                       </div>
                                     </div>
                                   </div>
                                 </div>
                                 <div className="px-5 py-4 bg-blue-100/30 dark:bg-blue-900/20 border-t border-blue-100/50 dark:border-blue-900/50 flex flex-wrap items-center justify-end gap-3">
-                                  {(() => {
-                                     const fullPlan = filteredPlansList.find(p => p.id === plan.plan_id) || plans.find(p => p.id === plan.plan_id);
-                                     const brochure = plan.brochure_url || fullPlan?.brochure_url;
-                                     if (brochure) {
-                                       return (
-                                         <button
-                                           onClick={() => handleDownloadBrochure(brochure, plan.plan_name)}
-                                           className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-blue-600 dark:text-blue-400 hover:text-blue-700 transition-all shadow-sm cursor-pointer flex items-center gap-1.5 font-bold text-xs"
-                                           title="Download Brochure"
-                                         >
-                                           <FileText className="w-4 h-4 text-blue-500" />
-                                           Brochure
-                                         </button>
-                                       );
-                                     }
-                                     return null;
-                                   })()}
                                   <button onClick={() => handleDownloadPDF(selectedSchool, plan.amount, plan.plan_name || 'Upcoming Plan', plan.payment_date, plan.transaction_id, plan.payment_mode)} className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm cursor-pointer" title="Download Bill">
                                     <Download className="w-4 h-4" />
                                   </button>
@@ -1935,6 +2121,7 @@ function BillingDashboardContent() {
                                   <th className="px-4 py-3 text-slate-600 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">Amount</th>
                                   <th className="px-4 py-3 text-slate-600 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">Method</th>
                                   <th className="px-4 py-3 text-slate-600 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">Txn ID</th>
+                                  <th className="px-4 py-3 text-slate-600 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">Status</th>
                                   <th className="px-4 py-3 text-slate-600 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700 text-right">Actions</th>
                                 </tr>
                               </thead>
@@ -1948,6 +2135,11 @@ function BillingDashboardContent() {
                                     <td className="px-4 py-3 font-bold">₹{h.amount}</td>
                                     <td className="px-4 py-3 uppercase">{h.payment_mode}</td>
                                     <td className="px-4 py-3 font-mono text-[10px]">{h.transaction_id || '—'}</td>
+                                    <td className="px-4 py-3">
+                                      <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 rounded text-[10px] font-bold">
+                                        Paid
+                                      </span>
+                                    </td>
                                     <td className="px-4 py-3 text-right">
                                       <div className="flex items-center justify-end gap-2">
                                         {(() => {
@@ -2023,66 +2215,126 @@ function BillingDashboardContent() {
                         </div>
                       ) : (
                         <div className="flex flex-col gap-6">
-                          {filteredPlansList.map((p) => (
-                            <div
-                              key={p.id}
-                              className="bg-white dark:bg-slate-800 rounded-2xl p-7 border border-slate-200 dark:border-slate-700/60 shadow-sm flex flex-col md:flex-row gap-6 justify-between items-start md:items-center relative hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 transition-all"
-                            >
-                              <div className="flex-1 min-w-0">
-                                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">{p.plan_name}</h3>
-                                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed mt-1">
-                                  {p.description || 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.'}
-                                </p>
-                                
-                                <div className="w-full h-px bg-slate-100 dark:bg-slate-700 my-4" />
-                                <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2.5">Plan Features</h4>
-                                
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
-                                  {getPlanFeatures(p).map((feature, fIdx) => (
-                                    <div key={fIdx} className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
-                                      <span className="truncate">{feature}</span>
+                          {filteredPlansList.map((p) => {
+                            const basePrice = (p.first_billing_items && p.first_billing_items.length > 0)
+                              ? p.first_billing_items.reduce((sum: number, item: any) => sum + getItemTotal(item), 0)
+                              : (Number((p as any).price) || Number((p as any).amount) || 0);
+
+                            const renewalPrice = (p.renewal_billing_items && p.renewal_billing_items.length > 0)
+                              ? p.renewal_billing_items.reduce((sum: number, item: any) => sum + getItemTotal(item), 0)
+                              : 0;
+
+                            const baseDuration = p.first_billing_duration || 365;
+                            const renewalDuration = p.renewal_billing_duration || 365;
+                            const hasRenewal = Boolean(
+                              (p.renewal_billing_items && p.renewal_billing_items.length > 0) ||
+                              (p.renewal_billing_duration && p.renewal_billing_duration > 0 && renewalPrice > 0)
+                            );
+
+                            return (
+                              <div
+                                key={p.id}
+                                className="bg-white dark:bg-slate-800 rounded-2xl p-7 border border-slate-200 dark:border-slate-700/60 shadow-sm flex flex-col md:flex-row gap-6 justify-between items-start md:items-center relative hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 transition-all"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-3 flex-wrap">
+                                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">{p.plan_name}</h3>
+                                    {p.segment && (
+                                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/60">
+                                        {p.segment}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed mt-1">
+                                    {p.description || 'Check billing components details of the selected plan below.'}
+                                  </p>
+                                  
+                                  <div className="w-full h-px bg-slate-100 dark:bg-slate-700 my-4" />
+                                  <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2.5">Plan Features</h4>
+                                  
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
+                                    {getPlanFeatures(p).map((feature, fIdx) => (
+                                      <div key={fIdx} className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                                        <span className="truncate">{feature}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row md:flex-col gap-4 items-stretch md:items-end w-full md:w-auto shrink-0 border-t md:border-t-0 border-slate-100 dark:border-slate-700 pt-4 md:pt-0">
+                                  {hasRenewal && renewalPrice > 0 ? (
+                                    <div className="flex flex-wrap sm:flex-nowrap md:flex-wrap items-center gap-2.5 justify-center md:justify-end">
+                                      <div className="border border-indigo-100 dark:border-indigo-900/60 rounded-xl px-4 py-2.5 text-center bg-indigo-50/60 dark:bg-indigo-950/30 flex flex-col items-center justify-center shrink-0 min-w-[115px]">
+                                        <span className="text-[9px] font-extrabold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">Base Amount</span>
+                                        <span className="text-base font-black text-indigo-600 dark:text-indigo-300 mt-0.5">
+                                          ₹{basePrice.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                        </span>
+                                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-0.5">
+                                          {baseDuration} Days
+                                        </span>
+                                      </div>
+
+                                      <div className="border border-violet-100 dark:border-violet-900/60 rounded-xl px-4 py-2.5 text-center bg-violet-50/60 dark:bg-violet-950/30 flex flex-col items-center justify-center shrink-0 min-w-[115px]">
+                                        <span className="text-[9px] font-extrabold text-violet-500 dark:text-violet-400 uppercase tracking-wider">Renewal Amount</span>
+                                        <span className="text-base font-black text-violet-600 dark:text-violet-300 mt-0.5">
+                                          ₹{renewalPrice.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                        </span>
+                                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-0.5">
+                                          {renewalDuration} Days
+                                        </span>
+                                      </div>
                                     </div>
-                                  ))}
-                                </div>
-                              </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2.5 justify-center md:justify-end">
+                                      <div className="border border-indigo-100 dark:border-indigo-900/60 rounded-xl px-5 py-3 text-center bg-indigo-50/60 dark:bg-indigo-950/30 flex flex-col items-center justify-center shrink-0 min-w-[110px]">
+                                        <span className="text-[9px] font-extrabold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">Plan Amount</span>
+                                        <span className="text-lg font-black text-indigo-600 dark:text-indigo-300 mt-0.5">
+                                          ₹{basePrice.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                        </span>
+                                      </div>
 
-                              <div className="flex flex-col sm:flex-row md:flex-col gap-4 items-stretch md:items-end w-full md:w-auto shrink-0 border-t md:border-t-0 border-slate-100 dark:border-slate-700 pt-4 md:pt-0">
-                                <div className="border border-slate-200 dark:border-slate-700 rounded-xl px-5 py-3 text-center bg-slate-50/50 dark:bg-slate-800/30 flex flex-col items-center justify-center shrink-0">
-                                  <span className="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Validity</span>
-                                  <span className="text-base font-extrabold text-slate-800 dark:text-slate-100 mt-0.5">{p.first_billing_duration || 365} Days</span>
-                                </div>
-
-                                <div className="flex flex-row md:flex-col gap-2 flex-1 md:flex-none">
-                                  {p.brochure_url && (
-                                    <button
-                                      onClick={() => handleDownloadBrochure(p.brochure_url, p.plan_name)}
-                                      className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-400 rounded-xl text-xs font-bold transition-all border border-emerald-200 dark:border-emerald-800/60 cursor-pointer shadow-sm"
-                                    >
-                                      <Download className="w-4 h-4" />
-                                      Brochure
-                                    </button>
+                                      <div className="border border-slate-200 dark:border-slate-700 rounded-xl px-5 py-3 text-center bg-slate-50/50 dark:bg-slate-800/30 flex flex-col items-center justify-center shrink-0 min-w-[100px]">
+                                        <span className="text-[9px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Validity</span>
+                                        <span className="text-base font-extrabold text-slate-800 dark:text-slate-100 mt-0.5">{baseDuration} Days</span>
+                                      </div>
+                                    </div>
                                   )}
-                                  <button
-                                    onClick={() => setShowViewPlanModal(p)}
-                                    className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-[#EBF6F6] dark:bg-slate-750 hover:bg-[#EBF6F6]/80 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold transition-all border border-indigo-100 dark:border-slate-600 cursor-pointer"
-                                  >
-                                    <FileText className="w-4 h-4" />
-                                    View Plan
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setSelectedPlan(p)
-                                      setWizardStep(2)
-                                    }}
-                                    className="flex-1 md:flex-none px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
-                                  >
-                                    Buy Now
-                                  </button>
+
+                                  <div className="flex flex-row md:flex-col gap-2 flex-1 md:flex-none w-full">
+                                    {p.brochure_url && (
+                                      <button
+                                        onClick={() => handleDownloadBrochure(p.brochure_url, p.plan_name)}
+                                        className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-400 rounded-xl text-xs font-bold transition-all border border-emerald-200 dark:border-emerald-800/60 cursor-pointer shadow-sm"
+                                      >
+                                        <Download className="w-4 h-4" />
+                                        Brochure
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => {
+                                        setShowViewPlanModal(p)
+                                        setViewPlanTab('first')
+                                      }}
+                                      className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-[#EBF6F6] dark:bg-slate-750 hover:bg-[#EBF6F6]/80 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold transition-all border border-indigo-100 dark:border-slate-600 cursor-pointer"
+                                    >
+                                      <FileText className="w-4 h-4" />
+                                      View Plan
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setSelectedPlan(p)
+                                        setWizardStep(2)
+                                      }}
+                                      className="flex-1 md:flex-none px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                                    >
+                                      Buy Now
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            )
+                          })}
                         </div>
                       )}
                     </div>
@@ -2137,16 +2389,49 @@ function BillingDashboardContent() {
                       </div>
 
                       {/* Provider Box */}
-                      <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-700/60 text-xs text-slate-600 dark:text-slate-300 flex flex-col gap-1 max-w-sm">
-                        <span className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Who is this from?</span>
-                        <p className="font-bold text-slate-800 dark:text-slate-200">Academy Setu Technologies Pvt. Ltd.</p>
-                        <p className="text-[11px] text-slate-500">Platform Accounts & Billing Support Desk</p>
-                        {selectedSegment && (
-                          <span className="self-start mt-0.5 px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded text-[10px] font-bold">
-                            Segment: {selectedSegment}
-                          </span>
-                        )}
-                      </div>
+                      {purchaseMode === 'edit' ? (
+                        <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-700/60 text-xs text-slate-600 dark:text-slate-300 flex flex-col gap-1.5 max-w-sm">
+                          <span className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Who is this from?</span>
+                          <input
+                            type="text"
+                            value={fromCompanyName}
+                            onChange={(e) => setFromCompanyName(e.target.value)}
+                            placeholder="Company / Provider Name"
+                            className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+                          />
+                          <input
+                            type="text"
+                            value={fromCompanySubtitle}
+                            onChange={(e) => setFromCompanySubtitle(e.target.value)}
+                            placeholder="Department / Support Desk"
+                            className="px-2 py-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] text-slate-500 dark:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+                          />
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[10px] font-bold text-slate-400 shrink-0">Segment:</span>
+                            <input
+                              type="text"
+                              value={fromSegment || selectedSegment}
+                              onChange={(e) => {
+                                setFromSegment(e.target.value)
+                                setSelectedSegment(e.target.value)
+                              }}
+                              placeholder="Segment (e.g. College / School)"
+                              className="w-full px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 rounded text-[10px] font-bold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-700/60 text-xs text-slate-600 dark:text-slate-300 flex flex-col gap-1 max-w-sm">
+                          <span className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Who is this from?</span>
+                          <p className="font-bold text-slate-800 dark:text-slate-200">Academy Setu Technologies Pvt. Ltd.</p>
+                          <p className="text-[11px] text-slate-500">Platform Accounts & Billing Support Desk</p>
+                          {selectedSegment && (
+                            <span className="self-start mt-0.5 px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded text-[10px] font-bold">
+                              Segment: {selectedSegment}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Right: Invoice Title & Metadata */}
@@ -2157,12 +2442,18 @@ function BillingDashboardContent() {
                         </h1>
                         <div className="flex items-center md:justify-end gap-1.5 mt-0.5">
                           <span className="text-xs font-bold text-slate-400">#</span>
-                          <input 
-                            type="text" 
-                            value={invoiceNo}
-                            onChange={(e) => setInvoiceNo(e.target.value)}
-                            className="px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-800 dark:text-slate-200 w-36 text-left md:text-right focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                          />
+                          {purchaseMode === 'edit' ? (
+                            <input 
+                              type="text" 
+                              value={invoiceNo}
+                              onChange={(e) => setInvoiceNo(e.target.value)}
+                              className="px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-800 dark:text-slate-200 w-36 text-left md:text-right focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            />
+                          ) : (
+                            <span className="px-2.5 py-1 bg-slate-50 dark:bg-slate-800 rounded-lg text-xs font-mono font-bold text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-700">
+                              {invoiceNo}
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -2170,107 +2461,303 @@ function BillingDashboardContent() {
                       <div className="grid grid-cols-2 gap-2 text-xs w-full">
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</span>
-                          <input 
-                            type="date" 
-                            value={invoiceDate}
-                            onChange={(e) => setInvoiceDate(e.target.value)}
-                            className="px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                          />
+                          {purchaseMode === 'edit' ? (
+                            <input 
+                              type="date" 
+                              value={invoiceDate}
+                              onChange={(e) => setInvoiceDate(e.target.value)}
+                              className="px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            />
+                          ) : (
+                            <div className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200">
+                              {invoiceDate}
+                            </div>
+                          )}
                         </div>
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment Terms</span>
-                          <select 
-                            value={invoicePaymentTerms}
-                            onChange={(e) => setInvoicePaymentTerms(e.target.value)}
-                            className="px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                          >
-                            <option value="Due on Receipt">Due on Receipt</option>
-                            <option value="Immediate">Immediate</option>
-                            <option value="Net 15">Net 15</option>
-                            <option value="Net 30">Net 30</option>
-                          </select>
+                          {purchaseMode === 'edit' ? (
+                            <select 
+                              value={invoicePaymentTerms}
+                              onChange={(e) => setInvoicePaymentTerms(e.target.value)}
+                              className="px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            >
+                              <option value="Due on Receipt">Due on Receipt</option>
+                              <option value="Immediate">Immediate</option>
+                              <option value="Net 15">Net 15</option>
+                              <option value="Net 30">Net 30</option>
+                            </select>
+                          ) : (
+                            <div className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200">
+                              {invoicePaymentTerms}
+                            </div>
+                          )}
                         </div>
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Due Date</span>
-                          <input 
-                            type="date" 
-                            value={invoiceDueDate}
-                            onChange={(e) => setInvoiceDueDate(e.target.value)}
-                            className="px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                          />
+                          {purchaseMode === 'edit' ? (
+                            <input 
+                              type="date" 
+                              value={invoiceDueDate}
+                              onChange={(e) => setInvoiceDueDate(e.target.value)}
+                              className="px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            />
+                          ) : (
+                            <div className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200">
+                              {invoiceDueDate}
+                            </div>
+                          )}
                         </div>
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">PO Number</span>
-                          <input 
-                            type="text" 
-                            placeholder="Optional PO#" 
-                            value={invoicePoNumber}
-                            onChange={(e) => setInvoicePoNumber(e.target.value)}
-                            className="px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                          />
+                          {purchaseMode === 'edit' ? (
+                            <input 
+                              type="text" 
+                              placeholder="Optional PO#" 
+                              value={invoicePoNumber}
+                              onChange={(e) => setInvoicePoNumber(e.target.value)}
+                              className="px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            />
+                          ) : (
+                            <div className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300">
+                              {invoicePoNumber || '—'}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* ================= BILL TO (INSTITUTE DETAILS) ================= */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/70 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/60">
-                    {/* Billed To */}
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex items-center gap-1.5">
-                        <Building2 className="w-3.5 h-3.5 text-indigo-500" />
-                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                          BILL TO (INSTITUTION)
-                        </span>
-                      </div>
-                      <h3 className="text-base font-black text-slate-800 dark:text-slate-100 leading-tight">
-                        {selectedSchool || instDetails?.name || 'Client School'}
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-300 mt-1">
-                        {instDetails?.code && (
-                          <div><span className="text-slate-400 text-[10px] font-semibold">School Code:</span> <span className="font-bold">{instDetails.code}</span></div>
-                        )}
-                        {instDetails?.contact_person && (
-                          <div><span className="text-slate-400 text-[10px] font-semibold">Contact:</span> <span className="font-bold">{instDetails.contact_person}</span></div>
-                        )}
-                        {instDetails?.mobile_no && (
-                          <div><span className="text-slate-400 text-[10px] font-semibold">Mobile:</span> <span className="font-bold">{instDetails.mobile_no}</span></div>
-                        )}
-                        {instDetails?.email_id && (
-                          <div><span className="text-slate-400 text-[10px] font-semibold">Email:</span> <span className="font-bold">{instDetails.email_id}</span></div>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-start gap-1">
-                        <MapPin className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
-                        {[instDetails?.address, instDetails?.district, instDetails?.state, instDetails?.pincode].filter(Boolean).join(', ') || 'Institution registered address on file'}
-                      </p>
-                    </div>
-
-                    {/* Selected Plan Details & Validity Card */}
-                    <div className="flex flex-col justify-between p-3.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 shadow-sm">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                          <Award className="w-3.5 h-3.5 text-amber-500" /> PLAN PACKAGE
-                        </span>
-                        <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-bold border border-indigo-200 dark:border-indigo-800">
-                          {purchaseMode === 'renew' ? 'Renewal Plan' : purchaseMode === 'change' ? 'Plan Upgrade' : 'New Plan'}
-                        </span>
-                      </div>
-                      {selectedPlan && (
-                        <div className="flex flex-col gap-1 mt-2">
-                          <p className="text-sm font-black text-slate-800 dark:text-slate-100">{selectedPlan.plan_name}</p>
-                          <div className="flex flex-wrap items-center gap-2 mt-1">
-                            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600 flex items-center gap-1">
-                              <Clock className="w-3 h-3 text-slate-500" />
-                              Duration: {purchaseMode === 'renew' ? (selectedPlan.renewal_billing_duration || 365) : (selectedPlan.first_billing_duration || 365)} Days
-                            </span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                              {dates.validFrom} → {dates.validTo}
+                  {/* ================= BILL TO (INSTITUTE DETAILS) & PLAN PACKAGE ================= */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-slate-50/70 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/60">
+                    {/* Billed To (Institution Details - 7 Cols) */}
+                    {purchaseMode === 'edit' ? (
+                      <div className="lg:col-span-7 flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <Building2 className="w-3.5 h-3.5 text-indigo-500" />
+                            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                              BILL TO (INSTITUTION)
                             </span>
                           </div>
+                          <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">Editable Details</span>
                         </div>
-                      )}
-                    </div>
+
+                        {/* Institute Name Input */}
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Institution Name</label>
+                          <input
+                            type="text"
+                            value={billInstName}
+                            onChange={(e) => {
+                              setBillInstName(e.target.value)
+                              setSelectedSchool(e.target.value)
+                            }}
+                            placeholder="Institution / School Name"
+                            className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+                          />
+                        </div>
+
+                        {/* Code, Contact, Mobile, Email */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">School Code</label>
+                            <input
+                              type="text"
+                              value={billInstCode}
+                              onChange={(e) => setBillInstCode(e.target.value)}
+                              placeholder="Code"
+                              className="w-full px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Contact</label>
+                            <input
+                              type="text"
+                              value={billInstContact}
+                              onChange={(e) => setBillInstContact(e.target.value)}
+                              placeholder="Contact Person"
+                              className="w-full px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Mobile No</label>
+                            <input
+                              type="text"
+                              value={billInstMobile}
+                              onChange={(e) => setBillInstMobile(e.target.value)}
+                              placeholder="Mobile"
+                              className="w-full px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Email</label>
+                            <input
+                              type="email"
+                              value={billInstEmail}
+                              onChange={(e) => setBillInstEmail(e.target.value)}
+                              placeholder="Email"
+                              className="w-full px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Address */}
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Complete Address</label>
+                          <div className="relative flex items-center">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
+                            <input
+                              type="text"
+                              value={billInstAddress}
+                              onChange={(e) => setBillInstAddress(e.target.value)}
+                              placeholder="Institution address, street, city, state, pincode"
+                              className="w-full pl-8 pr-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="lg:col-span-7 flex flex-col gap-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <Building2 className="w-3.5 h-3.5 text-indigo-500" />
+                          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                            BILL TO (INSTITUTION)
+                          </span>
+                        </div>
+                        <h3 className="text-base font-black text-slate-800 dark:text-slate-100 leading-tight">
+                          {selectedSchool || instDetails?.name || 'Client School'}
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-300 mt-1">
+                          {(instDetails?.code || billInstCode) && (
+                            <div><span className="text-slate-400 text-[10px] font-semibold">School Code:</span> <span className="font-bold">{instDetails?.code || billInstCode}</span></div>
+                          )}
+                          {(instDetails?.contact_person || billInstContact) && (
+                            <div><span className="text-slate-400 text-[10px] font-semibold">Contact:</span> <span className="font-bold">{instDetails?.contact_person || billInstContact}</span></div>
+                          )}
+                          {(instDetails?.mobile_no || billInstMobile) && (
+                            <div><span className="text-slate-400 text-[10px] font-semibold">Mobile:</span> <span className="font-bold">{instDetails?.mobile_no || billInstMobile}</span></div>
+                          )}
+                          {(instDetails?.email_id || billInstEmail) && (
+                            <div><span className="text-slate-400 text-[10px] font-semibold">Email:</span> <span className="font-bold">{instDetails?.email_id || billInstEmail}</span></div>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-start gap-1">
+                          <MapPin className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
+                          {[instDetails?.address, instDetails?.district, instDetails?.state, instDetails?.pincode].filter(Boolean).join(', ') || billInstAddress || 'Institution registered address on file'}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Selected Plan Details & Validity Card (5 Cols) */}
+                    {purchaseMode === 'edit' ? (
+                      <div className="lg:col-span-5 flex flex-col justify-between p-3.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 shadow-sm gap-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                            <Award className="w-3.5 h-3.5 text-amber-500" /> PLAN PACKAGE
+                          </span>
+                          <select
+                            value={billPlanBadge}
+                            onChange={(e) => setBillPlanBadge(e.target.value)}
+                            className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-bold border border-indigo-200 dark:border-indigo-800 focus:outline-none"
+                          >
+                            <option value="New Plan">New Plan</option>
+                            <option value="Renewal Plan">Renewal Plan</option>
+                            <option value="Plan Upgrade">Plan Upgrade</option>
+                            <option value="Upcoming Plan">Upcoming Plan</option>
+                            <option value="Active Plan">Active Plan</option>
+                            <option value="Custom Plan">Custom Plan</option>
+                          </select>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Plan Package Name</label>
+                            <input
+                              type="text"
+                              value={billPlanName}
+                              onChange={(e) => setBillPlanName(e.target.value)}
+                              placeholder="Plan / Package Name"
+                              className="w-full px-2.5 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-black text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                            <div>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Duration</label>
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={billPlanDuration}
+                                  onChange={(e) => {
+                                    const dur = e.target.value
+                                    setBillPlanDuration(dur)
+                                    if (billValidFrom && dur) {
+                                      const f = new Date(billValidFrom)
+                                      f.setDate(f.getDate() + Number(dur))
+                                      setBillValidTo(f.toISOString().substring(0, 10))
+                                    }
+                                  }}
+                                  placeholder="365"
+                                  className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Valid From</label>
+                              <input
+                                type="date"
+                                value={billValidFrom}
+                                onChange={(e) => {
+                                  setBillValidFrom(e.target.value)
+                                  if (e.target.value && billPlanDuration) {
+                                    const f = new Date(e.target.value)
+                                    f.setDate(f.getDate() + Number(billPlanDuration))
+                                    setBillValidTo(f.toISOString().substring(0, 10))
+                                  }
+                                }}
+                                className="w-full px-1.5 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Valid To</label>
+                              <input
+                                type="date"
+                                value={billValidTo}
+                                onChange={(e) => setBillValidTo(e.target.value)}
+                                className="w-full px-1.5 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="lg:col-span-5 flex flex-col justify-between p-3.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 shadow-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                            <Award className="w-3.5 h-3.5 text-amber-500" /> PLAN PACKAGE
+                          </span>
+                          <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-bold border border-indigo-200 dark:border-indigo-800">
+                            {purchaseMode === 'renew' ? 'Renewal Plan' : purchaseMode === 'change' ? 'Plan Upgrade' : purchaseMode === 'upcoming' ? 'Upcoming Plan' : 'New Plan'}
+                          </span>
+                        </div>
+                        {selectedPlan && (
+                          <div className="flex flex-col gap-1 mt-2">
+                            <p className="text-sm font-black text-slate-800 dark:text-slate-100">{selectedPlan.plan_name}</p>
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600 flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-slate-500" />
+                                Duration: {purchaseMode === 'renew' ? (selectedPlan.renewal_billing_duration || 365) : (selectedPlan.first_billing_duration || 365)} Days
+                              </span>
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                                {dates.validFrom} → {dates.validTo}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* ================= ITEMIZED BILLING LINE ITEMS TABLE ================= */}
@@ -2280,13 +2767,15 @@ function BillingDashboardContent() {
                         <Receipt className="w-4 h-4 text-indigo-600" />
                         Itemized Billing Details
                       </h4>
-                      <button
-                        type="button"
-                        onClick={handleAddInvoiceItem}
-                        className="flex items-center gap-1 px-3 py-1 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold border border-indigo-200 dark:border-indigo-800 transition-colors cursor-pointer"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> Add Line Item
-                      </button>
+                      {purchaseMode === 'edit' && (
+                        <button
+                          type="button"
+                          onClick={handleAddInvoiceItem}
+                          className="flex items-center gap-1 px-3 py-1 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold border border-indigo-200 dark:border-indigo-800 transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Add Line Item
+                        </button>
+                      )}
                     </div>
 
                     <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
@@ -2300,7 +2789,7 @@ function BillingDashboardContent() {
                             <th className="py-3 px-3 text-center w-20">Tax (%)</th>
                             <th className="py-3 px-3 text-right w-24">Tax (₹)</th>
                             <th className="py-3 px-3 text-right w-28">Amount (₹)</th>
-                            <th className="py-3 px-2 text-center w-10"></th>
+                            {purchaseMode === 'edit' && <th className="py-3 px-2 text-center w-10"></th>}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800/50">
@@ -2308,38 +2797,62 @@ function BillingDashboardContent() {
                             <tr key={item.id || idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-800 transition-colors">
                               <td className="py-2.5 px-3 text-center text-slate-400 font-bold text-[11px]">{idx + 1}</td>
                               <td className="py-2.5 px-3">
-                                <input
-                                  type="text"
-                                  value={item.description}
-                                  onChange={(e) => handleInvoiceItemChange(item.id, 'description', e.target.value)}
-                                  placeholder="Plan Name"
-                                  className="w-full px-2 py-1 bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-600 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-700 rounded text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none transition-all"
-                                />
+                                {purchaseMode === 'edit' ? (
+                                  <input
+                                    type="text"
+                                    value={item.description}
+                                    onChange={(e) => handleInvoiceItemChange(item.id, 'description', e.target.value)}
+                                    placeholder="Plan Name"
+                                    className="w-full px-2 py-1 bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-600 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-700 rounded text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none transition-all"
+                                  />
+                                ) : (
+                                  <span className="font-semibold text-slate-800 dark:text-slate-200 block px-2 py-1">
+                                    {item.description}
+                                  </span>
+                                )}
                               </td>
                               <td className="py-2.5 px-3 text-center">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={item.quantity || 1}
-                                  onChange={(e) => handleInvoiceItemChange(item.id, 'quantity', e.target.value)}
-                                  className="w-14 px-1.5 py-1 bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-600 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-700 rounded text-xs text-center font-bold text-slate-800 dark:text-slate-200 focus:outline-none transition-all"
-                                />
+                                {purchaseMode === 'edit' ? (
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={item.quantity || 1}
+                                    onChange={(e) => handleInvoiceItemChange(item.id, 'quantity', e.target.value)}
+                                    className="w-14 px-1.5 py-1 bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-600 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-700 rounded text-xs text-center font-bold text-slate-800 dark:text-slate-200 focus:outline-none transition-all"
+                                  />
+                                ) : (
+                                  <span className="font-bold text-slate-700 dark:text-slate-300">
+                                    {item.quantity || 1}
+                                  </span>
+                                )}
                               </td>
                               <td className="py-2.5 px-3 text-right">
-                                <input
-                                  type="number"
-                                  value={item.price}
-                                  onChange={(e) => handleInvoiceItemChange(item.id, 'price', e.target.value)}
-                                  className="w-24 px-2 py-1 bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-600 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-700 rounded text-xs text-right font-bold text-slate-800 dark:text-slate-200 focus:outline-none transition-all"
-                                />
+                                {purchaseMode === 'edit' ? (
+                                  <input
+                                    type="number"
+                                    value={item.price}
+                                    onChange={(e) => handleInvoiceItemChange(item.id, 'price', e.target.value)}
+                                    className="w-24 px-2 py-1 bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-600 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-700 rounded text-xs text-right font-bold text-slate-800 dark:text-slate-200 focus:outline-none transition-all"
+                                  />
+                                ) : (
+                                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                                    ₹{Number(item.price || 0).toFixed(2)}
+                                  </span>
+                                )}
                               </td>
                               <td className="py-2.5 px-3 text-center">
-                                <input
-                                  type="number"
-                                  value={item.tax_percentage}
-                                  onChange={(e) => handleInvoiceItemChange(item.id, 'tax_percentage', e.target.value)}
-                                  className="w-14 px-1 py-1 bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-600 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-700 rounded text-xs text-center font-semibold text-slate-600 dark:text-slate-300 focus:outline-none transition-all"
-                                />
+                                {purchaseMode === 'edit' ? (
+                                  <input
+                                    type="number"
+                                    value={item.tax_percentage}
+                                    onChange={(e) => handleInvoiceItemChange(item.id, 'tax_percentage', e.target.value)}
+                                    className="w-14 px-1 py-1 bg-transparent border border-transparent hover:border-slate-200 dark:hover:border-slate-600 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-700 rounded text-xs text-center font-semibold text-slate-600 dark:text-slate-300 focus:outline-none transition-all"
+                                  />
+                                ) : (
+                                  <span className="font-semibold text-slate-600 dark:text-slate-400">
+                                    {item.tax_percentage || 0}%
+                                  </span>
+                                )}
                               </td>
                               <td className="py-2.5 px-3 text-right font-medium text-slate-500 dark:text-slate-400">
                                 ₹{Number(item.tax_price || 0).toFixed(2)}
@@ -2347,27 +2860,29 @@ function BillingDashboardContent() {
                               <td className="py-2.5 px-3 text-right font-black text-slate-800 dark:text-slate-100">
                                 ₹{Number(item.total || 0).toFixed(2)}
                               </td>
-                              <td className="py-2.5 px-2 text-center">
-                                {invoiceItems.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveInvoiceItem(item.id)}
-                                    className="p-1 text-slate-300 hover:text-red-500 rounded transition-colors cursor-pointer"
-                                    title="Remove item"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                              </td>
+                              {purchaseMode === 'edit' && (
+                                <td className="py-2.5 px-2 text-center">
+                                  {invoiceItems.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveInvoiceItem(item.id)}
+                                      className="p-1 text-slate-300 hover:text-red-500 rounded transition-colors cursor-pointer"
+                                      title="Remove item"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </td>
+                              )}
                             </tr>
                           ))}
                         </tbody>
                         <tfoot className="bg-slate-50/80 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 text-xs font-bold">
                           <tr>
                             <td colSpan={3} className="py-2 px-3 text-slate-500">Subtotal (Excl. Tax): ₹{getInvoiceSubtotal().toFixed(2)}</td>
-                            <td colSpan={3} className="py-2 px-3 text-right text-slate-500">Total Tax: ₹{getInvoiceTaxTotal().toFixed(2)}</td>
+                            <td colSpan={purchaseMode === 'edit' ? 3 : 2} className="py-2 px-3 text-right text-slate-500">Total Tax: ₹{getInvoiceTaxTotal().toFixed(2)}</td>
                             <td className="py-2 px-3 text-right text-slate-900 dark:text-white font-black">₹{getGrossAmount().toFixed(2)}</td>
-                            <td></td>
+                            {purchaseMode === 'edit' && <td></td>}
                           </tr>
                         </tfoot>
                       </table>
@@ -2380,224 +2895,276 @@ function BillingDashboardContent() {
                     {/* LEFT COLUMN: Payment Mode, Multiple Transactions, Notes & Terms (7 Cols) */}
                     <div className="lg:col-span-7 flex flex-col gap-4">
                       
-                      {/* Payment Mode Selector */}
-                      <div className="bg-slate-50/60 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-3">
-                        <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-2">
-                          <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                            <CreditCard className="w-4 h-4 text-indigo-500" />
-                            Payment Method
-                          </h4>
-                          <span className="text-[10px] font-bold text-slate-400">Select Mode</span>
+                      {/* Hidden form anchor if in edit mode */}
+                      {purchaseMode === 'edit' && (
+                        <form id="checkout-form" onSubmit={handleCheckoutSubmit} className="hidden" />
+                      )}
+
+                      {/* Payment Mode Selector (Only for Plan Purchase / Renewal / Change / Upcoming, NOT in Transaction History edit) */}
+                      {purchaseMode !== 'edit' && (
+                        <div className="bg-slate-50/60 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-3">
+                          <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-2">
+                            <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                              <CreditCard className="w-4 h-4 text-indigo-500" />
+                              Payment Method
+                            </h4>
+                            <span className="text-[10px] font-bold text-slate-400">Select Mode</span>
+                          </div>
+
+                          {/* Mode Buttons */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            {(['gateway', 'bank', 'upi', 'qr'] as const).map(mode => (
+                              <button 
+                                key={mode} 
+                                type="button" 
+                                onClick={() => setPaymentModeOption(mode)}
+                                className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl border-2 text-[11px] font-bold transition-all cursor-pointer ${
+                                  paymentModeOption === mode 
+                                    ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 shadow-sm ring-1 ring-indigo-500/20' 
+                                    : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800'
+                                }`}
+                              >
+                                <span className="text-sm leading-none">
+                                  {mode === 'gateway' ? '💳' : mode === 'bank' ? '🏦' : mode === 'upi' ? '📱' : '📷'}
+                                </span>
+                                {mode === 'gateway' ? 'Gateway' : mode === 'bank' ? 'Bank' : mode === 'upi' ? 'UPI' : 'QR Code'}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Payment Mode Forms */}
+                          <form id="checkout-form" onSubmit={handleCheckoutSubmit} className="flex flex-col gap-3 mt-1">
+                            {/* 1. Gateway */}
+                            {paymentModeOption === 'gateway' && (
+                              <div className="flex flex-col gap-2 p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs">
+                                <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+                                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Razorpay Online Gateway</span>
+                                  <button type="button" onClick={() => handleGenerateLink('Razorpay')} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg cursor-pointer transition-colors shadow-sm">Generate Link</button>
+                                </div>
+                                <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+                                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">PhonePe Payment Gateway</span>
+                                  <button type="button" onClick={() => handleGenerateLink('Phonepe')} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg cursor-pointer transition-colors shadow-sm">Generate Link</button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 2. Bank Transfer */}
+                            {paymentModeOption === 'bank' && (
+                              <div className="flex flex-col gap-3">
+                                <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs">
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Bank Account Details</p>
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                                    <div><span className="text-slate-400 text-[10px] font-semibold block">Account No.</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankAccountNo}</span></div>
+                                    <div><span className="text-slate-400 text-[10px] font-semibold block">IFSC Code</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankIfsc}</span></div>
+                                    <div><span className="text-slate-400 text-[10px] font-semibold block">Holder Name</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankHolderName}</span></div>
+                                  </div>
+                                </div>
+
+                                {/* Multi-Payment Rows */}
+                                <div className="flex flex-col gap-2.5">
+                                  <div className="flex items-center justify-between flex-wrap gap-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                                        Attached Transactions ({payments.length})
+                                      </span>
+                                      {getTotalEntered() < getFinalAmount() ? (
+                                        <span className="text-[10px] font-bold bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-md border border-rose-200 dark:border-rose-800/60">
+                                          Entered: ₹{getTotalEntered().toFixed(2)} (Short by ₹{(getFinalAmount() - getTotalEntered()).toFixed(2)})
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800/60">
+                                          Total: ₹{getTotalEntered().toFixed(2)} ✓ Full Amount
+                                        </span>
+                                      )}
+                                    </div>
+                                    <button type="button" onClick={addPayment} className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">
+                                      <Plus className="w-3.5 h-3.5" /> Add Another Payment
+                                    </button>
+                                  </div>
+
+                                  {payments.map((p, index) => (
+                                    <div key={p.id} className="relative grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xs">
+                                      {index > 0 && (
+                                        <button type="button" onClick={() => removePayment(p.id)} className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-1 cursor-pointer transition-colors shadow-sm z-10" title="Remove Payment">
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      )}
+                                      <div className="flex flex-col gap-1">
+                                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID / UTR *</label>
+                                        <input type="text" placeholder="Enter UTR / Txn ID" value={p.txnId} onChange={e => updatePayment(p.id, 'txnId', e.target.value)} required className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                      </div>
+                                      <div className="flex flex-col gap-1">
+                                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount (₹) *</label>
+                                        <input type="number" placeholder="Amount" value={p.amount} onChange={e => updatePayment(p.id, 'amount', e.target.value)} required className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                      </div>
+                                      <div className="flex flex-col gap-1 sm:col-span-2">
+                                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Payment Proof Screenshot *</label>
+                                        <label className="relative cursor-pointer block">
+                                          <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                              const reader = new FileReader();
+                                              reader.onloadend = () => {
+                                                setPayments(prev => prev.map(pay => pay.id === p.id ? { ...pay, screenshot: file.name, screenshotData: reader.result as string } : pay));
+                                              };
+                                              reader.readAsDataURL(file);
+                                            }
+                                          }} />
+                                          <div className={`w-full px-3 py-1.5 pr-8 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs truncate ${p.screenshot ? 'text-slate-800 dark:text-slate-200 font-medium' : 'text-slate-400'}`}>
+                                            {p.screenshot || 'Attach payment receipt / screenshot...'}
+                                          </div>
+                                          <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2" />
+                                        </label>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 3. UPI */}
+                            {paymentModeOption === 'upi' && (
+                              <div className="flex flex-col gap-3">
+                                <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs">
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">UPI Details</p>
+                                  <div className="text-xs"><span className="text-slate-400 text-[10px] font-semibold block">VPA / UPI ID:</span><span className="font-bold text-slate-800 dark:text-slate-200">{upiId}</span></div>
+                                </div>
+                                <div className="flex flex-col gap-2.5">
+                                  <div className="flex items-center justify-between flex-wrap gap-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                                        Attached Transactions ({payments.length})
+                                      </span>
+                                      {getTotalEntered() < getFinalAmount() ? (
+                                        <span className="text-[10px] font-bold bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-md border border-rose-200 dark:border-rose-800/60">
+                                          Entered: ₹{getTotalEntered().toFixed(2)} (Short by ₹{(getFinalAmount() - getTotalEntered()).toFixed(2)})
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800/60">
+                                          Total: ₹{getTotalEntered().toFixed(2)} ✓ Full Amount
+                                        </span>
+                                      )}
+                                    </div>
+                                    <button type="button" onClick={addPayment} className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">
+                                      <Plus className="w-3.5 h-3.5" /> Add Another Payment
+                                    </button>
+                                  </div>
+
+                                  {payments.map((p, index) => (
+                                    <div key={p.id} className="relative grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xs">
+                                      {index > 0 && (
+                                        <button type="button" onClick={() => removePayment(p.id)} className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-1 cursor-pointer transition-colors shadow-sm z-10" title="Remove Payment">
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      )}
+                                      <div className="flex flex-col gap-1">
+                                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
+                                        <input type="text" placeholder="Enter UPI Ref / Txn ID" value={p.txnId} onChange={e => updatePayment(p.id, 'txnId', e.target.value)} required className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                      </div>
+                                      <div className="flex flex-col gap-1">
+                                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount (₹) *</label>
+                                        <input type="number" placeholder="Amount" value={p.amount} onChange={e => updatePayment(p.id, 'amount', e.target.value)} required className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                      </div>
+                                      <div className="flex flex-col gap-1 sm:col-span-2">
+                                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Payment Proof Screenshot *</label>
+                                        <label className="relative cursor-pointer block">
+                                          <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                              const reader = new FileReader();
+                                              reader.onloadend = () => {
+                                                setPayments(prev => prev.map(pay => pay.id === p.id ? { ...pay, screenshot: file.name, screenshotData: reader.result as string } : pay));
+                                              };
+                                              reader.readAsDataURL(file);
+                                            }
+                                          }} />
+                                          <div className={`w-full px-3 py-1.5 pr-8 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs truncate ${p.screenshot ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400'}`}>
+                                            {p.screenshot || 'Attach payment screenshot...'}
+                                          </div>
+                                          <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2" />
+                                        </label>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 4. QR Code */}
+                            {paymentModeOption === 'qr' && (
+                              <div className="flex flex-col gap-3">
+                                <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-4">
+                                  <div className="p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shrink-0">
+                                    <QrCode className="w-12 h-12 text-indigo-600 dark:text-indigo-400" />
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Scan QR Code to Pay</p>
+                                    <p className="text-[10px] text-slate-500 mt-0.5">Scan via any UPI App (GPay, PhonePe, Paytm), then attach UTR & proof.</p>
+                                  </div>
+                                </div>
+                                <div className="flex flex-col gap-2.5">
+                                  <div className="flex items-center justify-between flex-wrap gap-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                                        Attached Transactions ({payments.length})
+                                      </span>
+                                      {getTotalEntered() < getFinalAmount() ? (
+                                        <span className="text-[10px] font-bold bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-md border border-rose-200 dark:border-rose-800/60">
+                                          Entered: ₹{getTotalEntered().toFixed(2)} (Short by ₹{(getFinalAmount() - getTotalEntered()).toFixed(2)})
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800/60">
+                                          Total: ₹{getTotalEntered().toFixed(2)} ✓ Full Amount
+                                        </span>
+                                      )}
+                                    </div>
+                                    <button type="button" onClick={addPayment} className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">
+                                      <Plus className="w-3.5 h-3.5" /> Add Another Payment
+                                    </button>
+                                  </div>
+
+                                  {payments.map((p, index) => (
+                                    <div key={p.id} className="relative grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xs">
+                                      {index > 0 && (
+                                        <button type="button" onClick={() => removePayment(p.id)} className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-1 cursor-pointer transition-colors shadow-sm z-10" title="Remove Payment">
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      )}
+                                      <div className="flex flex-col gap-1">
+                                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
+                                        <input type="text" placeholder="Enter Transaction ID" value={p.txnId} onChange={e => updatePayment(p.id, 'txnId', e.target.value)} required className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                      </div>
+                                      <div className="flex flex-col gap-1">
+                                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount (₹) *</label>
+                                        <input type="number" placeholder="Amount" value={p.amount} onChange={e => updatePayment(p.id, 'amount', e.target.value)} required className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                      </div>
+                                      <div className="flex flex-col gap-1 sm:col-span-2">
+                                        <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Payment Proof Screenshot *</label>
+                                        <label className="relative cursor-pointer block">
+                                          <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                              const reader = new FileReader();
+                                              reader.onloadend = () => {
+                                                setPayments(prev => prev.map(pay => pay.id === p.id ? { ...pay, screenshot: file.name, screenshotData: reader.result as string } : pay));
+                                              };
+                                              reader.readAsDataURL(file);
+                                            }
+                                          }} />
+                                          <div className={`w-full px-3 py-1.5 pr-8 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs truncate ${p.screenshot ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400'}`}>
+                                            {p.screenshot || 'Attach payment screenshot...'}
+                                          </div>
+                                          <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2" />
+                                        </label>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </form>
                         </div>
-
-                        {/* Mode Buttons */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                          {(['gateway', 'bank', 'upi', 'qr'] as const).map(mode => (
-                            <button 
-                              key={mode} 
-                              type="button" 
-                              onClick={() => setPaymentModeOption(mode)}
-                              className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl border-2 text-[11px] font-bold transition-all cursor-pointer ${
-                                paymentModeOption === mode 
-                                  ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 shadow-sm ring-1 ring-indigo-500/20' 
-                                  : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800'
-                              }`}
-                            >
-                              <span className="text-sm leading-none">
-                                {mode === 'gateway' ? '💳' : mode === 'bank' ? '🏦' : mode === 'upi' ? '📱' : '📷'}
-                              </span>
-                              {mode === 'gateway' ? 'Gateway' : mode === 'bank' ? 'Bank' : mode === 'upi' ? 'UPI' : 'QR Code'}
-                            </button>
-                          ))}
-                        </div>
-
-                        {/* Payment Mode Forms */}
-                        <form id="checkout-form" onSubmit={handleCheckoutSubmit} className="flex flex-col gap-3 mt-1">
-                          {/* 1. Gateway */}
-                          {paymentModeOption === 'gateway' && (
-                            <div className="flex flex-col gap-2 p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs">
-                              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900/50">
-                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Razorpay Online Gateway</span>
-                                <button type="button" onClick={() => handleGenerateLink('Razorpay')} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg cursor-pointer transition-colors shadow-sm">Generate Link</button>
-                              </div>
-                              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900/50">
-                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">PhonePe Payment Gateway</span>
-                                <button type="button" onClick={() => handleGenerateLink('Phonepe')} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg cursor-pointer transition-colors shadow-sm">Generate Link</button>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* 2. Bank Transfer */}
-                          {paymentModeOption === 'bank' && (
-                            <div className="flex flex-col gap-3">
-                              <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Bank Account Details</p>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                                  <div><span className="text-slate-400 text-[10px] font-semibold block">Account No.</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankAccountNo}</span></div>
-                                  <div><span className="text-slate-400 text-[10px] font-semibold block">IFSC Code</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankIfsc}</span></div>
-                                  <div><span className="text-slate-400 text-[10px] font-semibold block">Holder Name</span><span className="font-bold text-slate-800 dark:text-slate-200">{bankHolderName}</span></div>
-                                </div>
-                              </div>
-
-                              {/* Multi-Payment Rows */}
-                              <div className="flex flex-col gap-2.5">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                                    Attached Transactions ({payments.length})
-                                  </span>
-                                  <button type="button" onClick={addPayment} className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">
-                                    <Plus className="w-3.5 h-3.5" /> Add Another Payment
-                                  </button>
-                                </div>
-
-                                {payments.map((p, index) => (
-                                  <div key={p.id} className="relative grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xs">
-                                    {index > 0 && (
-                                      <button type="button" onClick={() => removePayment(p.id)} className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-1 cursor-pointer transition-colors shadow-sm z-10" title="Remove Payment">
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    )}
-                                    <div className="flex flex-col gap-1">
-                                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID / UTR *</label>
-                                      <input type="text" placeholder="Enter UTR / Txn ID" value={p.txnId} onChange={e => updatePayment(p.id, 'txnId', e.target.value)} required className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount (₹) *</label>
-                                      <input type="number" placeholder="Amount" value={p.amount} onChange={e => updatePayment(p.id, 'amount', e.target.value)} required className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                                    </div>
-                                    <div className="flex flex-col gap-1 sm:col-span-2">
-                                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Payment Proof Screenshot</label>
-                                      <label className="relative cursor-pointer block">
-                                        <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => {
-                                          const file = e.target.files?.[0];
-                                          if (file) {
-                                            const reader = new FileReader();
-                                            reader.onloadend = () => {
-                                              setPayments(prev => prev.map(pay => pay.id === p.id ? { ...pay, screenshot: file.name, screenshotData: reader.result as string } : pay));
-                                            };
-                                            reader.readAsDataURL(file);
-                                          }
-                                        }} />
-                                        <div className={`w-full px-3 py-1.5 pr-8 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs truncate ${p.screenshot ? 'text-slate-800 dark:text-slate-200 font-medium' : 'text-slate-400'}`}>
-                                          {p.screenshot || 'Attach payment receipt / screenshot...'}
-                                        </div>
-                                        <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2" />
-                                      </label>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* 3. UPI */}
-                          {paymentModeOption === 'upi' && (
-                            <div className="flex flex-col gap-3">
-                              <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">UPI Details</p>
-                                <div className="text-xs"><span className="text-slate-400 text-[10px] font-semibold block">VPA / UPI ID:</span><span className="font-bold text-slate-800 dark:text-slate-200">{upiId}</span></div>
-                              </div>
-                              <div className="flex flex-col gap-2.5">
-                                {payments.map((p, index) => (
-                                  <div key={p.id} className="relative grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xs">
-                                    {index > 0 && (
-                                      <button type="button" onClick={() => removePayment(p.id)} className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-1 cursor-pointer transition-colors shadow-sm z-10" title="Remove Payment">
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    )}
-                                    <div className="flex flex-col gap-1">
-                                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
-                                      <input type="text" placeholder="Enter UPI Ref / Txn ID" value={p.txnId} onChange={e => updatePayment(p.id, 'txnId', e.target.value)} required className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount (₹) *</label>
-                                      <input type="number" placeholder="Amount" value={p.amount} onChange={e => updatePayment(p.id, 'amount', e.target.value)} required className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                                    </div>
-                                    <div className="flex flex-col gap-1 sm:col-span-2">
-                                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
-                                      <label className="relative cursor-pointer block">
-                                        <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => {
-                                          const file = e.target.files?.[0];
-                                          if (file) {
-                                            const reader = new FileReader();
-                                            reader.onloadend = () => {
-                                              setPayments(prev => prev.map(pay => pay.id === p.id ? { ...pay, screenshot: file.name, screenshotData: reader.result as string } : pay));
-                                            };
-                                            reader.readAsDataURL(file);
-                                          }
-                                        }} />
-                                        <div className={`w-full px-3 py-1.5 pr-8 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs truncate ${p.screenshot ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400'}`}>
-                                          {p.screenshot || 'Attach payment screenshot...'}
-                                        </div>
-                                        <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2" />
-                                      </label>
-                                    </div>
-                                  </div>
-                                ))}
-                                <button type="button" onClick={addPayment} className="self-start flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">
-                                  <Plus className="w-3.5 h-3.5" /> Add Another Payment
-                                </button>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* 4. QR Code */}
-                          {paymentModeOption === 'qr' && (
-                            <div className="flex flex-col gap-3">
-                              <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-4">
-                                <div className="p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shrink-0">
-                                  <QrCode className="w-12 h-12 text-indigo-600 dark:text-indigo-400" />
-                                </div>
-                                <div>
-                                  <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">Scan QR Code to Pay</p>
-                                  <p className="text-[10px] text-slate-500 mt-0.5">Scan via any UPI App (GPay, PhonePe, Paytm), then attach UTR & proof.</p>
-                                </div>
-                              </div>
-                              <div className="flex flex-col gap-2.5">
-                                {payments.map((p, index) => (
-                                  <div key={p.id} className="relative grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xs">
-                                    {index > 0 && (
-                                      <button type="button" onClick={() => removePayment(p.id)} className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-1 cursor-pointer transition-colors shadow-sm z-10" title="Remove Payment">
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    )}
-                                    <div className="flex flex-col gap-1">
-                                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Transaction ID *</label>
-                                      <input type="text" placeholder="Enter Transaction ID" value={p.txnId} onChange={e => updatePayment(p.id, 'txnId', e.target.value)} required className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Amount (₹) *</label>
-                                      <input type="number" placeholder="Amount" value={p.amount} onChange={e => updatePayment(p.id, 'amount', e.target.value)} required className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                                    </div>
-                                    <div className="flex flex-col gap-1 sm:col-span-2">
-                                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Screenshot</label>
-                                      <label className="relative cursor-pointer block">
-                                        <input type="file" accept="image/*,.pdf" className="hidden" onChange={e => {
-                                          const file = e.target.files?.[0];
-                                          if (file) {
-                                            const reader = new FileReader();
-                                            reader.onloadend = () => {
-                                              setPayments(prev => prev.map(pay => pay.id === p.id ? { ...pay, screenshot: file.name, screenshotData: reader.result as string } : pay));
-                                            };
-                                            reader.readAsDataURL(file);
-                                          }
-                                        }} />
-                                        <div className={`w-full px-3 py-1.5 pr-8 bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600 rounded-lg text-xs truncate ${p.screenshot ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400'}`}>
-                                          {p.screenshot || 'Attach payment screenshot...'}
-                                        </div>
-                                        <Paperclip className="w-3.5 h-3.5 text-indigo-600 absolute right-3 top-1/2 -translate-y-1/2" />
-                                      </label>
-                                    </div>
-                                  </div>
-                                ))}
-                                <button type="button" onClick={addPayment} className="self-start flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer">
-                                  <Plus className="w-3.5 h-3.5" /> Add Another Payment
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </form>
-                      </div>
+                      )}
 
                       {/* Notes & Terms Box */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2627,55 +3194,57 @@ function BillingDashboardContent() {
                     {/* RIGHT COLUMN: Promo Code & Invoice Summary Totals (5 Cols) */}
                     <div className="lg:col-span-5 flex flex-col gap-4">
                       
-                      {/* Promo Code Coupon Selector */}
-                      <div className="p-4 bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                            <Percent className="w-3.5 h-3.5 text-indigo-500" /> Apply Promo Code
-                          </span>
-                          {appliedPromo && (
-                            <button 
-                              type="button" 
-                              onClick={() => setAppliedPromo(null)}
-                              className="text-[10px] text-rose-500 font-bold hover:underline cursor-pointer"
-                            >
-                              Remove
-                            </button>
+                      {/* Promo Code Coupon Selector (Only for Plan Purchase / Renewal / Change / Upcoming, NOT in Transaction History edit) */}
+                      {purchaseMode !== 'edit' && (
+                        <div className="p-4 bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                              <Percent className="w-3.5 h-3.5 text-indigo-500" /> Apply Promo Code
+                            </span>
+                            {appliedPromo && (
+                              <button 
+                                type="button" 
+                                onClick={() => setAppliedPromo(null)}
+                                className="text-[10px] text-rose-500 font-bold hover:underline cursor-pointer"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+
+                          {promoCodes.length === 0 ? (
+                            <p className="text-[10px] text-slate-400">No promo codes available.</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                              {promoCodes.map(pc => {
+                                const isSelected = appliedPromo?.id === pc.id
+                                return (
+                                  <button
+                                    key={pc.id}
+                                    type="button"
+                                    onClick={() => {
+                                      if (isSelected) setAppliedPromo(null)
+                                      else {
+                                        setAppliedPromo(pc)
+                                        toast.success(`Promo code ${pc.code} applied!`)
+                                      }
+                                    }}
+                                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${
+                                      isSelected
+                                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
+                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-300'
+                                    }`}
+                                  >
+                                    <Percent className="w-3 h-3" />
+                                    {pc.code}
+                                    {isSelected && <Check className="w-3 h-3 ml-0.5" />}
+                                  </button>
+                                )
+                              })}
+                            </div>
                           )}
                         </div>
-
-                        {promoCodes.length === 0 ? (
-                          <p className="text-[10px] text-slate-400">No promo codes available.</p>
-                        ) : (
-                          <div className="flex flex-wrap gap-1.5 mt-1">
-                            {promoCodes.map(pc => {
-                              const isSelected = appliedPromo?.id === pc.id
-                              return (
-                                <button
-                                  key={pc.id}
-                                  type="button"
-                                  onClick={() => {
-                                    if (isSelected) setAppliedPromo(null)
-                                    else {
-                                      setAppliedPromo(pc)
-                                      toast.success(`Promo code ${pc.code} applied!`)
-                                    }
-                                  }}
-                                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${
-                                    isSelected
-                                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
-                                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-300'
-                                  }`}
-                                >
-                                  <Percent className="w-3 h-3" />
-                                  {pc.code}
-                                  {isSelected && <Check className="w-3 h-3 ml-0.5" />}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
+                      )}
 
                       {/* Invoice Summary Calculation Breakdown */}
                       <div className="bg-slate-900 text-white dark:bg-slate-850 p-5 rounded-2xl shadow-xl border border-slate-800 flex flex-col gap-3">
@@ -2694,7 +3263,7 @@ function BillingDashboardContent() {
                             <span>₹{getInvoiceTaxTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                           </div>
 
-                          {appliedPromo && (
+                          {purchaseMode !== 'edit' && appliedPromo && (
                             <div className="flex justify-between text-emerald-400 font-bold">
                               <span>Discount ({appliedPromo.code})</span>
                               <span>− ₹{getPromoDiscountAmount(selectedPlan, appliedPromo).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
@@ -2719,13 +3288,21 @@ function BillingDashboardContent() {
                           >
                             {submitting ? (
                               <><Loader2 className="w-4 h-4 animate-spin" /> Processing Invoice...</>
+                            ) : purchaseMode === 'edit' ? (
+                              '💾 Update Bill'
+                            ) : paymentModeOption === 'gateway' ? (
+                              '⚡ Pay & Directly Activate Plan'
                             ) : (
-                              '🚀 Submit Invoice & Process'
+                              '📩 Submit Payment Request'
                             )}
                           </button>
 
                           <p className="text-[10px] text-slate-400 text-center leading-relaxed">
-                            This creates the verified bill and syncs with the <strong className="text-slate-300">Request</strong> and <strong className="text-slate-300">Billing</strong> records.
+                            {purchaseMode === 'edit'
+                              ? 'Updates this transaction invoice in the billing history.'
+                              : paymentModeOption === 'gateway'
+                              ? 'Gateway payments directly activate the institute plan without manual moderation.'
+                              : 'Manual payments require admin verification on the Request page before activation.'}
                           </p>
                         </div>
                       </div>
@@ -2965,72 +3542,120 @@ function BillingDashboardContent() {
       />
 
       {/* ================= VIEW PLAN MODAL ================= */}
-      {showViewPlanModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-2xl max-w-lg w-full p-8 relative animate-in fade-in zoom-in duration-200">
-            <button
-              onClick={() => setShowViewPlanModal(null)}
-              className="absolute top-6 right-6 p-1.5 rounded-full hover:bg-slate-55 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-700 pb-3 mb-4">
-              Plan Breakdown: {showViewPlanModal.plan_name}
-            </h3>
-            <div className="space-y-4">
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {showViewPlanModal.description || 'Check billing components details of the selected plan below.'}
-              </p>
-              <div className="border border-slate-100 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-[#EBF6F6]/50 dark:bg-slate-700/50">
-                    <tr>
-                      <th className="p-3 font-semibold text-slate-700 dark:text-slate-300">Description</th>
-                      <th className="p-3 font-semibold text-slate-700 dark:text-slate-300 text-right">Price</th>
-                      <th className="p-3 font-semibold text-slate-700 dark:text-slate-300 text-right">Tax</th>
-                      <th className="p-3 font-semibold text-slate-700 dark:text-slate-300 text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-slate-600 dark:text-slate-400 font-medium">
-                    {showViewPlanModal.first_billing_items && showViewPlanModal.first_billing_items.length > 0 ? (
-                      showViewPlanModal.first_billing_items.map((item, i) => (
-                        <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30">
-                          <td className="p-3 font-semibold text-slate-700 dark:text-slate-200">{item.item_description}</td>
-                          <td className="p-3 text-right">₹{item.price}</td>
-                          <td className="p-3 text-right">₹{getItemTaxAmount(item).toFixed(2)} ({item.tax_percentage}%)</td>
-                          <td className="p-3 text-right font-extrabold text-slate-800 dark:text-slate-100">
-                            ₹{getItemTotal(item).toFixed(2)}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30">
-                        <td className="p-3 font-semibold text-slate-700 dark:text-slate-200">Base Subscription Fee</td>
-                        <td className="p-3 text-right">₹1000</td>
-                        <td className="p-3 text-right">₹200 (20%)</td>
-                        <td className="p-3 text-right font-extrabold text-slate-800 dark:text-slate-100">₹1200</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <div className="flex justify-between items-center bg-[#EBF6F6]/40 dark:bg-indigo-950/20 p-4 rounded-xl border border-indigo-100/50 dark:border-slate-700">
-                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Total Subscription Price</span>
-                <span className="text-base font-extrabold text-indigo-600 dark:text-indigo-400">₹{getPlanPrice(showViewPlanModal)}</span>
-              </div>
-              {showViewPlanModal.brochure_url && (
-                <button
-                  onClick={() => handleDownloadBrochure(showViewPlanModal.brochure_url, showViewPlanModal.plan_name)}
-                  className="w-full mt-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  Download Plan Brochure
-                </button>
+      {showViewPlanModal && (() => {
+        const hasRenewalInModal = Boolean(
+          (showViewPlanModal.renewal_billing_items && showViewPlanModal.renewal_billing_items.length > 0) ||
+          (showViewPlanModal.renewal_billing_duration && showViewPlanModal.renewal_billing_duration > 0)
+        );
+        const activeItems = (viewPlanTab === 'renewal' && hasRenewalInModal)
+          ? (showViewPlanModal.renewal_billing_items || [])
+          : (showViewPlanModal.first_billing_items || []);
+        
+        const activeDuration = (viewPlanTab === 'renewal' && hasRenewalInModal)
+          ? (showViewPlanModal.renewal_billing_duration || 365)
+          : (showViewPlanModal.first_billing_duration || 365);
+
+        const activeTotal = activeItems.length > 0
+          ? activeItems.reduce((sum: number, item: any) => sum + getItemTotal(item), 0)
+          : (Number((showViewPlanModal as any).price) || 0);
+
+        return (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-2xl max-w-lg w-full p-8 relative animate-in fade-in zoom-in duration-200">
+              <button
+                onClick={() => setShowViewPlanModal(null)}
+                className="absolute top-6 right-6 p-1.5 rounded-full hover:bg-slate-55 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-700 pb-3 mb-4">
+                Plan Breakdown: {showViewPlanModal.plan_name}
+              </h3>
+
+              {/* Tabs if both base and renewal exist */}
+              {hasRenewalInModal && (
+                <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-700 rounded-xl mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setViewPlanTab('first')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      viewPlanTab === 'first'
+                        ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-800'
+                    }`}
+                  >
+                    Base Plan ({showViewPlanModal.first_billing_duration || 365} Days)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewPlanTab('renewal')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      viewPlanTab === 'renewal'
+                        ? 'bg-white dark:bg-slate-800 text-violet-600 dark:text-violet-400 shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-800'
+                    }`}
+                  >
+                    Renewal Plan ({showViewPlanModal.renewal_billing_duration || 365} Days)
+                  </button>
+                </div>
               )}
+
+              <div className="space-y-4">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {showViewPlanModal.description || 'Check billing components details of the selected plan below.'}
+                </p>
+                <div className="border border-slate-100 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="bg-[#EBF6F6]/50 dark:bg-slate-700/50">
+                      <tr>
+                        <th className="p-3 font-semibold text-slate-700 dark:text-slate-300">Description</th>
+                        <th className="p-3 font-semibold text-slate-700 dark:text-slate-300 text-right">Price</th>
+                        <th className="p-3 font-semibold text-slate-700 dark:text-slate-300 text-right">Tax</th>
+                        <th className="p-3 font-semibold text-slate-700 dark:text-slate-300 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-slate-600 dark:text-slate-400 font-medium">
+                      {activeItems && activeItems.length > 0 ? (
+                        activeItems.map((item, i) => (
+                          <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30">
+                            <td className="p-3 font-semibold text-slate-700 dark:text-slate-200">{item.item_description}</td>
+                            <td className="p-3 text-right">₹{Number(item.price).toFixed(2)}</td>
+                            <td className="p-3 text-right">₹{getItemTaxAmount(item).toFixed(2)} ({item.tax_percentage}%)</td>
+                            <td className="p-3 text-right font-extrabold text-slate-800 dark:text-slate-100">
+                              ₹{getItemTotal(item).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30">
+                          <td colSpan={4} className="p-3 text-center text-slate-400">No item details available</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex justify-between items-center bg-[#EBF6F6]/40 dark:bg-indigo-950/20 p-4 rounded-xl border border-indigo-100/50 dark:border-slate-700">
+                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                    Total {hasRenewalInModal && viewPlanTab === 'renewal' ? 'Renewal' : 'Base'} Subscription Price
+                  </span>
+                  <span className="text-base font-extrabold text-indigo-600 dark:text-indigo-400">
+                    ₹{activeTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+                {showViewPlanModal.brochure_url && (
+                  <button
+                    onClick={() => handleDownloadBrochure(showViewPlanModal.brochure_url, showViewPlanModal.plan_name)}
+                    className="w-full mt-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Plan Brochure
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ================= PROMO CODE SELECTION MODAL ================= */}
       {promoModalOpen && (

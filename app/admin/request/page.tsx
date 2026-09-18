@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react'
 import { 
-  Search, FileText, Loader2, ChevronLeft, ChevronRight, Eye, X, Check, AlertCircle 
+  Search, FileText, Loader2, ChevronLeft, ChevronRight, Eye, X, Check, AlertCircle,
+  Building2, MapPin, Phone, Mail, User, ShieldCheck, Award, GraduationCap, Hash
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -17,6 +18,20 @@ interface Screenshot {
 interface RequestItem {
   id: string
   school_name: string
+  school_code?: string
+  contact_person?: string
+  mobile_no?: string
+  email_id?: string
+  address?: string
+  state?: string
+  district?: string
+  pincode?: string
+  affiliated_to?: string
+  affiliation_code?: string
+  principal_name?: string
+  director_name?: string
+  institute_status?: string
+  segment?: string
   plan_name: string
   payment_mode: string
   transaction_id: string
@@ -605,7 +620,7 @@ function RequestDashboardContent() {
       {/* ================= VERIFICATION ACTION MODAL ================= */}
       {selectedRequest && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-2xl max-w-3xl w-full p-6 sm:p-8 relative my-8 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200 flex flex-col gap-6">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-150 dark:border-slate-700 shadow-2xl max-w-4xl w-full p-6 sm:p-8 relative my-8 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200 flex flex-col gap-6">
             
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-150 dark:border-slate-700 pb-4">
@@ -613,7 +628,9 @@ function RequestDashboardContent() {
                 <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
                   <Check className="w-4 h-4" />
                 </div>
-                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Verify Request</h2>
+                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                  {selectedRequest.status === 'Accept' || selectedRequest.status === 'Accepted' ? 'Request Details' : 'Verify Request'}
+                </h2>
               </div>
               <button
                 type="button"
@@ -626,18 +643,115 @@ function RequestDashboardContent() {
 
             <form onSubmit={(e) => handleModerationSubmit(undefined, e)} className="flex flex-col gap-6">
               
-              {/* School Name input */}
-              <div className="flex flex-col gap-1.5 max-w-md">
-                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  School/College Name
-                </label>
-                <input
-                  type="text"
-                  readOnly
-                  disabled
-                  value={selectedRequest.school_name}
-                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-slate-500 dark:text-slate-400 focus:outline-none select-none font-semibold"
-                />
+              {/* Comprehensive Institute Details Card */}
+              <div className="flex flex-col gap-3 bg-slate-50/80 dark:bg-slate-900/40 p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80">
+                <div className="flex items-center justify-between flex-wrap gap-2 border-b border-slate-200/60 dark:border-slate-700/60 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                      <Building2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">
+                        {selectedRequest.school_name || 'Institution Details'}
+                      </h3>
+                      {selectedRequest.school_code && (
+                        <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                          Code: {selectedRequest.school_code}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {selectedRequest.segment && (
+                      <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/50">
+                        {selectedRequest.segment}
+                      </span>
+                    )}
+                    <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50">
+                      {selectedRequest.institute_status || 'Active'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Grid of All Institute Fields */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs pt-1">
+                  <div className="flex flex-col gap-0.5 bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <User className="w-3 h-3 text-indigo-500" /> Contact Person
+                    </span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                      {selectedRequest.contact_person || '—'}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-0.5 bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <Phone className="w-3 h-3 text-emerald-500" /> Mobile Number
+                    </span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                      {selectedRequest.mobile_no || '—'}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-0.5 bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <Mail className="w-3 h-3 text-violet-500" /> Email Address
+                    </span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                      {selectedRequest.email_id || '—'}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-0.5 bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60 sm:col-span-2 md:col-span-3">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-rose-500" /> Complete Address
+                    </span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      {[
+                        selectedRequest.address,
+                        selectedRequest.district,
+                        selectedRequest.state,
+                        selectedRequest.pincode ? `PIN: ${selectedRequest.pincode}` : ''
+                      ].filter(Boolean).join(', ') || '—'}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-0.5 bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <Award className="w-3 h-3 text-amber-500" /> Affiliated To / Board
+                    </span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                      {selectedRequest.affiliated_to || '—'}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-0.5 bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <Hash className="w-3 h-3 text-blue-500" /> Affiliation Code
+                    </span>
+                    <span className="font-semibold font-mono text-slate-800 dark:text-slate-200 truncate">
+                      {selectedRequest.affiliation_code || '—'}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-0.5 bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <GraduationCap className="w-3 h-3 text-indigo-500" /> Principal Name
+                    </span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                      {selectedRequest.principal_name || '—'}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-0.5 bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3 text-teal-500" /> Director Name
+                    </span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                      {selectedRequest.director_name || '—'}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               {/* Plan Details Table */}
@@ -766,8 +880,10 @@ function RequestDashboardContent() {
                       type="number"
                       value={transactionAmountInput}
                       onChange={e => setTransactionAmountInput(e.target.value)}
+                      disabled={selectedRequest.status === 'Accept' || selectedRequest.status === 'Accepted'}
+                      readOnly={selectedRequest.status === 'Accept' || selectedRequest.status === 'Accepted'}
                       placeholder="Enter Amount"
-                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-100 font-semibold"
+                      className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 disabled:bg-slate-100 dark:disabled:bg-slate-800/60 disabled:text-slate-500 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-100 font-semibold"
                       required
                     />
                   </div>
@@ -775,33 +891,58 @@ function RequestDashboardContent() {
               </div>
 
               {/* BOTTOM BUTTONS */}
-              <div className="flex justify-end gap-3 mt-4 border-t border-slate-100 dark:border-slate-700 pt-5">
-                <button
-                  type="button"
-                  onClick={() => setSelectedRequest(null)}
-                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleModerationSubmit('Reject')}
-                  disabled={submitting}
-                  className="px-6 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold text-xs transition-all shadow-md shadow-rose-500/20 cursor-pointer min-w-[110px] flex items-center justify-center gap-1.5"
-                >
-                  {submitting && statusInput === 'Reject' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <X className="w-4 h-4" /> Reject
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleModerationSubmit('Accept')}
-                  disabled={submitting}
-                  className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-xs transition-all shadow-md shadow-emerald-500/20 cursor-pointer min-w-[110px] flex items-center justify-center gap-1.5"
-                >
-                  {submitting && statusInput === 'Accept' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <Check className="w-4 h-4" /> Accept
-                </button>
-              </div>
+              {selectedRequest.status === 'Accept' || selectedRequest.status === 'Accepted' ? (
+                <div className="flex items-center justify-between flex-wrap gap-3 mt-4 border-t border-slate-100 dark:border-slate-700 pt-5">
+                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-extrabold text-xs bg-emerald-50 dark:bg-emerald-950/40 px-3.5 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800/40">
+                    <Check className="w-4 h-4 text-emerald-600" />
+                    <span>Request Accepted & Plan Active</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadPDF(selectedRequest)}
+                      className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 border border-indigo-100 dark:border-indigo-800/40 cursor-pointer"
+                    >
+                      <FileText className="w-3.5 h-3.5" /> Download Invoice
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRequest(null)}
+                      className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-end gap-3 mt-4 border-t border-slate-100 dark:border-slate-700 pt-5">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRequest(null)}
+                    className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleModerationSubmit('Reject')}
+                    disabled={submitting}
+                    className="px-6 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold text-xs transition-all shadow-md shadow-rose-500/20 cursor-pointer min-w-[110px] flex items-center justify-center gap-1.5"
+                  >
+                    {submitting && statusInput === 'Reject' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    <X className="w-4 h-4" /> Reject
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleModerationSubmit('Accept')}
+                    disabled={submitting}
+                    className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-xs transition-all shadow-md shadow-emerald-500/20 cursor-pointer min-w-[110px] flex items-center justify-center gap-1.5"
+                  >
+                    {submitting && statusInput === 'Accept' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    <Check className="w-4 h-4" /> Accept
+                  </button>
+                </div>
+              )}
             </form>
           </div>
         </div>

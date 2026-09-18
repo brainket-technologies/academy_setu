@@ -8,7 +8,32 @@ interface RouteParams {
 export async function GET(_req: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
-    const result = await pool.query('SELECT * FROM requests WHERE id = $1', [id])
+    const query = `
+      SELECT 
+        r.*, 
+        COALESCE(i.name, r.school_name, 'Institution') as school_name, 
+        i.code as school_code,
+        i.contact_person,
+        i.mobile_no,
+        i.email_id,
+        i.address,
+        i.state,
+        i.district,
+        i.pincode,
+        i.affiliated_to,
+        i.affiliation_code,
+        i.principal_name,
+        i.director_name,
+        i.status as institute_status,
+        COALESCE(p.segment, s.name, 'School') as segment,
+        p.plan_name
+      FROM requests r
+      LEFT JOIN institutions i ON (r.institution_id = i.id OR (r.institution_id IS NULL AND i.name ILIKE r.school_name))
+      LEFT JOIN segments s ON i.segment_id = s.id
+      LEFT JOIN plans p ON r.plan_id = p.id
+      WHERE r.id = $1
+    `
+    const result = await pool.query(query, [id])
     if (result.rows.length === 0) {
       return NextResponse.json({ success: false, error: 'Request not found' }, { status: 404 })
     }
@@ -34,6 +59,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ success: false, error: 'Request not found' }, { status: 404 })
     }
     const currentReq = reqRes.rows[0]
+
+    // Block modification if request is already accepted
+    if (currentReq.status === 'Accept' || currentReq.status === 'Accepted' || currentReq.status === 'Approved') {
+      return NextResponse.json({
+        success: false,
+        error: 'This request has already been accepted and its status cannot be changed.'
+      }, { status: 400 })
+    }
 
     // 2. Update the request status and transaction amount
     const updatedRes = await pool.query(
@@ -81,14 +114,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
       // Insert/Update Bills table
       const billCheck = await pool.query(
-        "SELECT id FROM bills WHERE (transaction_id = $1 AND transaction_id != '') OR (institution_id = $2 AND status = 'Pending') LIMIT 1",
+        "SELECT id, bill_type FROM bills WHERE (transaction_id = $1 AND transaction_id != '') OR (institution_id = $2 AND status = 'Pending') LIMIT 1",
         [currentReq.transaction_id || '', institutionId]
       )
 
+      const requestType = currentReq.request_type || (currentReq.is_renewal ? 'renew' : 'new')
+
       if (billCheck.rows.length === 0) {
         await pool.query(
-          `INSERT INTO bills (school_name, plan_name, payment_mode, payment_date, amount, transaction_id, status, institution_id, plan_id)
-           VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, 'Paid', $6, $7)`,
+          `INSERT INTO bills (school_name, plan_name, payment_mode, payment_date, amount, transaction_id, status, institution_id, plan_id, bill_type)
+           VALUES ($1, $2, $3, CURRENT_DATE, $4, $5, 'Paid', $6, $7, $8)`,
           [
             schoolName || 'Institution',
             planName || 'Standard Plan',
@@ -96,7 +131,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
             finalAmount,
             currentReq.transaction_id || '',
             institutionId,
-            planId
+            planId,
+            requestType
           ]
         )
       } else {
@@ -106,14 +142,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
             status = 'Paid', 
             payment_date = CURRENT_DATE, 
             institution_id = COALESCE(institution_id, $3), 
-            plan_id = COALESCE(plan_id, $4) 
+            plan_id = COALESCE(plan_id, $4),
+            bill_type = COALESCE($6, bill_type, 'new')
            WHERE id = $2 OR (transaction_id = $5 AND $5 != '')`,
           [
             finalAmount, 
             billCheck.rows[0].id, 
             institutionId, 
             planId,
-            currentReq.transaction_id || ''
+            currentReq.transaction_id || '',
+            requestType
           ]
         )
       }

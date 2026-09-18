@@ -92,19 +92,52 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const isPaid = status === 'Paid'
+    
     if (finalPlanId && finalInstitutionId) {
       const planInfo = await pool.query('SELECT segment_id FROM plans WHERE id = $1', [finalPlanId])
-      if (planInfo.rows.length > 0 && planInfo.rows[0].segment_id) {
+      const segmentId = planInfo.rows[0]?.segment_id || null
+
+      if (segmentId) {
         await pool.query('UPDATE institutions SET segment_id = $1 WHERE id = $2 AND segment_id IS NULL', [
-          planInfo.rows[0].segment_id,
+          segmentId,
           finalInstitutionId
         ])
       }
+
+      // If directly paid (e.g. Gateway), activate institution and complete application directly
+      if (isPaid) {
+        await pool.query(
+          `UPDATE institutions 
+           SET status = 'Active', 
+               segment_id = COALESCE($1, segment_id),
+               updated_at = NOW() 
+           WHERE id = $2`,
+          [segmentId, finalInstitutionId]
+        )
+
+        await pool.query(
+          `UPDATE applications 
+           SET status = 'Completed', 
+               enquiry_status = 'Successfully Onboarded',
+               plan_id = COALESCE($1, plan_id),
+               payment_mode = COALESCE($2, payment_mode),
+               amount = CASE WHEN $3::numeric > 0 THEN $3::numeric ELSE amount END,
+               updated_at = NOW()
+           WHERE institution_id = $4`,
+          [finalPlanId, payment_mode, parseFloat(amount), finalInstitutionId]
+        )
+      }
     }
 
+    const billType = body.bill_type || (body.is_renewal ? 'renew' : 'new')
+
+    await pool.query(`ALTER TABLE bills ADD COLUMN IF NOT EXISTS bill_type VARCHAR(50) DEFAULT 'new'`).catch(() => {})
+    await pool.query(`ALTER TABLE requests ADD COLUMN IF NOT EXISTS request_type VARCHAR(50) DEFAULT 'new'`).catch(() => {})
+
     const result = await pool.query(
-      `INSERT INTO bills (institution_id, plan_id, payment_mode, payment_date, amount, transaction_id, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO bills (institution_id, plan_id, payment_mode, payment_date, amount, transaction_id, status, bill_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
         finalInstitutionId,
@@ -113,22 +146,24 @@ export async function POST(request: NextRequest) {
         payment_date || new Date(),
         parseFloat(amount),
         transaction_id || '',
-        status || 'Paid'
+        status || (payment_mode === 'Payment Gateway' ? 'Paid' : 'Pending'),
+        billType
       ]
     )
 
     // Insert into requests so it shows up in the Request menu
     await pool.query(
-      `INSERT INTO requests (institution_id, plan_id, school_name, plan_name, payment_mode, transaction_id, amount, status, screenshots)
-       VALUES ($1, $2, (SELECT name FROM institutions WHERE id = $1 LIMIT 1), (SELECT plan_name FROM plans WHERE id = $2 LIMIT 1), $3, $4, $5, $6, $7)`,
+      `INSERT INTO requests (institution_id, plan_id, school_name, plan_name, payment_mode, transaction_id, amount, status, screenshots, request_type)
+       VALUES ($1, $2, (SELECT name FROM institutions WHERE id = $1 LIMIT 1), (SELECT plan_name FROM plans WHERE id = $2 LIMIT 1), $3, $4, $5, $6, $7, $8)`,
       [
         finalInstitutionId,
         finalPlanId,
         payment_mode,
         transaction_id || '',
         parseFloat(amount),
-        status === 'Paid' ? 'Accept' : (status === 'Failed' ? 'Reject' : 'Pending'),
-        JSON.stringify(screenshots || [])
+        isPaid ? 'Accept' : (status === 'Failed' ? 'Reject' : 'Pending'),
+        JSON.stringify(screenshots || []),
+        billType
       ]
     )
 
@@ -147,6 +182,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: enriched.rows[0] || bill })
   } catch (error) {
     console.error('Billing create error:', error)
+    return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const institutionId = searchParams.get('institution_id')
+
+    if (institutionId) {
+      await pool.query('DELETE FROM bills WHERE institution_id = $1', [institutionId])
+      await pool.query('DELETE FROM requests WHERE institution_id = $1', [institutionId])
+    } else {
+      await pool.query('DELETE FROM bills')
+      await pool.query('DELETE FROM requests')
+    }
+
+    apiCache.invalidate('billing:')
+
+    return NextResponse.json({ success: true, message: 'All purchased plan records and billing history have been cleared successfully.' })
+  } catch (error) {
+    console.error('Billing clear error:', error)
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
   }
 }

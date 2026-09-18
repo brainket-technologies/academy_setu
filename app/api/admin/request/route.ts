@@ -34,9 +34,27 @@ export async function GET(request: NextRequest) {
     const totalCount = countResult.rows[0].count
 
     const query = `
-      SELECT r.*, i.name as school_name, p.plan_name
+      SELECT 
+        r.*, 
+        COALESCE(i.name, r.school_name, 'Institution') as school_name, 
+        i.code as school_code,
+        i.contact_person,
+        i.mobile_no,
+        i.email_id,
+        i.address,
+        i.state,
+        i.district,
+        i.pincode,
+        i.affiliated_to,
+        i.affiliation_code,
+        i.principal_name,
+        i.director_name,
+        i.status as institute_status,
+        COALESCE(p.segment, s.name, 'School') as segment,
+        p.plan_name
       FROM requests r
-      LEFT JOIN institutions i ON r.institution_id = i.id
+      LEFT JOIN institutions i ON (r.institution_id = i.id OR (r.institution_id IS NULL AND i.name ILIKE r.school_name))
+      LEFT JOIN segments s ON i.segment_id = s.id
       LEFT JOIN plans p ON r.plan_id = p.id
       ${where}
       ORDER BY r.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}
