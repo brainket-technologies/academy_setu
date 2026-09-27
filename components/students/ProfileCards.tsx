@@ -51,14 +51,14 @@ export function PersonalDetailsCard({ data, onEdit }: any) {
   return (
     <InfoCard title="Personal Details" icon={User} onEdit={onEdit}>
       <InfoGrid cols={2}>
-        <InfoRow label="Academic Year" value={data?.academicYear || '2025-26'} />
-        <InfoRow label="Admission No." value={data?.admissionNo || 'SCH123'} />
-        <InfoRow label="Admission Date" value={data?.admissionDate || '03-03-2025'} />
-        <InfoRow label="Class" value={data?.class || 'Class V'} />
-        <InfoRow label="Section" value={data?.section || 'Section A'} />
-        <InfoRow label="Medium" value={data?.medium || 'English'} />
-        <InfoRow label="Stream" value={data?.stream || 'Science'} />
-        <InfoRow label="House/Block" value={data?.houseBlock || 'Blue'} />
+        <InfoRow label="Academic Year" value={data?.academicYear} />
+        <InfoRow label="Admission No." value={data?.admissionNo} />
+        <InfoRow label="Admission Date" value={data?.admissionDate} />
+        <InfoRow label="Class" value={data?.class} />
+        <InfoRow label="Section" value={data?.section} />
+        <InfoRow label="Medium" value={data?.medium} />
+        <InfoRow label="Stream" value={data?.stream} />
+        <InfoRow label="House/Block" value={data?.houseBlock} />
       </InfoGrid>
     </InfoCard>
   )
@@ -68,11 +68,11 @@ export function PreviousSchoolCard({ data, onEdit }: any) {
   return (
     <InfoCard title="Previous School/College Details" icon={Building} onEdit={onEdit}>
       <InfoGrid cols={1}>
-        <InfoRow label="School/College Name & Address" value={data?.prevSchoolName || 'abcd School/College, Location, City, State'} />
+        <InfoRow label="School/College Name & Address" value={data?.prevSchoolName} />
       </InfoGrid>
       <div className="mt-4 grid grid-cols-2 gap-4">
-        <InfoRow label="Attended Class/Course" value={data?.prevAttendedClass || 'Class II'} />
-        <InfoRow label="Last School/College Affiliated To" value={data?.prevSchoolAffiliatedTo || 'CBSE Board'} />
+        <InfoRow label="Attended Class/Course" value={data?.prevAttendedClass} />
+        <InfoRow label="Last School/College Affiliated To" value={data?.prevSchoolAffiliatedTo} />
       </div>
     </InfoCard>
   )
@@ -82,9 +82,9 @@ export function MedicalDetailsCard({ data, onEdit }: any) {
   return (
     <InfoCard title="Medical Details" icon={Heart} onEdit={onEdit}>
       <InfoGrid cols={3}>
-        <InfoRow label="Blood Group" value={data?.bloodGroup || 'B+'} />
-        <InfoRow label="Height" value={data?.height || '60 CM'} />
-        <InfoRow label="Weight" value={data?.weight || '28 Kg.'} />
+        <InfoRow label="Blood Group" value={data?.bloodGroup} />
+        <InfoRow label="Height" value={data?.height} />
+        <InfoRow label="Weight" value={data?.weight} />
       </InfoGrid>
     </InfoCard>
   )
@@ -94,17 +94,23 @@ export function TCDetailsCard({ data, onEdit }: any) {
   return (
     <InfoCard title="TC Details" icon={FileText} onEdit={onEdit}>
       <InfoGrid cols={2}>
-        <InfoRow label="Transfer Certificate No." value={data?.tcNo || 'TC/123/2025'} />
-        <InfoRow label="Date of Issue" value={data?.tcIssueDate || '03-04-2025'} />
-        <div className="col-span-2">
-          <InfoRow label="Transfer Certificate" value={<a href="#" className="text-teal-600 hover:underline">@ Certificate.jpg</a>} />
-        </div>
+        <InfoRow label="Transfer Certificate No." value={data?.tcNo} />
+        <InfoRow label="Date of Issue" value={data?.tcIssueDate} />
+        {data?.tcFile && (
+          <div className="col-span-2">
+            <InfoRow label="Transfer Certificate" value={<a href={data.tcFile} target="_blank" rel="noreferrer" className="text-teal-600 hover:underline font-semibold">@ Certificate</a>} />
+          </div>
+        )}
       </InfoGrid>
     </InfoCard>
   )
 }
 
 export function EducationTableCard({ data, onEdit }: any) {
+  const list = Array.isArray(data?.otherQualifications) 
+    ? data.otherQualifications.filter((q: any) => q && (q.qualification || q.schoolName || q.rollNo || q.passYear || q.percentage))
+    : []
+
   return (
     <InfoCard title="Education Details" icon={GraduationCap} fullWidth onEdit={onEdit}>
       <div className="overflow-x-auto">
@@ -121,15 +127,23 @@ export function EducationTableCard({ data, onEdit }: any) {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td className="py-2 px-3 border-b border-slate-100 dark:border-slate-700">Class I</td>
-              <td className="py-2 px-3 border-b border-slate-100 dark:border-slate-700">2025</td>
-              <td className="py-2 px-3 border-b border-slate-100 dark:border-slate-700">41</td>
-              <td className="py-2 px-3 border-b border-slate-100 dark:border-slate-700">273</td>
-              <td className="py-2 px-3 border-b border-slate-100 dark:border-slate-700">82%</td>
-              <td className="py-2 px-3 border-b border-slate-100 dark:border-slate-700">Hindi, English, Math, Science</td>
-              <td className="py-2 px-3 border-b border-slate-100 dark:border-slate-700">abcd school</td>
-            </tr>
+            {list.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="py-3 px-3 text-center text-slate-400 font-medium">No other qualifications added</td>
+              </tr>
+            ) : (
+              list.map((row: any, i: number) => (
+                <tr key={i}>
+                  <td className="py-2 px-3 border-b border-slate-100 dark:border-slate-700">{row.qualification || '-'}</td>
+                  <td className="py-2 px-3 border-b border-slate-100 dark:border-slate-700">{row.passYear || '-'}</td>
+                  <td className="py-2 px-3 border-b border-slate-100 dark:border-slate-700">{row.rollNo || '-'}</td>
+                  <td className="py-2 px-3 border-b border-slate-100 dark:border-slate-700">{row.obtMarks || '-'}</td>
+                  <td className="py-2 px-3 border-b border-slate-100 dark:border-slate-700">{row.percentage || '-'}</td>
+                  <td className="py-2 px-3 border-b border-slate-100 dark:border-slate-700">{row.subject || '-'}</td>
+                  <td className="py-2 px-3 border-b border-slate-100 dark:border-slate-700">{row.schoolName || '-'}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -145,18 +159,14 @@ export function ParentsDetailsCard({ data, onEdit }: any) {
         <div className="flex flex-col gap-3">
           <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">Father Details</h4>
           <div className="flex items-start gap-4">
-             <div className="w-20 h-24 bg-slate-100 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-end overflow-hidden border border-slate-200 relative">
-                <div className="absolute bottom-1 right-1 p-0.5 bg-teal-600 rounded">
-                   <User className="w-3 h-3 text-white" />
-                </div>
+             <div className="w-20 h-24 bg-slate-100 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center overflow-hidden border border-slate-200 relative">
+                <User className="w-8 h-8 text-slate-400" />
              </div>
              <div className="flex-1 grid grid-cols-2 gap-4">
-                <InfoRow label="Name" value={data?.fatherName || 'Shubham Tiwari'} valueClass="text-sm font-bold" />
-                <InfoRow label="Occupation" value={data?.fatherOccupation || 'Private Job'} />
-                <InfoRow label="Contact" value={data?.fatherContact || '9999999999'} />
-                <div />
-                <InfoRow label="Annual Income" value={data?.fatherIncome || '5,00,000/-'} />
-                <InfoRow label="Income Certificate No." value="Cer/123/456" />
+                <InfoRow label="Name" value={data?.fatherName} valueClass="text-sm font-bold" />
+                <InfoRow label="Occupation" value={data?.fatherOccupation} />
+                <InfoRow label="Contact" value={data?.fatherContact} />
+                <InfoRow label="Annual Income" value={data?.fatherIncome} />
              </div>
           </div>
         </div>
@@ -166,18 +176,14 @@ export function ParentsDetailsCard({ data, onEdit }: any) {
         <div className="flex flex-col gap-3">
           <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">Mother Details</h4>
           <div className="flex items-start gap-4">
-             <div className="w-20 h-24 bg-slate-100 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-end overflow-hidden border border-slate-200 relative">
-                <div className="absolute bottom-1 right-1 p-0.5 bg-teal-600 rounded">
-                   <User className="w-3 h-3 text-white" />
-                </div>
+             <div className="w-20 h-24 bg-slate-100 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center overflow-hidden border border-slate-200 relative">
+                <User className="w-8 h-8 text-slate-400" />
              </div>
              <div className="flex-1 grid grid-cols-2 gap-4">
-                <InfoRow label="Name" value={data?.motherName || 'Priya Tiwari'} valueClass="text-sm font-bold" />
-                <InfoRow label="Occupation" value={data?.motherOccupation || 'House Wife'} />
-                <InfoRow label="Contact" value={data?.motherContact || '9999999999'} />
-                <div />
-                <InfoRow label="Annual Income" value={data?.motherIncome || '-'} />
-                <InfoRow label="Income Certificate No." value="-" />
+                <InfoRow label="Name" value={data?.motherName} valueClass="text-sm font-bold" />
+                <InfoRow label="Occupation" value={data?.motherOccupation} />
+                <InfoRow label="Contact" value={data?.motherContact} />
+                <InfoRow label="Annual Income" value={data?.motherIncome} />
              </div>
           </div>
         </div>
@@ -191,14 +197,13 @@ export function AddressDetailsCard({ data, onEdit }: any) {
   return (
     <InfoCard title="Address Details" icon={MapPin} onEdit={onEdit}>
       <div className="flex flex-col gap-4">
-        <InfoRow label="Address" value={data?.address || '123, Location, Street Name, Locality'} />
+        <InfoRow label="Address" value={data?.address} />
         <InfoGrid cols={2}>
-          <InfoRow label="Pincode" value={data?.pincode || '221345'} />
-          <InfoRow label="District" value={data?.district || 'Lucknow'} />
-          <InfoRow label="State" value={data?.state || 'Uttar Prades'} />
-          <InfoRow label="Domicile Certificate No." value={data?.domicileNo || '123456789'} />
+          <InfoRow label="Pincode" value={data?.pincode} />
+          <InfoRow label="District" value={data?.district} />
+          <InfoRow label="State" value={data?.state} />
+          <InfoRow label="Domicile Certificate No." value={data?.domicileNo} />
         </InfoGrid>
-        <InfoRow label="Domicile Certificate" value={<a href="#" className="text-teal-600 hover:underline">@ Certificate.jpg</a>} />
       </div>
     </InfoCard>
   )
@@ -208,12 +213,10 @@ export function GovtIdDetailsCard({ data, onEdit }: any) {
   return (
     <InfoCard title="Govt. ID Details" icon={Fingerprint} onEdit={onEdit}>
       <InfoGrid cols={2}>
-        <InfoRow label="Aadhar Card No." value={data?.aadharNo || '12345678900'} />
-        <InfoRow label="Aadhar Card" value={<a href="#" className="text-teal-600 hover:underline">@ Aadhar Card.jpg</a>} />
+        <InfoRow label="Aadhar Card No." value={data?.aadharNo} />
         <InfoRow label="Nationality" value={data?.nationality || 'Indian'} />
-        <InfoRow label="Religion" value={data?.religion || 'Hindu'} />
-        <InfoRow label="Category" value={data?.category || 'General'} />
-        <InfoRow label="Category Certificate" value={<a href="#" className="text-teal-600 hover:underline">@ Certificate.jpg</a>} />
+        <InfoRow label="Religion" value={data?.religion} />
+        <InfoRow label="Category" value={data?.category} />
       </InfoGrid>
     </InfoCard>
   )
@@ -223,8 +226,7 @@ export function BirthCertificateCard({ data, onEdit }: any) {
   return (
     <InfoCard title="Birth Certificate Details" icon={FileText} onEdit={onEdit}>
       <InfoGrid cols={2}>
-        <InfoRow label="Birth Certificate No." value={data?.birthCertNo || '123456789'} />
-        <InfoRow label="Birth Certificate" value={<a href="#" className="text-teal-600 hover:underline">@ Certificate.jpg</a>} />
+        <InfoRow label="Birth Certificate No." value={data?.birthCertNo} />
       </InfoGrid>
     </InfoCard>
   )
@@ -234,8 +236,8 @@ export function ScholarshipDetailsCard({ data, onEdit }: any) {
   return (
     <InfoCard title="Scholarship Details" icon={Award} onEdit={onEdit}>
       <InfoGrid cols={2}>
-        <InfoRow label="Scholarship ID" value={data?.scholarshipId || '-'} />
-        <InfoRow label="Scholarship Password" value={data?.scholarshipPwd || '-'} />
+        <InfoRow label="Scholarship ID" value={data?.scholarshipId} />
+        <InfoRow label="Scholarship Password" value={data?.scholarshipPwd} />
       </InfoGrid>
     </InfoCard>
   )
@@ -245,8 +247,8 @@ export function BplRteDetailsCard({ data, onEdit }: any) {
   return (
     <InfoCard title="BPL & RTE Details" icon={BookOpen} onEdit={onEdit}>
       <InfoGrid cols={2}>
-        <InfoRow label="BPL Student" value={data?.bplStudent || 'Yes'} />
-        <InfoRow label="RTE Student" value="Yes" />
+        <InfoRow label="BPL Student" value={data?.bplStudent || 'No'} />
+        <InfoRow label="RTE Student" value={data?.isRteStudent || 'No'} />
       </InfoGrid>
     </InfoCard>
   )
@@ -256,10 +258,60 @@ export function GovtPortalDetailsCard({ data, onEdit }: any) {
   return (
     <InfoCard title="Govt. Portal Details" icon={Building} onEdit={onEdit}>
       <InfoGrid cols={2}>
-        <InfoRow label="Govt. Portal Student ID" value={data?.govtStudentId || '-'} />
-        <InfoRow label="Govt. Portal Family ID" value={data?.govtFamilyId || '-'} />
-        <InfoRow label="Samagra ID" value={data?.samagraId || '-'} />
+        <InfoRow label="Govt. Portal Student ID" value={data?.govtStudentId} />
+        <InfoRow label="Govt. Portal Family ID" value={data?.govtFamilyId} />
+        <InfoRow label="Samagra ID" value={data?.samagraId} />
       </InfoGrid>
+    </InfoCard>
+  )
+}
+
+export function FeeDetailsCard({ data, onEdit }: any) {
+  const feeItems: { label: string, detail?: string, fee?: string }[] = []
+
+  if (data?.regFee || data?.regFeeDuration) {
+    feeItems.push({ label: 'Registration Fee', detail: data.regFeeDuration, fee: data.regFee })
+  }
+  if (data?.admFee || data?.admFeeDuration) {
+    feeItems.push({ label: 'Admission Fee', detail: data.admFeeDuration, fee: data.admFee })
+  }
+  if (data?.classFee || data?.classFeeDuration) {
+    feeItems.push({ label: 'Class Fee', detail: `${data.classFeeDuration || ''}${data.isRteStudent === 'Yes' ? ' (RTE Exemption)' : ''}`, fee: data.classFee })
+  }
+  if (data?.libFee || data?.libFeeDuration) {
+    feeItems.push({ label: 'Library Fee', detail: data.libFeeDuration, fee: data.libFee })
+  }
+  if (data?.examFee || data?.examFeeDuration) {
+    feeItems.push({ label: 'Exam Fee', detail: data.examFeeDuration, fee: data.examFee })
+  }
+  if (data?.hostelFee || data?.hostelType || data?.hostelFeeDuration) {
+    feeItems.push({ label: 'Hostel Fee', detail: `${data.hostelType ? `${data.hostelType} • ` : ''}${data.hostelFeeDuration || ''}`, fee: data.hostelFee })
+  }
+  if (data?.extraFee || data?.extraActivityName) {
+    feeItems.push({ label: 'Extra Curricular Fee', detail: data.extraActivityName, fee: data.extraFee })
+  }
+  if (data?.transFee || data?.transRoute || data?.transStoppage) {
+    const routeInfo = [data.transRoute, data.transStoppage, data.transDistance, data.transFeeDuration].filter(Boolean).join(' • ')
+    feeItems.push({ label: 'Transportation Fee', detail: routeInfo, fee: data.transFee })
+  }
+
+  return (
+    <InfoCard title="Fee Structure Details" icon={Award} fullWidth onEdit={onEdit}>
+      {feeItems.length === 0 ? (
+        <p className="text-xs text-slate-400 text-center py-2 font-medium">No fee items configured for this student</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {feeItems.map((item, idx) => (
+            <div key={idx} className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col justify-between">
+              <div>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 block">{item.label}</span>
+                {item.detail && <span className="text-[11px] text-slate-400 block mt-0.5 font-medium">{item.detail}</span>}
+              </div>
+              <span className="text-sm font-black text-teal-600 dark:text-teal-400 mt-2 block">{item.fee || 'Configured'}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </InfoCard>
   )
 }

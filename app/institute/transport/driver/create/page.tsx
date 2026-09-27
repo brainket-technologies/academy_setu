@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react'
 import { ArrowLeft, ArrowRight, Save, X, Calendar, User, Key, Building, Printer, CheckCircle2 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { toast } from 'sonner'
 
 type StepType = 'Personal Details' | 'License Details' | 'Address Details' | 'Payroll & Leave' | 'Payment Details' | 'Final Preview'
 const STEPS: StepType[] = ['Personal Details', 'License Details', 'Address Details', 'Payroll & Leave', 'Payment Details', 'Final Preview']
@@ -180,7 +181,7 @@ function AddDriverWizardForm() {
     }
 
     localStorage.setItem('transport_drivers', JSON.stringify(updated))
-    alert(editId ? 'Driver details updated successfully!' : 'New driver added successfully!')
+    toast.success(editId ? 'Driver details updated successfully!' : 'New driver added successfully!')
     router.push('/institute/transport/driver')
   }
 

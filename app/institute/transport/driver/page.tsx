@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Search, Plus, Eye, Pencil, Trash2, RotateCcw, X, UploadCloud, Info, Sparkles, CheckCircle2, ChevronRight } from 'lucide-react'
+import { Search, Plus, Eye, Pencil, Trash2, RotateCcw, X, UploadCloud, CheckCircle2, ArrowLeft, ArrowRight, Printer } from 'lucide-react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 
 interface DriverRecord {
   id: number
@@ -27,14 +28,25 @@ interface DriverRecord {
   district?: string
   state?: string
   photo?: string
+  aadharNo?: string
+  basicSalary?: string
+  hra?: string
+  conveyance?: string
+  specialAllowance?: string
+  grossSalary?: string
+  accountHolderName?: string
+  accountNo?: string
+  ifscCode?: string
+  bankName?: string
+  panNo?: string
+  upiId?: string
+  uanNo?: string
+  pfNo?: string
   deletedDate?: string
 }
 
-const INITIAL_ACTIVE: DriverRecord[] = [
-]
-
-const INITIAL_DELETED: DriverRecord[] = [
-]
+const INITIAL_ACTIVE: DriverRecord[] = []
+const INITIAL_DELETED: DriverRecord[] = []
 
 export default function TransportDriverPage() {
   const [activeDrivers, setActiveDrivers] = useState<DriverRecord[]>(INITIAL_ACTIVE)
@@ -46,29 +58,10 @@ export default function TransportDriverPage() {
   const [selectedDriver, setSelectedDriver] = useState<DriverRecord | null>(null)
   const [activeProfileTab, setActiveProfileTab] = useState<'details' | 'attendance' | 'leave' | 'payroll' | 'login'>('details')
 
-  // Add / Edit Driver Modal state
+  // Multi-step Wizard Modal state
   const [addModalOpen, setAddModalOpen] = useState(false)
-  const [editingDriverId, setEditingDriverId] = useState<number | null>(null)
+  const [editingDriver, setEditingDriver] = useState<DriverRecord | null>(null)
   const [vehiclesList, setVehiclesList] = useState<any[]>([])
-
-  // Modal form states
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [driverIdVal, setDriverIdVal] = useState('')
-  const [contactVal, setContactVal] = useState('')
-  const [usernameVal, setUsernameVal] = useState('')
-  const [licenseTypeVal, setLicenseTypeVal] = useState('LMV')
-  const [licenseNumberVal, setLicenseNumberVal] = useState('')
-  const [assignedVehicleVal, setAssignedVehicleVal] = useState('')
-  const [joiningDateVal, setJoiningDateVal] = useState('')
-  const [genderVal, setGenderVal] = useState('Male')
-  const [dobVal, setDobVal] = useState('')
-  const [emailVal, setEmailVal] = useState('')
-  const [addressVal, setAddressVal] = useState('')
-  const [districtVal, setDistrictVal] = useState('')
-  const [stateVal, setStateVal] = useState('')
-  const [pincodeVal, setPincodeVal] = useState('')
-  const [photoVal, setPhotoVal] = useState('')
 
   // Toast notifications state
   const [toastMsg, setToastMsg] = useState('')
@@ -99,96 +92,21 @@ export default function TransportDriverPage() {
 
   // Open Add Driver Modal
   const openAddModal = () => {
-    setEditingDriverId(null)
-    setFirstName('')
-    setLastName('')
-    setDriverIdVal(`${activeDrivers.length + 1}`)
-    setContactVal('')
-    setUsernameVal('')
-    setLicenseTypeVal('LMV')
-    setLicenseNumberVal('')
-    setAssignedVehicleVal('')
-    setJoiningDateVal(new Date().toISOString().split('T')[0])
-    setGenderVal('Male')
-    setDobVal('')
-    setEmailVal('')
-    setAddressVal('')
-    setDistrictVal('')
-    setStateVal('')
-    setPincodeVal('')
-    setPhotoVal('')
+    setEditingDriver(null)
     setAddModalOpen(true)
   }
 
   // Open Edit Driver Modal
   const openEditModal = (driver: DriverRecord) => {
-    setEditingDriverId(driver.id)
-    const names = driver.driverName.split(' ')
-    setFirstName(names[0] || '')
-    setLastName(names.slice(1).join(' ') || '')
-    setDriverIdVal(driver.driverId || '')
-    setContactVal(driver.contact || '')
-    setUsernameVal(driver.username || '')
-    setLicenseTypeVal(driver.licenseType || 'LMV')
-    setLicenseNumberVal(driver.licenseNumber || '')
-    setAssignedVehicleVal(driver.assignedVehicle || '')
-    setJoiningDateVal(driver.joiningDate || '')
-    setGenderVal(driver.gender || 'Male')
-    setDobVal(driver.dob || '')
-    setEmailVal(driver.email || '')
-    setAddressVal(driver.address || '')
-    setDistrictVal(driver.district || '')
-    setStateVal(driver.state || '')
-    setPincodeVal(driver.pincode || '')
-    setPhotoVal(driver.photo || '')
+    setEditingDriver(driver)
     setAddModalOpen(true)
   }
 
-  // Image Upload Reader
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPhotoVal(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
-  // Save Modal Driver Form
-  const handleSaveDriverModal = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!firstName.trim() || !contactVal.trim()) {
-      alert('Please fill in required fields: Driver First Name and Contact Number.')
-      return
-    }
-
-    const fullDriverName = `${firstName.trim()} ${lastName.trim()}`.trim()
-    const payload: DriverRecord = {
-      id: editingDriverId || Date.now(),
-      username: usernameVal.trim() || `dri_${driverIdVal.trim() || Date.now()}`,
-      driverName: fullDriverName,
-      driverId: driverIdVal.trim() || `${activeDrivers.length + 1}`,
-      licenseNumber: licenseNumberVal.trim() || 'N/A',
-      licenseType: licenseTypeVal,
-      assignedVehicle: assignedVehicleVal,
-      contact: contactVal.trim(),
-      status: 'Active',
-      joiningDate: joiningDateVal || new Date().toISOString().split('T')[0],
-      email: emailVal.trim(),
-      gender: genderVal,
-      dob: dobVal,
-      address: addressVal.trim(),
-      district: districtVal.trim(),
-      state: stateVal.trim(),
-      pincode: pincodeVal.trim(),
-      photo: photoVal
-    }
-
+  // Save Driver from Wizard Modal
+  const handleSaveDriverFromWizard = (payload: DriverRecord) => {
     let updated: DriverRecord[] = []
-    if (editingDriverId) {
-      updated = activeDrivers.map(d => d.id === editingDriverId ? payload : d)
+    if (editingDriver) {
+      updated = activeDrivers.map(d => d.id === editingDriver.id ? payload : d)
     } else {
       updated = [payload, ...activeDrivers]
     }
@@ -196,7 +114,7 @@ export default function TransportDriverPage() {
     setActiveDrivers(updated)
     localStorage.setItem('transport_drivers', JSON.stringify(updated))
     setAddModalOpen(false)
-    setToastMsg(editingDriverId ? `Driver ${fullDriverName} updated successfully!` : `Driver ${fullDriverName} added successfully!`)
+    setToastMsg(editingDriver ? `Driver ${payload.driverName} updated successfully!` : `Driver ${payload.driverName} added successfully!`)
     setToastOpen(true)
     setTimeout(() => setToastOpen(false), 3000)
   }
@@ -259,12 +177,12 @@ export default function TransportDriverPage() {
       {/* Header */}
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-black text-slate-800 dark:text-slate-100">Driver</h1>
-          <p className="text-xs text-slate-400">Manage school transport drivers and credentials</p>
+          <h1 className="text-xl font-black text-slate-800 dark:text-slate-100">Driver Directory</h1>
+          <p className="text-xs text-slate-400">Manage school transport drivers, license & vehicle assignments</p>
         </div>
       </div>
 
-      {/* Control Actions / Search and Export Card */}
+      {/* Control Actions / Search and Add Card */}
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row gap-4 items-center justify-between">
         
         {/* Search */}
@@ -282,7 +200,7 @@ export default function TransportDriverPage() {
         {/* Action buttons */}
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           <button 
-            onClick={() => alert('Exporting drivers database...')}
+            onClick={() => toast.success('Exporting drivers database...')}
             className="w-9 h-9 border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-colors bg-white"
             title="Export List"
           >
@@ -291,23 +209,15 @@ export default function TransportDriverPage() {
           
           <button 
             onClick={openAddModal}
-            className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+            className="flex items-center gap-1.5 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-teal-600/20 cursor-pointer"
           >
-            <Plus className="w-4 h-4" /> Add Driver Modal
+            <Plus className="w-4 h-4 stroke-[3]" /> Add Driver
           </button>
-
-          <Link 
-            href="/institute/transport/driver/create"
-            className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition-all"
-            title="Use Multi-step Wizard"
-          >
-            Wizard
-          </Link>
         </div>
 
       </div>
 
-      {/* Active vs Deleted status tab buttons (Screenshot 1 & 2) */}
+      {/* Active vs Deleted status tab buttons */}
       <div className="flex gap-4">
         <button
           onClick={() => setCurrentTab('active')}
@@ -348,9 +258,8 @@ export default function TransportDriverPage() {
         <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
           
           {currentTab === 'active' ? (
-            /* Active Drivers list (Screenshot 1) */
             <table className="w-full text-xs text-center border-collapse">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 font-black text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
+              <thead className="bg-slate-900 text-white font-black uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-4 w-16">S. No.</th>
                   <th className="px-4 py-4 text-left">Username</th>
@@ -364,11 +273,11 @@ export default function TransportDriverPage() {
                   <th className="px-4 py-4 w-24">Action</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60 font-semibold text-slate-700 dark:text-slate-200">
                 {activeFiltered.map((driver, idx) => (
-                  <tr key={driver.id} className="border-b border-slate-100 dark:border-slate-700/50 last:border-0 hover:bg-slate-50/50 transition-colors">
+                  <tr key={driver.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-700/40 transition-colors">
                     <td className="px-4 py-3.5 text-slate-500 font-medium">{idx + 1}.</td>
-                    <td className="px-4 py-3.5 text-left text-slate-550 dark:text-slate-400 font-mono font-bold">{driver.username}</td>
+                    <td className="px-4 py-3.5 text-left text-slate-600 dark:text-slate-400 font-mono font-bold">{driver.username}</td>
                     <td className="px-4 py-3.5 text-left">
                       <div className="flex items-center gap-2.5">
                         {driver.photo ? (
@@ -376,18 +285,18 @@ export default function TransportDriverPage() {
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-sm border border-slate-200 shrink-0">👤</div>
                         )}
-                        <span className="font-extrabold text-slate-850 dark:text-slate-200">{driver.driverName}</span>
+                        <span className="font-extrabold text-slate-800 dark:text-slate-100">{driver.driverName}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3.5 font-bold text-slate-800 dark:text-slate-200">{driver.driverId}</td>
                     <td className="px-4 py-3.5 font-semibold text-slate-600 dark:text-slate-400">{driver.licenseNumber}</td>
-                    <td className="px-4 py-3.5 font-bold text-teal-600">{driver.assignedVehicle || '-'}</td>
-                    <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-350">{driver.contact}</td>
+                    <td className="px-4 py-3.5 font-bold text-teal-600 dark:text-teal-400">{driver.assignedVehicle || '-'}</td>
+                    <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-300">{driver.contact}</td>
                     <td className="px-4 py-3.5">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase ${
-                        driver.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'
+                        driver.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-rose-50 text-rose-500 border border-rose-200'
                       }`}>
-                        {driver.status}
+                        ● {driver.status}
                       </span>
                     </td>
                     <td className="px-4 py-3.5 text-slate-500 font-semibold">{driver.joiningDate}</td>
@@ -398,24 +307,24 @@ export default function TransportDriverPage() {
                             setSelectedDriver(driver)
                             setActiveProfileTab('details')
                           }}
-                          className="w-6 h-6 rounded bg-sky-50 text-sky-600 flex items-center justify-center hover:bg-sky-100 border border-sky-100 transition-colors"
+                          className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center hover:bg-sky-100 border border-sky-100 transition-colors"
                           title="View Profile Details"
                         >
-                          <Eye className="w-3 h-3" />
+                          <Eye className="w-3.5 h-3.5" />
                         </button>
                         <button 
                           onClick={() => openEditModal(driver)}
-                          className="w-6 h-6 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 border border-emerald-100 transition-colors"
-                          title="Quick Edit Driver Modal"
+                          className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 border border-emerald-100 transition-colors"
+                          title="Edit Driver Wizard"
                         >
-                          <Pencil className="w-3 h-3" />
+                          <Pencil className="w-3.5 h-3.5" />
                         </button>
                         <button 
                           onClick={() => handleDelete(driver)}
-                          className="w-6 h-6 rounded bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 border border-red-100 transition-colors"
+                          className="w-7 h-7 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-100 border border-rose-100 transition-colors"
                           title="Delete Driver"
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>
@@ -423,15 +332,14 @@ export default function TransportDriverPage() {
                 ))}
                 {activeFiltered.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="py-8 text-center text-slate-400 font-bold">No active drivers found.</td>
+                    <td colSpan={10} className="py-8 text-center text-slate-400 font-bold">No active drivers found.</td>
                   </tr>
                 )}
               </tbody>
             </table>
           ) : (
-            /* Deleted Drivers list (Screenshot 2) */
             <table className="w-full text-xs text-center border-collapse">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 font-black text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
+              <thead className="bg-slate-900 text-white font-black uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-4 w-16">S. No.</th>
                   <th className="px-4 py-4 text-left">Username</th>
@@ -444,22 +352,22 @@ export default function TransportDriverPage() {
                   <th className="px-4 py-4 w-24">Action</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60 font-semibold text-slate-700 dark:text-slate-200">
                 {deletedFiltered.map((driver, idx) => (
-                  <tr key={driver.id} className="border-b border-slate-100 dark:border-slate-700/50 last:border-0 hover:bg-slate-50/50 transition-colors">
+                  <tr key={driver.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-700/40 transition-colors">
                     <td className="px-4 py-3.5 text-slate-500 font-medium">{idx + 1}.</td>
-                    <td className="px-4 py-3.5 text-left text-slate-550 dark:text-slate-400 font-mono font-bold">{driver.username}</td>
+                    <td className="px-4 py-3.5 text-left text-slate-600 dark:text-slate-400 font-mono font-bold">{driver.username}</td>
                     <td className="px-4 py-3.5 text-left">
                       <div className="flex items-center gap-2">
                         <span className="text-base">👤</span>
-                        <span className="font-extrabold text-slate-850 dark:text-slate-200">{driver.driverName}</span>
+                        <span className="font-extrabold text-slate-800 dark:text-slate-100">{driver.driverName}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3.5 font-bold text-slate-800 dark:text-slate-200">{driver.driverId}</td>
                     <td className="px-4 py-3.5 font-semibold text-slate-600 dark:text-slate-400">{driver.licenseNumber}</td>
-                    <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-350">{driver.contact}</td>
+                    <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-300">{driver.contact}</td>
                     <td className="px-4 py-3.5 text-slate-500 font-semibold">{driver.joiningDate}</td>
-                    <td className="px-4 py-3.5 font-bold text-red-500">{driver.deletedDate}</td>
+                    <td className="px-4 py-3.5 font-bold text-rose-500">{driver.deletedDate}</td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center justify-center">
                         <button 
@@ -485,28 +393,27 @@ export default function TransportDriverPage() {
         </div>
 
         {/* Pagination */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 text-xs font-medium text-slate-500">
-          <span>Showing 1-{(currentTab === 'active' ? activeFiltered : deletedFiltered).length} of 456 Entries</span>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 text-xs font-semibold text-slate-500">
+          <span>Showing 1-{(currentTab === 'active' ? activeFiltered : deletedFiltered).length} of {(currentTab === 'active' ? activeFiltered : deletedFiltered).length} Entries</span>
           <div className="flex gap-1">
-            <button className="px-3 py-1.5 rounded hover:bg-slate-100 text-slate-400">«</button>
-            <button className="px-3 py-1.5 rounded hover:bg-slate-100 text-slate-400">‹</button>
-            <button className="px-3 py-1.5 rounded bg-teal-600 text-white font-bold">1</button>
-            <button className="px-3 py-1.5 rounded hover:bg-slate-100 text-teal-655">2</button>
-            <button className="px-3 py-1.5 rounded hover:bg-slate-100 text-slate-400">›</button>
-            <button className="px-3 py-1.5 rounded hover:bg-slate-100 text-slate-400">»</button>
+            <button className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-400">«</button>
+            <button className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-400">‹</button>
+            <button className="px-3 py-1.5 rounded-lg bg-teal-600 text-white font-bold shadow-sm">1</button>
+            <button className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-400">›</button>
+            <button className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-400">»</button>
           </div>
         </div>
 
       </div>
 
-      {/* ================================== STUNNING DRIVER PROFILE MODAL (Screenshot 5) ================================== */}
+      {/* Driver Profile Modal */}
       {selectedDriver && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="bg-slate-100 dark:bg-slate-900 rounded-3xl w-full max-w-[840px] shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col h-[90vh]">
             
             {/* Modal Header */}
             <div className="flex justify-between items-center bg-white dark:bg-slate-800 px-6 py-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
-              <span className="text-sm font-black text-[#1b3a60] dark:text-slate-200 uppercase tracking-wider">Driver Profile</span>
+              <span className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">Driver Profile</span>
               <button 
                 onClick={() => setSelectedDriver(null)}
                 className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-200/50 hover:bg-slate-200 text-slate-500 transition-colors"
@@ -518,442 +425,28 @@ export default function TransportDriverPage() {
             {/* Scrollable Modal Core */}
             <div className="p-6 overflow-y-auto flex-1 space-y-6">
               
-              {/* Header profile widget split */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
-                
-                {/* Left Card: Info avatar & status switch */}
                 <div className="bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-3xl p-5 shadow-sm text-center flex flex-col items-center justify-center md:col-span-1">
-                  <div className="w-20 h-20 rounded-2xl bg-slate-100 flex items-center justify-center border text-4xl shadow-sm relative mb-3">
-                    🧔
+                  <div className="w-20 h-20 rounded-2xl bg-slate-100 flex items-center justify-center border text-4xl shadow-sm relative mb-3 overflow-hidden">
+                    {selectedDriver.photo ? <img src={selectedDriver.photo} className="w-full h-full object-cover" /> : '🧔'}
                   </div>
                   <h4 className="text-sm font-black text-slate-900 dark:text-white leading-tight">{selectedDriver.driverName}</h4>
-                  <p className="text-[10px] text-slate-450 font-bold mt-1">User ID: {selectedDriver.username}</p>
-                  
-                  {/* Status Toggle switch */}
-                  <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-100 w-full justify-between">
-                    <span className="text-[10px] font-bold text-slate-550 uppercase">Active Status</span>
-                    <button 
-                      type="button" 
-                      onClick={() => {
-                        const updated = activeDrivers.map(d => d.id === selectedDriver.id ? { ...d, status: (d.status === 'Active' ? 'Inactive' : 'Active') as 'Active' | 'Inactive' } : d)
-                        setActiveDrivers(updated)
-                        localStorage.setItem('transport_drivers', JSON.stringify(updated))
-                        setSelectedDriver({ ...selectedDriver, status: (selectedDriver.status === 'Active' ? 'Inactive' : 'Active') as 'Active' | 'Inactive' })
-                      }}
-                      className={`w-9 h-5 rounded-full relative transition-colors ${selectedDriver.status === 'Active' ? 'bg-teal-600' : 'bg-slate-200'}`}
-                    >
-                      <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${selectedDriver.status === 'Active' ? 'left-4.5' : 'left-0.5'}`}></div>
-                    </button>
-                  </div>
+                  <p className="text-[10px] text-slate-400 font-bold mt-1">Username: {selectedDriver.username}</p>
                 </div>
 
-                {/* Right Card: Personal details widgets */}
                 <div className="bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-3xl p-5 shadow-sm md:col-span-2 relative text-xs flex flex-col justify-between">
-                  <h5 className="text-[10px] font-black text-[#1b3a60] uppercase tracking-wide border-b pb-2 flex justify-between items-center mb-2">
+                  <h5 className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide border-b pb-2 flex justify-between items-center mb-2">
                     <span>Personal Information</span>
-                    <Link href={`/institute/transport/driver/create?editId=${selectedDriver.id}`} className="text-[9px] text-teal-600 font-bold border px-2 py-0.5 rounded hover:bg-slate-50">Edit</Link>
+                    <button onClick={() => { setSelectedDriver(null); openEditModal(selectedDriver); }} className="text-[9px] text-teal-600 font-bold border px-2 py-0.5 rounded hover:bg-slate-50">Edit</button>
                   </h5>
 
-                  <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-slate-700 dark:text-slate-350">
-                    <div><span className="text-[9px] uppercase font-bold text-slate-450 block">Driver ID</span><span className="font-extrabold text-slate-850 dark:text-slate-200">{selectedDriver.driverId}</span></div>
-                    <div><span className="text-[9px] uppercase font-bold text-slate-450 block">License No.</span><span className="font-extrabold text-slate-850 dark:text-slate-200">{selectedDriver.licenseNumber} ({selectedDriver.licenseType})</span></div>
-                    <div><span className="text-[9px] uppercase font-bold text-slate-450 block">Mobile No.</span><span className="font-extrabold text-slate-850 dark:text-slate-200">{selectedDriver.contact}</span></div>
-                    <div><span className="text-[9px] uppercase font-bold text-slate-450 block">Joining Date</span><span className="font-extrabold text-slate-850 dark:text-slate-200">{selectedDriver.joiningDate}</span></div>
+                  <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-slate-700 dark:text-slate-300">
+                    <div><span className="text-[9px] uppercase font-bold text-slate-400 block">Driver ID</span><span className="font-extrabold">{selectedDriver.driverId}</span></div>
+                    <div><span className="text-[9px] uppercase font-bold text-slate-400 block">License No.</span><span className="font-extrabold">{selectedDriver.licenseNumber} ({selectedDriver.licenseType})</span></div>
+                    <div><span className="text-[9px] uppercase font-bold text-slate-400 block">Mobile No.</span><span className="font-extrabold">{selectedDriver.contact}</span></div>
+                    <div><span className="text-[9px] uppercase font-bold text-slate-400 block">Assigned Vehicle</span><span className="font-extrabold text-teal-600">{selectedDriver.assignedVehicle || 'None'}</span></div>
                   </div>
                 </div>
-
-              </div>
-
-              {/* Sub-tabs selectors (Screenshot 5) */}
-              <div className="border-b border-slate-200/80 dark:border-slate-800 flex gap-6 text-xs font-black uppercase tracking-wider shrink-0 bg-white dark:bg-slate-800 rounded-xl p-2 shadow-sm">
-                <button 
-                  onClick={() => setActiveProfileTab('details')} 
-                  className={`pb-1 px-1 border-b-2 transition-all ${activeProfileTab === 'details' ? 'border-teal-600 text-teal-600 font-black' : 'border-transparent text-slate-400'}`}
-                >
-                  Driver Details
-                </button>
-                <button 
-                  onClick={() => setActiveProfileTab('attendance')} 
-                  className={`pb-1 px-1 border-b-2 transition-all ${activeProfileTab === 'attendance' ? 'border-teal-600 text-teal-600 font-black' : 'border-transparent text-slate-400'}`}
-                >
-                  Attendance
-                </button>
-                <button 
-                  onClick={() => setActiveProfileTab('leave')} 
-                  className={`pb-1 px-1 border-b-2 transition-all ${activeProfileTab === 'leave' ? 'border-teal-600 text-teal-600 font-black' : 'border-transparent text-slate-400'}`}
-                >
-                  Leave
-                </button>
-                <button 
-                  onClick={() => setActiveProfileTab('payroll')} 
-                  className={`pb-1 px-1 border-b-2 transition-all ${activeProfileTab === 'payroll' ? 'border-teal-600 text-teal-600 font-black' : 'border-transparent text-slate-400'}`}
-                >
-                  Payroll
-                </button>
-                <button 
-                  onClick={() => setActiveProfileTab('login')} 
-                  className={`pb-1 px-1 border-b-2 transition-all ${activeProfileTab === 'login' ? 'border-teal-600 text-teal-600 font-black' : 'border-transparent text-slate-400'}`}
-                >
-                  Login Details
-                </button>
-              </div>
-
-              {/* Dynamic Profiles Content tab display */}
-              <div className="text-xs">
-                
-                {/* 1. Driver Details Tab */}
-                {activeProfileTab === 'details' && (
-                  <div className="space-y-6 animate-in fade-in duration-200">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      
-                      {/* Aadhar details */}
-                      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-sm">
-                        <h5 className="text-[10px] font-black text-slate-450 uppercase border-b pb-1.5 mb-3 flex justify-between items-center">
-                          <span>Aadhar Details</span>
-                          <span className="text-[9px] text-slate-450 font-bold">Verified</span>
-                        </h5>
-                        <div className="space-y-2">
-                          <div className="flex justify-between"><span>Aadhar Card No.</span><span className="font-extrabold">12345678900</span></div>
-                          <div className="flex justify-between"><span>Aadhar Card</span><span className="font-bold text-teal-600 cursor-pointer">👁 Aadhar Card.jpg</span></div>
-                        </div>
-                      </div>
-
-                      {/* Religion Info */}
-                      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-sm">
-                        <h5 className="text-[10px] font-black text-slate-450 uppercase border-b pb-1.5 mb-3">Religion & Category</h5>
-                        <div className="space-y-2">
-                          <div className="flex justify-between"><span>Nationality</span><span className="font-extrabold">Indian</span></div>
-                          <div className="flex justify-between"><span>Religion</span><span className="font-extrabold">Hindu</span></div>
-                          <div className="flex justify-between"><span>Category</span><span className="font-extrabold">General</span></div>
-                        </div>
-                      </div>
-
-                      {/* Address details */}
-                      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-sm">
-                        <h5 className="text-[10px] font-black text-slate-450 uppercase border-b pb-1.5 mb-3">Address Details</h5>
-                        <table className="w-full text-left">
-                          <tbody>
-                            <tr className="border-b border-slate-100"><td className="py-1.5 text-slate-450 uppercase text-[9px] font-bold">Address</td><td className="py-1.5 text-right font-extrabold">{selectedDriver.address || '123, Location, Street Name, Locality'}</td></tr>
-                            <tr className="border-b border-slate-100"><td className="py-1.5 text-slate-450 uppercase text-[9px] font-bold">Pincode</td><td className="py-1.5 text-right font-extrabold">{selectedDriver.pincode || '221545'}</td></tr>
-                            <tr className="border-b border-slate-100"><td className="py-1.5 text-slate-450 uppercase text-[9px] font-bold">District</td><td className="py-1.5 text-right font-extrabold">{selectedDriver.district || 'Lucknow'}</td></tr>
-                            <tr><td className="py-1.5 text-slate-450 uppercase text-[9px] font-bold">State</td><td className="py-1.5 text-right font-extrabold">{selectedDriver.state || 'Uttar Pradesh'}</td></tr>
-                          </tbody>
-                        </table>
-                      </div>
-
-                      {/* License details */}
-                      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-sm">
-                        <h5 className="text-[10px] font-black text-slate-450 uppercase border-b pb-1.5 mb-3">License Details</h5>
-                        <div className="space-y-2">
-                          <div className="flex justify-between"><span>{selectedDriver.licenseNumber}</span><span className="font-bold text-teal-600 cursor-pointer">👁 License.jpg</span></div>
-                          <div className="flex justify-between"><span>Issue Date</span><span className="font-extrabold">12-06-2013</span></div>
-                          <div className="flex justify-between"><span>Expiry Date</span><span className="font-extrabold">11-06-2028</span></div>
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-                )}
-
-                {/* 2. Attendance Tab (Screenshot 4) */}
-                {activeProfileTab === 'attendance' && (
-                  <div className="space-y-6 animate-in fade-in duration-200">
-                    
-                    {/* Header line filters & legend */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-slate-600">Select Session</span>
-                        <select className="border border-slate-200 rounded-lg p-1.5 text-xs outline-none bg-white font-semibold">
-                          <option value="2025-2026">2025-2026</option>
-                        </select>
-                      </div>
-                      
-                      <div className="flex flex-wrap items-center gap-3.5 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
-                        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-emerald-500"></span> Present: P</span>
-                        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-red-500"></span> Absent: A</span>
-                        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-purple-500"></span> Holiday: H</span>
-                        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-amber-500"></span> Late: L</span>
-                        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-indigo-500"></span> Half Day: F</span>
-                      </div>
-                    </div>
-
-                    {/* Metrics Count cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                      <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex justify-between items-center">
-                        <div><span className="text-[10px] uppercase font-bold text-emerald-700 block">Total Present</span><span className="text-xl font-black text-emerald-600">227</span></div>
-                        <span className="text-2xl">🟢</span>
-                      </div>
-                      <div className="bg-red-50 border border-red-100 rounded-2xl p-4 flex justify-between items-center">
-                        <div><span className="text-[10px] uppercase font-bold text-red-700 block">Total Absent</span><span className="text-xl font-black text-red-500">70</span></div>
-                        <span className="text-2xl">🔴</span>
-                      </div>
-                      <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex justify-between items-center">
-                        <div><span className="text-[10px] uppercase font-bold text-indigo-700 block">Half Day</span><span className="text-xl font-black text-indigo-600">27</span></div>
-                        <span className="text-2xl">🔵</span>
-                      </div>
-                      <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex justify-between items-center">
-                        <div><span className="text-[10px] uppercase font-bold text-amber-700 block">Total Late</span><span className="text-xl font-black text-amber-600">28</span></div>
-                        <span className="text-2xl">🟡</span>
-                      </div>
-                      <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4 flex justify-between items-center">
-                        <div><span className="text-[10px] uppercase font-bold text-purple-700 block">Total Holiday</span><span className="text-xl font-black text-purple-600">12</span></div>
-                        <span className="text-2xl">🟣</span>
-                      </div>
-                    </div>
-
-                    {/* Calendar grid sheet */}
-                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-6">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-center text-[10px] border-collapse font-bold">
-                          <thead>
-                            <tr className="border-b border-slate-100">
-                              <th className="text-left py-2 w-16">Month</th>
-                              {Array.from({ length: 30 }, (_, i) => (
-                                <th key={i} className="py-2 px-1 w-6">{i + 1}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, idx) => (
-                              <tr key={m} className="border-b border-slate-100 last:border-0">
-                                <td className="text-left font-black py-2.5 text-slate-700 uppercase">{m}</td>
-                                {Array.from({ length: 30 }, (_, i) => {
-                                  // Mock values
-                                  let char = 'P'
-                                  let color = 'text-emerald-500'
-                                  if ((i + idx) % 7 === 0) { char = 'H'; color = 'text-purple-500' }
-                                  else if ((i + idx) % 13 === 0) { char = 'A'; color = 'text-red-500' }
-                                  else if ((i + idx) % 19 === 0) { char = 'L'; color = 'text-amber-500' }
-                                  else if ((i + idx) % 25 === 0) { char = 'F'; color = 'text-indigo-500' }
-
-                                  return (
-                                    <td key={i} className={`py-2 px-1 font-extrabold ${color}`}>{char}</td>
-                                  )
-                                })}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                  </div>
-                )}
-
-                {/* 3. Leave Tab (Screenshot 3) */}
-                {activeProfileTab === 'leave' && (
-                  <div className="space-y-6 animate-in fade-in duration-200">
-                    
-                    {/* Remaining Leave Badges */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="bg-sky-50 border border-sky-100 rounded-2xl p-4 flex items-center justify-between">
-                        <div>
-                          <span className="text-[10px] uppercase font-bold text-sky-700 block">Casual Leave</span>
-                          <span className="text-lg font-black text-sky-600 mt-1 block">12 Available</span>
-                          <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">Used - 1, Available - 11</span>
-                        </div>
-                        <span className="text-xl">📄</span>
-                      </div>
-                      <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-center justify-between">
-                        <div>
-                          <span className="text-[10px] uppercase font-bold text-emerald-700 block">Medical Leave</span>
-                          <span className="text-lg font-black text-emerald-600 mt-1 block">12 Available</span>
-                          <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">Used - 1, Available - 11</span>
-                        </div>
-                        <span className="text-xl">🩺</span>
-                      </div>
-                      <div className="bg-fuchsia-50 border border-fuchsia-100 rounded-2xl p-4 flex items-center justify-between">
-                        <div>
-                          <span className="text-[10px] uppercase font-bold text-fuchsia-700 block">Half Day</span>
-                          <span className="text-lg font-black text-fuchsia-600 mt-1 block">8 Available</span>
-                          <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">Used - 0, Available - 8</span>
-                        </div>
-                        <span className="text-xl">⏱</span>
-                      </div>
-                    </div>
-
-                    {/* Table query list */}
-                    <div className="bg-white rounded-3xl border border-slate-200 p-4 shadow-sm space-y-4">
-                      <div className="flex justify-between items-center gap-4">
-                        <input type="text" placeholder="Search..." className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-teal-500 font-semibold" />
-                        <select className="border border-slate-200 rounded-lg p-1.5 text-xs outline-none bg-white font-bold"><option>2025-2026</option></select>
-                      </div>
-
-                      <table className="w-full text-center text-xs">
-                        <thead className="bg-slate-50 font-black border-b text-slate-655">
-                          <tr>
-                            <th className="py-2.5">S. No.</th>
-                            <th>Leave Type</th>
-                            <th>Date</th>
-                            <th>Duration</th>
-                            <th>Apply Date</th>
-                            <th>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr className="border-b border-slate-100 font-semibold">
-                            <td className="py-3">1.</td>
-                            <td className="font-extrabold text-slate-800">Medical Leave</td>
-                            <td className="text-slate-500">12/11/2025 - 13/11/2025</td>
-                            <td>3 Days</td>
-                            <td className="text-slate-500">11/11/2025</td>
-                            <td><span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-black text-[9px]">Approved</span></td>
-                          </tr>
-                          <tr className="border-b border-slate-100 font-semibold">
-                            <td className="py-3">2.</td>
-                            <td className="font-extrabold text-slate-800">Casual Leave</td>
-                            <td className="text-slate-500">12/11/2025 - 13/11/2025</td>
-                            <td>3 Days</td>
-                            <td className="text-slate-500">11/11/2025</td>
-                            <td><span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-black text-[9px]">Pending</span></td>
-                          </tr>
-                          <tr className="font-semibold">
-                            <td className="py-3">3.</td>
-                            <td className="font-extrabold text-slate-800">Special Leave</td>
-                            <td className="text-slate-500">12/11/2025 - 13/11/2025</td>
-                            <td>3 Days</td>
-                            <td className="text-slate-500">11/11/2025</td>
-                            <td><span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-black text-[9px]">Approved</span></td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-
-                  </div>
-                )}
-
-                {/* 4. Payroll Tab (Screenshot 5) */}
-                {activeProfileTab === 'payroll' && (
-                  <div className="space-y-6 animate-in fade-in duration-200">
-                    
-                    {/* Upper counts */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-center justify-between">
-                        <div>
-                          <span className="text-[10px] uppercase font-bold text-emerald-700 block">Total Net Salary</span>
-                          <span className="text-xl font-black text-emerald-650 mt-1 block">20,000</span>
-                        </div>
-                        <span className="text-2xl">💰</span>
-                      </div>
-                      <div className="bg-sky-50 border border-sky-100 rounded-2xl p-4 flex items-center justify-between">
-                        <div>
-                          <span className="text-[10px] uppercase font-bold text-sky-700 block">Total Gross Salary</span>
-                          <span className="text-xl font-black text-sky-600 mt-1 block">5,000</span>
-                        </div>
-                        <span className="text-2xl">💵</span>
-                      </div>
-                      <div className="bg-red-50 border border-red-100 rounded-2xl p-4 flex items-center justify-between">
-                        <div>
-                          <span className="text-[10px] uppercase font-bold text-red-700 block">Total Deduction</span>
-                          <span className="text-xl font-black text-red-500 mt-1 block">2,500</span>
-                        </div>
-                        <span className="text-2xl">📉</span>
-                      </div>
-                    </div>
-
-                    {/* Table lists */}
-                    <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
-                      
-                      <div className="flex justify-between items-center gap-4 border-b pb-4">
-                        <div className="flex items-center gap-3">
-                          <input type="text" placeholder="Search invoices..." className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-teal-500 font-semibold" />
-                          <select className="border border-slate-200 rounded-lg p-1.5 text-xs outline-none bg-white font-bold"><option>2025-2026</option></select>
-                        </div>
-                        <button type="button" className="p-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-slate-500">📥 Export</button>
-                      </div>
-
-                      <table className="w-full text-center text-xs">
-                        <thead className="bg-slate-50 font-black border-b text-slate-655">
-                          <tr>
-                            <th className="py-2.5">S. No.</th>
-                            <th>Invoice ID</th>
-                            <th>Salary For</th>
-                            <th>Date</th>
-                            <th>Net Salary</th>
-                            <th>Payment Method</th>
-                            <th>Status</th>
-                            <th>Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr className="border-b border-slate-100 font-semibold">
-                            <td className="py-3">1.</td>
-                            <td className="font-extrabold text-slate-800">ABC1234</td>
-                            <td className="text-slate-500">Jan 2026</td>
-                            <td>05/01/2026</td>
-                            <td className="font-bold text-slate-800">20,000</td>
-                            <td className="text-slate-500">Bank</td>
-                            <td><span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-black text-[9px]">Paid</span></td>
-                            <td><span className="text-sky-600 hover:underline cursor-pointer">👁 View</span></td>
-                          </tr>
-                          <tr className="border-b border-slate-100 font-semibold">
-                            <td className="py-3">2.</td>
-                            <td className="font-extrabold text-slate-800">ABC1234</td>
-                            <td className="text-slate-500">Feb 2026</td>
-                            <td>05/02/2026</td>
-                            <td className="font-bold text-slate-800">20,000</td>
-                            <td className="text-slate-400">—</td>
-                            <td><span className="px-2 py-0.5 rounded-full bg-red-50 text-red-500 font-black text-[9px]">Unpaid</span></td>
-                            <td><button type="button" onClick={() => alert('Processing payment...')} className="px-2 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded text-[10px] font-bold">Pay Now</button></td>
-                          </tr>
-                          <tr className="font-semibold">
-                            <td className="py-3">3.</td>
-                            <td className="font-extrabold text-slate-800">ABC1234</td>
-                            <td className="text-slate-500">Mar 2026</td>
-                            <td>05/03/2026</td>
-                            <td className="font-bold text-slate-800">20,000</td>
-                            <td className="text-slate-500">Online</td>
-                            <td><span className="px-2 py-0.5 rounded-full bg-red-50 text-red-500 font-black text-[9px]">Unpaid</span></td>
-                            <td><button type="button" onClick={() => alert('Processing payment...')} className="px-2 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded text-[10px] font-bold">Pay Now</button></td>
-                          </tr>
-                        </tbody>
-                      </table>
-
-                      {/* Footer total pay details (Screenshot 5) */}
-                      <div className="flex justify-between items-center bg-slate-50 border p-4 rounded-2xl mt-4">
-                        <span className="font-black text-slate-700">Total Payment Amount</span>
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-black text-[#1b3a60]">66,000/-</span>
-                          <button type="button" onClick={() => alert('Processing total dues payment...')} className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold">Pay Dues</button>
-                        </div>
-                      </div>
-
-                    </div>
-
-                  </div>
-                )}
-
-                {/* 5. Login Details Tab (Screenshot 2) */}
-                {activeProfileTab === 'login' && (
-                  <div className="bg-white border rounded-3xl p-6 shadow-sm space-y-6 animate-in fade-in duration-200">
-                    <h5 className="text-[10px] font-black text-[#1b3a60] uppercase border-b pb-2 flex justify-between items-center mb-4">
-                      <span>Login/Account Details</span>
-                      <button type="button" className="text-[9px] text-teal-605 font-bold border px-2 py-0.5 rounded hover:bg-slate-50 text-teal-600">Edit</button>
-                    </h5>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-bold text-slate-450 uppercase">User Name</label>
-                        <input type="text" value={selectedDriver.username} readOnly className="w-full px-4 py-2 border rounded-lg text-xs bg-slate-50 outline-none font-semibold font-mono" />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-bold text-slate-450 uppercase">Password</label>
-                        <div className="relative">
-                          <input type="password" value="123456789" readOnly className="w-full px-4 py-2 border rounded-lg text-xs bg-slate-50 outline-none font-semibold font-mono" />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-slate-400">👁</span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-bold text-slate-450 uppercase">Confirm Password</label>
-                        <div className="relative">
-                          <input type="password" value="123456789" readOnly className="w-full px-4 py-2 border rounded-lg text-xs bg-slate-50 outline-none font-semibold font-mono" />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-slate-400">👁</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
               </div>
 
             </div>
@@ -962,252 +455,15 @@ export default function TransportDriverPage() {
         </div>
       )}
 
-      {/* ================================== ADD / EDIT DRIVER MODAL ================================== */}
+      {/* MULTI-STEP WIZARD POPUP MODAL */}
       {addModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
-            <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 px-6 py-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
-              <div>
-                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-                  {editingDriverId ? 'Edit Driver Details' : 'Add New Driver'}
-                </h3>
-                <p className="text-[11px] text-slate-400 font-medium">Quickly configure driver profile, image and assigned vehicle</p>
-              </div>
-              <button 
-                type="button"
-                onClick={() => setAddModalOpen(false)}
-                className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-200/60 hover:bg-slate-200 text-slate-500 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Modal Form Core */}
-            <form onSubmit={handleSaveDriverModal} className="p-6 overflow-y-auto flex-1 space-y-6">
-              
-              {/* Photo Upload Card */}
-              <div className="flex items-center gap-6 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
-                <div className="relative w-20 h-20 rounded-2xl bg-slate-200 flex items-center justify-center border border-slate-300 overflow-hidden shrink-0 shadow-sm">
-                  {photoVal ? (
-                    <img src={photoVal} alt="Driver Preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-3xl">🧔</span>
-                  )}
-                </div>
-
-                <div className="flex-1 space-y-1.5">
-                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-200">Driver Photo / Image Upload</h4>
-                  <p className="text-[10px] text-slate-400">Select driver profile image from computer (PNG, JPG)</p>
-                  <div className="flex items-center gap-2 pt-1">
-                    <label className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold cursor-pointer transition-all shadow-sm flex items-center gap-1.5">
-                      <UploadCloud className="w-3.5 h-3.5" />
-                      Upload Photo
-                      <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-                    </label>
-                    {photoVal && (
-                      <button
-                        type="button"
-                        onClick={() => setPhotoVal('')}
-                        className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-bold transition-all border border-red-100"
-                      >
-                        Remove Photo
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Basic Details */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-black text-[#1b3a60] dark:text-slate-300 uppercase tracking-wider border-b pb-1.5">Basic Information</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">First Name *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Enter First Name"
-                      value={firstName}
-                      onChange={e => setFirstName(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl text-xs outline-none focus:border-teal-500 font-semibold"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Last Name</label>
-                    <input
-                      type="text"
-                      placeholder="Enter Last Name"
-                      value={lastName}
-                      onChange={e => setLastName(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl text-xs outline-none focus:border-teal-500 font-semibold"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Driver ID *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 42 or DRV-101"
-                      value={driverIdVal}
-                      onChange={e => setDriverIdVal(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl text-xs outline-none focus:border-teal-500 font-semibold"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Mobile / Contact No. *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Enter 10 digit mobile"
-                      value={contactVal}
-                      onChange={e => setContactVal(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl text-xs outline-none focus:border-teal-500 font-semibold"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Username / Credentials</label>
-                    <input
-                      type="text"
-                      placeholder="Username for login"
-                      value={usernameVal}
-                      onChange={e => setUsernameVal(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl text-xs outline-none focus:border-teal-500 font-mono font-semibold"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Joining Date</label>
-                    <input
-                      type="date"
-                      value={joiningDateVal}
-                      onChange={e => setJoiningDateVal(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl text-xs outline-none focus:border-teal-500 font-semibold"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* License & Vehicle Details */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-black text-[#1b3a60] dark:text-slate-300 uppercase tracking-wider border-b pb-1.5">License & Vehicle Assignment</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">License Type</label>
-                    <select
-                      value={licenseTypeVal}
-                      onChange={e => setLicenseTypeVal(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl text-xs bg-white font-semibold outline-none focus:border-teal-500"
-                    >
-                      <option value="LMV">LMV (Light Motor Vehicle)</option>
-                      <option value="HMV">HMV (Heavy Motor Vehicle)</option>
-                      <option value="PSV">PSV (Public Service Vehicle)</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">License Number</label>
-                    <input
-                      type="text"
-                      placeholder="License No. (e.g. LMV/123/456)"
-                      value={licenseNumberVal}
-                      onChange={e => setLicenseNumberVal(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl text-xs outline-none focus:border-teal-500 font-semibold"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Assign Vehicle</label>
-                    <select
-                      value={assignedVehicleVal}
-                      onChange={e => setAssignedVehicleVal(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl text-xs bg-white font-semibold outline-none focus:border-teal-500"
-                    >
-                      <option value="">-- Select Vehicle --</option>
-                      {vehiclesList.map((v, i) => (
-                        <option key={i} value={`${v.vehicleName} (${v.registrationNo})`}>
-                          {v.vehicleName} ({v.registrationNo})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Additional Optional Info */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-black text-[#1b3a60] dark:text-slate-300 uppercase tracking-wider border-b pb-1.5">Additional Details</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Gender</label>
-                    <select
-                      value={genderVal}
-                      onChange={e => setGenderVal(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl text-xs bg-white font-semibold outline-none focus:border-teal-500"
-                    >
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Email Address</label>
-                    <input
-                      type="email"
-                      placeholder="Email Address"
-                      value={emailVal}
-                      onChange={e => setEmailVal(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl text-xs outline-none focus:border-teal-500 font-semibold"
-                    />
-                  </div>
-
-                  <div className="space-y-1 sm:col-span-2">
-                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Residential Address</label>
-                    <input
-                      type="text"
-                      placeholder="Street Address, City, Pincode"
-                      value={addressVal}
-                      onChange={e => setAddressVal(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl text-xs outline-none focus:border-teal-500 font-semibold"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Modal Footer Actions */}
-              <div className="flex justify-between items-center border-t pt-4 shrink-0">
-                <Link
-                  href="/institute/transport/driver/create"
-                  className="text-xs text-teal-600 font-bold hover:underline"
-                >
-                  Switch to Multi-step Wizard →
-                </Link>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setAddModalOpen(false)}
-                    className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer"
-                  >
-                    {editingDriverId ? 'Update Driver' : 'Save Driver'}
-                  </button>
-                </div>
-              </div>
-
-            </form>
-          </div>
-        </div>
+        <DriverWizardModal 
+          editingDriver={editingDriver}
+          vehiclesList={vehiclesList}
+          driverCount={activeDrivers.length}
+          onClose={() => setAddModalOpen(false)}
+          onSave={handleSaveDriverFromWizard}
+        />
       )}
 
       {/* TOAST ALERT */}
@@ -1218,6 +474,499 @@ export default function TransportDriverPage() {
         </div>
       )}
 
+    </div>
+  )
+}
+
+function DriverWizardModal({ 
+  editingDriver, 
+  vehiclesList, 
+  driverCount, 
+  onClose, 
+  onSave 
+}: { 
+  editingDriver: DriverRecord | null, 
+  vehiclesList: any[], 
+  driverCount: number, 
+  onClose: () => void, 
+  onSave: (payload: DriverRecord) => void 
+}) {
+  const STEPS = ['Personal Details', 'License Details', 'Address Details', 'Payroll & Leave', 'Payment Details', 'Final Preview'] as const
+  type StepType = typeof STEPS[number]
+
+  const [currentStep, setCurrentStep] = useState<StepType>('Personal Details')
+
+  // Step 1: Personal
+  const [role, setRole] = useState('Driver')
+  const [driverId, setDriverId] = useState(editingDriver?.driverId || `${driverCount + 1}`)
+  const [joiningDate, setJoiningDate] = useState(editingDriver?.joiningDate || new Date().toISOString().split('T')[0])
+  const [firstName, setFirstName] = useState(editingDriver ? editingDriver.driverName.split(' ')[0] : '')
+  const [lastName, setLastName] = useState(editingDriver ? editingDriver.driverName.split(' ').slice(1).join(' ') : '')
+  const [mobileNo, setMobileNo] = useState(editingDriver?.contact || '')
+  const [emailId, setEmailId] = useState(editingDriver?.email || '')
+  const [gender, setGender] = useState(editingDriver?.gender || 'Male')
+  const [dob, setDob] = useState(editingDriver?.dob || '1990-01-01')
+  const [fatherName, setFatherName] = useState(editingDriver?.fatherName || '')
+  const [maritalStatus, setMaritalStatus] = useState(editingDriver?.maritalStatus || 'Married')
+  const [nationality, setNationality] = useState('Indian')
+  const [religion, setReligion] = useState(editingDriver?.religion || 'Hindu')
+  const [category, setCategory] = useState(editingDriver?.category || 'General')
+  const [username, setUsername] = useState(editingDriver?.username || '')
+  const [password, setPassword] = useState('123456789')
+  const [confirmPassword, setConfirmPassword] = useState('123456789')
+  const [photo, setPhoto] = useState(editingDriver?.photo || '')
+
+  // Step 2: License
+  const [licenseType, setLicenseType] = useState(editingDriver?.licenseType || 'LMV')
+  const [licenseNumber, setLicenseNumber] = useState(editingDriver?.licenseNumber || '')
+  const [licenseIssueDate, setLicenseIssueDate] = useState('2013-06-12')
+  const [licenseValidTill, setLicenseValidTill] = useState('2028-06-11')
+  const [assignedVehicle, setAssignedVehicle] = useState(editingDriver?.assignedVehicle || '')
+
+  // Step 3: Address
+  const [address, setAddress] = useState(editingDriver?.address || '')
+  const [state, setState] = useState(editingDriver?.state || 'Uttar Pradesh')
+  const [district, setDistrict] = useState(editingDriver?.district || 'Lucknow')
+  const [pincode, setPincode] = useState(editingDriver?.pincode || '')
+  const [aadharNo, setAadharNo] = useState(editingDriver?.aadharNo || '')
+  const [aadharFileName, setAadharFileName] = useState('Aadhar Card.jpg')
+  const [sigFileName, setSigFileName] = useState('Signature.png')
+
+  // Step 4: Payroll & Leave
+  const [basicSalary, setBasicSalary] = useState(editingDriver?.basicSalary || '12500')
+  const [hra, setHra] = useState(editingDriver?.hra || '2000')
+  const [conveyance, setConveyance] = useState(editingDriver?.conveyance || '1500')
+  const [specialAllowance, setSpecialAllowance] = useState(editingDriver?.specialAllowance || '4000')
+  const [grossSalary, setGrossSalary] = useState(editingDriver?.grossSalary || '20000')
+  const [casualLeave, setCasualLeave] = useState('12')
+  const [medicalLeave, setMedicalLeave] = useState('12')
+  const [halfDayLeave, setHalfDayLeave] = useState('6')
+
+  // Step 5: Payment
+  const [accountHolderName, setAccountHolderName] = useState(editingDriver?.accountHolderName || `${firstName} ${lastName}`.trim())
+  const [accountNo, setAccountNo] = useState(editingDriver?.accountNo || '')
+  const [ifscCode, setIfscCode] = useState(editingDriver?.ifscCode || '')
+  const [bankName, setBankName] = useState(editingDriver?.bankName || '')
+  const [panNo, setPanNo] = useState(editingDriver?.panNo || '')
+  const [upiId, setUpiId] = useState(editingDriver?.upiId || '')
+  const [uanNo, setUanNo] = useState(editingDriver?.uanNo || '')
+  const [pfNo, setPfNo] = useState(editingDriver?.pfNo || '')
+
+  // Handle Photo Upload
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => setPhoto(reader.result as string)
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleNext = () => {
+    if (currentStep === 'Personal Details' && (!firstName.trim() || !mobileNo.trim())) {
+      toast.error('Please fill in required fields: First Name and Mobile No.')
+      return
+    }
+    const idx = STEPS.indexOf(currentStep)
+    if (idx < STEPS.length - 1) {
+      setCurrentStep(STEPS[idx + 1])
+    }
+  }
+
+  const handleBack = () => {
+    const idx = STEPS.indexOf(currentStep)
+    if (idx > 0) {
+      setCurrentStep(STEPS[idx - 1])
+    }
+  }
+
+  const handleSubmit = () => {
+    const fullDriverName = `${firstName.trim()} ${lastName.trim()}`.trim()
+    const payload: DriverRecord = {
+      id: editingDriver?.id || Date.now(),
+      username: username.trim() || `dri_${driverId.trim() || Date.now()}`,
+      driverName: fullDriverName,
+      driverId: driverId.trim() || `${driverCount + 1}`,
+      licenseNumber: licenseNumber.trim() || 'N/A',
+      licenseType,
+      assignedVehicle,
+      contact: mobileNo.trim(),
+      status: editingDriver?.status || 'Active',
+      joiningDate,
+      email: emailId.trim(),
+      gender,
+      dob,
+      fatherName,
+      maritalStatus,
+      religion,
+      category,
+      address,
+      district,
+      state,
+      pincode,
+      photo,
+      aadharNo,
+      basicSalary,
+      grossSalary,
+      bankName,
+      accountNo
+    }
+
+    onSave(payload)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-5xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200 my-auto">
+        
+        {/* Header */}
+        <div className="bg-slate-900 text-white px-8 py-5 flex justify-between items-center shrink-0">
+          <div>
+            <h1 className="text-lg font-black uppercase tracking-wider text-teal-400">
+              {editingDriver ? 'Edit Driver' : 'Add New Driver'}
+            </h1>
+            <p className="text-[12px] text-slate-300 font-medium">Configure driver profile, license, address & payroll parameters</p>
+          </div>
+          <button 
+            type="button"
+            onClick={onClose} 
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Stepper Bar Header */}
+        <div className="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700 px-6 py-3 shrink-0">
+          <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+            {STEPS.map((stepLabel, index) => {
+              const stepNumber = index + 1
+              const isActive = stepLabel === currentStep
+              const isCompleted = STEPS.indexOf(stepLabel) < STEPS.indexOf(currentStep)
+
+              return (
+                <button
+                  key={stepNumber}
+                  type="button"
+                  onClick={() => {
+                    if (isCompleted) setCurrentStep(stepLabel)
+                  }}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    isActive 
+                      ? 'bg-teal-600 text-white shadow-md scale-[1.02]' 
+                      : isCompleted 
+                        ? 'bg-teal-50 text-teal-700 hover:bg-teal-100 dark:bg-teal-950/40 dark:text-teal-300' 
+                        : 'bg-white dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
+                    isActive 
+                      ? 'bg-white text-teal-600' 
+                      : isCompleted 
+                        ? 'bg-teal-600 text-white' 
+                        : 'bg-slate-100 dark:bg-slate-700 text-slate-500'
+                  }`}>
+                    {isCompleted ? '✓' : stepNumber}
+                  </span>
+                  <span>{stepLabel}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Modal Scrollable Core */}
+        <div className="p-8 overflow-y-auto flex-1 space-y-6">
+          
+          {/* STEP 1: PERSONAL DETAILS */}
+          {currentStep === 'Personal Details' && (
+             <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="space-y-4">
+                  <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider border-b pb-2">Joining Details</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Role *</label>
+                      <select value={role} onChange={e => setRole(e.target.value)} className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none">
+                        <option value="Driver">Driver</option>
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Driver ID *</label>
+                      <input type="text" value={driverId} onChange={e => setDriverId(e.target.value)} placeholder="Enter Driver ID" className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Joining Date *</label>
+                      <input type="date" value={joiningDate} onChange={e => setJoiningDate(e.target.value)} className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-2">
+                  <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider border-b pb-2">Basic Info</h3>
+                  <div className="flex flex-col md:flex-row gap-6 items-start">
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700 dark:text-slate-300">First Name *</label><input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="First Name" className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none" /></div>
+                      <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700 dark:text-slate-300">Last Name</label><input type="text" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Last Name" className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none" /></div>
+                      <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700 dark:text-slate-300">Mobile No. *</label><input type="text" value={mobileNo} onChange={e => setMobileNo(e.target.value)} placeholder="Mobile No." className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none" /></div>
+                      <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700 dark:text-slate-300">Email Id</label><input type="email" value={emailId} onChange={e => setEmailId(e.target.value)} placeholder="Email Id" className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none" /></div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Gender *</label>
+                        <div className="flex gap-4 pt-1">
+                          <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer"><input type="radio" name="gnd" checked={gender === 'Male'} onChange={() => setGender('Male')} /> Male</label>
+                          <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer"><input type="radio" name="gnd" checked={gender === 'Female'} onChange={() => setGender('Female')} /> Female</label>
+                          <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer"><input type="radio" name="gnd" checked={gender === 'Others'} onChange={() => setGender('Others')} /> Others</label>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700 dark:text-slate-300">Date of Birth *</label><input type="date" value={dob} onChange={e => setDob(e.target.value)} className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none" /></div>
+                    </div>
+
+                    {/* Upload Photo */}
+                    <div className="w-44 h-44 border-2 border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center rounded-2xl p-3 gap-2 text-center shrink-0">
+                      <div className="w-16 h-16 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center border text-2xl overflow-hidden">
+                        {photo ? <img src={photo} className="w-full h-full object-cover" /> : '🧔'}
+                      </div>
+                      <label className="px-3 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold cursor-pointer shadow-sm">
+                        Upload Photo
+                        <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-2">
+                  <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider border-b pb-2">Login / Credentials</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700 dark:text-slate-300">User Name *</label><input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold outline-none" /></div>
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700 dark:text-slate-300">Password *</label><input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono outline-none" /></div>
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700 dark:text-slate-300">Confirm Password *</label><input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono outline-none" /></div>
+                  </div>
+                </div>
+             </div>
+          )}
+
+          {/* STEP 2: LICENSE DETAILS */}
+          {currentStep === 'License Details' && (
+             <div className="space-y-6 animate-in fade-in duration-200">
+                <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider border-b pb-2">License Details & Vehicle Assignment</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">License Type *</label>
+                      <select value={licenseType} onChange={e => setLicenseType(e.target.value)} className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none">
+                         <option value="LMV">LMV (Light Motor Vehicle)</option>
+                         <option value="HMV">HMV (Heavy Motor Vehicle)</option>
+                         <option value="PSV">PSV (Public Service Vehicle)</option>
+                      </select>
+                   </div>
+                   <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">License Number *</label>
+                      <input type="text" value={licenseNumber} onChange={e => setLicenseNumber(e.target.value)} placeholder="e.g. LMV/123/456" className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none" />
+                   </div>
+                   <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Issue Date *</label>
+                      <input type="date" value={licenseIssueDate} onChange={e => setLicenseIssueDate(e.target.value)} className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none" />
+                   </div>
+                   <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Valid Till *</label>
+                      <input type="date" value={licenseValidTill} onChange={e => setLicenseValidTill(e.target.value)} className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none" />
+                   </div>
+
+                   {/* Assign Vehicle Dropdown */}
+                   <div className="flex flex-col gap-1.5 md:col-span-2">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Assign Vehicle</label>
+                      <select 
+                         value={assignedVehicle} 
+                         onChange={e => setAssignedVehicle(e.target.value)} 
+                         className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
+                      >
+                         <option value="">-- Select Vehicle --</option>
+                         {vehiclesList.map((v: any, i: number) => {
+                            const vName = v.vehicleName || v.name || 'Vehicle'
+                            const reg = v.registrationNo || v.regNo || v.vehicleNo || v.number || ''
+                            const val = reg ? `${vName} (${reg})` : vName
+                            return <option key={i} value={val}>{val}</option>
+                         })}
+                      </select>
+                   </div>
+                </div>
+             </div>
+          )}
+
+          {/* STEP 3: ADDRESS DETAILS */}
+          {currentStep === 'Address Details' && (
+             <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="space-y-4">
+                  <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider border-b pb-2">Residential Address</h3>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Address *</label>
+                    <input type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="Street Address, Locality" className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">State *</label>
+                      <input type="text" value={state} onChange={e => setState(e.target.value)} className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">District *</label>
+                      <input type="text" value={district} onChange={e => setDistrict(e.target.value)} className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Pincode *</label>
+                      <input type="text" value={pincode} onChange={e => setPincode(e.target.value)} placeholder="Pincode" className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-2">
+                  <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider border-b pb-2">Identity Verification</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Aadhar No. *</label>
+                      <input type="text" value={aadharNo} onChange={e => setAadharNo(e.target.value)} placeholder="Aadhar Card No." className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Aadhar File</label>
+                      <div className="border border-slate-200 rounded-xl px-3 py-2 text-xs bg-slate-50 flex justify-between items-center">
+                        <span>{aadharFileName}</span>
+                        <span className="text-teal-600 font-bold">📎 Upload</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Signature File</label>
+                      <div className="border border-slate-200 rounded-xl px-3 py-2 text-xs bg-slate-50 flex justify-between items-center">
+                        <span>{sigFileName}</span>
+                        <span className="text-teal-600 font-bold">📎 Upload</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+             </div>
+          )}
+
+          {/* STEP 4: PAYROLL & LEAVE */}
+          {currentStep === 'Payroll & Leave' && (
+             <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="space-y-4">
+                  <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider border-b pb-2">Payroll Setup</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">Basic Salary</label><input type="text" value={basicSalary} onChange={e => setBasicSalary(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">HRA</label><input type="text" value={hra} onChange={e => setHra(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">Conveyance</label><input type="text" value={conveyance} onChange={e => setConveyance(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">Special Allowance</label><input type="text" value={specialAllowance} onChange={e => setSpecialAllowance(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">Gross Monthly</label><input type="text" value={grossSalary} onChange={e => setGrossSalary(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-bold text-teal-600 bg-slate-50" /></div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-2">
+                  <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider border-b pb-2">Annual Leave Entitlements</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">Casual Leave</label><input type="number" value={casualLeave} onChange={e => setCasualLeave(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">Medical Leave</label><input type="number" value={medicalLeave} onChange={e => setMedicalLeave(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">Half Day Leave</label><input type="number" value={halfDayLeave} onChange={e => setHalfDayLeave(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
+                  </div>
+                </div>
+             </div>
+          )}
+
+          {/* STEP 5: PAYMENT DETAILS */}
+          {currentStep === 'Payment Details' && (
+             <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="space-y-4">
+                  <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider border-b pb-2">Bank Details</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">Account Holder Name</label><input type="text" value={accountHolderName} onChange={e => setAccountHolderName(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">Bank Account No.</label><input type="text" value={accountNo} onChange={e => setAccountNo(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">IFSC Code</label><input type="text" value={ifscCode} onChange={e => setIfscCode(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">Bank Name</label><input type="text" value={bankName} onChange={e => setBankName(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">PAN No.</label><input type="text" value={panNo} onChange={e => setPanNo(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-2">
+                  <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider border-b pb-2">Other Account Credentials</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">UPI ID</label><input type="text" value={upiId} onChange={e => setUpiId(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">UAN No.</label><input type="text" value={uanNo} onChange={e => setUanNo(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
+                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">PF Account No.</label><input type="text" value={pfNo} onChange={e => setPfNo(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
+                  </div>
+                </div>
+             </div>
+          )}
+
+          {/* STEP 6: FINAL PREVIEW */}
+          {currentStep === 'Final Preview' && (
+             <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="bg-slate-50 dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+                      <h4 className="text-xs font-bold text-slate-700 dark:text-slate-200 border-b pb-2">Driver Overview</h4>
+                      <div className="flex items-center gap-4">
+                         <div className="w-16 h-16 rounded-full bg-slate-200 flex items-center justify-center text-3xl overflow-hidden border">
+                            {photo ? <img src={photo} className="w-full h-full object-cover" /> : '🧔'}
+                         </div>
+                         <div>
+                            <span className="text-base font-black text-slate-800 dark:text-slate-100 block">{firstName} {lastName}</span>
+                            <span className="text-xs text-slate-500 font-semibold block">ID: {driverId} • Mobile: {mobileNo}</span>
+                            <span className="text-xs text-teal-600 font-bold block mt-1">Vehicle: {assignedVehicle || 'Unassigned'}</span>
+                         </div>
+                      </div>
+                   </div>
+
+                   <div className="bg-slate-50 dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+                      <h4 className="text-xs font-bold text-slate-700 dark:text-slate-200 border-b pb-2">License & Payroll</h4>
+                      <div className="space-y-1.5 text-xs">
+                         <div className="flex justify-between"><span className="text-slate-500">License Number:</span><span className="font-bold">{licenseNumber} ({licenseType})</span></div>
+                         <div className="flex justify-between"><span className="text-slate-500">Joining Date:</span><span className="font-bold">{joiningDate}</span></div>
+                         <div className="flex justify-between"><span className="text-slate-500">Gross Salary:</span><span className="font-bold text-teal-600">₹{grossSalary}</span></div>
+                         <div className="flex justify-between"><span className="text-slate-500">Bank Account:</span><span className="font-bold">{accountNo || 'N/A'}</span></div>
+                      </div>
+                   </div>
+                </div>
+             </div>
+          )}
+
+        </div>
+
+        {/* Modal Footer Buttons */}
+        <div className="px-8 py-4 bg-slate-50 dark:bg-slate-900/60 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center shrink-0">
+          <button 
+            type="button"
+            onClick={onClose} 
+            className="px-6 py-2 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 text-xs transition-all shadow-sm"
+          >
+            Cancel
+          </button>
+
+          <div className="flex gap-3">
+            {STEPS.indexOf(currentStep) > 0 && (
+              <button 
+                type="button"
+                onClick={handleBack} 
+                className="px-6 py-2 bg-white border border-slate-200 text-teal-600 font-bold rounded-xl hover:bg-slate-50 text-xs transition-all shadow-sm"
+              >
+                Back
+              </button>
+            )}
+
+            {currentStep !== 'Final Preview' ? (
+              <button 
+                type="button"
+                onClick={handleNext} 
+                className="px-8 py-2 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 text-xs transition-all shadow-md shadow-teal-600/20"
+              >
+                Save & Next
+              </button>
+            ) : (
+              <button 
+                type="button"
+                onClick={handleSubmit} 
+                className="px-8 py-2 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 text-xs transition-all shadow-md shadow-teal-600/20"
+              >
+                Confirm & Save Driver
+              </button>
+            )}
+          </div>
+        </div>
+
+      </div>
     </div>
   )
 }

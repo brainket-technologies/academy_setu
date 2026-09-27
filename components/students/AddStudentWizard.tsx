@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { 
   PersonalDetailsCard, PreviousSchoolCard, MedicalDetailsCard, TCDetailsCard, EducationTableCard,
   ParentsDetailsCard, AddressDetailsCard, BirthCertificateCard, ScholarshipDetailsCard, BplRteDetailsCard,
-  GovtIdDetailsCard, GovtPortalDetailsCard, InfoCard, InfoRow
+  GovtIdDetailsCard, GovtPortalDetailsCard, FeeDetailsCard, InfoCard, InfoRow
 } from './ProfileCards'
 
 // Steps
@@ -19,26 +19,46 @@ const STEPS = [
   'Fee Details'
 ]
 
-export default function AddStudentWizard({ onClose }: { onClose: () => void }) {
+export default function AddStudentWizard({ initialData, onClose }: { initialData?: any, onClose: () => void }) {
   const [currentStep, setCurrentStep] = useState(1)
   
-  const [formData, setFormData] = useState<any>({
-    // Step 1
-    academicYear: '', class: '', section: '', rollNo: '', admissionNo: '', admissionDate: '',
-    stream: '', medium: '', houseBlock: '', firstName: '', lastName: '', mobileNo: '', emailId: '',
-    dob: '', gender: 'Male', bloodGroup: '', height: '', weight: '', userName: '', password: '', confirmPassword: '', avatar: '',
-    // Step 2
-    prevSchoolName: '', prevAttendedClass: '', prevSchoolAffiliatedTo: '', tcNo: '', tcIssueDate: '',
-    otherQualifications: [{ qualification: '', passYear: '', rollNo: '', obtMarks: '', percentage: '', subject: '', schoolName: '' }],
-    // Step 3
-    fatherName: '', fatherContact: '', fatherOccupation: '', fatherIncome: '', motherName: '', motherContact: '',
-    motherOccupation: '', motherIncome: '', address: '', state: '', district: '', pincode: '', domicileNo: '',
-    // Step 4
-    aadharNo: '', nationality: 'Indian', religion: '', category: '', birthCertNo: '', scholarshipId: '', scholarshipPwd: '',
-    govtStudentId: '', govtFamilyId: '', samagraId: '', bplStudent: 'No',
-    // Step 5 toggles
-    regFeeEnabled: true, admFeeEnabled: true, classFeeEnabled: true, libFeeEnabled: true,
-    examFeeEnabled: true, hostelFeeEnabled: true, extraFeeEnabled: true, transFeeEnabled: true,
+  const [formData, setFormData] = useState<any>(() => {
+    const defaultData = {
+      // Step 1
+      academicYear: '', class: '', section: '', rollNo: '', admissionNo: '', admissionDate: '',
+      stream: '', medium: '', houseBlock: '', firstName: '', lastName: '', mobileNo: '', emailId: '',
+      dob: '', gender: 'Male', bloodGroup: '', height: '', weight: '', userName: '', password: '', confirmPassword: '', avatar: '',
+      // Step 2
+      prevSchoolName: '', prevAttendedClass: '', prevSchoolAffiliatedTo: '', tcNo: '', tcIssueDate: '',
+      otherQualifications: [{ qualification: '', passYear: '', rollNo: '', obtMarks: '', percentage: '', subject: '', schoolName: '' }],
+      // Step 3
+      fatherName: '', fatherContact: '', fatherOccupation: '', fatherIncome: '', motherName: '', motherContact: '',
+      motherOccupation: '', motherIncome: '', address: '', state: '', district: '', pincode: '', domicileNo: '',
+      // Step 4
+      aadharNo: '', nationality: 'Indian', religion: '', category: '', birthCertNo: '', scholarshipId: '', scholarshipPwd: '',
+      govtStudentId: '', govtFamilyId: '', samagraId: '', bplStudent: 'No',
+      // Step 5 toggles - default OFF if not added
+      regFeeEnabled: false, admFeeEnabled: false, classFeeEnabled: false, libFeeEnabled: false,
+      examFeeEnabled: false, hostelFeeEnabled: false, extraFeeEnabled: false, transFeeEnabled: false,
+    }
+    if (initialData) {
+      const clsName = initialData.class_name || initialData.class || ''
+      const matchedSec = clsName.match(/\(([^)]+)\)/)?.[1] || initialData.section || ''
+      const cleanCls = clsName.replace(/\s*\([^)]*\)/, '').trim() || initialData.class || ''
+
+      return {
+        ...defaultData,
+        ...initialData,
+        firstName: initialData.first_name || initialData.firstName || '',
+        lastName: initialData.last_name || initialData.lastName || '',
+        mobileNo: initialData.contact || initialData.mobileNo || '',
+        admissionNo: initialData.admission_no || initialData.admissionNo || '',
+        rollNo: initialData.roll_no || initialData.rollNo || '',
+        class: cleanCls,
+        section: matchedSec,
+      }
+    }
+    return defaultData
   })
 
   const [masters, setMasters] = useState<any>({
@@ -249,7 +269,7 @@ export default function AddStudentWizard({ onClose }: { onClose: () => void }) {
         {currentStep === 3 && <Step3 formData={formData} masters={masters} updateForm={updateForm} onNext={handleNext} onBack={handleBack} onCancel={onClose} />}
         {currentStep === 4 && <Step4 formData={formData} masters={masters} updateForm={updateForm} onNext={handleNext} onBack={handleBack} onCancel={onClose} />}
         {currentStep === 5 && <Step5 formData={formData} updateForm={updateForm} onNext={handleNext} onBack={handleBack} onCancel={onClose} onOpenPromo={() => setShowPromoModal(true)} />}
-        {currentStep === 6 && <Step6 formData={formData} onBack={handleBack} onCancel={onClose} />}
+        {currentStep === 6 && <Step6 formData={formData} onBack={handleBack} onCancel={onClose} onEditStep={(step: number) => setCurrentStep(step)} />}
       </div>
 
       {showPromoModal && <PromoCodeModal onClose={() => setShowPromoModal(false)} />}
@@ -800,29 +820,37 @@ function getFeeConfigForClass(storageKey: string, studentClass: string) {
     const raw = localStorage.getItem(storageKey)
     if (!raw) return null
     const list = JSON.parse(raw)
-    if (!Array.isArray(list)) return null
+    if (!Array.isArray(list) || list.length === 0) return null
     const target = studentClass.trim().toLowerCase()
-    
-    return list.find((item: any) => {
+    const targetNum = target.replace(/class\s*/i, '').trim()
+
+    const romanMap: Record<string, string> = {
+      '1': 'i', '2': 'ii', '3': 'iii', '4': 'iv', '5': 'v',
+      '6': 'vi', '7': 'vii', '8': 'viii', '9': 'ix', '10': 'x',
+      '11': 'xi', '12': 'xii'
+    }
+    const revRomanMap: Record<string, string> = {
+      'i': '1', 'ii': '2', 'iii': '3', 'iv': '4', 'v': '5',
+      'vi': '6', 'vii': '7', 'viii': '8', 'ix': '9', 'x': '10',
+      'xi': '11', 'xii': '12'
+    }
+
+    const found = list.find((item: any) => {
       if (!item.className) return false
       const c = item.className.toString().trim().toLowerCase()
-      if (c === target) return true
-      const cNum = c.replace(/class\s*/i, '')
-      const tNum = target.replace(/class\s*/i, '')
-      const romanMap: Record<string, string> = {
-        '1': 'i', '2': 'ii', '3': 'iii', '4': 'iv', '5': 'v',
-        '6': 'vi', '7': 'vii', '8': 'viii', '9': 'ix', '10': 'x',
-        '11': 'xi', '12': 'xii'
-      }
-      const revRomanMap: Record<string, string> = {
-        'i': '1', 'ii': '2', 'iii': '3', 'iv': '4', 'v': '5',
-        'vi': '6', 'vii': '7', 'viii': '8', 'ix': '9', 'x': '10',
-        'xi': '11', 'xii': '12'
-      }
-      if (cNum === tNum) return true
-      if (romanMap[tNum] === cNum || revRomanMap[tNum] === cNum) return true
-      return false
+      if (c === 'all' || c === target) return true
+      const classesArr = c.split(',').map((s: string) => s.trim())
+      return classesArr.some((clsStr: string) => {
+        if (clsStr === target || clsStr === 'all') return true
+        const cNum = clsStr.replace(/class\s*/i, '').trim()
+        if (cNum === targetNum) return true
+        if (romanMap[targetNum] === cNum || revRomanMap[targetNum] === cNum) return true
+        return false
+      })
     })
+
+    if (found) return found
+    return list[0]
   } catch (e) {
     return null
   }
@@ -839,16 +867,16 @@ function formatFeeVal(val: any): string {
 // STEP 5: FEE DETAILS
 // ---------------------------------------------------------
 function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: any) {
-  const [feeEnabled, setFeeEnabled] = useState({
-    regFee: false,
-    admFee: false,
-    classFee: false,
-    libFee: false,
-    examFee: false,
-    hostelFee: false,
-    extraFee: false,
-    transFee: false,
-  })
+  const [feeEnabled, setFeeEnabled] = useState(() => ({
+    regFee: Boolean(formData.regFee || formData.regFeeDuration || formData.regFeeEnabled === true),
+    admFee: Boolean(formData.admFee || formData.admFeeDuration || formData.admFeeEnabled === true),
+    classFee: Boolean(formData.classFee || formData.classFeeDuration || formData.classFeeEnabled === true),
+    libFee: Boolean(formData.libFee || formData.libFeeDuration || formData.libFeeEnabled === true),
+    examFee: Boolean(formData.examFee || formData.examFeeDuration || formData.examFeeEnabled === true),
+    hostelFee: Boolean(formData.hostelFee || formData.hostelFeeDuration || formData.hostelType || formData.hostelFeeEnabled === true),
+    extraFee: Boolean(formData.extraFee || formData.extraActivityName || formData.extraFeeEnabled === true),
+    transFee: Boolean(formData.transFee || formData.transRoute || formData.transStoppage || formData.transFeeEnabled === true),
+  }))
 
   const toggleFee = (key: keyof typeof feeEnabled) => {
     setFeeEnabled(prev => ({ ...prev, [key]: !prev[key] }))
@@ -860,13 +888,13 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
   // Options for Class Fee Duration based on configured chart
   let classDurationOptions = ['Select an Option']
   if (classFeeChart) {
-    if (classFeeChart.monthly && classFeeChart.monthly !== '0') classDurationOptions.push('Monthly')
-    if (classFeeChart.quarterly && classFeeChart.quarterly !== '0') classDurationOptions.push('Quarterly')
-    if (classFeeChart.halfYearly && classFeeChart.halfYearly !== '0') classDurationOptions.push('Half Yearly')
-    if (classFeeChart.yearly && classFeeChart.yearly !== '0') classDurationOptions.push('Yearly')
+    if (classFeeChart.monthly && classFeeChart.monthly !== '0' && classFeeChart.monthly !== '0.0') classDurationOptions.push('Monthly')
+    if (classFeeChart.quarterly && classFeeChart.quarterly !== '0' && classFeeChart.quarterly !== '0.0') classDurationOptions.push('Quarterly')
+    if (classFeeChart.halfYearly && classFeeChart.halfYearly !== '0' && classFeeChart.halfYearly !== '0.0') classDurationOptions.push('Half Yearly')
+    if (classFeeChart.yearly && classFeeChart.yearly !== '0' && classFeeChart.yearly !== '0.0') classDurationOptions.push('Yearly')
   }
   if (classDurationOptions.length === 1) {
-    classDurationOptions = ['Select an Option', 'One Time', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']
+    classDurationOptions = ['Select an Option', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']
   }
 
   const handleClassDurationChange = (dur: string) => {
@@ -895,6 +923,304 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
       if (formData.classFeeDuration) {
         handleClassDurationChange(formData.classFeeDuration)
       }
+    }
+  }
+
+  // Transport Data state
+  const [transportData, setTransportData] = useState<{ routes: string[], stoppagesMap: Record<string, any[]> }>({
+    routes: [],
+    stoppagesMap: {}
+  })
+
+  useEffect(() => {
+    let routesArr: string[] = []
+    const stoppagesMap: Record<string, any[]> = {}
+
+    // 1. Read transport_routes
+    const savedRoutes = localStorage.getItem('transport_routes')
+    if (savedRoutes) {
+      try {
+        const list = JSON.parse(savedRoutes)
+        if (Array.isArray(list)) {
+          list.forEach((r: any) => {
+            const rName = r.routeName || r.name
+            if (rName) {
+              const label = r.vehicleName ? `${rName} (${r.vehicleName})` : rName
+              if (!routesArr.includes(label)) routesArr.push(label)
+              stoppagesMap[label] = []
+              if (Array.isArray(r.stoppages)) {
+                r.stoppages.forEach((st: any) => {
+                  stoppagesMap[label].push({
+                    location: st.location || st.name || st.stopName,
+                    km: st.km || st.distance || '10',
+                    fee: st.fee || st.amount || '500'
+                  })
+                })
+              }
+            }
+          })
+        }
+      } catch (e) {}
+    }
+
+    // 2. Read transport_vehicles
+    const savedVehicles = localStorage.getItem('transport_vehicles')
+    if (savedVehicles) {
+      try {
+        const list = JSON.parse(savedVehicles)
+        if (Array.isArray(list)) {
+          list.forEach((v: any) => {
+            if (v.route) {
+              const label = `${v.route} (${v.vehicleName || 'Vehicle'})`
+              if (!routesArr.includes(label)) routesArr.push(label)
+              if (!stoppagesMap[label]) stoppagesMap[label] = []
+            }
+          })
+        }
+      } catch (e) {}
+    }
+
+    // 3. Read transportation_fees
+    const savedFees = localStorage.getItem('transportation_fees')
+    if (savedFees) {
+      try {
+        const list = JSON.parse(savedFees)
+        if (Array.isArray(list)) {
+          list.forEach((f: any) => {
+            const rName = f.route || f.routeName
+            const stItem = {
+              location: f.location || f.stoppage || `Stop ${f.id}`,
+              km: f.km || f.distance || '15',
+              fee: f.monthly || f.amount || f.fee || '1000',
+              monthly: f.monthly || (f.amount ? `${f.amount}/-` : ''),
+              quarterly: f.quarterly || '',
+              halfYearly: f.halfYearly || '',
+              yearly: f.yearly || ''
+            }
+            if (rName) {
+              const cleanR = rName.replace(/\s*\([^)]*\)/, '').trim().toLowerCase()
+              if (!routesArr.some(rKey => rKey.replace(/\s*\([^)]*\)/, '').trim().toLowerCase() === cleanR)) {
+                routesArr.push(rName)
+              }
+              routesArr.forEach(rKey => {
+                const cleanKey = rKey.replace(/\s*\([^)]*\)/, '').trim().toLowerCase()
+                if (rKey === rName || cleanKey === cleanR || cleanKey.includes(cleanR) || cleanR.includes(cleanKey)) {
+                  if (!stoppagesMap[rKey]) stoppagesMap[rKey] = []
+                  if (!stoppagesMap[rKey].some((s: any) => s.location === stItem.location)) {
+                    stoppagesMap[rKey].push(stItem)
+                  }
+                }
+              })
+              if (!stoppagesMap[rName]) {
+                stoppagesMap[rName] = [stItem]
+              } else if (!stoppagesMap[rName].some((s: any) => s.location === stItem.location)) {
+                stoppagesMap[rName].push(stItem)
+              }
+            } else {
+              // Attach to all routes if no specific route name specified
+              routesArr.forEach(rKey => {
+                if (!stoppagesMap[rKey]) stoppagesMap[rKey] = []
+                if (!stoppagesMap[rKey].some((s: any) => s.location === stItem.location)) {
+                  stoppagesMap[rKey].push(stItem)
+                }
+              })
+            }
+          })
+        }
+      } catch (e) {}
+    }
+
+    setTransportData({ routes: routesArr, stoppagesMap })
+  }, [])
+
+  const selectedRouteName = formData.transRoute || ''
+
+  // Get all stoppages matching selected route label or base route name
+  const getStoppagesForRoute = (selectedRoute: string) => {
+    if (!selectedRoute || selectedRoute === 'Select an Option') return []
+    if (transportData.stoppagesMap[selectedRoute] && transportData.stoppagesMap[selectedRoute].length > 0) {
+      return transportData.stoppagesMap[selectedRoute]
+    }
+    
+    const cleanSel = selectedRoute.replace(/\s*\([^)]*\)/, '').trim().toLowerCase()
+    let matches: any[] = []
+    
+    Object.keys(transportData.stoppagesMap).forEach(key => {
+      const cleanKey = key.replace(/\s*\([^)]*\)/, '').trim().toLowerCase()
+      if (key === selectedRoute || cleanKey === cleanSel || cleanKey.includes(cleanSel) || cleanSel.includes(cleanKey)) {
+        matches.push(...(transportData.stoppagesMap[key] || []))
+      }
+    })
+    
+    const map = new Map()
+    matches.forEach(item => {
+      if (item.location && !map.has(item.location)) {
+        map.set(item.location, item)
+      }
+    })
+    return Array.from(map.values())
+  }
+
+  const availableStoppages = getStoppagesForRoute(selectedRouteName)
+  const routeOptions = ['Select an Option', ...transportData.routes]
+  const stoppageOptions = ['Select an Option', ...availableStoppages.map(s => s.location)]
+
+  const handleTransRouteChange = (routeVal: string) => {
+    updateForm('transRoute', routeVal)
+    updateForm('transStoppage', '')
+    updateForm('transDistance', '')
+    updateForm('transFee', '')
+  }
+
+  const calculateTransFeeForDuration = (found: any, dur: string) => {
+    if (!found) return
+    let feeStr = ''
+    if (dur === 'Monthly') feeStr = found.monthly || found.fee
+    else if (dur === 'Quarterly') feeStr = found.quarterly || found.monthly || found.fee
+    else if (dur === 'Half Yearly' || dur === 'Quartly') feeStr = found.halfYearly || found.monthly || found.fee
+    else if (dur === 'Yearly' || dur === 'Annually') feeStr = found.yearly || found.monthly || found.fee
+    else feeStr = found.monthly || found.fee
+
+    if (feeStr) updateForm('transFee', formatFeeVal(feeStr))
+  }
+
+  // Sync transport distance and fee whenever stoppage, route, duration, or availableStoppages change
+  useEffect(() => {
+    if (formData.transStoppage && availableStoppages.length > 0) {
+      const found = availableStoppages.find(s => s.location === formData.transStoppage)
+      if (found) {
+        if (found.km && formData.transDistance !== `${found.km} Km`) {
+          updateForm('transDistance', `${found.km} Km`)
+        }
+        const dur = formData.transFeeDuration || 'Monthly'
+        let feeStr = ''
+        if (dur === 'Monthly') feeStr = found.monthly || found.fee
+        else if (dur === 'Quarterly') feeStr = found.quarterly || found.monthly || found.fee
+        else if (dur === 'Half Yearly' || dur === 'Quartly') feeStr = found.halfYearly || found.monthly || found.fee
+        else if (dur === 'Yearly' || dur === 'Annually') feeStr = found.yearly || found.monthly || found.fee
+        else feeStr = found.monthly || found.fee
+
+        const formatted = formatFeeVal(feeStr)
+        if (formatted && formData.transFee !== formatted) {
+          updateForm('transFee', formatted)
+        }
+      }
+    }
+  }, [formData.transStoppage, formData.transRoute, formData.transFeeDuration, availableStoppages])
+
+  const handleTransStoppageChange = (stopVal: string) => {
+    updateForm('transStoppage', stopVal)
+    const found = availableStoppages.find(s => s.location === stopVal)
+    if (found) {
+      updateForm('transDistance', `${found.km} Km`)
+      const dur = formData.transFeeDuration || 'Monthly'
+      if (!formData.transFeeDuration) updateForm('transFeeDuration', 'Monthly')
+      calculateTransFeeForDuration(found, dur)
+    } else {
+      updateForm('transDistance', '')
+      updateForm('transFee', '')
+    }
+  }
+
+  const handleTransFeeDurationChange = (dur: string) => {
+    updateForm('transFeeDuration', dur)
+    const found = availableStoppages.find(s => s.location === formData.transStoppage)
+    if (found) {
+      calculateTransFeeForDuration(found, dur)
+    }
+  }
+
+  // Extra Curricular Activities list loaded from school_extra_curricular_fees
+  const [extraActivities, setExtraActivities] = useState<any[]>([])
+
+  useEffect(() => {
+    const raw = localStorage.getItem('school_extra_curricular_fees')
+    if (raw) {
+      try {
+        const list = JSON.parse(raw)
+        if (Array.isArray(list)) {
+          const target = (formData.class || '').trim().toLowerCase()
+          const targetNum = target.replace(/class\s*/i, '').trim()
+          
+          const filtered = list.filter((item: any) => {
+            if (!item.className) return true
+            const c = item.className.toString().trim().toLowerCase()
+            if (c === 'all' || c === target) return true
+            const cNum = c.replace(/class\s*/i, '').trim()
+            return cNum === targetNum
+          })
+
+          setExtraActivities(filtered.length > 0 ? filtered : list)
+        }
+      } catch (e) {}
+    }
+  }, [formData.class])
+
+  const extraActivityNames = Array.from(new Set(extraActivities.map(a => a.activityName).filter(Boolean)))
+  const extraCurricularActivityOptions = ['Select an Option', ...extraActivityNames]
+
+  const handleExtraActivityChange = (actName: string) => {
+    updateForm('extraActivityName', actName)
+    const found = extraActivities.find(a => a.activityName === actName)
+    if (found && found.amount) {
+      updateForm('extraFee', formatFeeVal(found.amount))
+      if (!formData.extraFeeDuration) {
+        updateForm('extraFeeDuration', 'One Time')
+      }
+    }
+  }
+
+  // Hostel Types list loaded from school_hostel_fees
+  const [hostelItems, setHostelItems] = useState<any[]>([])
+
+  useEffect(() => {
+    const raw = localStorage.getItem('school_hostel_fees')
+    if (raw) {
+      try {
+        const list = JSON.parse(raw)
+        if (Array.isArray(list)) {
+          const target = (formData.class || '').trim().toLowerCase()
+          const targetNum = target.replace(/class\s*/i, '').trim()
+          
+          const filtered = list.filter((item: any) => {
+            if (!item.className) return true
+            const c = item.className.toString().trim().toLowerCase()
+            if (c === 'all' || c === target) return true
+            const cNum = c.replace(/class\s*/i, '').trim()
+            return cNum === targetNum
+          })
+
+          setHostelItems(filtered.length > 0 ? filtered : list)
+        }
+      } catch (e) {}
+    }
+  }, [formData.class])
+
+  const hostelTypeNames = Array.from(new Set(hostelItems.map(h => h.hostelType || h.name).filter(Boolean)))
+  const hostelTypeOptions = ['Select an Option', ...hostelTypeNames]
+
+  const handleHostelTypeChange = (hType: string) => {
+    updateForm('hostelType', hType)
+    const found = hostelItems.find(h => (h.hostelType || h.name) === hType)
+    if (found) {
+      const dur = formData.hostelFeeDuration || 'Monthly'
+      updateForm('hostelFeeDuration', dur)
+      if (dur === 'Monthly' && found.monthly) updateForm('hostelFee', formatFeeVal(found.monthly))
+      else if (dur === 'Quarterly' && found.quarterly) updateForm('hostelFee', formatFeeVal(found.quarterly))
+      else if ((dur === 'Half Yearly' || dur === 'Quartly') && found.halfYearly) updateForm('hostelFee', formatFeeVal(found.halfYearly))
+      else if ((dur === 'Yearly' || dur === 'Annually') && found.yearly) updateForm('hostelFee', formatFeeVal(found.yearly))
+      else if (found.monthly || found.amount) updateForm('hostelFee', formatFeeVal(found.monthly || found.amount))
+    }
+  }
+
+  const handleHostelDurationChange = (dur: string) => {
+    updateForm('hostelFeeDuration', dur)
+    const found = hostelItems.find(h => (h.hostelType || h.name) === formData.hostelType)
+    if (found) {
+      if (dur === 'Monthly' && found.monthly) updateForm('hostelFee', formatFeeVal(found.monthly))
+      else if (dur === 'Quarterly' && found.quarterly) updateForm('hostelFee', formatFeeVal(found.quarterly))
+      else if ((dur === 'Half Yearly' || dur === 'Quartly') && found.halfYearly) updateForm('hostelFee', formatFeeVal(found.halfYearly))
+      else if ((dur === 'Yearly' || dur === 'Annually') && found.yearly) updateForm('hostelFee', formatFeeVal(found.yearly))
     }
   }
 
@@ -1007,50 +1333,95 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
         title="Hostel Fee" 
         enabled={feeEnabled.hostelFee} 
         onToggle={() => toggleFee('hostelFee')} 
-        onOpenPromo={onOpenPromo} 
-        storageKey="school_hostel_fees"
-        studentClass={formData.class}
-        durationValue={formData.hostelFeeDuration}
-        feeValue={formData.hostelFee}
-        onDurationChange={(dur, fee) => {
-          updateForm('hostelFeeDuration', dur)
-          updateForm('hostelFee', fee)
-        }}
-      />
+        onOpenPromo={onOpenPromo}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+           <SelectField 
+             label="Select Hostel Type" 
+             required 
+             options={hostelTypeOptions} 
+             value={formData.hostelType || ''}
+             onChange={(e: any) => handleHostelTypeChange(e.target.value)}
+           />
+           <SelectField 
+             label="Fee Duration" 
+             required 
+             options={['Select an Option', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']} 
+             value={formData.hostelFeeDuration || ''}
+             onChange={(e: any) => handleHostelDurationChange(e.target.value)}
+           />
+           <div className="flex flex-col gap-1.5 w-full">
+             <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">Fee</label>
+             <input 
+               value={formData.hostelFee || ''} 
+               onChange={(e: any) => updateForm('hostelFee', e.target.value)}
+               placeholder="Ex : 1,000/-" 
+               className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all text-slate-600 dark:text-slate-300 font-semibold" 
+             />
+           </div>
+           <PromoCodeField label="Promo Code" placeholder="Select an Option" onClick={onOpenPromo} />
+        </div>
+      </FeeSection>
       
       <FeeSection 
         title="Extra Curricular Fee" 
         enabled={feeEnabled.extraFee} 
         onToggle={() => toggleFee('extraFee')} 
-        onOpenPromo={onOpenPromo} 
-        storageKey="school_extra_curricular_fees"
-        studentClass={formData.class}
-        durationValue={formData.extraFeeDuration}
-        feeValue={formData.extraFee}
-        onDurationChange={(dur, fee) => {
-          updateForm('extraFeeDuration', dur)
-          updateForm('extraFee', fee)
-        }}
-      />
+        onOpenPromo={onOpenPromo}
+      >
+        <ExtraCurricularMultiSelect 
+          formData={formData} 
+          updateForm={updateForm} 
+          masterActivities={extraActivities}
+        />
+      </FeeSection>
 
       <FeeSection 
-        title="Transportation Service Fee (Optional)" 
+        title="Transportation Service Fee" 
         enabled={feeEnabled.transFee} 
         onToggle={() => toggleFee('transFee')} 
         onOpenPromo={onOpenPromo}
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-           <SelectField label="Select Route" required options={['Select an Option', 'Route 1', 'Route 2']} />
-           <SelectField label="Select Pickup/Stoppage Location" required options={['Select an Option', 'Stop A', 'Stop B']} />
+           <SelectField 
+             label="Select Route" 
+             required 
+             options={routeOptions} 
+             value={formData.transRoute || ''}
+             onChange={(e: any) => handleTransRouteChange(e.target.value)}
+           />
+           <SelectField 
+             label="Select Pickup/Stoppage Location" 
+             required 
+             options={stoppageOptions} 
+             value={formData.transStoppage || ''}
+             onChange={(e: any) => handleTransStoppageChange(e.target.value)}
+           />
            <div className="flex flex-col gap-1.5 w-full">
              <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">Distance (Approx.)</label>
-             <input value="Ex: 20 Km" readOnly className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-500 outline-none font-semibold" />
+             <input 
+               value={formData.transDistance || ''} 
+               placeholder="Ex: 20 Km"
+               readOnly 
+               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 outline-none font-semibold" 
+             />
            </div>
 
-           <SelectField label="Fee Duration" required options={['Select an Option', 'One Time', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']} />
+           <SelectField 
+             label="Fee Duration" 
+             required 
+             options={['Select an Option', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']} 
+             value={formData.transFeeDuration || ''}
+             onChange={(e: any) => handleTransFeeDurationChange(e.target.value)}
+           />
            <div className="flex flex-col gap-1.5 w-full">
              <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">Fee</label>
-             <input placeholder="Ex : 1,000/-" className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all text-slate-600 dark:text-slate-300 font-semibold" />
+             <input 
+               value={formData.transFee || ''} 
+               onChange={(e: any) => updateForm('transFee', e.target.value)}
+               placeholder="Ex : 1,000/-" 
+               className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all text-slate-600 dark:text-slate-300 font-semibold" 
+             />
            </div>
            <PromoCodeField label="Promo Code" placeholder="Select an Option" onClick={onOpenPromo} />
         </div>
@@ -1068,7 +1439,7 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
 // ---------------------------------------------------------
 // STEP 6: FINAL PREVIEW
 // ---------------------------------------------------------
-function Step6({ formData, onBack, onCancel }: any) {
+function Step6({ formData, onBack, onCancel, onEditStep }: any) {
   const [submitting, setSubmitting] = useState(false)
 
   const handlePrint = () => {
@@ -1078,7 +1449,7 @@ function Step6({ formData, onBack, onCancel }: any) {
   const handleSubmit = async () => {
     setSubmitting(true)
     
-    // 1. Try DB creation
+    // 1. Try DB creation/update
     await createStudent(formData)
     
     // 2. Save to localStorage for instant local reflection
@@ -1088,24 +1459,82 @@ function Step6({ formData, onBack, onCancel }: any) {
       try { currentList = JSON.parse(saved) } catch (e) { console.error(e) }
     }
 
-    const newStudent = {
-      id: Date.now(),
+    const existingIdx = formData.id ? currentList.findIndex((s: any) => String(s.id) === String(formData.id)) : -1
+
+    const studentRecord = {
+      id: formData.id || Date.now(),
       admission_no: formData.admissionNo || `ADM-${Math.floor(1000 + Math.random() * 9000)}`,
       roll_no: formData.rollNo || `${currentList.length + 1}`,
       first_name: formData.firstName,
       last_name: formData.lastName || '',
-      class_name: `${formData.class || ''} (${formData.section || ''})`,
+      class_name: `${formData.class || ''}${formData.section ? ` (${formData.section})` : ''}`,
       contact: formData.mobileNo || '',
-      fees_status: 'Pending',
-      status: 'Active',
+      fees_status: formData.fees_status || 'Pending',
+      status: formData.status || 'Active',
       avatar: formData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.firstName}`,
       ...formData
     }
 
-    const updatedList = [newStudent, ...currentList]
+    let updatedList: any[] = []
+    if (existingIdx >= 0) {
+      updatedList = [...currentList]
+      updatedList[existingIdx] = studentRecord
+    } else {
+      updatedList = [studentRecord, ...currentList]
+    }
+
     localStorage.setItem('school_students', JSON.stringify(updatedList))
 
-    toast.success('Student successfully registered!')
+    // 3. Sync into school_all_fees for All Fee setup directory
+    const parseAmt = (val: any) => parseFloat(String(val || '').replace(/[^0-9.]/g, '')) || 0
+    const regAmt = parseAmt(formData.regFee)
+    const admAmt = parseAmt(formData.admFee)
+    const classAmt = formData.isRteStudent === 'Yes' ? 0 : parseAmt(formData.classFee)
+    const libAmt = parseAmt(formData.libFee)
+    const examAmt = parseAmt(formData.examFee)
+    const hostelAmt = parseAmt(formData.hostelFee)
+    const transAmt = parseAmt(formData.transFee)
+    const extraAmt = parseAmt(formData.extraFee)
+    const fineAmt = parseAmt(formData.fine)
+
+    const totalAmt = regAmt + admAmt + classAmt + libAmt + examAmt + hostelAmt + transAmt + extraAmt + fineAmt
+    const totalStr = `${totalAmt.toLocaleString()}/-`
+    const isPaid = (formData.fees_status || 'Pending') === 'Paid'
+
+    const feeRecordItem = {
+      id: studentRecord.id,
+      class: formData.class || '',
+      section: formData.section || '',
+      name: `${formData.firstName || ''} ${formData.lastName || ''}`.trim(),
+      reg: regAmt > 0 ? `${regAmt}/-` : '0/-',
+      adm: admAmt > 0 ? `${admAmt}/-` : '0/-',
+      classFee: classAmt > 0 ? `${classAmt}/-` : '0/-',
+      lib: libAmt > 0 ? `${libAmt}/-` : '0/-',
+      exam: examAmt > 0 ? `${examAmt}/-` : '0/-',
+      hostel: hostelAmt > 0 ? `${hostelAmt}/-` : '0/-',
+      trans: transAmt > 0 ? `${transAmt}/-` : '0/-',
+      extra: extraAmt > 0 ? `${extraAmt}/-` : '0/-',
+      fine: fineAmt > 0 ? `${fineAmt}/-` : '0/-',
+      pending: isPaid ? '0/-' : totalStr,
+      total: totalStr,
+      status: isPaid ? 'Paid' : 'Unpaid',
+      ...studentRecord
+    }
+
+    const savedFees = localStorage.getItem('school_all_fees')
+    let allFeesList: any[] = []
+    if (savedFees) {
+      try { allFeesList = JSON.parse(savedFees) } catch (e) {}
+    }
+    const feeIdx = allFeesList.findIndex((f: any) => String(f.id) === String(studentRecord.id))
+    if (feeIdx >= 0) {
+      allFeesList[feeIdx] = { ...allFeesList[feeIdx], ...feeRecordItem }
+    } else {
+      allFeesList = [feeRecordItem, ...allFeesList]
+    }
+    localStorage.setItem('school_all_fees', JSON.stringify(allFeesList))
+
+    toast.success(formData.id ? 'Student details updated successfully!' : 'Student successfully registered!')
     onCancel()
   }
 
@@ -1114,7 +1543,7 @@ function Step6({ formData, onBack, onCancel }: any) {
       
       {/* Top 2 Cards: Basic Info & Login */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <InfoCard title="Basic Info" icon={Eye} onEdit={() => {}}>
+        <InfoCard title="Basic Info" icon={Eye} onEdit={() => onEditStep && onEditStep(1)}>
            <div className="flex items-start gap-4">
               <div className="w-20 h-24 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
                  {formData.avatar ? (
@@ -1141,7 +1570,7 @@ function Step6({ formData, onBack, onCancel }: any) {
            </div>
         </InfoCard>
 
-        <InfoCard title="Login & Account Details" icon={Edit2} onEdit={() => {}}>
+        <InfoCard title="Login & Account Details" icon={Edit2} onEdit={() => onEditStep && onEditStep(1)}>
            <div className="flex flex-col gap-4 h-full justify-center">
               <InfoRow label="User Name" value={formData.userName || `stu_${formData.firstName?.toLowerCase() || '101'}`} valueClass="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md mt-1 font-mono font-bold" />
               <InfoRow label="Password" value="••••••••••" valueClass="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md mt-1 font-mono" />
@@ -1149,26 +1578,29 @@ function Step6({ formData, onBack, onCancel }: any) {
         </InfoCard>
       </div>
 
+      {/* Fee Structure Summary Card */}
+      <FeeDetailsCard data={formData} onEdit={() => onEditStep && onEditStep(5)} />
+
       {/* Masonry Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
          <div className="flex flex-col gap-6">
-            <PersonalDetailsCard data={formData} onEdit={() => {}} />
-            <EducationTableCard data={formData} onEdit={() => {}} />
-            <ParentsDetailsCard data={formData} onEdit={() => {}} />
-            <BirthCertificateCard data={formData} onEdit={() => {}} />
-            <BplRteDetailsCard data={formData} onEdit={() => {}} />
+            <PersonalDetailsCard data={formData} onEdit={() => onEditStep && onEditStep(1)} />
+            <EducationTableCard data={formData} onEdit={() => onEditStep && onEditStep(2)} />
+            <ParentsDetailsCard data={formData} onEdit={() => onEditStep && onEditStep(3)} />
+            <BirthCertificateCard data={formData} onEdit={() => onEditStep && onEditStep(4)} />
+            <BplRteDetailsCard data={formData} onEdit={() => onEditStep && onEditStep(4)} />
          </div>
 
          <div className="flex flex-col gap-6">
-            <PreviousSchoolCard data={formData} onEdit={() => {}} />
+            <PreviousSchoolCard data={formData} onEdit={() => onEditStep && onEditStep(2)} />
             <div className="grid grid-cols-2 gap-6">
-               <MedicalDetailsCard data={formData} onEdit={() => {}} />
-               <TCDetailsCard data={formData} onEdit={() => {}} />
+               <MedicalDetailsCard data={formData} onEdit={() => onEditStep && onEditStep(1)} />
+               <TCDetailsCard data={formData} onEdit={() => onEditStep && onEditStep(2)} />
             </div>
-            <AddressDetailsCard data={formData} onEdit={() => {}} />
-            <GovtIdDetailsCard data={formData} onEdit={() => {}} />
-            <ScholarshipDetailsCard data={formData} onEdit={() => {}} />
-            <GovtPortalDetailsCard data={formData} onEdit={() => {}} />
+            <AddressDetailsCard data={formData} onEdit={() => onEditStep && onEditStep(3)} />
+            <GovtIdDetailsCard data={formData} onEdit={() => onEditStep && onEditStep(4)} />
+            <ScholarshipDetailsCard data={formData} onEdit={() => onEditStep && onEditStep(4)} />
+            <GovtPortalDetailsCard data={formData} onEdit={() => onEditStep && onEditStep(4)} />
          </div>
       </div>
 
@@ -1219,7 +1651,7 @@ function FeeSection({
     if (chart.yearly && chart.yearly !== '0') durationOptions.push('Yearly')
   }
   if (durationOptions.length === 1) {
-    durationOptions = ['Select an Option', 'One Time', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']
+    durationOptions = ['Select an Option', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']
   }
 
   const handleSelectDuration = (dur: string) => {
@@ -1360,3 +1792,218 @@ function PromoCodeModal({ onClose }: { onClose: () => void }) {
     </div>
   )
 }
+
+function ExtraCurricularMultiSelect({ formData, updateForm, masterActivities }: any) {
+  const defaultSuggestions = [
+    { name: 'Boxing', defaultFee: '1000' },
+    { name: 'Fan Fee', defaultFee: '500' },
+    { name: 'Water Fee', defaultFee: '300' },
+    { name: 'Sports & Games', defaultFee: '800' },
+    { name: 'Computer Lab Fee', defaultFee: '600' },
+    { name: 'Music & Dance', defaultFee: '700' }
+  ]
+
+  const availableMap = new Map<string, string>()
+  defaultSuggestions.forEach(s => availableMap.set(s.name, s.defaultFee))
+  if (Array.isArray(masterActivities)) {
+    masterActivities.forEach((a: any) => {
+      const name = a.activityName || a.name
+      const fee = String(a.amount || a.fee || '500').replace(/[^0-9.]/g, '')
+      if (name) availableMap.set(name, fee)
+    })
+  }
+
+  const allAvailableNames = Array.from(availableMap.keys())
+
+  const [items, setItems] = useState<{ name: string, fee: string }[]>(() => {
+    if (Array.isArray(formData.extraActivities) && formData.extraActivities.length > 0) {
+      return formData.extraActivities.map((it: any) => ({
+        name: it.name || it.activityName || '',
+        fee: it.fee || it.amount || ''
+      }))
+    }
+    if (formData.extraActivityName) {
+      const names = formData.extraActivityName.split(',').map((s: string) => s.trim()).filter(Boolean)
+      if (names.length > 1) {
+        return names.map((n: string) => ({
+          name: n,
+          fee: availableMap.get(n) ? `${availableMap.get(n)}/-` : '500/-'
+        }))
+      } else if (names.length === 1) {
+        return [{ name: names[0], fee: formData.extraFee || (availableMap.get(names[0]) ? `${availableMap.get(names[0])}/-` : '1000/-') }]
+      }
+    }
+    return [{ name: 'Boxing', fee: '1000/-' }]
+  })
+
+  const syncToForm = (updatedItems: { name: string, fee: string }[]) => {
+    setItems(updatedItems)
+    const validItems = updatedItems.filter(it => it.name.trim() !== '')
+    const joinedNames = validItems.map(it => it.name.trim()).join(', ')
+
+    let totalSum = 0
+    validItems.forEach(it => {
+      const num = parseFloat(String(it.fee || '').replace(/[^0-9.]/g, '')) || 0
+      totalSum += num
+    })
+
+    const totalFeeStr = totalSum > 0 ? `${totalSum.toLocaleString()}/-` : ''
+
+    updateForm('extraActivities', validItems)
+    updateForm('extraActivityName', joinedNames)
+    updateForm('extraFee', totalFeeStr)
+  }
+
+  const handleItemChange = (index: number, field: 'name' | 'fee', val: string) => {
+    const updated = [...items]
+    if (field === 'name') {
+      updated[index].name = val
+      if (availableMap.has(val) && (!updated[index].fee || updated[index].fee === '')) {
+        const defFee = availableMap.get(val)
+        updated[index].fee = defFee ? `${defFee}/-` : ''
+      }
+    } else {
+      updated[index].fee = val.endsWith('/-') || !val ? val : `${val}/-`
+    }
+    syncToForm(updated)
+  }
+
+  const handleAddItem = () => {
+    const usedNames = new Set(items.map(i => i.name))
+    const unused = allAvailableNames.find(n => !usedNames.has(n)) || ''
+    const defaultFee = unused && availableMap.get(unused) ? `${availableMap.get(unused)}/-` : ''
+    syncToForm([...items, { name: unused, fee: defaultFee }])
+  }
+
+  const handleRemoveItem = (index: number) => {
+    if (items.length === 1) {
+      syncToForm([{ name: '', fee: '' }])
+    } else {
+      syncToForm(items.filter((_, i) => i !== index))
+    }
+  }
+
+  const handleToggleChip = (name: string) => {
+    const existingIdx = items.findIndex(i => i.name.toLowerCase() === name.toLowerCase())
+    if (existingIdx >= 0) {
+      handleRemoveItem(existingIdx)
+    } else {
+      const defFee = availableMap.get(name) ? `${availableMap.get(name)}/-` : '500/-'
+      const firstBlankIdx = items.findIndex(i => !i.name.trim())
+      if (firstBlankIdx >= 0) {
+        const updated = [...items]
+        updated[firstBlankIdx] = { name, fee: defFee }
+        syncToForm(updated)
+      } else {
+        syncToForm([...items, { name, fee: defFee }])
+      }
+    }
+  }
+
+  const totalCalculated = items.reduce((sum, item) => {
+    const num = parseFloat(String(item.fee || '').replace(/[^0-9.]/g, '')) || 0
+    return sum + num
+  }, 0)
+
+  return (
+    <div className="flex flex-col gap-5 animate-in fade-in duration-200">
+      
+      {/* Quick Selection Chips */}
+      <div>
+        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Quick Select Extra Curricular / Amenities:</label>
+        <div className="flex flex-wrap gap-2">
+          {allAvailableNames.map(name => {
+            const isSelected = items.some(i => i.name.toLowerCase() === name.toLowerCase())
+            return (
+              <button
+                key={name}
+                type="button"
+                onClick={() => handleToggleChip(name)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  isSelected 
+                    ? 'bg-teal-600 text-white shadow-sm' 
+                    : 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                }`}
+              >
+                <span>{isSelected ? '✓' : '+'}</span>
+                <span>{name}</span>
+                {availableMap.get(name) && <span className="opacity-75 text-[10px]">({availableMap.get(name)}/-)</span>}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Selected Items List */}
+      <div className="flex flex-col gap-3">
+        {items.map((item, idx) => (
+          <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end bg-slate-50/70 dark:bg-slate-900/40 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700/70">
+             
+             {/* Activity Name */}
+             <div className="md:col-span-6 flex flex-col gap-1">
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Activity / Amenity Name #{idx + 1}</label>
+                <div className="relative">
+                  <input 
+                    type="text"
+                    list={`activity-options-${idx}`}
+                    value={item.name}
+                    onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
+                    placeholder="e.g. Boxing, Fan Fee, Water Fee"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-teal-500 outline-none"
+                  />
+                  <datalist id={`activity-options-${idx}`}>
+                    {allAvailableNames.map(n => <option key={n} value={n} />)}
+                  </datalist>
+                </div>
+             </div>
+
+             {/* Fee */}
+             <div className="md:col-span-4 flex flex-col gap-1">
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Fee Amount</label>
+                <input 
+                  type="text"
+                  value={item.fee}
+                  onChange={(e) => handleItemChange(idx, 'fee', e.target.value)}
+                  placeholder="e.g. 1000/-"
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-teal-600 dark:text-teal-400 focus:ring-2 focus:ring-teal-500 outline-none"
+                />
+             </div>
+
+             {/* Action Delete */}
+             <div className="md:col-span-2 flex items-center justify-end pb-0.5">
+                <button 
+                  type="button"
+                  onClick={() => handleRemoveItem(idx)}
+                  className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 flex items-center justify-center transition-colors border border-rose-200/60"
+                  title="Remove Activity"
+                >
+                  <X className="w-4 h-4 stroke-[3]" />
+                </button>
+             </div>
+
+          </div>
+        ))}
+      </div>
+
+      {/* Footer Bar with Add Button & Total */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 border-t border-slate-100 dark:border-slate-700">
+         <button 
+           type="button"
+           onClick={handleAddItem}
+           className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 hover:bg-teal-100 text-xs font-bold transition-all border border-teal-200 dark:border-teal-800"
+         >
+           <Plus className="w-4 h-4 stroke-[3]" /> Add Another Activity / Fee
+         </button>
+
+         <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-slate-500">Total Extra Curricular Fee:</span>
+            <span className="text-base font-black text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 px-3 py-1 rounded-xl border border-teal-200 dark:border-teal-800">
+               {totalCalculated.toLocaleString()}/-
+            </span>
+         </div>
+      </div>
+
+    </div>
+  )
+}
+
