@@ -21,6 +21,7 @@ export default function TransportRoutePage() {
   // Create / Edit modal state
   const [modalOpen, setModalOpen] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
+  const [vehiclesList, setVehiclesList] = useState<any[]>([])
   
   const [routeName, setRouteName] = useState('')
   const [vehicleName, setVehicleName] = useState('')
@@ -41,6 +42,15 @@ export default function TransportRoutePage() {
       }
     } else {
       localStorage.setItem('transport_routes', JSON.stringify(INITIAL_ROUTES))
+    }
+
+    const savedVehicles = localStorage.getItem('transport_vehicles')
+    if (savedVehicles) {
+      try {
+        setVehiclesList(JSON.parse(savedVehicles))
+      } catch (e) {
+        console.error(e)
+      }
     }
   }, [])
 
@@ -263,14 +273,30 @@ export default function TransportRoutePage() {
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-700">Vehicle Name *</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Vehicle 1"
+                <select 
                   value={vehicleName}
                   onChange={e => setVehicleName(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-lg text-xs outline-none focus:border-teal-500"
+                  className="w-full px-4 py-2 border rounded-lg text-xs outline-none focus:border-teal-500 bg-white font-semibold cursor-pointer"
                   required
-                />
+                >
+                  <option value="">Select Vehicle</option>
+                  {vehiclesList.length > 0 ? (
+                    vehiclesList.map((v: any, idx: number) => {
+                      const displayVal = v.registrationNo ? `${v.vehicleName} (${v.registrationNo})` : v.vehicleName
+                      return (
+                        <option key={idx} value={displayVal}>
+                          {displayVal}
+                        </option>
+                      )
+                    })
+                  ) : (
+                    <>
+                      <option value="Bus 01 (UP65-AB-1234)">Bus 01 (UP65-AB-1234)</option>
+                      <option value="Van 02 (UP65-CD-5678)">Van 02 (UP65-CD-5678)</option>
+                      <option value="Mini Bus 03 (UP65-EF-9012)">Mini Bus 03 (UP65-EF-9012)</option>
+                    </>
+                  )}
+                </select>
               </div>
 
               <div className="flex flex-col gap-1.5">

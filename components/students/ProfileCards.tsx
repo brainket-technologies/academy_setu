@@ -66,13 +66,13 @@ export function PersonalDetailsCard({ data, onEdit }: any) {
 
 export function PreviousSchoolCard({ data, onEdit }: any) {
   return (
-    <InfoCard title="Previous School Details" icon={Building} onEdit={onEdit}>
+    <InfoCard title="Previous School/College Details" icon={Building} onEdit={onEdit}>
       <InfoGrid cols={1}>
-        <InfoRow label="School Name & Address" value={data?.prevSchoolName || 'abcd School, Location, City, State'} />
+        <InfoRow label="School/College Name & Address" value={data?.prevSchoolName || 'abcd School/College, Location, City, State'} />
       </InfoGrid>
       <div className="mt-4 grid grid-cols-2 gap-4">
-        <InfoRow label="Attended Class" value={data?.prevAttendedClass || 'Class II'} />
-        <InfoRow label="Last School Affiliated To" value={data?.prevSchoolAffiliatedTo || 'CBSE Board'} />
+        <InfoRow label="Attended Class/Course" value={data?.prevAttendedClass || 'Class II'} />
+        <InfoRow label="Last School/College Affiliated To" value={data?.prevSchoolAffiliatedTo || 'CBSE Board'} />
       </div>
     </InfoCard>
   )

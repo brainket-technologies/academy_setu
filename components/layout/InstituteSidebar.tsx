@@ -108,6 +108,7 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
         { label: 'Extra Curricular Fee', href: '/institute/fees-setup/extra-curricular-fee' },
         { label: 'Transportation Fee', href: '/institute/fees-setup/transportation-fee' },
         { label: 'Fee Receipt Design', href: '/institute/fees-setup/fee-receipt-design' },
+        { label: 'Fee Settings', href: '/institute/fees-setup/settings' },
       ]
     },
     { icon: Wallet, label: 'Fees Collection', href: '/institute/fees-collection' },
@@ -278,9 +279,12 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
     { 
       icon: Database, label: 'Masters', href: '#',
       subItems: [
+        { label: 'Academic Year', href: '/institute/masters/academic-years' },
         { label: 'All Classes', href: '/institute/masters/classes' },
         { label: 'All Sections', href: '/institute/masters/sections' },
         { label: 'All Streams', href: '/institute/masters/streams' },
+        { label: 'All Medium', href: '/institute/masters/mediums' },
+        { label: 'All Category', href: '/institute/masters/categories' },
         { label: 'Subject Groups', href: '/institute/masters/subject-groups' },
         { label: 'All Subjects', href: '/institute/masters/subjects' },
         { label: 'Books', href: '/institute/masters/books' },

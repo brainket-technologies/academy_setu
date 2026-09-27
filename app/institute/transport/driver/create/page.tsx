@@ -38,6 +38,8 @@ function AddDriverWizardForm() {
   const [licenseNumber, setLicenseNumber] = useState('LMV/123/456')
   const [licenseIssueDate, setLicenseIssueDate] = useState('2013-06-12')
   const [licenseValidTill, setLicenseValidTill] = useState('2028-06-11')
+  const [assignedVehicle, setAssignedVehicle] = useState('')
+  const [vehiclesList, setVehiclesList] = useState<any[]>([])
 
   // ==================== STEP 3: ADDRESS DETAILS STATE ====================
   const [address, setAddress] = useState('123, Location, Street Name, Locality')
@@ -68,8 +70,17 @@ function AddDriverWizardForm() {
   const [uanNo, setUanNo] = useState('123456789')
   const [pfNo, setPfNo] = useState('123456789')
 
-  // Load for edit mode
+  // Load vehicles and edit mode data
   useEffect(() => {
+    const savedVehicles = localStorage.getItem('transport_vehicles')
+    if (savedVehicles) {
+      try {
+        setVehiclesList(JSON.parse(savedVehicles))
+      } catch (e) {
+        console.error(e)
+      }
+    }
+
     if (editId) {
       const saved = localStorage.getItem('transport_drivers')
       if (saved) {
@@ -85,6 +96,7 @@ function AddDriverWizardForm() {
             setUsername(found.username)
             setLicenseType(found.licenseType || 'LMV')
             setLicenseNumber(found.licenseNumber || '')
+            setAssignedVehicle(found.assignedVehicle || '')
             setGender(found.gender || 'Male')
             setDob(found.dob || '')
             setFatherName(found.fatherName || '')
@@ -138,6 +150,7 @@ function AddDriverWizardForm() {
       driverId,
       licenseNumber,
       licenseType,
+      assignedVehicle,
       contact: mobileNo,
       status: 'Active' as const,
       joiningDate,
@@ -369,6 +382,22 @@ function AddDriverWizardForm() {
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-700">Valid Till *</label>
                 <input type="date" value={licenseValidTill} onChange={e => setLicenseValidTill(e.target.value)} className="w-full px-4 py-2 border rounded-lg text-xs outline-none" />
+              </div>
+
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <label className="text-xs font-bold text-slate-700">Assign Vehicle</label>
+                <select 
+                  value={assignedVehicle} 
+                  onChange={e => setAssignedVehicle(e.target.value)} 
+                  className="w-full px-4 py-2 border rounded-lg text-xs bg-white font-semibold outline-none"
+                >
+                  <option value="">Select Vehicle</option>
+                  {vehiclesList.map((v, i) => (
+                    <option key={i} value={`${v.vehicleName} (${v.registrationNo})`}>
+                      {v.vehicleName} ({v.registrationNo})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>

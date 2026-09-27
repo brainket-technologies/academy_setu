@@ -1,35 +1,39 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Search, Plus, Pencil, Trash2, X, UploadCloud, CheckCircle2 } from 'lucide-react'
+import { Search, Plus, Pencil, Trash2, X, UploadCloud, CheckCircle2, Settings } from 'lucide-react'
 
 interface VehicleRecord {
   id: number
   vehicleName: string
-  driverName: string
   registrationNo: string
   registrationDate: string
-  vehicleType: 'Light' | 'Heavy'
+  vehicleType: string
   gpsNo: string
   gpsDeviceName: string
 }
 
-const INITIAL_VEHICLES: VehicleRecord[] = [
-]
+const DEFAULT_VEHICLE_TYPES = ['Light', 'Heavy', 'Bus', 'Van', 'Mini Bus']
+
+const INITIAL_VEHICLES: VehicleRecord[] = []
 
 export default function TransportVehiclePage() {
   const [vehicles, setVehicles] = useState<VehicleRecord[]>(INITIAL_VEHICLES)
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Vehicle Types state
+  const [vehicleTypes, setVehicleTypes] = useState<string[]>(DEFAULT_VEHICLE_TYPES)
+  const [typeModalOpen, setTypeModalOpen] = useState(false)
+  const [newTypeName, setNewTypeName] = useState('')
 
   // Create / Edit modal state
   const [modalOpen, setModalOpen] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   
   const [vehicleName, setVehicleName] = useState('')
-  const [driverName, setDriverName] = useState('')
   const [registrationNo, setRegistrationNo] = useState('')
   const [registrationDate, setRegistrationDate] = useState('')
-  const [vehicleType, setVehicleType] = useState<'Light' | 'Heavy'>('Light')
+  const [vehicleType, setVehicleType] = useState('Light')
   const [gpsNo, setGpsNo] = useState('')
   const [gpsDeviceName, setGpsDeviceName] = useState('')
 
@@ -48,15 +52,57 @@ export default function TransportVehiclePage() {
     } else {
       localStorage.setItem('transport_vehicles', JSON.stringify(INITIAL_VEHICLES))
     }
+
+    const savedTypes = localStorage.getItem('school_vehicle_types')
+    if (savedTypes) {
+      try {
+        setVehicleTypes(JSON.parse(savedTypes))
+      } catch (e) {
+        console.error(e)
+      }
+    } else {
+      localStorage.setItem('school_vehicle_types', JSON.stringify(DEFAULT_VEHICLE_TYPES))
+    }
   }, [])
+
+  const handleAddVehicleType = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newTypeName.trim()) return
+    const trimmed = newTypeName.trim()
+    if (vehicleTypes.includes(trimmed)) {
+      alert('Vehicle type already exists!')
+      return
+    }
+    const updated = [...vehicleTypes, trimmed]
+    setVehicleTypes(updated)
+    localStorage.setItem('school_vehicle_types', JSON.stringify(updated))
+    setVehicleType(trimmed)
+    setNewTypeName('')
+    setTypeModalOpen(false)
+    setToastMsg(`Vehicle type "${trimmed}" added!`)
+    setToastOpen(true)
+    setTimeout(() => setToastOpen(false), 3000)
+  }
+
+  const handleDeleteVehicleType = (typeToDelete: string) => {
+    if (vehicleTypes.length <= 1) {
+      alert('At least one vehicle type must remain.')
+      return
+    }
+    const updated = vehicleTypes.filter(t => t !== typeToDelete)
+    setVehicleTypes(updated)
+    localStorage.setItem('school_vehicle_types', JSON.stringify(updated))
+    if (vehicleType === typeToDelete) {
+      setVehicleType(updated[0])
+    }
+  }
 
   const handleOpenAdd = () => {
     setEditId(null)
     setVehicleName('')
-    setDriverName('')
     setRegistrationNo('')
     setRegistrationDate('')
-    setVehicleType('Light')
+    setVehicleType(vehicleTypes[0] || 'Light')
     setGpsNo('')
     setGpsDeviceName('')
     setModalOpen(true)
@@ -65,7 +111,6 @@ export default function TransportVehiclePage() {
   const handleOpenEdit = (v: VehicleRecord) => {
     setEditId(v.id)
     setVehicleName(v.vehicleName)
-    setDriverName(v.driverName)
     setRegistrationNo(v.registrationNo)
     setRegistrationDate(v.registrationDate)
     setVehicleType(v.vehicleType)
@@ -76,7 +121,7 @@ export default function TransportVehiclePage() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!vehicleName || !driverName || !registrationNo) {
+    if (!vehicleName || !registrationNo) {
       alert('Please fill in all required fields.')
       return
     }
@@ -84,7 +129,6 @@ export default function TransportVehiclePage() {
     const payload: VehicleRecord = {
       id: editId || Date.now(),
       vehicleName,
-      driverName,
       registrationNo,
       registrationDate: registrationDate || new Date().toLocaleDateString('en-GB'),
       vehicleType,
@@ -122,8 +166,8 @@ export default function TransportVehiclePage() {
 
   const filtered = vehicles.filter(v => 
     v.vehicleName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    v.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    v.registrationNo.toLowerCase().includes(searchQuery.toLowerCase())
+    v.registrationNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    v.vehicleType.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   return (
@@ -133,17 +177,17 @@ export default function TransportVehiclePage() {
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm flex items-center justify-between">
         <div>
           <h1 className="text-xl font-black text-slate-800 dark:text-slate-100">Vehicle</h1>
-          <p className="text-xs text-slate-400">Register and monitor school transport fleets</p>
+          <p className="text-xs text-slate-400">Register and monitor school transport fleet vehicles</p>
         </div>
       </div>
 
       {/* Control Actions */}
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row gap-4 items-center justify-between">
         
-        {/* Total vehicles count (Screenshot 1) */}
+        {/* Total vehicles count */}
         <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 px-4 py-2 rounded-xl">
           <span className="text-xs font-black text-slate-500 uppercase tracking-wider">Total Vehicle</span>
-          <span className="bg-teal-650 bg-teal-600 text-white font-extrabold text-xs px-2.5 py-0.5 rounded-lg">
+          <span className="bg-teal-600 text-white font-extrabold text-xs px-2.5 py-0.5 rounded-lg">
             {vehicles.length}
           </span>
         </div>
@@ -154,20 +198,20 @@ export default function TransportVehiclePage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
             <input 
               type="text" 
-              placeholder="Search..."
+              placeholder="Search by Vehicle Name, Reg No..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold w-56"
+              className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold w-64"
             />
           </div>
 
           <button 
             type="button"
-            onClick={() => alert('Exporting fleet logs...')}
-            className="w-9 h-9 border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-50 bg-white"
-            title="Export List"
+            onClick={() => setTypeModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+            title="Manage Vehicle Types"
           >
-            <UploadCloud className="w-4 h-4" />
+            <Settings className="w-3.5 h-3.5 text-teal-600" /> Vehicle Types
           </button>
           
           <button 
@@ -181,7 +225,7 @@ export default function TransportVehiclePage() {
 
       </div>
 
-      {/* Table grid listing (Screenshot 1) */}
+      {/* Table grid listing */}
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm">
         
         <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
@@ -191,13 +235,12 @@ export default function TransportVehiclePage() {
               <tr>
                 <th className="px-4 py-4 w-16">S. No.</th>
                 <th className="px-4 py-4 text-left">Vehicle Name</th>
-                <th className="px-4 py-4 text-left">Driver Name</th>
                 <th className="px-4 py-4">Registration No.</th>
                 <th className="px-4 py-4">Registration Date</th>
                 <th className="px-4 py-4">Photo</th>
                 <th className="px-4 py-4">Vehicle Type</th>
                 <th className="px-4 py-4">GPS No.</th>
-                <th className="px-4 py-4">GPS No.</th>
+                <th className="px-4 py-4">GPS Device Name</th>
                 <th className="px-4 py-4 w-24">Action</th>
               </tr>
             </thead>
@@ -206,13 +249,12 @@ export default function TransportVehiclePage() {
                 <tr key={item.id} className="border-b border-slate-100 dark:border-slate-700/50 last:border-0 hover:bg-slate-50/50 transition-colors">
                   <td className="px-4 py-3.5 text-slate-500 font-medium">{idx + 1}.</td>
                   <td className="px-4 py-3.5 text-left font-extrabold text-slate-850 dark:text-slate-200">{item.vehicleName}</td>
-                  <td className="px-4 py-3.5 text-left font-bold text-slate-655">{item.driverName}</td>
                   <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-350">{item.registrationNo}</td>
                   <td className="px-4 py-3.5 text-slate-500 font-semibold">{item.registrationDate}</td>
                   <td className="px-4 py-3.5">
                     <span className="text-xl">🚌</span>
                   </td>
-                  <td className="px-4 py-3.5 font-bold text-slate-600">{item.vehicleType}</td>
+                  <td className="px-4 py-3.5 font-bold text-teal-600">{item.vehicleType}</td>
                   <td className="px-4 py-3.5 font-mono font-bold text-slate-500">{item.gpsNo}</td>
                   <td className="px-4 py-3.5 font-bold text-slate-700">{item.gpsDeviceName}</td>
                   <td className="px-4 py-3.5">
@@ -237,7 +279,7 @@ export default function TransportVehiclePage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-slate-400 font-bold">No vehicles registered.</td>
+                  <td colSpan={9} className="py-8 text-center text-slate-400 font-bold">No vehicles registered.</td>
                 </tr>
               )}
             </tbody>
@@ -247,12 +289,11 @@ export default function TransportVehiclePage() {
 
         {/* Pagination */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 text-xs font-medium text-slate-500">
-          <span>Showing 1-{filtered.length} of 456 Entries</span>
+          <span>Showing {filtered.length === 0 ? '0' : `1-${filtered.length}`} of {filtered.length} Entries</span>
           <div className="flex gap-1">
             <button className="px-3 py-1.5 rounded hover:bg-slate-100 text-slate-400">«</button>
             <button className="px-3 py-1.5 rounded hover:bg-slate-100 text-slate-400">‹</button>
             <button className="px-3 py-1.5 rounded bg-teal-600 text-white font-bold">1</button>
-            <button className="px-3 py-1.5 rounded hover:bg-slate-100 text-teal-655">2</button>
             <button className="px-3 py-1.5 rounded hover:bg-slate-100 text-slate-400">›</button>
             <button className="px-3 py-1.5 rounded hover:bg-slate-100 text-slate-400">»</button>
           </div>
@@ -282,89 +323,87 @@ export default function TransportVehiclePage() {
 
             <div className="p-6 space-y-4 text-xs">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Vehicle Name *</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Vehicle Name *</label>
                 <input 
                   type="text" 
                   placeholder="e.g. Vehicle 1"
                   value={vehicleName}
                   onChange={e => setVehicleName(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-lg text-xs outline-none focus:border-teal-500"
-                  required
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Driver Name *</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Suraj"
-                  value={driverName}
-                  onChange={e => setDriverName(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-lg text-xs outline-none focus:border-teal-500"
+                  className="w-full px-4 py-2 border rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700">Registration No. *</label>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Registration No. *</label>
                   <input 
                     type="text" 
                     placeholder="e.g. UP 12 AB 1234"
                     value={registrationNo}
                     onChange={e => setRegistrationNo(e.target.value)}
-                    className="w-full px-4 py-2 border rounded-lg text-xs outline-none focus:border-teal-500"
+                    className="w-full px-4 py-2 border rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
                     required
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700">Registration Date</label>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Registration Date</label>
                   <input 
                     type="date" 
                     value={registrationDate}
                     onChange={e => setRegistrationDate(e.target.value)}
-                    className="w-full px-4 py-2 border rounded-lg text-xs outline-none focus:border-teal-500"
+                    className="w-full px-4 py-2 border rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
                   />
                 </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Vehicle Type *</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Vehicle Type *</label>
+                  <button 
+                    type="button" 
+                    onClick={() => setTypeModalOpen(true)}
+                    className="text-[10px] font-bold text-teal-600 hover:underline flex items-center gap-1"
+                  >
+                    + Add New Type
+                  </button>
+                </div>
                 <select 
                   value={vehicleType}
-                  onChange={e => setVehicleType(e.target.value as 'Light' | 'Heavy')}
-                  className="w-full px-4 py-2 border rounded-lg text-xs bg-white font-semibold outline-none"
+                  onChange={e => setVehicleType(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg text-xs bg-white dark:bg-slate-900 font-semibold outline-none focus:border-teal-500"
                 >
-                  <option value="Light">Light</option>
-                  <option value="Heavy">Heavy</option>
+                  {vehicleTypes.map((type, idx) => (
+                    <option key={idx} value={type}>{type}</option>
+                  ))}
                 </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700">GPS No.</label>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">GPS No.</label>
                   <input 
                     type="text" 
                     placeholder="e.g. 123456"
                     value={gpsNo}
                     onChange={e => setGpsNo(e.target.value)}
-                    className="w-full px-4 py-2 border rounded-lg text-xs outline-none"
+                    className="w-full px-4 py-2 border rounded-lg text-xs outline-none font-semibold"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700">GPS Device Name</label>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">GPS Device Name</label>
                   <input 
                     type="text" 
                     placeholder="e.g. Device 1"
                     value={gpsDeviceName}
                     onChange={e => setGpsDeviceName(e.target.value)}
-                    className="w-full px-4 py-2 border rounded-lg text-xs outline-none"
+                    className="w-full px-4 py-2 border rounded-lg text-xs outline-none font-semibold"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 px-6 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-100">
+            <div className="flex justify-end gap-3 px-6 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-700">
               <button 
                 type="button"
                 onClick={() => setModalOpen(false)}
@@ -380,6 +419,63 @@ export default function TransportVehiclePage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* ================================== VEHICLE TYPES SETTINGS MODAL ================================== */}
+      {typeModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-700 animate-in zoom-in-95 duration-200 p-6">
+            <div className="flex justify-between items-center border-b pb-3 mb-4">
+              <h2 className="text-sm font-black text-[#1b3a60] dark:text-slate-100 uppercase tracking-wider">
+                Manage Vehicle Types
+              </h2>
+              <button onClick={() => setTypeModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddVehicleType} className="flex gap-2 mb-6">
+              <input 
+                type="text" 
+                placeholder="e.g. School Bus, E-Rickshaw..."
+                value={newTypeName}
+                onChange={e => setNewTypeName(e.target.value)}
+                className="flex-1 px-4 py-2 border rounded-xl text-xs outline-none font-semibold focus:border-teal-500"
+              />
+              <button 
+                type="submit" 
+                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-sm"
+              >
+                Add Type
+              </button>
+            </form>
+
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Existing Vehicle Types</label>
+              {vehicleTypes.map((type, idx) => (
+                <div key={idx} className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{type}</span>
+                  <button 
+                    onClick={() => handleDeleteVehicleType(type)} 
+                    className="w-6 h-6 flex items-center justify-center text-red-500 hover:bg-red-50 rounded-md"
+                    title="Delete Type"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end mt-6 border-t pt-4">
+              <button 
+                onClick={() => setTypeModalOpen(false)} 
+                className="px-5 py-2 bg-teal-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-teal-700"
+              >
+                Done
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

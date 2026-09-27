@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, Loader2, Eye, EyeOff, Calendar, CreditCard, Shield, User, MapPin } from 'lucide-react'
+import { ArrowLeft, Loader2, Eye, EyeOff, Calendar, CreditCard, Shield, User, MapPin, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
 interface InstituteData {
   id: string
@@ -44,6 +45,11 @@ export default function InstituteDetailPage() {
   const [upcomingPlans, setUpcomingPlans] = useState<any[]>([])
   const [planHistory, setPlanHistory] = useState<any[]>([])
   
+  // Delete plan modal state
+  const [deletePlanModalOpen, setDeletePlanModalOpen] = useState(false)
+  const [planToDelete, setPlanToDelete] = useState<any>(null)
+  const [isDeletingPlan, setIsDeletingPlan] = useState(false)
+
   const [showPassword, setShowPassword] = useState(false)
 
   const formatDateOnly = (dateStr: string | null) => {
@@ -96,6 +102,35 @@ export default function InstituteDetailPage() {
       }
     } catch (error) {
       console.error(error)
+    }
+  }
+
+  const handleDeletePlan = (plan: any) => {
+    setPlanToDelete(plan)
+    setDeletePlanModalOpen(true)
+  }
+
+  const handleConfirmDeletePlan = async () => {
+    if (!planToDelete && !activePlan) return
+    setIsDeletingPlan(true)
+    try {
+      const billId = planToDelete?.id || activePlan?.id
+      const res = await fetch(`/api/admin/billing/institute-plans?institution_id=${id}&bill_id=${billId || ''}`, {
+        method: 'DELETE'
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Plan deleted successfully')
+        setDeletePlanModalOpen(false)
+        setPlanToDelete(null)
+        await loadPlans()
+      } else {
+        toast.error(data.error || 'Failed to delete plan')
+      }
+    } catch (err) {
+      toast.error('Something went wrong deleting plan')
+    } finally {
+      setIsDeletingPlan(false)
     }
   }
 
@@ -242,12 +277,37 @@ export default function InstituteDetailPage() {
                   </div>
                 </div>
                 {inst.director_sign && (
-                  <div className="mt-1">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">Signature</span>
-                    <img src={inst.director_sign} alt="Director Signature" className="max-h-12 object-contain bg-slate-50 dark:bg-slate-700 rounded-lg p-1.5 border border-slate-100 dark:border-slate-700" />
+                  <div>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase">Signature</span>
+                    <div className="mt-1 p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-center">
+                      <img src={inst.director_sign} alt="Director Signature" className="max-h-12 object-contain" />
+                    </div>
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Credentials / Password Card */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700/60 p-6 shadow-sm">
+            <h4 className="text-sm font-extrabold text-slate-880 dark:text-slate-100 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-3 mb-4">
+              Institute Login Credentials
+            </h4>
+            <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-700 rounded-xl text-xs">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Portal Password</span>
+                <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                  {showPassword ? inst.plain_password || '(Not visible)' : '••••••••••••'}
+                </span>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowPassword(!showPassword)}
+                className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                {showPassword ? 'Hide' : 'Reveal'}
+              </button>
             </div>
           </div>
 
@@ -262,15 +322,26 @@ export default function InstituteDetailPage() {
               <h4 className="text-sm font-extrabold text-slate-880 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-indigo-650" /> Active Plan
               </h4>
-              {activePlan ? (
-                <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                  Active
-                </span>
-              ) : (
-                <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                  No Active Plan
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {activePlan ? (
+                  <>
+                    <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                      Active
+                    </span>
+                    <button
+                      onClick={() => handleDeletePlan(activePlan)}
+                      className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 border border-transparent hover:border-red-200 dark:hover:border-red-900/50 transition-colors cursor-pointer"
+                      title="Delete Current Active Plan"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                ) : (
+                  <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                    No Active Plan
+                  </span>
+                )}
+              </div>
             </div>
 
             {activePlan ? (
@@ -299,6 +370,15 @@ export default function InstituteDetailPage() {
                     <div className="max-w-[120px] truncate">Txn: <span className="text-white font-mono">{activePlan.transaction_id || '—'}</span></div>
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleDeletePlan(activePlan)}
+                  className="w-full py-2.5 px-4 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/60 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete Current Plan
+                </button>
               </div>
             ) : (
               <div className="py-6 text-center text-slate-400 dark:text-slate-500 text-xs font-medium">
@@ -326,6 +406,14 @@ export default function InstituteDetailPage() {
                       <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900 rounded-full text-[9px] font-bold uppercase tracking-wider">
                         ₹{plan.amount}
                       </span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePlan(plan)}
+                        className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                        title="Delete Upcoming Plan"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -353,6 +441,14 @@ export default function InstituteDetailPage() {
                         <span className="font-bold text-slate-750 dark:text-slate-300 block">₹{h.amount}</span>
                         <span className="text-[9px] font-mono text-slate-400">{h.transaction_id || '—'}</span>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePlan(h)}
+                        className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                        title="Delete Plan Record"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -363,6 +459,19 @@ export default function InstituteDetailPage() {
         </div>
 
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={deletePlanModalOpen}
+        onClose={() => {
+          setDeletePlanModalOpen(false)
+          setPlanToDelete(null)
+        }}
+        onConfirm={handleConfirmDeletePlan}
+        title="Delete Subscription Plan"
+        description={`Are you sure you want to delete the plan "${planToDelete?.plan_name || activePlan?.plan_name || 'Current Plan'}" for ${inst.school_name}? This action will remove the active subscription and billing record.`}
+        loading={isDeletingPlan}
+      />
 
     </div>
   )

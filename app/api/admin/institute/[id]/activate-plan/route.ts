@@ -66,3 +66,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
   }
 }
+
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  try {
+    const { id: institution_id } = await params
+    await pool.query('DELETE FROM bills WHERE institution_id = $1', [institution_id])
+    await pool.query('DELETE FROM requests WHERE institution_id = $1', [institution_id])
+    await pool.query('UPDATE applications SET plan_id = NULL, updated_at = NOW() WHERE institution_id = $1', [institution_id])
+    return NextResponse.json({ success: true, message: 'Current plan deleted successfully' })
+  } catch (error) {
+    console.error('Delete active plan error:', error)
+    return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
+  }
+}

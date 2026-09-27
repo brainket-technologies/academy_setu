@@ -1840,6 +1840,42 @@ function BillingDashboardContent() {
                                   >
                                     Create Upcoming Plan
                                   </button>
+                                  <button
+                                    onClick={async () => {
+                                      const confirm = window.confirm(`Delete active plan "${instActivePlan.plan_name}"?\n\nThis will remove the current active plan and billing record for ${selectedSchool}.`);
+                                      if (!confirm) return;
+                                      try {
+                                        const instId = instDetails?.id || (instDetails as any)?.institution_id || schools.find((i: any) => i.name === selectedSchool)?.id;
+                                        const res = await fetch('/api/admin/billing/institute-plans', {
+                                          method: 'DELETE',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ bill_id: instActivePlan.id, institution_id: instId })
+                                        });
+                                        const d = await res.json();
+                                        if (d.success) {
+                                          toast.success('Active plan deleted successfully!');
+                                          if (instId) {
+                                            const r2 = await fetch(`/api/admin/billing/institute-plans?institution_id=${instId}`);
+                                            const d2 = await r2.json();
+                                            if (d2.success) {
+                                              setInstActivePlan(d2.activePlan || null);
+                                              setInstUpcomingPlans(d2.upcomingPlans || []);
+                                              setInstPlanHistory(d2.planHistory || []);
+                                            }
+                                          }
+                                          fetchBills(currentPage);
+                                        } else {
+                                          toast.error(d.error || 'Failed to delete plan');
+                                        }
+                                      } catch (err) {
+                                        toast.error('Failed to delete plan');
+                                      }
+                                    }}
+                                    className="px-4 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-950/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/50 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    Delete Plan
+                                  </button>
                                 </div>
                                 <button
                                   onClick={() => handleDownloadPDF(selectedSchool, instActivePlan.amount, instActivePlan.plan_name || 'Active Plan', instActivePlan.payment_date, instActivePlan.transaction_id, instActivePlan.payment_mode)}
@@ -2187,42 +2223,80 @@ function BillingDashboardContent() {
                                   </div>
                                 </div>
                                 <div className="px-5 py-4 bg-blue-100/30 dark:bg-blue-900/20 border-t border-blue-100/50 dark:border-blue-900/50 flex flex-wrap items-center justify-between gap-3">
-                                  <button
-                                    onClick={async () => {
-                                      const confirm = window.confirm(`Activate "${plan.plan_name}" instantly today?\n\nAny existing active plan will be terminated immediately and moved to history regardless of its remaining duration/expiry date.`);
-                                      if (!confirm) return;
-                                      try {
-                                        const instId = instDetails?.id || (instDetails as any)?.institution_id || schools.find((i: any) => i.name === selectedSchool)?.id;
-                                        const res = await fetch('/api/admin/billing/institute-plans', {
-                                          method: 'PATCH',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({ bill_id: plan.id, institution_id: instId })
-                                        });
-                                        const d = await res.json();
-                                        if (d.success) {
-                                          toast.success(`Plan "${plan.plan_name}" activated instantly!`);
-                                          if (instId) {
-                                            const r2 = await fetch(`/api/admin/billing/institute-plans?institution_id=${instId}`);
-                                            const d2 = await r2.json();
-                                            if (d2.success) {
-                                              setInstActivePlan(d2.activePlan || null);
-                                              setInstUpcomingPlans(d2.upcomingPlans || []);
-                                              setInstPlanHistory(d2.planHistory || []);
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={async () => {
+                                        const confirm = window.confirm(`Activate "${plan.plan_name}" instantly today?\n\nAny existing active plan will be terminated immediately and moved to history regardless of its remaining duration/expiry date.`);
+                                        if (!confirm) return;
+                                        try {
+                                          const instId = instDetails?.id || (instDetails as any)?.institution_id || schools.find((i: any) => i.name === selectedSchool)?.id;
+                                          const res = await fetch('/api/admin/billing/institute-plans', {
+                                            method: 'PATCH',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ bill_id: plan.id, institution_id: instId })
+                                          });
+                                          const d = await res.json();
+                                          if (d.success) {
+                                            toast.success(`Plan "${plan.plan_name}" activated instantly!`);
+                                            if (instId) {
+                                              const r2 = await fetch(`/api/admin/billing/institute-plans?institution_id=${instId}`);
+                                              const d2 = await r2.json();
+                                              if (d2.success) {
+                                                setInstActivePlan(d2.activePlan || null);
+                                                setInstUpcomingPlans(d2.upcomingPlans || []);
+                                                setInstPlanHistory(d2.planHistory || []);
+                                              }
                                             }
+                                            fetchBills(currentPage);
+                                          } else {
+                                            toast.error(d.error || 'Failed to activate plan');
                                           }
-                                          fetchBills(currentPage);
-                                        } else {
-                                          toast.error(d.error || 'Failed to activate plan');
+                                        } catch (err) {
+                                          toast.error('Failed to activate plan');
                                         }
-                                      } catch (err) {
-                                        toast.error('Failed to activate plan');
-                                      }
-                                    }}
-                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
-                                  >
-                                    <Zap className="w-3.5 h-3.5 text-amber-300" />
-                                    Activate Instantly
-                                  </button>
+                                      }}
+                                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
+                                    >
+                                      <Zap className="w-3.5 h-3.5 text-amber-300" />
+                                      Activate Instantly
+                                    </button>
+                                    <button
+                                      onClick={async () => {
+                                        const confirm = window.confirm(`Delete upcoming plan "${plan.plan_name}"?`);
+                                        if (!confirm) return;
+                                        try {
+                                          const instId = instDetails?.id || (instDetails as any)?.institution_id || schools.find((i: any) => i.name === selectedSchool)?.id;
+                                          const res = await fetch('/api/admin/billing/institute-plans', {
+                                            method: 'DELETE',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ bill_id: plan.id, institution_id: instId })
+                                          });
+                                          const d = await res.json();
+                                          if (d.success) {
+                                            toast.success('Upcoming plan deleted successfully!');
+                                            if (instId) {
+                                              const r2 = await fetch(`/api/admin/billing/institute-plans?institution_id=${instId}`);
+                                              const d2 = await r2.json();
+                                              if (d2.success) {
+                                                setInstActivePlan(d2.activePlan || null);
+                                                setInstUpcomingPlans(d2.upcomingPlans || []);
+                                                setInstPlanHistory(d2.planHistory || []);
+                                              }
+                                            }
+                                            fetchBills(currentPage);
+                                          } else {
+                                            toast.error(d.error || 'Failed to delete plan');
+                                          }
+                                        } catch (err) {
+                                          toast.error('Failed to delete plan');
+                                        }
+                                      }}
+                                      className="px-3 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-950/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/50 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                      Delete
+                                    </button>
+                                  </div>
                                   <button
                                     onClick={() => handleDownloadPDF(selectedSchool, plan.amount, plan.plan_name || 'Upcoming Plan', plan.payment_date, plan.transaction_id, plan.payment_mode)}
                                     className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 text-slate-700 dark:text-slate-200 hover:text-indigo-600 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-2"

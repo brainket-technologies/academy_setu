@@ -18,12 +18,27 @@ function AddRouteForm() {
   const editId = searchParams.get('editId')
 
   const [routeName, setRouteName] = useState('')
-  const [vehicleName, setVehicleName] = useState('Vehicle 1')
+  const [vehicleName, setVehicleName] = useState('')
+  const [vehiclesList, setVehiclesList] = useState<any[]>([])
   const [stoppages, setStoppages] = useState<StoppageItem[]>([
     { id: 1, from: 'School', location: 'Ex: Delhi Sector - 1', km: '15', fee: '500' }
   ])
 
   useEffect(() => {
+    const savedVehicles = localStorage.getItem('transport_vehicles')
+    if (savedVehicles) {
+      try {
+        const parsed = JSON.parse(savedVehicles)
+        setVehiclesList(parsed)
+        if (parsed.length > 0 && !vehicleName) {
+          const first = parsed[0]
+          setVehicleName(first.registrationNo ? `${first.vehicleName} (${first.registrationNo})` : first.vehicleName)
+        }
+      } catch (e) {
+        console.error(e)
+      }
+    }
+
     if (editId) {
       // In edit mode, load details
       const savedFees = localStorage.getItem('transportation_fees')
@@ -172,12 +187,26 @@ function AddRouteForm() {
               <select 
                 value={vehicleName}
                 onChange={e => setVehicleName(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg text-xs bg-white font-semibold outline-none"
+                className="w-full px-4 py-2 border rounded-lg text-xs bg-white font-semibold outline-none cursor-pointer"
+                required
               >
-                <option value="Vehicle 1">Vehicle 1</option>
-                <option value="Vehicle 2">Vehicle 2</option>
-                <option value="Vehicle 3">Vehicle 3</option>
-                <option value="Vehicle 4">Vehicle 4</option>
+                <option value="">-- Select Vehicle --</option>
+                {vehiclesList.length > 0 ? (
+                  vehiclesList.map((v: any, idx: number) => {
+                    const displayVal = v.registrationNo ? `${v.vehicleName} (${v.registrationNo})` : v.vehicleName
+                    return (
+                      <option key={idx} value={displayVal}>
+                        {displayVal}
+                      </option>
+                    )
+                  })
+                ) : (
+                  <>
+                    <option value="Bus 01 (UP65-AB-1234)">Bus 01 (UP65-AB-1234)</option>
+                    <option value="Van 02 (UP65-CD-5678)">Van 02 (UP65-CD-5678)</option>
+                    <option value="Mini Bus 03 (UP65-EF-9012)">Mini Bus 03 (UP65-EF-9012)</option>
+                  </>
+                )}
               </select>
             </div>
           </div>

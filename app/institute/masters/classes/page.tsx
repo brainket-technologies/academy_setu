@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, RotateCcw, CheckCircle2, X, Search, Filter } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface ClassRecord {
   id: number
@@ -32,13 +33,11 @@ export default function ClassesPage() {
   // Form State
   const [classNameInput, setClassNameInput] = useState('')
   const [rowOrder, setRowOrder] = useState('')
-  const [description, setDescription] = useState('')
-  const [classSections, setClassSections] = useState<string[]>(['A'])
+  const [formError, setFormError] = useState('')
 
   // Filter Toggle state
   const [showFilters, setShowFilters] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [sectionFilter, setSectionFilter] = useState('')
 
   const [toastMsg, setToastMsg] = useState('')
   const [toastOpen, setToastOpen] = useState(false)
@@ -47,7 +46,20 @@ export default function ClassesPage() {
     const saved = localStorage.getItem('school_masters_classes')
     if (saved) {
       try {
-        setClasses(JSON.parse(saved))
+        const parsed: ClassRecord[] = JSON.parse(saved)
+        // Clean up any duplicate order values in existing local storage
+        const usedOrders = new Set<number>()
+        const cleaned = parsed.map(c => {
+          let ord = c.order && c.order > 0 ? c.order : 1
+          while (usedOrders.has(ord)) {
+            ord++
+          }
+          usedOrders.add(ord)
+          return { ...c, order: ord }
+        }).sort((a, b) => (a.order || 0) - (b.order || 0))
+
+        setClasses(cleaned)
+        localStorage.setItem('school_masters_classes', JSON.stringify(cleaned))
       } catch (e) {
         console.error(e)
       }
@@ -56,25 +68,67 @@ export default function ClassesPage() {
     }
   }, [])
 
-  const showToast = (msg: string) => {
+  const showToast = (msg: string, type: 'success' | 'error' | 'info' = 'success') => {
+    if (type === 'success') {
+      toast.success(msg)
+    } else if (type === 'error') {
+      toast.error(msg)
+    } else {
+      toast.info(msg)
+    }
     setToastMsg(msg)
     setToastOpen(true)
     setTimeout(() => setToastOpen(false), 2500)
   }
 
+  const handleOpenAdd = () => {
+    setClassNameInput('')
+    const maxOrder = classes.filter(c => !c.deleted).reduce((max, c) => Math.max(max, c.order || 0), 0)
+    setRowOrder(String(maxOrder + 1))
+    setFormError('')
+    setAddModalOpen(true)
+  }
+
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!classNameInput) {
-      alert('Please enter a Class Name.')
+    setFormError('')
+    const trimmedName = classNameInput.trim().replace(/\s+/g, ' ')
+
+    if (!trimmedName) {
+      setFormError('Please enter a Class Name.')
+      return
+    }
+
+    const parsedOrder = parseInt(rowOrder, 10)
+    if (!rowOrder || isNaN(parsedOrder) || parsedOrder <= 0) {
+      setFormError('Please enter a valid positive number for Row Per Order.')
+      return
+    }
+
+    // Check duplicate class name
+    const isNameDuplicate = classes.some(
+      c => !c.deleted && c.className.trim().replace(/\s+/g, ' ').toLowerCase() === trimmedName.toLowerCase()
+    )
+    if (isNameDuplicate) {
+      setFormError(`Class name "${trimmedName}" already exists!`)
+      return
+    }
+
+    // Check duplicate row order
+    const isOrderDuplicate = classes.some(
+      c => !c.deleted && c.order === parsedOrder
+    )
+    if (isOrderDuplicate) {
+      setFormError(`Row Per Order ${parsedOrder} is already assigned to another class!`)
       return
     }
 
     const newClass: ClassRecord = {
       id: Date.now(),
-      className: classNameInput,
-      order: parseInt(rowOrder) || (classes.length + 1),
-      description,
-      sections: classSections.length > 0 ? classSections : ['A'],
+      className: trimmedName,
+      order: parsedOrder,
+      description: '',
+      sections: ['A'],
       totalStudents: 0,
       male: 0,
       female: 0,
@@ -83,44 +137,71 @@ export default function ClassesPage() {
       deleted: false
     }
 
-    const updated = [newClass, ...classes]
+    const updated = [...classes, newClass].sort((a, b) => (a.order || 0) - (b.order || 0))
     setClasses(updated)
     localStorage.setItem('school_masters_classes', JSON.stringify(updated))
 
     setClassNameInput('')
     setRowOrder('')
-    setDescription('')
-    setClassSections(['A'])
+    setFormError('')
     setAddModalOpen(false)
-    showToast('Class created successfully!')
+    showToast('Class created successfully!', 'success')
   }
 
   const handleOpenEdit = (item: ClassRecord) => {
     setSelectedClass(item)
     setClassNameInput(item.className)
     setRowOrder(String(item.order))
-    setDescription(item.description || '')
-    setClassSections(item.sections)
+    setFormError('')
     setEditModalOpen(true)
   }
 
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedClass || !classNameInput) return
+    if (!selectedClass) return
+    setFormError('')
+
+    const trimmedName = classNameInput.trim().replace(/\s+/g, ' ')
+    if (!trimmedName) {
+      setFormError('Please enter a Class Name.')
+      return
+    }
+
+    const parsedOrder = parseInt(rowOrder, 10)
+    if (!rowOrder || isNaN(parsedOrder) || parsedOrder <= 0) {
+      setFormError('Please enter a valid positive number for Row Per Order.')
+      return
+    }
+
+    // Check duplicate class name
+    const isNameDuplicate = classes.some(
+      c => !c.deleted && c.id !== selectedClass.id && c.className.trim().replace(/\s+/g, ' ').toLowerCase() === trimmedName.toLowerCase()
+    )
+    if (isNameDuplicate) {
+      setFormError(`Class name "${trimmedName}" already exists!`)
+      return
+    }
+
+    // Check duplicate row order
+    const isOrderDuplicate = classes.some(
+      c => !c.deleted && c.id !== selectedClass.id && c.order === parsedOrder
+    )
+    if (isOrderDuplicate) {
+      setFormError(`Row Per Order ${parsedOrder} is already assigned to another class!`)
+      return
+    }
 
     const updated = classes.map(c => {
       if (c.id === selectedClass.id) {
         return {
           ...c,
-          className: classNameInput,
-          order: parseInt(rowOrder) || c.order,
-          description,
-          sections: classSections.length > 0 ? classSections : c.sections,
+          className: trimmedName,
+          order: parsedOrder,
           lastUpdate: new Date().toLocaleDateString('en-GB') + '\n' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
         }
       }
       return c
-    })
+    }).sort((a, b) => (a.order || 0) - (b.order || 0))
 
     setClasses(updated)
     localStorage.setItem('school_masters_classes', JSON.stringify(updated))
@@ -128,145 +209,107 @@ export default function ClassesPage() {
     setSelectedClass(null)
     setClassNameInput('')
     setRowOrder('')
-    setDescription('')
-    showToast('Class updated successfully!')
+    setFormError('')
+    showToast('Class updated successfully!', 'success')
   }
 
   const handleDelete = (id: number) => {
     const updated = classes.map(c => c.id === id ? { ...c, deleted: true } : c)
     setClasses(updated)
     localStorage.setItem('school_masters_classes', JSON.stringify(updated))
-    showToast('Class moved to deleted list!')
+    showToast('Class moved to deleted list!', 'info')
   }
 
   const handleRestore = (id: number) => {
     const updated = classes.map(c => c.id === id ? { ...c, deleted: false } : c)
     setClasses(updated)
     localStorage.setItem('school_masters_classes', JSON.stringify(updated))
-    showToast('Class restored successfully!')
-  }
-
-  const toggleSectionCheckbox = (sec: string) => {
-    if (classSections.includes(sec)) {
-      setClassSections(classSections.filter(s => s !== sec))
-    } else {
-      setClassSections([...classSections, sec])
-    }
+    showToast('Class restored successfully!', 'success')
   }
 
   const tabCountAll = classes.filter(c => !c.deleted).length
   const tabCountDeleted = classes.filter(c => c.deleted).length
 
-  // Filters logic
-  const filtered = classes.filter(c => {
-    const matchesTab = activeTab === 'All' ? !c.deleted : c.deleted
-    const matchesSearch = searchQuery ? c.className.toLowerCase().includes(searchQuery.toLowerCase()) : true
-    const matchesSection = sectionFilter ? c.sections.includes(sectionFilter) : true
-    return matchesTab && matchesSearch && matchesSection
-  })
-
-  const sectionColors: Record<string, string> = {
-    A: 'bg-red-50 text-red-600 border-red-100',
-    B: 'bg-blue-50 text-blue-600 border-blue-100',
-    C: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-    D: 'bg-purple-50 text-purple-600 border-purple-100'
-  }
+  // Filters logic - sorted by Row Per Order ascending
+  const filtered = classes
+    .filter(c => {
+      const matchesTab = activeTab === 'All' ? !c.deleted : c.deleted
+      const matchesSearch = searchQuery ? c.className.toLowerCase().includes(searchQuery.toLowerCase()) : true
+      return matchesTab && matchesSearch
+    })
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
 
   return (
-    <div className="flex flex-col gap-6 w-full pb-10 animate-in fade-in duration-300">
+    <div className="w-full pb-10 animate-in fade-in duration-300">
       
-      {/* Header bar */}
-      <div className="bg-white border rounded-2xl p-4 shadow-sm flex items-center justify-between">
-        <h1 className="text-xl font-black text-slate-800">Classes</h1>
-        <button
-          onClick={() => {
-            setClassNameInput('')
-            setRowOrder('')
-            setDescription('')
-            setClassSections(['A'])
-            setAddModalOpen(true)
-          }}
-          className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold shadow-md transition-colors text-xs"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Class</span>
-        </button>
-      </div>
+      {/* Single Unified Card */}
+      <div className="bg-white border rounded-2xl p-6 shadow-sm flex flex-col gap-6">
 
-      {/* Tabs and Filter Toggle */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+        {/* Header bar */}
+        <div className="flex items-center justify-between pb-4 border-b">
+          <h1 className="text-xl font-black text-slate-800">Classes</h1>
           <button
-            onClick={() => setActiveTab('All')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm ${activeTab === 'All' ? 'bg-teal-600 text-white border-teal-500 font-black' : 'bg-white border text-slate-650 hover:bg-slate-50'}`}
+            onClick={handleOpenAdd}
+            className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold shadow-md transition-colors text-xs"
           >
-            All <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${activeTab === 'All' ? 'bg-teal-750 text-white' : 'bg-slate-100 text-slate-600'}`}>{String(tabCountAll).padStart(2, '0')}</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('Deleted')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm ${activeTab === 'Deleted' ? 'bg-teal-600 text-white border-teal-500 font-black' : 'bg-white border text-slate-655 hover:bg-slate-50'}`}
-          >
-            Deleted <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${activeTab === 'Deleted' ? 'bg-teal-750 text-white' : 'bg-slate-100 text-slate-600'}`}>{String(tabCountDeleted).padStart(2, '0')}</span>
+            <Plus className="w-4 h-4" />
+            <span>Add Class</span>
           </button>
         </div>
 
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className={`flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-bold transition-colors ${showFilters ? 'bg-slate-100 text-slate-800' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
-        >
-          <Filter className="w-4 h-4" />
-          <span>{showFilters ? 'Hide Filters' : 'Show Filters'}</span>
-        </button>
-      </div>
+        {/* Tabs and Filter Toggle */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setActiveTab('All')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm ${activeTab === 'All' ? 'bg-teal-600 text-white border-teal-500 font-black' : 'bg-white border text-slate-650 hover:bg-slate-50'}`}
+            >
+              All <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${activeTab === 'All' ? 'bg-teal-750 text-white' : 'bg-slate-100 text-slate-600'}`}>{String(tabCountAll).padStart(2, '0')}</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('Deleted')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm ${activeTab === 'Deleted' ? 'bg-teal-600 text-white border-teal-500 font-black' : 'bg-white border text-slate-655 hover:bg-slate-50'}`}
+            >
+              Deleted <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${activeTab === 'Deleted' ? 'bg-teal-750 text-white' : 'bg-slate-100 text-slate-600'}`}>{String(tabCountDeleted).padStart(2, '0')}</span>
+            </button>
+          </div>
 
-      {/* Toggleable Filters Panel */}
-      {showFilters && (
-        <div className="bg-white border rounded-2xl p-5 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-semibold text-slate-700 animate-in slide-in-from-top-3 duration-200">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-slate-500 font-bold">Search Class</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search class name..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border rounded-lg outline-none font-bold text-slate-700 text-xs"
-              />
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-bold transition-colors ${showFilters ? 'bg-slate-100 text-slate-800' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+          >
+            <Filter className="w-4 h-4" />
+            <span>{showFilters ? 'Hide Filters' : 'Show Filters'}</span>
+          </button>
+        </div>
+
+        {/* Toggleable Filters Panel */}
+        {showFilters && (
+          <div className="bg-slate-50 border rounded-2xl p-5 grid grid-cols-1 gap-4 text-xs font-semibold text-slate-700 animate-in slide-in-from-top-3 duration-200">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-slate-500 font-bold">Search Class</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search class name..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border rounded-lg bg-white outline-none font-bold text-slate-700 text-xs"
+                />
+              </div>
             </div>
           </div>
+        )}
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-slate-500 font-bold">Filter by Section</label>
-            <select
-              value={sectionFilter}
-              onChange={e => setSectionFilter(e.target.value)}
-              className="w-full px-4 py-2 border rounded-lg bg-white outline-none font-bold text-xs"
-            >
-              <option value="">All Sections</option>
-              <option value="A">Section A</option>
-              <option value="B">Section B</option>
-              <option value="C">Section C</option>
-              <option value="D">Section D</option>
-            </select>
-          </div>
-        </div>
-      )}
-
-      {/* Table */}
-      <div className="bg-white border rounded-2xl p-6 shadow-sm">
+        {/* Table */}
         <div className="overflow-x-auto rounded-xl border border-slate-200 font-semibold text-xs text-slate-700">
           <table className="w-full text-center border-collapse">
             <thead className="bg-slate-50 font-black text-slate-655 border-b">
               <tr>
                 <th className="px-3 py-4 w-14">S. No.</th>
-                <th className="px-3 py-4">Class</th>
-                <th className="px-3 py-4">Section</th>
-                <th className="px-3 py-4">Total Students</th>
-                <th className="px-3 py-4">Male</th>
-                <th className="px-3 py-4">Female</th>
-                <th className="px-3 py-4">Other</th>
-                <th className="px-3 py-4 w-36">Last Update</th>
+                <th className="px-3 py-4">Class Name</th>
+                <th className="px-3 py-4">Row Per Order</th>
                 <th className="px-3 py-4 w-24">Action</th>
               </tr>
             </thead>
@@ -275,22 +318,7 @@ export default function ClassesPage() {
                 <tr key={item.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors font-semibold">
                   <td className="px-3 py-3.5 text-slate-500">{idx + 1}.</td>
                   <td className="px-3 py-3.5 font-bold text-slate-800">{item.className}</td>
-                  <td className="px-3 py-3.5">
-                    <div className="flex flex-wrap items-center justify-center gap-1">
-                      {item.sections.map(sec => (
-                        <span key={sec} className={`px-2 py-0.5 rounded text-[10px] font-black border ${sectionColors[sec] || 'bg-slate-50'}`}>
-                          {sec}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-3 py-3.5 font-bold text-slate-800">{item.totalStudents}</td>
-                  <td className="px-3 py-3.5 text-slate-600">{item.male}</td>
-                  <td className="px-3 py-3.5 text-slate-600">{item.female}</td>
-                  <td className="px-3 py-3.5 text-slate-600">{item.other}</td>
-                  <td className="px-3 py-3.5 text-slate-450 whitespace-pre-line leading-tight text-[10px]">
-                    {item.lastUpdate}
-                  </td>
+                  <td className="px-3 py-3.5 font-medium text-slate-700">{item.order}</td>
                   <td className="px-3 py-3.5">
                     {activeTab === 'All' ? (
                       <div className="flex items-center justify-center gap-1.5">
@@ -324,7 +352,7 @@ export default function ClassesPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-slate-400 font-bold">
+                  <td colSpan={4} className="py-8 text-center text-slate-400 font-bold">
                     No classes found in this category.
                   </td>
                 </tr>
@@ -343,6 +371,12 @@ export default function ClassesPage() {
             </button>
             <h2 className="text-sm font-black text-[#1b3a60] border-b pb-2 mb-4">Create Class</h2>
             <form onSubmit={handleCreate} className="space-y-4">
+              {formError && (
+                <div className="px-3.5 py-2.5 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs font-bold flex items-center justify-between animate-in fade-in duration-150">
+                  <span>{formError}</span>
+                  <button type="button" onClick={() => setFormError('')} className="text-red-400 hover:text-red-600 text-sm font-bold">✕</button>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-slate-500 font-bold">Class Name</label>
@@ -350,8 +384,11 @@ export default function ClassesPage() {
                     type="text"
                     placeholder="Enter Class name"
                     value={classNameInput}
-                    onChange={e => setClassNameInput(e.target.value)}
-                    className="w-full px-4 py-2 border rounded-lg outline-none font-bold"
+                    onChange={e => {
+                      setClassNameInput(e.target.value)
+                      if (formError) setFormError('')
+                    }}
+                    className="w-full px-4 py-2 border rounded-lg outline-none font-bold focus:border-teal-500"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -360,37 +397,13 @@ export default function ClassesPage() {
                     type="number"
                     placeholder="Enter number"
                     value={rowOrder}
-                    onChange={e => setRowOrder(e.target.value)}
-                    className="w-full px-4 py-2 border rounded-lg outline-none font-bold"
+                    onChange={e => {
+                      setRowOrder(e.target.value)
+                      if (formError) setFormError('')
+                    }}
+                    className="w-full px-4 py-2 border rounded-lg outline-none font-bold focus:border-teal-500"
                   />
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-slate-500 font-bold">Assign Sections</label>
-                <div className="flex items-center gap-4">
-                  {['A', 'B', 'C', 'D'].map(sec => (
-                    <label key={sec} className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={classSections.includes(sec)}
-                        onChange={() => toggleSectionCheckbox(sec)}
-                        className="rounded text-teal-650 accent-teal-600"
-                      />
-                      <span>Section {sec}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-slate-500 font-bold">Description</label>
-                <textarea
-                  placeholder="Enter Description"
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-lg outline-none h-20 font-bold resize-none"
-                />
               </div>
 
               <div className="flex justify-end gap-3 pt-2">
@@ -422,6 +435,12 @@ export default function ClassesPage() {
             </button>
             <h2 className="text-sm font-black text-[#1b3a60] border-b pb-2 mb-4">Edit Class Details</h2>
             <form onSubmit={handleEditSubmit} className="space-y-4">
+              {formError && (
+                <div className="px-3.5 py-2.5 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs font-bold flex items-center justify-between animate-in fade-in duration-150">
+                  <span>{formError}</span>
+                  <button type="button" onClick={() => setFormError('')} className="text-red-400 hover:text-red-600 text-sm font-bold">✕</button>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-slate-500 font-bold">Class Name</label>
@@ -429,8 +448,11 @@ export default function ClassesPage() {
                     type="text"
                     placeholder="Enter Class name"
                     value={classNameInput}
-                    onChange={e => setClassNameInput(e.target.value)}
-                    className="w-full px-4 py-2 border rounded-lg outline-none font-bold"
+                    onChange={e => {
+                      setClassNameInput(e.target.value)
+                      if (formError) setFormError('')
+                    }}
+                    className="w-full px-4 py-2 border rounded-lg outline-none font-bold focus:border-teal-500"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -439,37 +461,13 @@ export default function ClassesPage() {
                     type="number"
                     placeholder="Enter number"
                     value={rowOrder}
-                    onChange={e => setRowOrder(e.target.value)}
-                    className="w-full px-4 py-2 border rounded-lg outline-none font-bold"
+                    onChange={e => {
+                      setRowOrder(e.target.value)
+                      if (formError) setFormError('')
+                    }}
+                    className="w-full px-4 py-2 border rounded-lg outline-none font-bold focus:border-teal-500"
                   />
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-slate-500 font-bold">Assign Sections</label>
-                <div className="flex items-center gap-4">
-                  {['A', 'B', 'C', 'D'].map(sec => (
-                    <label key={sec} className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={classSections.includes(sec)}
-                        onChange={() => toggleSectionCheckbox(sec)}
-                        className="rounded text-teal-650 accent-teal-600"
-                      />
-                      <span>Section {sec}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-slate-500 font-bold">Description</label>
-                <textarea
-                  placeholder="Enter Description"
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-lg outline-none h-20 font-bold resize-none"
-                />
               </div>
 
               <div className="flex justify-end gap-3 pt-2">

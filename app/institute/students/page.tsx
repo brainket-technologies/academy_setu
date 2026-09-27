@@ -6,6 +6,7 @@ import {
   Download, Upload, Filter, Plus, Search, MoreVertical, X, CheckCircle2, Ticket,
   Eye, Edit, Receipt, Banknote, CalendarCheck, FileCheck, FileBadge, RefreshCw, Trash2
 } from 'lucide-react'
+import { toast } from 'sonner'
 import AddStudentWizard from '@/components/students/AddStudentWizard'
 import { useRouter } from 'next/navigation'
 
@@ -27,9 +28,30 @@ export default function StudentsPage() {
 
   const loadStudents = async () => {
     setLoading(true)
+    let localList: any[] = []
+    const saved = localStorage.getItem('school_students')
+    if (saved) {
+      try {
+        localList = JSON.parse(saved)
+      } catch (e) {
+        console.error(e)
+      }
+    }
+
     const res = await fetchStudents()
-    if (res.success) {
-      setStudents(res.data || [])
+    if (res.success && Array.isArray(res.data)) {
+      const dbList = res.data.map((s: any) => ({
+        ...s,
+        first_name: s.first_name,
+        last_name: s.last_name,
+        contact: s.contact,
+        avatar: s.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.first_name}`
+      }))
+      const dbIds = new Set(dbList.map(s => String(s.id)))
+      const uniqueLocal = localList.filter(s => !dbIds.has(String(s.id)))
+      setStudents([...dbList, ...uniqueLocal])
+    } else {
+      setStudents(localList)
     }
     setLoading(false)
   }
@@ -63,51 +85,57 @@ export default function StudentsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 max-w-[1600px] mx-auto w-full pb-10">
+    <div className="w-full max-w-[1600px] mx-auto pb-10 animate-in fade-in duration-300">
       
-      {/* Top Header */}
-      <div className="bg-white dark:bg-slate-800 rounded-3xl p-4 sm:p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100">All Students</h1>
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-          {/* Search */}
-          <div className="relative flex-1 sm:w-[300px]">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-             <input 
-               type="text" 
-               placeholder="Search by Name, Mobile no" 
-               className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
-             />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button className="w-9 h-9 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 flex items-center justify-center transition-colors shadow-sm shadow-indigo-600/20">
-              <Download className="w-4 h-4" />
-            </button>
-            <button className="w-9 h-9 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 flex items-center justify-center transition-colors shadow-sm shadow-indigo-600/20">
-              <Upload className="w-4 h-4" />
-            </button>
-            <button onClick={() => setView('FILTER')} className="w-9 h-9 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 flex items-center justify-center transition-colors shadow-sm shadow-indigo-600/20">
-              <Filter className="w-4 h-4" />
-            </button>
-            <button onClick={() => setView('ADD_STUDENT')} className="w-9 h-9 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 flex items-center justify-center transition-colors shadow-sm shadow-indigo-600/20">
-              <Plus className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Table */}
-      <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm flex-1">
+      {/* ONE MAIN CARD */}
+      <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 md:p-8 border border-slate-200/80 dark:border-slate-700/80 shadow-md shadow-slate-200/40 dark:shadow-none flex flex-col gap-6 w-full min-h-[calc(100vh-120px)]">
         
-        <div className="overflow-x-auto min-h-[400px]">
+        {/* Top Header Inside Card */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-700">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100">All Students</h1>
+            <p className="text-xs text-slate-400 mt-0.5 font-medium">Manage student profiles, enrollment, fee statuses & actions</p>
+          </div>
+
+          {/* Actions Controls */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            {/* Search Box */}
+            <div className="relative flex-1 sm:w-[280px]">
+               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+               <input 
+                 type="text" 
+                 placeholder="Search by Name, Mobile no" 
+                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-700 dark:text-slate-200 font-medium"
+               />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button className="w-10 h-10 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 flex items-center justify-center transition-colors shadow-sm shadow-indigo-600/20" title="Download">
+                <Download className="w-4 h-4" />
+              </button>
+              <button className="w-10 h-10 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 flex items-center justify-center transition-colors shadow-sm shadow-indigo-600/20" title="Upload">
+                <Upload className="w-4 h-4" />
+              </button>
+              <button onClick={() => setView('FILTER')} className="w-10 h-10 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 flex items-center justify-center transition-colors shadow-sm shadow-indigo-600/20" title="Filter">
+                <Filter className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => setView('ADD_STUDENT')} 
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm flex items-center gap-2 transition-all shadow-md shadow-indigo-600/20 shrink-0 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Add Student
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Table Inside Card */}
+        <div className="overflow-x-auto min-h-[420px] flex-1 rounded-2xl border border-slate-200/80 dark:border-slate-700/80">
            <table className="w-full text-sm text-left">
               <thead>
-                <tr className="bg-[#a29bba] text-[13px] font-semibold text-white">
-                  <th className="py-4 px-4 text-center whitespace-nowrap rounded-tl-xl">S. No.</th>
+                <tr className="bg-[#9c93b6] text-[13px] font-semibold text-white">
+                  <th className="py-4 px-4 text-center whitespace-nowrap">S. No.</th>
                   <th className="py-4 px-4 whitespace-nowrap">Admission No.</th>
                   <th className="py-4 px-4 whitespace-nowrap">Roll No.</th>
                   <th className="py-4 px-4 min-w-[200px]">Name</th>
@@ -116,43 +144,43 @@ export default function StudentsPage() {
                   <th className="py-4 px-4 text-center whitespace-nowrap">Fees</th>
                   <th className="py-4 px-4 text-center whitespace-nowrap">Tag</th>
                   <th className="py-4 px-4 text-center whitespace-nowrap">Status</th>
-                  <th className="py-4 px-4 text-center whitespace-nowrap rounded-tr-xl">Action</th>
+                  <th className="py-4 px-4 text-center whitespace-nowrap">Action</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                 {loading ? (
-                  <tr><td colSpan={10} className="text-center py-10 text-slate-400">Loading students...</td></tr>
+                  <tr><td colSpan={10} className="text-center py-10 text-slate-400 font-medium">Loading students...</td></tr>
                 ) : students.length === 0 ? (
-                  <tr><td colSpan={10} className="text-center py-10 text-slate-400">No students found. Add one!</td></tr>
+                  <tr><td colSpan={10} className="text-center py-10 text-slate-400 font-medium">No students found. Add one!</td></tr>
                 ) : (
                   students.map((student, i) => (
-                    <tr key={student.id} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors">
-                      <td className="py-3 px-4 text-center font-semibold text-slate-600">{i + 1}.</td>
-                      <td className="py-3 px-4 text-slate-600 text-[13px]">{student.admission_no}</td>
-                      <td className="py-3 px-4 text-slate-600 text-[13px]">{student.roll_no}</td>
-                      <td className="py-3 px-4">
+                    <tr key={student.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/80 transition-colors">
+                      <td className="py-3.5 px-4 text-center font-semibold text-slate-600">{i + 1}.</td>
+                      <td className="py-3.5 px-4 text-slate-600 text-[13px] font-medium">{student.admission_no}</td>
+                      <td className="py-3.5 px-4 text-slate-600 text-[13px] font-medium">{student.roll_no}</td>
+                      <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
-                          <img src={student.avatar} alt="Avatar" className="w-8 h-8 rounded-full bg-slate-100" />
-                          <span className="font-bold text-slate-700 dark:text-slate-200">{student.first_name} {student.last_name}</span>
+                          <img src={student.avatar} alt="Avatar" className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200" />
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{student.first_name} {student.last_name}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-center text-slate-500 text-[13px]">{student.class_name}</td>
-                      <td className="py-3 px-4 text-slate-500 text-[13px]">{student.contact}</td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center text-slate-600 dark:text-slate-300 text-[13px] font-medium">{student.class_name}</td>
+                      <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300 text-[13px] font-medium">{student.contact}</td>
+                      <td className="py-3.5 px-4 text-center">
                          <div className="flex items-center justify-center">
-                           <button onClick={() => handleFeeClick(student)} className={`p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ${student.fees_status === 'Paid' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}>
+                           <button onClick={() => handleFeeClick(student)} className={`p-1.5 rounded-lg hover:opacity-80 transition-colors ${student.fees_status === 'Paid' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}`}>
                              <Ticket className="w-4 h-4" />
                            </button>
                          </div>
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center">
                          <div className="flex items-center justify-center">
                            <div className="p-1.5 rounded-lg bg-fuchsia-50 text-fuchsia-500">
                              <Ticket className="w-4 h-4" />
                            </div>
                          </div>
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center">
                          <span className={`px-3 py-1 rounded-full text-[11px] font-bold ${
                            student.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 
                            student.status === 'Inactive' ? 'bg-rose-50 text-rose-600 border border-rose-200' :
@@ -161,7 +189,7 @@ export default function StudentsPage() {
                            {student.status}
                          </span>
                       </td>
-                      <td className="py-3 px-4 text-center relative">
+                      <td className="py-3.5 px-4 text-center relative">
                         <button onClick={() => handleOpenActionMenu(student.id)} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
                            <MoreVertical className="w-4 h-4" />
                         </button>
@@ -217,18 +245,19 @@ export default function StudentsPage() {
            </table>
         </div>
 
-        {/* Pagination Dummy */}
-        <div className="mt-6 flex items-center justify-between text-xs font-semibold text-slate-500 px-2">
+        {/* Footer Pagination Inside Card */}
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between text-xs font-semibold text-slate-500 gap-4">
           <span>Showing 1-{Math.min(10, students.length)} of {students.length} Entries</span>
           <div className="flex items-center gap-1">
-            <button className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-50 text-slate-400">«</button>
-            <button className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-50 text-slate-400">‹</button>
-            <button className="w-7 h-7 rounded-lg bg-teal-600 text-white flex items-center justify-center">1</button>
-            <button className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-50 text-teal-600">2</button>
-            <button className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-50 text-teal-600">›</button>
-            <button className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-50 text-teal-600">»</button>
+            <button className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-50 text-slate-400">«</button>
+            <button className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-50 text-slate-400">‹</button>
+            <button className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold">1</button>
+            <button className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-50 text-slate-600">2</button>
+            <button className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-50 text-slate-600">›</button>
+            <button className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center hover:bg-slate-50 text-slate-600">»</button>
           </div>
         </div>
+
       </div>
 
       {/* OVERLAYS */}
@@ -236,9 +265,9 @@ export default function StudentsPage() {
       {view === 'MOVE_STUDENT' && <MoveStudentModal student={selectedStudent} onClose={handleCloseModal} />}
       {view === 'FEE_DETAILS' && <FeeDetailsModal student={selectedStudent} onClose={handleCloseModal} />}
       
-      {/* ADD STUDENT WIZARD (FULL PAGE OVERLAY) */}
+      {/* ADD STUDENT WIZARD (POPUP MODAL OVERLAY) */}
       {view === 'ADD_STUDENT' && (
-        <div className="fixed inset-0 z-50 bg-slate-100 dark:bg-slate-900 overflow-y-auto animate-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
            <AddStudentWizard onClose={handleCloseModal} />
         </div>
       )}
@@ -301,9 +330,10 @@ function MoveStudentModal({ student, onClose }: { student: any, onClose: () => v
     setSubmitting(true)
     const res = await moveStudent(student.id, { moveTo, remark, disableLogin })
     if (res.success) {
+      toast.success('Student moved successfully')
       onClose()
     } else {
-      alert('Error moving student')
+      toast.error('Error moving student')
     }
     setSubmitting(false)
   }

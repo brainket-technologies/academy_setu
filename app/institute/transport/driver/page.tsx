@@ -11,6 +11,7 @@ interface DriverRecord {
   driverId: string
   licenseNumber: string
   licenseType: string
+  assignedVehicle?: string
   contact: string
   status: 'Active' | 'Inactive'
   joiningDate: string
@@ -25,6 +26,7 @@ interface DriverRecord {
   pincode?: string
   district?: string
   state?: string
+  photo?: string
   deletedDate?: string
 }
 
@@ -44,7 +46,31 @@ export default function TransportDriverPage() {
   const [selectedDriver, setSelectedDriver] = useState<DriverRecord | null>(null)
   const [activeProfileTab, setActiveProfileTab] = useState<'details' | 'attendance' | 'leave' | 'payroll' | 'login'>('details')
 
-  // Edit fields target states
+  // Add / Edit Driver Modal state
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [editingDriverId, setEditingDriverId] = useState<number | null>(null)
+  const [vehiclesList, setVehiclesList] = useState<any[]>([])
+
+  // Modal form states
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [driverIdVal, setDriverIdVal] = useState('')
+  const [contactVal, setContactVal] = useState('')
+  const [usernameVal, setUsernameVal] = useState('')
+  const [licenseTypeVal, setLicenseTypeVal] = useState('LMV')
+  const [licenseNumberVal, setLicenseNumberVal] = useState('')
+  const [assignedVehicleVal, setAssignedVehicleVal] = useState('')
+  const [joiningDateVal, setJoiningDateVal] = useState('')
+  const [genderVal, setGenderVal] = useState('Male')
+  const [dobVal, setDobVal] = useState('')
+  const [emailVal, setEmailVal] = useState('')
+  const [addressVal, setAddressVal] = useState('')
+  const [districtVal, setDistrictVal] = useState('')
+  const [stateVal, setStateVal] = useState('')
+  const [pincodeVal, setPincodeVal] = useState('')
+  const [photoVal, setPhotoVal] = useState('')
+
+  // Toast notifications state
   const [toastMsg, setToastMsg] = useState('')
   const [toastOpen, setToastOpen] = useState(false)
 
@@ -52,6 +78,7 @@ export default function TransportDriverPage() {
   useEffect(() => {
     const savedActive = localStorage.getItem('transport_drivers')
     const savedDeleted = localStorage.getItem('deleted_transport_drivers')
+    const savedVehicles = localStorage.getItem('transport_vehicles')
 
     if (savedActive) {
       try { setActiveDrivers(JSON.parse(savedActive)) } catch (e) { console.error(e) }
@@ -64,7 +91,115 @@ export default function TransportDriverPage() {
     } else {
       localStorage.setItem('deleted_transport_drivers', JSON.stringify(INITIAL_DELETED))
     }
+
+    if (savedVehicles) {
+      try { setVehiclesList(JSON.parse(savedVehicles)) } catch (e) { console.error(e) }
+    }
   }, [])
+
+  // Open Add Driver Modal
+  const openAddModal = () => {
+    setEditingDriverId(null)
+    setFirstName('')
+    setLastName('')
+    setDriverIdVal(`${activeDrivers.length + 1}`)
+    setContactVal('')
+    setUsernameVal('')
+    setLicenseTypeVal('LMV')
+    setLicenseNumberVal('')
+    setAssignedVehicleVal('')
+    setJoiningDateVal(new Date().toISOString().split('T')[0])
+    setGenderVal('Male')
+    setDobVal('')
+    setEmailVal('')
+    setAddressVal('')
+    setDistrictVal('')
+    setStateVal('')
+    setPincodeVal('')
+    setPhotoVal('')
+    setAddModalOpen(true)
+  }
+
+  // Open Edit Driver Modal
+  const openEditModal = (driver: DriverRecord) => {
+    setEditingDriverId(driver.id)
+    const names = driver.driverName.split(' ')
+    setFirstName(names[0] || '')
+    setLastName(names.slice(1).join(' ') || '')
+    setDriverIdVal(driver.driverId || '')
+    setContactVal(driver.contact || '')
+    setUsernameVal(driver.username || '')
+    setLicenseTypeVal(driver.licenseType || 'LMV')
+    setLicenseNumberVal(driver.licenseNumber || '')
+    setAssignedVehicleVal(driver.assignedVehicle || '')
+    setJoiningDateVal(driver.joiningDate || '')
+    setGenderVal(driver.gender || 'Male')
+    setDobVal(driver.dob || '')
+    setEmailVal(driver.email || '')
+    setAddressVal(driver.address || '')
+    setDistrictVal(driver.district || '')
+    setStateVal(driver.state || '')
+    setPincodeVal(driver.pincode || '')
+    setPhotoVal(driver.photo || '')
+    setAddModalOpen(true)
+  }
+
+  // Image Upload Reader
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setPhotoVal(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // Save Modal Driver Form
+  const handleSaveDriverModal = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!firstName.trim() || !contactVal.trim()) {
+      alert('Please fill in required fields: Driver First Name and Contact Number.')
+      return
+    }
+
+    const fullDriverName = `${firstName.trim()} ${lastName.trim()}`.trim()
+    const payload: DriverRecord = {
+      id: editingDriverId || Date.now(),
+      username: usernameVal.trim() || `dri_${driverIdVal.trim() || Date.now()}`,
+      driverName: fullDriverName,
+      driverId: driverIdVal.trim() || `${activeDrivers.length + 1}`,
+      licenseNumber: licenseNumberVal.trim() || 'N/A',
+      licenseType: licenseTypeVal,
+      assignedVehicle: assignedVehicleVal,
+      contact: contactVal.trim(),
+      status: 'Active',
+      joiningDate: joiningDateVal || new Date().toISOString().split('T')[0],
+      email: emailVal.trim(),
+      gender: genderVal,
+      dob: dobVal,
+      address: addressVal.trim(),
+      district: districtVal.trim(),
+      state: stateVal.trim(),
+      pincode: pincodeVal.trim(),
+      photo: photoVal
+    }
+
+    let updated: DriverRecord[] = []
+    if (editingDriverId) {
+      updated = activeDrivers.map(d => d.id === editingDriverId ? payload : d)
+    } else {
+      updated = [payload, ...activeDrivers]
+    }
+
+    setActiveDrivers(updated)
+    localStorage.setItem('transport_drivers', JSON.stringify(updated))
+    setAddModalOpen(false)
+    setToastMsg(editingDriverId ? `Driver ${fullDriverName} updated successfully!` : `Driver ${fullDriverName} added successfully!`)
+    setToastOpen(true)
+    setTimeout(() => setToastOpen(false), 3000)
+  }
 
   // Delete Driver action (moves to deleted list)
   const handleDelete = (driver: DriverRecord) => {
@@ -154,11 +289,19 @@ export default function TransportDriverPage() {
             <UploadCloud className="w-4 h-4" />
           </button>
           
+          <button 
+            onClick={openAddModal}
+            className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> Add Driver Modal
+          </button>
+
           <Link 
             href="/institute/transport/driver/create"
-            className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition-all"
+            title="Use Multi-step Wizard"
           >
-            <Plus className="w-4 h-4" /> Add Driver
+            Wizard
           </Link>
         </div>
 
@@ -214,6 +357,7 @@ export default function TransportDriverPage() {
                   <th className="px-4 py-4 text-left">Driver Name</th>
                   <th className="px-4 py-4">Driver ID</th>
                   <th className="px-4 py-4">License Number</th>
+                  <th className="px-4 py-4">Assigned Vehicle</th>
                   <th className="px-4 py-4">Contact</th>
                   <th className="px-4 py-4">Status</th>
                   <th className="px-4 py-4">Joining Date</th>
@@ -226,13 +370,18 @@ export default function TransportDriverPage() {
                     <td className="px-4 py-3.5 text-slate-500 font-medium">{idx + 1}.</td>
                     <td className="px-4 py-3.5 text-left text-slate-550 dark:text-slate-400 font-mono font-bold">{driver.username}</td>
                     <td className="px-4 py-3.5 text-left">
-                      <div className="flex items-center gap-2">
-                        <span className="text-base">👤</span>
+                      <div className="flex items-center gap-2.5">
+                        {driver.photo ? (
+                          <img src={driver.photo} alt={driver.driverName} className="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-sm shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-sm border border-slate-200 shrink-0">👤</div>
+                        )}
                         <span className="font-extrabold text-slate-850 dark:text-slate-200">{driver.driverName}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3.5 font-bold text-slate-800 dark:text-slate-200">{driver.driverId}</td>
                     <td className="px-4 py-3.5 font-semibold text-slate-600 dark:text-slate-400">{driver.licenseNumber}</td>
+                    <td className="px-4 py-3.5 font-bold text-teal-600">{driver.assignedVehicle || '-'}</td>
                     <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-350">{driver.contact}</td>
                     <td className="px-4 py-3.5">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase ${
@@ -254,13 +403,13 @@ export default function TransportDriverPage() {
                         >
                           <Eye className="w-3 h-3" />
                         </button>
-                        <Link 
-                          href={`/institute/transport/driver/create?editId=${driver.id}`}
+                        <button 
+                          onClick={() => openEditModal(driver)}
                           className="w-6 h-6 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 border border-emerald-100 transition-colors"
-                          title="Edit Details"
+                          title="Quick Edit Driver Modal"
                         >
                           <Pencil className="w-3 h-3" />
-                        </Link>
+                        </button>
                         <button 
                           onClick={() => handleDelete(driver)}
                           className="w-6 h-6 rounded bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 border border-red-100 transition-colors"
@@ -809,6 +958,254 @@ export default function TransportDriverPage() {
 
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ================================== ADD / EDIT DRIVER MODAL ================================== */}
+      {addModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 px-6 py-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
+              <div>
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                  {editingDriverId ? 'Edit Driver Details' : 'Add New Driver'}
+                </h3>
+                <p className="text-[11px] text-slate-400 font-medium">Quickly configure driver profile, image and assigned vehicle</p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setAddModalOpen(false)}
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-200/60 hover:bg-slate-200 text-slate-500 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Form Core */}
+            <form onSubmit={handleSaveDriverModal} className="p-6 overflow-y-auto flex-1 space-y-6">
+              
+              {/* Photo Upload Card */}
+              <div className="flex items-center gap-6 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                <div className="relative w-20 h-20 rounded-2xl bg-slate-200 flex items-center justify-center border border-slate-300 overflow-hidden shrink-0 shadow-sm">
+                  {photoVal ? (
+                    <img src={photoVal} alt="Driver Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-3xl">🧔</span>
+                  )}
+                </div>
+
+                <div className="flex-1 space-y-1.5">
+                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-200">Driver Photo / Image Upload</h4>
+                  <p className="text-[10px] text-slate-400">Select driver profile image from computer (PNG, JPG)</p>
+                  <div className="flex items-center gap-2 pt-1">
+                    <label className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold cursor-pointer transition-all shadow-sm flex items-center gap-1.5">
+                      <UploadCloud className="w-3.5 h-3.5" />
+                      Upload Photo
+                      <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                    </label>
+                    {photoVal && (
+                      <button
+                        type="button"
+                        onClick={() => setPhotoVal('')}
+                        className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-bold transition-all border border-red-100"
+                      >
+                        Remove Photo
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Basic Details */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black text-[#1b3a60] dark:text-slate-300 uppercase tracking-wider border-b pb-1.5">Basic Information</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">First Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter First Name"
+                      value={firstName}
+                      onChange={e => setFirstName(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl text-xs outline-none focus:border-teal-500 font-semibold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Last Name</label>
+                    <input
+                      type="text"
+                      placeholder="Enter Last Name"
+                      value={lastName}
+                      onChange={e => setLastName(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl text-xs outline-none focus:border-teal-500 font-semibold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Driver ID *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. 42 or DRV-101"
+                      value={driverIdVal}
+                      onChange={e => setDriverIdVal(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl text-xs outline-none focus:border-teal-500 font-semibold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Mobile / Contact No. *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter 10 digit mobile"
+                      value={contactVal}
+                      onChange={e => setContactVal(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl text-xs outline-none focus:border-teal-500 font-semibold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Username / Credentials</label>
+                    <input
+                      type="text"
+                      placeholder="Username for login"
+                      value={usernameVal}
+                      onChange={e => setUsernameVal(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl text-xs outline-none focus:border-teal-500 font-mono font-semibold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Joining Date</label>
+                    <input
+                      type="date"
+                      value={joiningDateVal}
+                      onChange={e => setJoiningDateVal(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl text-xs outline-none focus:border-teal-500 font-semibold"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* License & Vehicle Details */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black text-[#1b3a60] dark:text-slate-300 uppercase tracking-wider border-b pb-1.5">License & Vehicle Assignment</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">License Type</label>
+                    <select
+                      value={licenseTypeVal}
+                      onChange={e => setLicenseTypeVal(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl text-xs bg-white font-semibold outline-none focus:border-teal-500"
+                    >
+                      <option value="LMV">LMV (Light Motor Vehicle)</option>
+                      <option value="HMV">HMV (Heavy Motor Vehicle)</option>
+                      <option value="PSV">PSV (Public Service Vehicle)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">License Number</label>
+                    <input
+                      type="text"
+                      placeholder="License No. (e.g. LMV/123/456)"
+                      value={licenseNumberVal}
+                      onChange={e => setLicenseNumberVal(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl text-xs outline-none focus:border-teal-500 font-semibold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Assign Vehicle</label>
+                    <select
+                      value={assignedVehicleVal}
+                      onChange={e => setAssignedVehicleVal(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl text-xs bg-white font-semibold outline-none focus:border-teal-500"
+                    >
+                      <option value="">-- Select Vehicle --</option>
+                      {vehiclesList.map((v, i) => (
+                        <option key={i} value={`${v.vehicleName} (${v.registrationNo})`}>
+                          {v.vehicleName} ({v.registrationNo})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Optional Info */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black text-[#1b3a60] dark:text-slate-300 uppercase tracking-wider border-b pb-1.5">Additional Details</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Gender</label>
+                    <select
+                      value={genderVal}
+                      onChange={e => setGenderVal(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl text-xs bg-white font-semibold outline-none focus:border-teal-500"
+                    >
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Email Address</label>
+                    <input
+                      type="email"
+                      placeholder="Email Address"
+                      value={emailVal}
+                      onChange={e => setEmailVal(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl text-xs outline-none focus:border-teal-500 font-semibold"
+                    />
+                  </div>
+
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Residential Address</label>
+                    <input
+                      type="text"
+                      placeholder="Street Address, City, Pincode"
+                      value={addressVal}
+                      onChange={e => setAddressVal(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl text-xs outline-none focus:border-teal-500 font-semibold"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer Actions */}
+              <div className="flex justify-between items-center border-t pt-4 shrink-0">
+                <Link
+                  href="/institute/transport/driver/create"
+                  className="text-xs text-teal-600 font-bold hover:underline"
+                >
+                  Switch to Multi-step Wizard →
+                </Link>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setAddModalOpen(false)}
+                    className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer"
+                  >
+                    {editingDriverId ? 'Update Driver' : 'Save Driver'}
+                  </button>
+                </div>
+              </div>
+
+            </form>
           </div>
         </div>
       )}

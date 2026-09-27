@@ -271,3 +271,57 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
   }
 }
+
+// DELETE: Delete an institute's plan/bill
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    let bill_id = searchParams.get('bill_id')
+    let institution_id = searchParams.get('institution_id')
+
+    if (!bill_id && !institution_id) {
+      try {
+        const body = await request.json()
+        bill_id = body.bill_id
+        institution_id = body.institution_id
+      } catch {
+        // empty body
+      }
+    }
+
+    if (!institution_id && !bill_id) {
+      return NextResponse.json({ success: false, error: 'institution_id or bill_id is required' }, { status: 400 })
+    }
+
+    if (bill_id) {
+      if (institution_id) {
+        await pool.query('DELETE FROM bills WHERE id = $1 AND institution_id = $2', [bill_id, institution_id])
+      } else {
+        await pool.query('DELETE FROM bills WHERE id = $1', [bill_id])
+      }
+    } else if (institution_id) {
+      await pool.query('DELETE FROM bills WHERE institution_id = $1', [institution_id])
+      await pool.query('DELETE FROM requests WHERE institution_id = $1', [institution_id])
+    }
+
+    if (institution_id) {
+      const remaining = await pool.query(
+        "SELECT plan_id FROM bills WHERE institution_id = $1 AND status = 'Paid' ORDER BY created_at DESC LIMIT 1",
+        [institution_id]
+      )
+      if (remaining.rows.length === 0) {
+        await pool.query('UPDATE applications SET plan_id = NULL, updated_at = NOW() WHERE institution_id = $1', [institution_id])
+      } else {
+        await pool.query('UPDATE applications SET plan_id = $1, updated_at = NOW() WHERE institution_id = $2', [
+          remaining.rows[0].plan_id,
+          institution_id
+        ])
+      }
+    }
+
+    return NextResponse.json({ success: true, message: 'Plan deleted successfully' })
+  } catch (error) {
+    console.error('Delete institute plan error:', error)
+    return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
+  }
+}

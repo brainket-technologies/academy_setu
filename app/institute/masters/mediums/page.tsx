@@ -4,27 +4,42 @@ import React, { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, RotateCcw, X, Search, Filter } from 'lucide-react'
 import { toast } from 'sonner'
 
-interface StreamRecord {
+interface MediumRecord {
   id: number
-  streamName: string
+  mediumName: string
   noOfStudents: number
   createdAt: string
   deleted: boolean
 }
 
-const INITIAL_STREAMS: StreamRecord[] = []
+const INITIAL_MEDIUMS: MediumRecord[] = [
+  {
+    id: 1,
+    mediumName: 'English',
+    noOfStudents: 0,
+    createdAt: '27/09/2026\n12:00 PM',
+    deleted: false
+  },
+  {
+    id: 2,
+    mediumName: 'Hindi',
+    noOfStudents: 0,
+    createdAt: '27/09/2026\n12:00 PM',
+    deleted: false
+  }
+]
 
-export default function StreamsPage() {
-  const [streams, setStreams] = useState<StreamRecord[]>(INITIAL_STREAMS)
+export default function MediumsPage() {
+  const [mediums, setMediums] = useState<MediumRecord[]>(INITIAL_MEDIUMS)
   const [activeTab, setActiveTab] = useState<'All' | 'Deleted'>('All')
 
   // Modals state
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
-  const [selectedStream, setSelectedStream] = useState<StreamRecord | null>(null)
+  const [selectedMedium, setSelectedMedium] = useState<MediumRecord | null>(null)
 
   // Form state
-  const [streamNameInput, setStreamNameInput] = useState('')
+  const [mediumNameInput, setMediumNameInput] = useState('')
   const [formError, setFormError] = useState('')
 
   // Filter Toggle state
@@ -32,20 +47,20 @@ export default function StreamsPage() {
   const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
-    const saved = localStorage.getItem('school_masters_streams')
+    const saved = localStorage.getItem('school_masters_mediums')
     if (saved) {
       try {
-        setStreams(JSON.parse(saved))
+        setMediums(JSON.parse(saved))
       } catch (e) {
         console.error(e)
       }
     } else {
-      localStorage.setItem('school_masters_streams', JSON.stringify(INITIAL_STREAMS))
+      localStorage.setItem('school_masters_mediums', JSON.stringify(INITIAL_MEDIUMS))
     }
   }, [])
 
   const handleOpenAdd = () => {
-    setStreamNameInput('')
+    setMediumNameInput('')
     setFormError('')
     setAddModalOpen(true)
   }
@@ -54,106 +69,106 @@ export default function StreamsPage() {
     e.preventDefault()
     setFormError('')
 
-    const trimmedName = streamNameInput.trim().replace(/\s+/g, ' ')
+    const trimmedName = mediumNameInput.trim().replace(/\s+/g, ' ')
     if (!trimmedName) {
-      setFormError('Please enter a Stream Name.')
+      setFormError('Please enter a Medium Name.')
       return
     }
 
-    // Check duplicate stream name (case-insensitive among active non-deleted streams)
-    const isDuplicate = streams.some(
-      s => !s.deleted && s.streamName.trim().replace(/\s+/g, ' ').toLowerCase() === trimmedName.toLowerCase()
+    // Check duplicate medium name (case-insensitive among active non-deleted mediums)
+    const isDuplicate = mediums.some(
+      m => !m.deleted && m.mediumName.trim().replace(/\s+/g, ' ').toLowerCase() === trimmedName.toLowerCase()
     )
     if (isDuplicate) {
-      setFormError(`Stream name "${trimmedName}" already exists!`)
+      setFormError(`Medium name "${trimmedName}" already exists!`)
       return
     }
 
-    const newStream: StreamRecord = {
+    const newMedium: MediumRecord = {
       id: Date.now(),
-      streamName: trimmedName,
+      mediumName: trimmedName,
       noOfStudents: 0,
       createdAt: new Date().toLocaleDateString('en-GB') + '\n' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
       deleted: false
     }
 
-    const updated = [newStream, ...streams]
-    setStreams(updated)
-    localStorage.setItem('school_masters_streams', JSON.stringify(updated))
+    const updated = [newMedium, ...mediums]
+    setMediums(updated)
+    localStorage.setItem('school_masters_mediums', JSON.stringify(updated))
 
-    setStreamNameInput('')
+    setMediumNameInput('')
     setFormError('')
     setAddModalOpen(false)
-    toast.success('Stream created successfully!')
+    toast.success('Medium created successfully!')
   }
 
-  const handleOpenEdit = (item: StreamRecord) => {
-    setSelectedStream(item)
-    setStreamNameInput(item.streamName)
+  const handleOpenEdit = (item: MediumRecord) => {
+    setSelectedMedium(item)
+    setMediumNameInput(item.mediumName)
     setFormError('')
     setEditModalOpen(true)
   }
 
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedStream) return
+    if (!selectedMedium) return
     setFormError('')
 
-    const trimmedName = streamNameInput.trim().replace(/\s+/g, ' ')
+    const trimmedName = mediumNameInput.trim().replace(/\s+/g, ' ')
     if (!trimmedName) {
-      setFormError('Please enter a Stream Name.')
+      setFormError('Please enter a Medium Name.')
       return
     }
 
-    // Check duplicate stream name (case-insensitive among other active streams)
-    const isDuplicate = streams.some(
-      s => !s.deleted && s.id !== selectedStream.id && s.streamName.trim().replace(/\s+/g, ' ').toLowerCase() === trimmedName.toLowerCase()
+    // Check duplicate medium name (case-insensitive among other active mediums)
+    const isDuplicate = mediums.some(
+      m => !m.deleted && m.id !== selectedMedium.id && m.mediumName.trim().replace(/\s+/g, ' ').toLowerCase() === trimmedName.toLowerCase()
     )
     if (isDuplicate) {
-      setFormError(`Stream name "${trimmedName}" already exists!`)
+      setFormError(`Medium name "${trimmedName}" already exists!`)
       return
     }
 
-    const updated = streams.map(s => {
-      if (s.id === selectedStream.id) {
+    const updated = mediums.map(m => {
+      if (m.id === selectedMedium.id) {
         return {
-          ...s,
-          streamName: trimmedName
+          ...m,
+          mediumName: trimmedName
         }
       }
-      return s
+      return m
     })
 
-    setStreams(updated)
-    localStorage.setItem('school_masters_streams', JSON.stringify(updated))
+    setMediums(updated)
+    localStorage.setItem('school_masters_mediums', JSON.stringify(updated))
     setEditModalOpen(false)
-    setSelectedStream(null)
-    setStreamNameInput('')
+    setSelectedMedium(null)
+    setMediumNameInput('')
     setFormError('')
-    toast.success('Stream updated successfully!')
+    toast.success('Medium updated successfully!')
   }
 
   const handleDelete = (id: number) => {
-    const updated = streams.map(s => s.id === id ? { ...s, deleted: true } : s)
-    setStreams(updated)
-    localStorage.setItem('school_masters_streams', JSON.stringify(updated))
-    toast.info('Stream moved to deleted list!')
+    const updated = mediums.map(m => m.id === id ? { ...m, deleted: true } : m)
+    setMediums(updated)
+    localStorage.setItem('school_masters_mediums', JSON.stringify(updated))
+    toast.info('Medium moved to deleted list!')
   }
 
   const handleRestore = (id: number) => {
-    const updated = streams.map(s => s.id === id ? { ...s, deleted: false } : s)
-    setStreams(updated)
-    localStorage.setItem('school_masters_streams', JSON.stringify(updated))
-    toast.success('Stream restored successfully!')
+    const updated = mediums.map(m => m.id === id ? { ...m, deleted: false } : m)
+    setMediums(updated)
+    localStorage.setItem('school_masters_mediums', JSON.stringify(updated))
+    toast.success('Medium restored successfully!')
   }
 
-  const tabCountAll = streams.filter(s => !s.deleted).length
-  const tabCountDeleted = streams.filter(s => s.deleted).length
+  const tabCountAll = mediums.filter(m => !m.deleted).length
+  const tabCountDeleted = mediums.filter(m => m.deleted).length
 
   // Filter logic
-  const filtered = streams.filter(s => {
-    const matchesTab = activeTab === 'All' ? !s.deleted : s.deleted
-    const matchesSearch = searchQuery ? s.streamName.toLowerCase().includes(searchQuery.toLowerCase()) : true
+  const filtered = mediums.filter(m => {
+    const matchesTab = activeTab === 'All' ? !m.deleted : m.deleted
+    const matchesSearch = searchQuery ? m.mediumName.toLowerCase().includes(searchQuery.toLowerCase()) : true
     return matchesTab && matchesSearch
   })
 
@@ -165,13 +180,13 @@ export default function StreamsPage() {
 
         {/* Header bar */}
         <div className="flex items-center justify-between pb-4 border-b">
-          <h1 className="text-xl font-black text-slate-800">Streams</h1>
+          <h1 className="text-xl font-black text-slate-800">Mediums</h1>
           <button
             onClick={handleOpenAdd}
             className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold shadow-md transition-colors text-xs"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Stream</span>
+            <span>Add Medium</span>
           </button>
         </div>
 
@@ -205,12 +220,12 @@ export default function StreamsPage() {
         {showFilters && (
           <div className="bg-slate-50 border rounded-2xl p-5 text-xs font-semibold text-slate-700 animate-in slide-in-from-top-3 duration-200">
             <div className="flex flex-col gap-1.5 max-w-md">
-              <label className="text-slate-500 font-bold">Search Stream</label>
+              <label className="text-slate-500 font-bold">Search Medium</label>
               <div className="relative">
                 <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search stream name..."
+                  placeholder="Search medium name..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 border rounded-lg bg-white outline-none font-bold text-slate-700 text-xs"
@@ -226,7 +241,7 @@ export default function StreamsPage() {
             <thead className="bg-slate-50 font-black text-slate-655 border-b">
               <tr>
                 <th className="px-3 py-4 w-14">S. No.</th>
-                <th className="px-3 py-4 text-left">Stream Name</th>
+                <th className="px-3 py-4 text-left">Medium Name</th>
                 <th className="px-3 py-4">No. of Students</th>
                 <th className="px-3 py-4 w-36">Create At</th>
                 <th className="px-3 py-4 w-24">Action</th>
@@ -236,7 +251,7 @@ export default function StreamsPage() {
               {filtered.map((item, idx) => (
                 <tr key={item.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors font-semibold">
                   <td className="px-3 py-3.5 text-slate-500">{idx + 1}.</td>
-                  <td className="px-3 py-3.5 text-left font-bold text-slate-800">{item.streamName}</td>
+                  <td className="px-3 py-3.5 text-left font-bold text-slate-800">{item.mediumName}</td>
                   <td className="px-3 py-3.5 text-slate-600 font-bold">{String(item.noOfStudents).padStart(2, '0')}</td>
                   <td className="px-3 py-3.5 text-slate-500 text-[10px] whitespace-pre-line leading-tight">{item.createdAt}</td>
                   <td className="px-3 py-3.5">
@@ -273,7 +288,7 @@ export default function StreamsPage() {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={5} className="py-8 text-center text-slate-400 font-bold">
-                    No streams found in this category.
+                    No mediums found in this category.
                   </td>
                 </tr>
               )}
@@ -282,14 +297,14 @@ export default function StreamsPage() {
         </div>
       </div>
 
-      {/* Add Stream Modal */}
+      {/* Add Medium Modal */}
       {addModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white border rounded-3xl shadow-2xl w-full max-w-md p-6 text-xs font-semibold text-slate-700 animate-in zoom-in-95 duration-200 relative">
             <button onClick={() => setAddModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
               <X className="w-5 h-5" />
             </button>
-            <h2 className="text-sm font-black text-[#1b3a60] border-b pb-2 mb-4">Create Stream</h2>
+            <h2 className="text-sm font-black text-[#1b3a60] border-b pb-2 mb-4">Create Medium</h2>
             <form onSubmit={handleCreate} className="space-y-4">
               {formError && (
                 <div className="px-3.5 py-2.5 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs font-bold flex items-center justify-between animate-in fade-in duration-150">
@@ -299,13 +314,13 @@ export default function StreamsPage() {
               )}
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-slate-500 font-bold">Stream Name</label>
+                <label className="text-slate-500 font-bold">Medium Name</label>
                 <input
                   type="text"
-                  placeholder="e.g. Science"
-                  value={streamNameInput}
+                  placeholder="e.g. English"
+                  value={mediumNameInput}
                   onChange={e => {
-                    setStreamNameInput(e.target.value)
+                    setMediumNameInput(e.target.value)
                     if (formError) setFormError('')
                   }}
                   className="w-full px-4 py-2 border rounded-lg outline-none font-bold focus:border-teal-500"
@@ -332,14 +347,14 @@ export default function StreamsPage() {
         </div>
       )}
 
-      {/* Edit Stream Modal */}
-      {editModalOpen && selectedStream && (
+      {/* Edit Medium Modal */}
+      {editModalOpen && selectedMedium && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white border rounded-3xl shadow-2xl w-full max-w-md p-6 text-xs font-semibold text-slate-700 animate-in zoom-in-95 duration-200 relative">
             <button onClick={() => setEditModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
               <X className="w-5 h-5" />
             </button>
-            <h2 className="text-sm font-black text-[#1b3a60] border-b pb-2 mb-4">Edit Stream</h2>
+            <h2 className="text-sm font-black text-[#1b3a60] border-b pb-2 mb-4">Edit Medium</h2>
             <form onSubmit={handleEditSubmit} className="space-y-4">
               {formError && (
                 <div className="px-3.5 py-2.5 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs font-bold flex items-center justify-between animate-in fade-in duration-150">
@@ -349,13 +364,13 @@ export default function StreamsPage() {
               )}
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-slate-500 font-bold">Stream Name</label>
+                <label className="text-slate-500 font-bold">Medium Name</label>
                 <input
                   type="text"
-                  placeholder="e.g. Science"
-                  value={streamNameInput}
+                  placeholder="e.g. English"
+                  value={mediumNameInput}
                   onChange={e => {
-                    setStreamNameInput(e.target.value)
+                    setMediumNameInput(e.target.value)
                     if (formError) setFormError('')
                   }}
                   className="w-full px-4 py-2 border rounded-lg outline-none font-bold focus:border-teal-500"
@@ -384,4 +399,3 @@ export default function StreamsPage() {
     </div>
   )
 }
-
