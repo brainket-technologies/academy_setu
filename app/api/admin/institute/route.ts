@@ -2,6 +2,37 @@ import { NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { getSession } from '@/lib/session'
 
+async function ensureInstitutionsColumns() {
+  try {
+    await pool.query(`
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS code VARCHAR(100);
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS affiliated_to VARCHAR(255);
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS affiliation_code VARCHAR(100);
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS contact_person VARCHAR(255);
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS mobile_no VARCHAR(20);
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS email_id VARCHAR(255);
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS address TEXT;
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS state VARCHAR(100);
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS district VARCHAR(100);
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS pincode VARCHAR(20);
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS principal_name VARCHAR(255);
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS principal_gender VARCHAR(50) DEFAULT 'Male';
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS principal_sign TEXT;
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS principal_photo TEXT;
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS director_name VARCHAR(255);
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS director_gender VARCHAR(50) DEFAULT 'Male';
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS director_sign TEXT;
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS director_photo TEXT;
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active';
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS assigned_to UUID;
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) DEFAULT '';
+      ALTER TABLE institutions ADD COLUMN IF NOT EXISTS plain_password VARCHAR(255) DEFAULT '';
+    `)
+  } catch (err) {
+    console.error('Error ensuring institutions columns:', err)
+  }
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const search = searchParams.get('search') || ''
@@ -151,6 +182,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    await ensureInstitutionsColumns()
     const body = await request.json()
     const { 
       name, code, affiliated_to, affiliation_code,

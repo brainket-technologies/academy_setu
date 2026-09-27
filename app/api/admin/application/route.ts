@@ -2,7 +2,20 @@ import { NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { getSession } from '@/lib/session'
 
+async function ensureApplicationsColumns() {
+  try {
+    await pool.query(`
+      ALTER TABLE applications ADD COLUMN IF NOT EXISTS payment_mode VARCHAR(100);
+      ALTER TABLE applications ADD COLUMN IF NOT EXISTS amount NUMERIC(10,2);
+      ALTER TABLE applications ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES admins(id);
+    `)
+  } catch (err) {
+    console.error('Error ensuring applications columns:', err)
+  }
+}
+
 export async function GET(request: Request) {
+  await ensureApplicationsColumns()
   const { searchParams } = new URL(request.url)
   const search = searchParams.get('search') || ''
   const tab = searchParams.get('tab') || 'all'
@@ -152,6 +165,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    await ensureApplicationsColumns()
     const referer = request.headers.get('referer') || ''
     let session = null
 
