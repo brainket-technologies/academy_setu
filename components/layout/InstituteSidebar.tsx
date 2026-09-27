@@ -14,10 +14,8 @@ import {
   ChevronDown, X
 } from 'lucide-react'
 
-// You might need an institute logout action later, using generic for now
-const logoutAction = async () => {
-  // Mock action
-}
+import { logoutAction } from '@/app/institute/login/actions'
+
 
 interface SubItem {
   label: string
