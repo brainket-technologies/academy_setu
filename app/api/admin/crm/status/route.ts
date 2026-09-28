@@ -1,8 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 
+export async function ensureLeadStatusesSchema() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS lead_statuses (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(255) NOT NULL,
+        text_color VARCHAR(50) DEFAULT '#333333',
+        bg_color VARCHAR(50) DEFAULT '#F3F4F6',
+        show_on_bdm BOOLEAN DEFAULT TRUE,
+        order_index INT DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `)
+    await pool.query(`ALTER TABLE lead_statuses ADD COLUMN IF NOT EXISTS order_index INT DEFAULT 0`)
+    await pool.query(`ALTER TABLE lead_statuses ADD COLUMN IF NOT EXISTS show_on_bdm BOOLEAN DEFAULT TRUE`)
+    await pool.query(`ALTER TABLE lead_statuses ADD COLUMN IF NOT EXISTS text_color VARCHAR(50) DEFAULT '#333333'`)
+    await pool.query(`ALTER TABLE lead_statuses ADD COLUMN IF NOT EXISTS bg_color VARCHAR(50) DEFAULT '#F3F4F6'`)
+  } catch (err) {
+    console.error('Lead statuses schema check error:', err)
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
+    await ensureLeadStatusesSchema()
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
 
@@ -38,6 +62,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureLeadStatusesSchema()
     const body = await request.json()
     const { name, text_color, bg_color, show_on_bdm, order_index } = body
 

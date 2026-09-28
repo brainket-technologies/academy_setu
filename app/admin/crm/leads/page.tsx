@@ -10,7 +10,7 @@ import { toast } from 'sonner'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
 
-const SOURCE_OPTIONS = ['Offline Meeting', 'YouTube', 'Facebook', 'Other']
+const SOURCE_OPTIONS = ['Offline Meeting', 'YouTube', 'Facebook', 'Website', 'Instagram', 'Google', 'Referral', 'Cold Call', 'Other']
 
 interface Lead {
   id: string
@@ -445,6 +445,14 @@ export default function AllLeadsPage() {
         setEditingLead(data.data)
         setLeadHistory(data.data.history || [])
         if (data.data.status) setInlineStatus(data.data.status)
+        if (data.data.lead_source) setInlineLeadSource(data.data.lead_source)
+        if (data.data.school_name) setInlineSchoolName(data.data.school_name)
+        if (data.data.mobile_no) setInlineMobileNo(data.data.mobile_no)
+        if (data.data.contact_person !== undefined) setInlineContactPerson(data.data.contact_person || '')
+        if (data.data.email_id !== undefined) setInlineEmailId(data.data.email_id || '')
+        if (data.data.state !== undefined) setInlineStateName(data.data.state || '')
+        if (data.data.district !== undefined) setInlineDistrict(data.data.district || '')
+        if (data.data.no_of_students !== undefined) setInlineNoOfStudents(data.data.no_of_students?.toString() || '')
       }
     } catch {
       toast.error('Failed to load lead timeline details')
@@ -554,7 +562,7 @@ export default function AllLeadsPage() {
   const handleSaveLeadDetails = async () => {
     if (!editingLead) return
     const clean = inlineMobileNo.trim().replace(/\D/g, '')
-    if (clean.length !== 10) {
+    if (clean.length > 0 && clean.length !== 10) {
       toast.error('Mobile number must be exactly 10 digits')
       return
     }
@@ -917,9 +925,12 @@ export default function AllLeadsPage() {
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Lead Source</label>
                   <select
                     value={inlineLeadSource}
-                    onChange={(e) => setInlineLeadSource(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                    disabled
+                    className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-500 dark:text-slate-400 cursor-not-allowed font-medium opacity-80"
                   >
+                    {inlineLeadSource && !SOURCE_OPTIONS.includes(inlineLeadSource) && (
+                      <option value={inlineLeadSource}>{inlineLeadSource}</option>
+                    )}
                     {SOURCE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
@@ -928,18 +939,22 @@ export default function AllLeadsPage() {
                   <input
                     type="text"
                     value={inlineSchoolName}
-                    onChange={(e) => setInlineSchoolName(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                    readOnly
+                    disabled
+                    className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-500 dark:text-slate-400 cursor-not-allowed font-medium opacity-80"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Status</label>
                   <select
                     value={inlineStatus}
-                    onChange={(e) => setInlineStatus(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                    disabled
+                    className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-500 dark:text-slate-400 cursor-not-allowed font-medium opacity-80"
                   >
                     <option value="">Select Status</option>
+                    {inlineStatus && !statuses.some(st => st.name.toLowerCase() === inlineStatus.toLowerCase()) && (
+                      <option value={inlineStatus}>{inlineStatus}</option>
+                    )}
                     {statuses.map(st => (
                       <option key={st.id} value={st.name}>{st.name}</option>
                     ))}
@@ -962,9 +977,9 @@ export default function AllLeadsPage() {
                   <input
                     type="text"
                     value={inlineMobileNo}
-                    onChange={(e) => setInlineMobileNo(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    maxLength={10}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                    readOnly
+                    disabled
+                    className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-500 dark:text-slate-400 cursor-not-allowed font-medium opacity-80"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">

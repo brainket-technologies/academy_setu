@@ -110,6 +110,7 @@ function BillingDashboardContent() {
   
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
   const [appliedPromo, setAppliedPromo] = useState<any>(null)
+  const [promoInput, setPromoInput] = useState('')
   const [promoModalOpen, setPromoModalOpen] = useState(false)
   const [promoActiveTab, setPromoActiveTab] = useState<'amount' | 'percentage'>('amount')
   const [allPromoCodes, setAllPromoCodes] = useState<any[]>([])
@@ -600,6 +601,22 @@ function BillingDashboardContent() {
     const grossPrice = getGrossAmount()
     const discount = getPromoDiscountAmount(selectedPlan, appliedPromo)
     return Math.max(0, grossPrice - discount)
+  }
+
+  const handleApplyCustomPromo = () => {
+    if (!promoInput.trim()) {
+      toast.error('Please enter a promo code')
+      return
+    }
+    const codesList = getPromoCodesList()
+    const match = codesList.find((pc: any) => pc.code.toUpperCase() === promoInput.trim().toUpperCase())
+    if (match) {
+      setAppliedPromo(match)
+      toast.success(`Promo code ${match.code} applied!`)
+      setPromoInput('')
+    } else {
+      toast.error(`Invalid promo code '${promoInput.trim().toUpperCase()}'`)
+    }
   }
 
   // Pre-fill manual amount field and line items when plan or promo changes
@@ -1823,6 +1840,11 @@ function BillingDashboardContent() {
                                 <div className="flex flex-wrap items-center gap-3">
                                   <button
                                     onClick={() => {
+                                      const confirm = window.confirm(
+                                        `Are you sure you want to change current plan instantly?\n\n` +
+                                        `Your active plan "${instActivePlan?.plan_name || 'Active Plan'}" will be expired immediately and moved to billing history upon completing this plan switch.`
+                                      );
+                                      if (!confirm) return;
                                       setPurchaseMode('change')
                                       setShowAllPlansOverride(true)
                                     }}
@@ -2089,7 +2111,7 @@ function BillingDashboardContent() {
                                             toast.error('Plan details not found')
                                           }
                                         }}
-                                        className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 ${
+                                        className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 flex items-center gap-2 ${
                                           isRenewalPaid
                                             ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 cursor-not-allowed shadow-none border border-emerald-200 dark:border-emerald-800'
                                             : hasPendingRenewal
@@ -2097,7 +2119,13 @@ function BillingDashboardContent() {
                                             : 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer'
                                         }`}
                                       >
-                                        {isRenewalPaid ? 'Plan Renewed (Paid)' : hasPendingRenewal ? 'Renewal Requested' : 'Renew Plan'}
+                                        <span>
+                                          {isRenewalPaid 
+                                            ? 'Plan Renewed (Paid)' 
+                                            : hasPendingRenewal 
+                                            ? 'Renewal Requested' 
+                                            : `Renew Plan (₹${renewalPrice.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })})`}
+                                        </span>
                                       </button>
                                     </div>
                                   </div>
@@ -2255,7 +2283,7 @@ function BillingDashboardContent() {
                                           toast.error('Failed to activate plan');
                                         }
                                       }}
-                                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
+                                      className={`px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer items-center gap-1.5 ${(plan.bill_type === 'renew' || plan.is_renewal) ? 'hidden' : 'flex'}`}
                                     >
                                       <Zap className="w-3.5 h-3.5 text-amber-300" />
                                       Activate Instantly
@@ -2555,6 +2583,13 @@ function BillingDashboardContent() {
                                     ) : (
                                       <button
                                         onClick={() => {
+                                          if (purchaseMode === 'change') {
+                                            const confirm = window.confirm(
+                                              `Switch to "${p.plan_name}" instantly?\n\n` +
+                                              `Your current active plan "${instActivePlan?.plan_name || 'Active Plan'}" will be expired immediately and replaced with "${p.plan_name}".`
+                                            );
+                                            if (!confirm) return;
+                                          }
                                           setSelectedPlan(p)
                                           setWizardStep(2)
                                         }}
@@ -3031,7 +3066,7 @@ function BillingDashboardContent() {
 
                     <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
                       <table className="w-full text-left text-xs">
-                        <thead className="bg-slate-900 text-white dark:bg-slate-800 font-bold uppercase text-[10px] tracking-wider">
+                        <thead className="bg-gradient-to-r from-slate-100 via-indigo-50/50 to-slate-100 dark:from-slate-800 dark:to-slate-800 text-slate-700 dark:text-slate-200 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200 dark:border-slate-700">
                           <tr>
                             <th className="py-3 px-3 text-center w-12">S.No.</th>
                             <th className="py-3 px-3">Plan Name</th>
@@ -3447,83 +3482,170 @@ function BillingDashboardContent() {
                       
                       {/* Promo Code Coupon Selector (Only for Plan Purchase / Renewal / Change / Upcoming, NOT in Transaction History edit) */}
                       {purchaseMode !== 'edit' && (
-                        <div className="p-4 bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-2">
+                        <div className="p-4 bg-gradient-to-br from-indigo-50/70 via-purple-50/30 to-white dark:from-slate-800 dark:to-slate-800/90 rounded-2xl border-2 border-indigo-200/80 dark:border-indigo-900/50 shadow-sm flex flex-col gap-3 transition-all">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                              <Percent className="w-3.5 h-3.5 text-indigo-500" /> Apply Promo Code
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                                <Ticket className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
+                                  Apply Promo Code
+                                </h4>
+                                <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">Save extra on your plan subscription</p>
+                              </div>
+                            </div>
                             {appliedPromo && (
                               <button 
                                 type="button" 
-                                onClick={() => setAppliedPromo(null)}
-                                className="text-[10px] text-rose-500 font-bold hover:underline cursor-pointer"
+                                onClick={() => {
+                                  setAppliedPromo(null)
+                                  toast.info('Promo code removed')
+                                }}
+                                className="px-2.5 py-1 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 rounded-lg text-[10px] font-extrabold hover:bg-rose-100 transition-colors cursor-pointer flex items-center gap-1"
                               >
-                                Remove
+                                <X className="w-3 h-3" /> Remove
                               </button>
                             )}
                           </div>
 
-                          {promoCodes.length === 0 ? (
-                            <p className="text-[10px] text-slate-400">No promo codes available.</p>
-                          ) : (
-                            <div className="flex flex-wrap gap-1.5 mt-1">
-                              {promoCodes.map(pc => {
-                                const isSelected = appliedPromo?.id === pc.id
-                                return (
-                                  <button
-                                    key={pc.id}
-                                    type="button"
-                                    onClick={() => {
-                                      if (isSelected) setAppliedPromo(null)
-                                      else {
-                                        setAppliedPromo(pc)
-                                        toast.success(`Promo code ${pc.code} applied!`)
-                                      }
-                                    }}
-                                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${
-                                      isSelected
-                                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
-                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-300'
-                                    }`}
-                                  >
-                                    <Percent className="w-3 h-3" />
-                                    {pc.code}
-                                    {isSelected && <Check className="w-3 h-3 ml-0.5" />}
-                                  </button>
-                                )
-                              })}
+                          {/* Custom Promo Code Input Box */}
+                          <div className="flex items-center gap-2">
+                            <div className="relative flex-1">
+                              <Tag className="w-3.5 h-3.5 text-indigo-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                              <input 
+                                type="text" 
+                                value={promoInput} 
+                                onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault()
+                                    handleApplyCustomPromo()
+                                  }
+                                }}
+                                placeholder="ENTER PROMO CODE"
+                                className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-slate-700 rounded-xl text-xs font-mono font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 placeholder:font-sans focus:outline-none focus:ring-2 focus:ring-indigo-500 uppercase shadow-2xs"
+                              />
+                            </div>
+                            <button 
+                              type="button"
+                              onClick={handleApplyCustomPromo}
+                              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
+                            >
+                              Apply
+                            </button>
+                          </div>
+
+                          {/* Applied Promo Alert Banner */}
+                          {appliedPromo && (
+                            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 rounded-xl flex items-center justify-between gap-2 text-emerald-800 dark:text-emerald-200 animate-in fade-in duration-200">
+                              <div className="flex items-center gap-2">
+                                <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                <div className="text-[11px] leading-tight">
+                                  <span className="font-black tracking-wide uppercase">{appliedPromo.code}</span>
+                                  <span className="ml-1 font-semibold text-emerald-700 dark:text-emerald-300">
+                                    applied! Discount of ₹{getPromoDiscountAmount(selectedPlan, appliedPromo).toFixed(2)} applied.
+                                  </span>
+                                </div>
+                              </div>
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                            </div>
+                          )}
+
+                          {/* Preset Available Promo Coupons */}
+                          {promoCodes.length > 0 && (
+                            <div className="flex flex-col gap-1.5 mt-1">
+                              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                                <Percent className="w-3 h-3 text-indigo-500" /> Available Offers & Coupons
+                              </span>
+                              <div className="flex flex-wrap gap-2">
+                                {promoCodes.map(pc => {
+                                  const isSelected = appliedPromo?.id === pc.id || appliedPromo?.code === pc.code
+                                  const discountLabel = pc.discount_type === 'Percentage' ? `${pc.discount_value}% OFF` : `₹${pc.discount_value} OFF`
+                                  return (
+                                    <button
+                                      key={pc.id}
+                                      type="button"
+                                      onClick={() => {
+                                        if (isSelected) {
+                                          setAppliedPromo(null)
+                                          toast.info(`Promo code ${pc.code} removed`)
+                                        } else {
+                                          setAppliedPromo(pc)
+                                          toast.success(`Promo code ${pc.code} applied!`)
+                                        }
+                                      }}
+                                      className={`flex items-center justify-between gap-3 p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
+                                        isSelected
+                                          ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border-emerald-500 text-emerald-950 dark:text-emerald-200 shadow-sm ring-2 ring-emerald-500/20'
+                                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 hover:border-indigo-400 hover:bg-indigo-50/30'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-mono font-black text-xs tracking-wider text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-200/60 dark:border-indigo-800">
+                                          {pc.code}
+                                        </span>
+                                        <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                                          {discountLabel}
+                                        </span>
+                                      </div>
+                                      <div className="shrink-0">
+                                        {isSelected ? (
+                                          <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                                            <Check className="w-3.5 h-3.5" />
+                                          </span>
+                                        ) : (
+                                          <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                                            Apply
+                                          </span>
+                                        )}
+                                      </div>
+                                    </button>
+                                  )
+                                })}
+                              </div>
                             </div>
                           )}
                         </div>
                       )}
 
                       {/* Invoice Summary Calculation Breakdown */}
-                      <div className="bg-slate-900 text-white dark:bg-slate-850 p-5 rounded-2xl shadow-xl border border-slate-800 flex flex-col gap-3">
-                        <h4 className="text-xs font-extrabold uppercase tracking-widest text-slate-400 border-b border-slate-800 pb-2">
-                          INVOICE SUMMARY
-                        </h4>
+                      <div className="bg-gradient-to-br from-indigo-50/70 via-white to-purple-50/50 dark:from-slate-800 dark:to-slate-800/95 p-5 rounded-2xl shadow-md border border-indigo-100 dark:border-slate-700 flex flex-col gap-3.5">
+                        <div className="flex items-center justify-between border-b border-indigo-100 dark:border-slate-700 pb-2.5">
+                          <h4 className="text-xs font-black uppercase tracking-widest text-indigo-950 dark:text-slate-100 flex items-center gap-1.5">
+                            <Receipt className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> Invoice Summary
+                          </h4>
+                          <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold rounded-full">
+                            {purchaseMode === 'edit' ? 'Edit Invoice' : 'Checkout Breakdown'}
+                          </span>
+                        </div>
 
-                        <div className="flex flex-col gap-2 text-xs font-semibold">
-                          <div className="flex justify-between text-slate-300">
-                            <span>Subtotal</span>
-                            <span>₹{getInvoiceSubtotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        <div className="flex flex-col gap-2.5 text-xs font-medium">
+                          <div className="flex justify-between text-slate-600 dark:text-slate-300">
+                            <span className="font-semibold">Subtotal</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-100">₹{getInvoiceSubtotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                           </div>
 
-                          <div className="flex justify-between text-slate-300">
-                            <span>Total Tax / GST</span>
-                            <span>₹{getInvoiceTaxTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          <div className="flex justify-between text-slate-600 dark:text-slate-300">
+                            <span className="font-semibold">Total Tax / GST</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-100">₹{getInvoiceTaxTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                           </div>
 
                           {purchaseMode !== 'edit' && appliedPromo && (
-                            <div className="flex justify-between text-emerald-400 font-bold">
-                              <span>Discount ({appliedPromo.code})</span>
-                              <span>− ₹{getPromoDiscountAmount(selectedPlan, appliedPromo).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                            <div className="flex justify-between items-center text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/50 p-2 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                              <span className="flex items-center gap-1 text-[11px]">
+                                <Sparkles className="w-3.5 h-3.5 text-emerald-600" /> Discount ({appliedPromo.code})
+                              </span>
+                              <span className="font-mono text-xs">− ₹{getPromoDiscountAmount(selectedPlan, appliedPromo).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                             </div>
                           )}
 
-                          <div className="border-t border-slate-800 pt-2.5 mt-1 flex justify-between items-center">
-                            <span className="font-extrabold text-sm uppercase text-slate-100">Total</span>
-                            <span className="text-lg font-black text-white">
+                          <div className="border-t-2 border-dashed border-indigo-200/80 dark:border-slate-700 pt-3 mt-1 flex justify-between items-center">
+                            <div>
+                              <span className="font-black text-xs uppercase tracking-wider text-slate-800 dark:text-slate-100 block">Total Payable</span>
+                              <span className="text-[10px] text-slate-400 font-medium">Inclusive of all taxes & discounts</span>
+                            </div>
+                            <span className="text-2xl font-black text-indigo-700 dark:text-indigo-300 tracking-tight">
                               ₹{getFinalAmount().toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </span>
                           </div>
@@ -3535,20 +3657,20 @@ function BillingDashboardContent() {
                             type="submit"
                             form="checkout-form"
                             disabled={submitting}
-                            className="w-full py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-60 text-white font-black text-sm rounded-xl transition-all cursor-pointer shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2"
+                            className="w-full py-3.5 bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-60 text-white font-black text-sm rounded-xl transition-all cursor-pointer shadow-lg shadow-indigo-600/25 active:scale-[0.99] flex items-center justify-center gap-2"
                           >
                             {submitting ? (
                               <><Loader2 className="w-4 h-4 animate-spin" /> Processing Invoice...</>
                             ) : purchaseMode === 'edit' ? (
                               '💾 Update Bill'
                             ) : paymentModeOption === 'gateway' ? (
-                              '⚡ Pay & Directly Activate Plan'
+                              <><Zap className="w-4 h-4 fill-amber-300 text-amber-300" /> Pay & Directly Activate Plan</>
                             ) : (
                               '📩 Submit Payment Request'
                             )}
                           </button>
 
-                          <p className="text-[10px] text-slate-400 text-center leading-relaxed">
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 text-center leading-relaxed font-medium">
                             {purchaseMode === 'edit'
                               ? 'Updates this transaction invoice in the billing history.'
                               : paymentModeOption === 'gateway'

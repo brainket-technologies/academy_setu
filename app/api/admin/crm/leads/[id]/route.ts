@@ -99,7 +99,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (contact_person !== undefined) addUpdate('contact_person', contact_person)
     if (mobile_no !== undefined) {
       const cleanMobile = String(mobile_no).trim().replace(/\D/g, '')
-      if (cleanMobile.length !== 10) {
+      if (cleanMobile.length > 0 && cleanMobile.length !== 10) {
         return NextResponse.json({ 
           success: false, 
           error: 'Mobile Number must be exactly 10 digits' 
@@ -114,11 +114,23 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (!finalStatusId && status) {
       const statusRes = await pool.query(
         'SELECT id FROM lead_statuses WHERE LOWER(name) = LOWER($1) OR id::text = $1 LIMIT 1', 
-        [status]
+        [String(status).trim()]
       )
-      if (statusRes.rows.length > 0) finalStatusId = statusRes.rows[0].id
+      if (statusRes.rows.length > 0) {
+        finalStatusId = statusRes.rows[0].id
+      } else {
+        const newStatusRes = await pool.query(
+          `INSERT INTO lead_statuses (name, text_color, bg_color, show_on_bdm)
+           VALUES ($1, '#333333', '#F3F4F6', true)
+           RETURNING id`,
+          [String(status).trim()]
+        )
+        if (newStatusRes.rows.length > 0) {
+          finalStatusId = newStatusRes.rows[0].id
+        }
+      }
     }
-    if (finalStatusId !== undefined) {
+    if (finalStatusId !== undefined && finalStatusId !== null) {
       addUpdate('status_id', finalStatusId)
     }
 
@@ -152,13 +164,26 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }
     }
 
+    // Fetch updated lead with joins to return complete updated object
+    const updatedLeadRes = await pool.query(`
+      SELECT l.*, 
+        COALESCE(l.institution_name, '') as school_name,
+        ls.name as status, ls.text_color as status_text_color, ls.bg_color as status_bg_color,
+        a.name as assigned_user_name,
+        a.role as assigned_user_role
+      FROM leads l
+      LEFT JOIN lead_statuses ls ON l.status_id = ls.id
+      LEFT JOIN admins a ON a.id::text = COALESCE(l.assigned_to_id::text, l.assigned_to::text)
+      WHERE l.id = $1
+    `, [id])
+
     // Invalidate cache so UI refreshes immediately
     apiCache.clear()
     if (global._apiCache) {
       global._apiCache.clear()
     }
 
-    return NextResponse.json({ success: true, data: result.rows[0] })
+    return NextResponse.json({ success: true, data: updatedLeadRes.rows[0] || result.rows[0] })
   } catch (error) {
     console.error('Lead update error:', error)
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })

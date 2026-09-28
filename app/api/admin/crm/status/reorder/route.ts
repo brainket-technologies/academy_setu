@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
+import { ensureLeadStatusesSchema } from '../route'
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureLeadStatusesSchema()
     const body = await request.json()
     const { orderedIds } = body
 

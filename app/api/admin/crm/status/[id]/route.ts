@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
+import { ensureLeadStatusesSchema } from '../route'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -7,6 +8,7 @@ interface RouteParams {
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
+    await ensureLeadStatusesSchema()
     const { id } = await params
     const body = await request.json()
     const { name, text_color, bg_color, show_on_bdm, order_index } = body
@@ -41,6 +43,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    await ensureLeadStatusesSchema()
     const { id } = await params
     const result = await pool.query('DELETE FROM lead_statuses WHERE id = $1 RETURNING *', [id])
     
