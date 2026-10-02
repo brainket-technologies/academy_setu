@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, RotateCcw, X, Search, Filter } from 'lucide-react'
+import { Plus, Pencil, Trash2, RotateCcw, X, Search, Filter, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface SectionRecord {
@@ -28,6 +28,8 @@ export default function SectionsPage() {
   // Form State
   const [sectionNameInput, setSectionNameInput] = useState('')
   const [targetClass, setTargetClass] = useState('')
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([])
+  const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false)
   const [formError, setFormError] = useState('')
 
   // Filter Toggle state
@@ -69,8 +71,26 @@ export default function SectionsPage() {
   const handleOpenAdd = () => {
     setSectionNameInput('')
     setTargetClass('')
+    setSelectedClasses([])
+    setIsClassDropdownOpen(false)
     setFormError('')
     setAddModalOpen(true)
+  }
+
+  const handleToggleSelectAllClasses = () => {
+    if (selectedClasses.length === classList.length) {
+      setSelectedClasses([])
+    } else {
+      setSelectedClasses([...classList])
+    }
+    if (formError) setFormError('')
+  }
+
+  const handleToggleClass = (cls: string) => {
+    setSelectedClasses(prev =>
+      prev.includes(cls) ? prev.filter(c => c !== cls) : [...prev, cls]
+    )
+    if (formError) setFormError('')
   }
 
   const handleCreate = (e: React.FormEvent) => {
@@ -83,38 +103,56 @@ export default function SectionsPage() {
       return
     }
 
-    if (!targetClass) {
-      setFormError('Please select a Class.')
+    if (selectedClasses.length === 0) {
+      setFormError('Please select at least one Class.')
       return
     }
 
-    // Check duplicate section for the same class
-    const isDuplicate = sections.some(
-      s => !s.deleted && s.sectionName.trim().replace(/\s+/g, ' ').toLowerCase() === trimmedSecName.toLowerCase() && s.className === targetClass
-    )
-    if (isDuplicate) {
-      setFormError(`Section "${trimmedSecName}" already exists for ${targetClass}!`)
+    const now = new Date()
+    const dateStr = now.toLocaleDateString('en-GB') + '\n' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    const newSections: SectionRecord[] = []
+    let duplicateCount = 0
+
+    selectedClasses.forEach((cls, idx) => {
+      // Check duplicate section for the same class
+      const isDuplicate = sections.some(
+        s => !s.deleted && s.sectionName.trim().replace(/\s+/g, ' ').toLowerCase() === trimmedSecName.toLowerCase() && s.className.toLowerCase() === cls.toLowerCase()
+      )
+      if (isDuplicate) {
+        duplicateCount++
+      } else {
+        newSections.push({
+          id: Date.now() + idx,
+          sectionName: trimmedSecName,
+          className: cls,
+          createdAt: dateStr,
+          lastUpdate: dateStr,
+          deleted: false
+        })
+      }
+    })
+
+    if (newSections.length === 0) {
+      setFormError(`Section "${trimmedSecName}" already exists for all selected classes!`)
       return
     }
 
-    const newSec: SectionRecord = {
-      id: Date.now(),
-      sectionName: trimmedSecName,
-      className: targetClass,
-      createdAt: new Date().toLocaleDateString('en-GB') + '\n' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      lastUpdate: new Date().toLocaleDateString('en-GB') + '\n' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      deleted: false
-    }
-
-    const updated = [newSec, ...sections]
+    const updated = [...newSections, ...sections]
     setSections(updated)
     localStorage.setItem('school_masters_sections', JSON.stringify(updated))
 
     setSectionNameInput('')
     setTargetClass('')
+    setSelectedClasses([])
+    setIsClassDropdownOpen(false)
     setFormError('')
     setAddModalOpen(false)
-    toast.success('Section created successfully!')
+
+    if (duplicateCount > 0) {
+      toast.success(`Section "${trimmedSecName}" added to ${newSections.length} class(es) (${duplicateCount} skipped as duplicate)!`)
+    } else {
+      toast.success(`Section "${trimmedSecName}" added to ${newSections.length} class(es) successfully!`)
+    }
   }
 
   const handleOpenEdit = (item: SectionRecord) => {
@@ -350,21 +388,73 @@ export default function SectionsPage() {
                 </div>
               )}
               
-              <div className="flex flex-col gap-1.5">
-                <label className="text-slate-500 font-bold">Select Class</label>
-                <select
-                  value={targetClass}
-                  onChange={e => {
-                    setTargetClass(e.target.value)
-                    if (formError) setFormError('')
-                  }}
-                  className="w-full px-4 py-2 border rounded-lg outline-none bg-white font-bold focus:border-teal-500"
+              <div className="flex flex-col gap-1.5 relative">
+                <label className="text-slate-500 font-bold">
+                  Select Class <span className="text-red-500">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsClassDropdownOpen(!isClassDropdownOpen)}
+                  className="w-full px-4 py-2 border rounded-lg outline-none bg-white font-bold focus:border-teal-500 flex items-center justify-between text-left text-xs text-slate-700"
                 >
-                  <option value="">Select Class</option>
-                  {classList.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
+                  <span className="truncate">
+                    {selectedClasses.length === 0
+                      ? 'Select Class'
+                      : selectedClasses.length === classList.length
+                      ? `All Classes Selected (${selectedClasses.length})`
+                      : selectedClasses.join(', ')}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0 ml-2" />
+                </button>
+
+                {isClassDropdownOpen && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-10" 
+                      onClick={() => setIsClassDropdownOpen(false)} 
+                    />
+                    <div className="absolute left-0 top-full mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-56 overflow-y-auto p-2 flex flex-col gap-1">
+                      {classList.length > 0 ? (
+                        <>
+                          <div 
+                            onClick={handleToggleSelectAllClasses}
+                            className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-100 cursor-pointer font-bold text-xs border-b border-slate-100 text-teal-600 select-none"
+                          >
+                            <input 
+                              type="checkbox" 
+                              checked={selectedClasses.length === classList.length && classList.length > 0} 
+                              onChange={() => {}} 
+                              className="rounded accent-teal-600 pointer-events-none"
+                            />
+                            <span>Select All ({classList.length})</span>
+                          </div>
+                          {classList.map((cls, idx) => {
+                            const isSelected = selectedClasses.includes(cls)
+                            return (
+                              <div 
+                                key={idx}
+                                onClick={() => handleToggleClass(cls)}
+                                className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer font-semibold text-xs text-slate-700 select-none"
+                              >
+                                <input 
+                                  type="checkbox" 
+                                  checked={isSelected} 
+                                  onChange={() => {}} 
+                                  className="rounded accent-teal-600 pointer-events-none"
+                                />
+                                <span>{cls}</span>
+                              </div>
+                            )
+                          })}
+                        </>
+                      ) : (
+                        <div className="p-3 text-center text-xs text-slate-400 font-medium">
+                          No classes found. Add classes in Masters first.
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="flex flex-col gap-1.5">

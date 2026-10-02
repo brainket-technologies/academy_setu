@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 import { fetchTeachers, deleteTeacher } from './actions'
+import AddTeacherModal from './components/AddTeacherModal'
 
 // ─── Assigned Classes Popup ───────────────────────────────────────────────────
 function AssignedClassesPopup({ classes, onClose }: { classes: string[]; onClose: () => void }) {
@@ -84,6 +85,7 @@ export default function AllTeachersPage() {
   const [teachers, setTeachers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [classesPopup, setClassesPopup] = useState<string[] | null>(null)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
   const loadTeachers = async () => {
     setLoading(true)
@@ -138,10 +140,13 @@ export default function AllTeachersPage() {
           <button className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 hover:text-teal-600 hover:border-teal-400 transition-colors">
             <Upload className="w-4 h-4" />
           </button>
-          <Link href="/institute/teachers/add"
-            className="w-10 h-10 flex items-center justify-center rounded-xl bg-teal-600 text-white hover:bg-teal-700 transition-colors shadow">
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            title="Add Teacher"
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-teal-600 text-white hover:bg-teal-700 transition-colors shadow flex-shrink-0"
+          >
             <Plus className="w-5 h-5" />
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -256,6 +261,13 @@ export default function AllTeachersPage() {
       {classesPopup && (
         <AssignedClassesPopup classes={classesPopup} onClose={() => setClassesPopup(null)} />
       )}
+
+      {/* Add Teacher Modal Popup */}
+      <AddTeacherModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={loadTeachers}
+      />
     </div>
   )
 }

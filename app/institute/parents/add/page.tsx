@@ -1,16 +1,20 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Check, X, Camera, Paperclip, FileEdit, Printer, EyeOff } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Check, X, Camera, Paperclip, FileEdit, Printer, EyeOff, Eye } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { INDIA_STATES_DISTRICTS } from '@/lib/india-data'
 
 const STEPS = ['Personal Details', 'Qualification Details', 'Employment Details', 'Address Details']
 
 export default function AddParentPage() {
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState(0)
+
+  // State & District from Main Admin Settings
+  const [statesData, setStatesData] = useState<any[]>([])
 
   // Step 0: Personal Details & Account
   const [firstName, setFirstName] = useState('')
@@ -22,6 +26,7 @@ export default function AddParentPage() {
   const [userName, setUserName] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [formError, setFormError] = useState('')
 
   // Step 1: Qualification Details
@@ -41,6 +46,52 @@ export default function AddParentPage() {
   const [district, setDistrict] = useState('Lucknow')
   const [pincode, setPincode] = useState('')
   const [aadharNo, setAadharNo] = useState('')
+
+  useEffect(() => {
+    fetch('/api/admin/settings/state-city')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          setStatesData(data.data)
+        } else {
+          setStatesData(INDIA_STATES_DISTRICTS.map(s => ({ state_name: s.state, districts: s.districts })))
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load states/cities', err)
+        setStatesData(INDIA_STATES_DISTRICTS.map(s => ({ state_name: s.state, districts: s.districts })))
+      })
+  }, [])
+
+  // Computed state list from Admin Settings
+  const stateOptions = React.useMemo(() => {
+    const list: string[] = statesData.length > 0 
+      ? statesData.map((s: any) => s.state_name || s.name).filter(Boolean)
+      : INDIA_STATES_DISTRICTS.map(s => s.state)
+    return Array.from(new Set(list)).map(String).sort((a: string, b: string) => a.localeCompare(b))
+  }, [statesData])
+
+  // Computed district list for selected state
+  const districtOptions = React.useMemo(() => {
+    if (!stateName) {
+      if (statesData.length > 0) {
+        const all = new Set<string>()
+        statesData.forEach((s: any) => (s.districts || []).forEach((d: string) => all.add(d)))
+        return Array.from(all).sort((a, b) => a.localeCompare(b))
+      }
+      return []
+    }
+    const foundState = statesData.find((s: any) => (s.state_name || s.name)?.toLowerCase() === stateName.toLowerCase())
+    if (foundState && foundState.districts) {
+      const dists = foundState.districts.map((d: any) => typeof d === 'string' ? d : (d.district_name || d.name || String(d)))
+      return Array.from(new Set(dists)).map(String).sort((a: string, b: string) => a.localeCompare(b))
+    }
+    const fallback = INDIA_STATES_DISTRICTS.find(s => s.state.toLowerCase() === stateName.toLowerCase())
+    if (fallback) {
+      return fallback.districts.slice().sort((a, b) => a.localeCompare(b))
+    }
+    return []
+  }, [statesData, stateName])
 
   const handleNextStep0 = () => {
     setFormError('')
@@ -367,11 +418,40 @@ export default function AddParentPage() {
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-700">State <span className="text-red-500">*</span></label>
-                <input type="text" value={stateName} onChange={e => setStateName(e.target.value)} className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 font-semibold" />
+                <select 
+                  value={stateName} 
+                  onChange={e => {
+                    const selected = e.target.value
+                    setStateName(selected)
+                    const foundState = statesData.find((s: any) => (s.state_name || s.name)?.toLowerCase() === selected.toLowerCase())
+                    if (foundState && foundState.districts && foundState.districts.length > 0) {
+                      const firstDist = typeof foundState.districts[0] === 'string' ? foundState.districts[0] : (foundState.districts[0].district_name || foundState.districts[0].name)
+                      setDistrict(firstDist || '')
+                    } else {
+                      const fallback = INDIA_STATES_DISTRICTS.find(s => s.state.toLowerCase() === selected.toLowerCase())
+                      setDistrict(fallback?.districts?.[0] || '')
+                    }
+                  }} 
+                  className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 font-semibold"
+                >
+                  <option value="">Select State</option>
+                  {stateOptions.map((st, idx) => (
+                    <option key={idx} value={st}>{st}</option>
+                  ))}
+                </select>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-700">District <span className="text-red-500">*</span></label>
-                <input type="text" value={district} onChange={e => setDistrict(e.target.value)} className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 font-semibold" />
+                <select 
+                  value={district} 
+                  onChange={e => setDistrict(e.target.value)} 
+                  className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 font-semibold"
+                >
+                  <option value="">Select District</option>
+                  {districtOptions.map((dist, idx) => (
+                    <option key={idx} value={dist}>{dist}</option>
+                  ))}
+                </select>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-700">Pincode</label>

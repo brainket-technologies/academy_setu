@@ -8,6 +8,7 @@ export interface ExamFeeChartItem {
   id: number
   className: string
   studentType: 'All' | 'New' | 'Old'
+  oneTime?: string
   monthly: string
   quarterly: string
   halfYearly: string
@@ -42,6 +43,7 @@ export default function ExamFeePage() {
   const [selectedClasses, setSelectedClasses] = useState<string[]>([])
   const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false)
   const [studentType, setStudentType] = useState<'All' | 'New' | 'Old'>('All')
+  const [oneTimeFee, setOneTimeFee] = useState('')
   const [monthlyFee, setMonthlyFee] = useState('')
   const [quarterlyFee, setQuarterlyFee] = useState('')
   const [halfYearlyFee, setHalfYearlyFee] = useState('')
@@ -49,6 +51,7 @@ export default function ExamFeePage() {
 
   // RTE state
   const [isRteEnabled, setIsRteEnabled] = useState(false)
+  const [rteOneTime, setRteOneTime] = useState('0.0')
   const [rteMonthly, setRteMonthly] = useState('0.0')
   const [rteQuarterly, setRteQuarterly] = useState('0.0')
   const [rteHalfYearly, setRteHalfYearly] = useState('0.0')
@@ -143,6 +146,7 @@ export default function ExamFeePage() {
       id: Date.now() + idx,
       className: cls,
       studentType,
+      oneTime: formatAmount(oneTimeFee),
       monthly: formatAmount(monthlyFee),
       quarterly: formatAmount(quarterlyFee),
       halfYearly: formatAmount(halfYearlyFee),
@@ -160,6 +164,7 @@ export default function ExamFeePage() {
     setSelectedClasses([])
     setIsClassDropdownOpen(false)
     setStudentType('All')
+    setOneTimeFee('')
     setMonthlyFee('')
     setQuarterlyFee('')
     setHalfYearlyFee('')
@@ -340,6 +345,17 @@ export default function ExamFeePage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">One Time Fees</label>
+                <input 
+                  type="number" 
+                  placeholder="Enter Amount" 
+                  value={oneTimeFee}
+                  onChange={e => setOneTimeFee(e.target.value)}
+                  className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500 font-semibold text-slate-800 dark:text-slate-200" 
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
                 <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Monthly Fees</label>
                 <input 
                   type="number" 
@@ -398,7 +414,16 @@ export default function ExamFeePage() {
             </div>
 
             {isRteEnabled && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6 mb-8 animate-in slide-in-from-top-2 fade-in duration-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-6 mb-8 animate-in slide-in-from-top-2 fade-in duration-200">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">One Time Fees</label>
+                  <input 
+                    type="number" 
+                    value={rteOneTime}
+                    onChange={e => setRteOneTime(e.target.value)}
+                    className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500 font-semibold" 
+                  />
+                </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Monthly Fees</label>
                   <input 
@@ -482,7 +507,7 @@ export default function ExamFeePage() {
 
             <div className="flex justify-center">
               <button 
-                type="submit"
+                type="submit" 
                 className="px-10 py-2.5 rounded-lg bg-teal-600 text-white text-sm font-bold hover:bg-teal-700 transition-colors shadow-sm"
               >
                 Create
@@ -567,6 +592,7 @@ export default function ExamFeePage() {
                   <th className="px-2 py-3">S. No.</th>
                   <th className="px-2 py-3">Class</th>
                   <th className="px-2 py-3">Student Type</th>
+                  <th className="px-2 py-3">One Time Fee</th>
                   <th className="px-2 py-3">Monthly Fee</th>
                   <th className="px-2 py-3">Quarterly Fee</th>
                   <th className="px-2 py-3">Half Yearly Fee</th>
@@ -581,6 +607,7 @@ export default function ExamFeePage() {
                     <td className="px-2 py-4 text-slate-500 font-medium">{i + 1}.</td>
                     <td className="px-2 py-4 text-slate-700 dark:text-slate-200 font-bold">{item.className}</td>
                     <td className="px-2 py-4 text-slate-600 dark:text-slate-300 font-semibold">{item.studentType}</td>
+                    <td className="px-2 py-4 text-slate-700 dark:text-slate-200 font-bold">{item.oneTime || '-'}</td>
                     <td className="px-2 py-4 text-slate-700 dark:text-slate-200 font-bold">{item.monthly}</td>
                     <td className="px-2 py-4 text-slate-700 dark:text-slate-200 font-bold">{item.quarterly}</td>
                     <td className="px-2 py-4 text-slate-700 dark:text-slate-200 font-bold">{item.halfYearly}</td>
@@ -606,7 +633,7 @@ export default function ExamFeePage() {
                 ))}
                 {filteredFeeCharts.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-400 font-bold text-sm">
+                    <td colSpan={10} className="py-12 text-center text-slate-400 font-bold text-sm">
                       No exam fee rules created yet. Select a class above to create a fee rule.
                     </td>
                   </tr>

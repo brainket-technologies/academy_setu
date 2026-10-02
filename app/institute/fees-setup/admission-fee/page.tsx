@@ -8,11 +8,13 @@ export interface AdmissionFeeChartItem {
   id: number
   className: string
   studentType: 'All' | 'New' | 'Old'
+  oneTime?: string
   monthly: string
   quarterly: string
   halfYearly: string
   yearly: string
   isRteEnabled?: boolean
+  rteOneTime?: string
   rteMonthly?: string
   rteQuarterly?: string
   rteHalfYearly?: string
@@ -47,6 +49,7 @@ export default function AdmissionFeePage() {
   const [selectedClasses, setSelectedClasses] = useState<string[]>([])
   const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false)
   const [studentType, setStudentType] = useState<'All' | 'New' | 'Old'>('All')
+  const [oneTimeFee, setOneTimeFee] = useState('')
   const [monthlyFee, setMonthlyFee] = useState('')
   const [quarterlyFee, setQuarterlyFee] = useState('')
   const [halfYearlyFee, setHalfYearlyFee] = useState('')
@@ -54,6 +57,7 @@ export default function AdmissionFeePage() {
 
   // RTE state
   const [isRteEnabled, setIsRteEnabled] = useState(false)
+  const [rteOneTime, setRteOneTime] = useState('0.0')
   const [rteMonthly, setRteMonthly] = useState('0.0')
   const [rteQuarterly, setRteQuarterly] = useState('0.0')
   const [rteHalfYearly, setRteHalfYearly] = useState('0.0')
@@ -71,6 +75,7 @@ export default function AdmissionFeePage() {
   const [selectedFeeChart, setSelectedFeeChart] = useState<AdmissionFeeChartItem | null>(null)
   const [editClass, setEditClass] = useState('')
   const [editStudentType, setEditStudentType] = useState<'All' | 'New' | 'Old'>('All')
+  const [editOneTime, setEditOneTime] = useState('')
   const [editMonthly, setEditMonthly] = useState('')
   const [editQuarterly, setEditQuarterly] = useState('')
   const [editHalfYearly, setEditHalfYearly] = useState('')
@@ -154,8 +159,8 @@ export default function AdmissionFeePage() {
       return
     }
 
-    if (!monthlyFee && !quarterlyFee && !halfYearlyFee && !yearlyFee) {
-      setFormError('Please enter at least one fee amount (Monthly, Quarterly, Half Yearly, or Yearly).')
+    if (!oneTimeFee && !monthlyFee && !quarterlyFee && !halfYearlyFee && !yearlyFee) {
+      setFormError('Please enter at least one fee amount (One Time, Monthly, Quarterly, Half Yearly, or Yearly).')
       return
     }
 
@@ -164,11 +169,13 @@ export default function AdmissionFeePage() {
       id: Date.now() + idx,
       className: cls,
       studentType,
+      oneTime: formatAmount(oneTimeFee),
       monthly: formatAmount(monthlyFee),
       quarterly: formatAmount(quarterlyFee),
       halfYearly: formatAmount(halfYearlyFee),
       yearly: formatAmount(yearlyFee),
       isRteEnabled,
+      rteOneTime: isRteEnabled ? formatAmount(rteOneTime) : undefined,
       rteMonthly: isRteEnabled ? formatAmount(rteMonthly) : undefined,
       rteQuarterly: isRteEnabled ? formatAmount(rteQuarterly) : undefined,
       rteHalfYearly: isRteEnabled ? formatAmount(rteHalfYearly) : undefined,
@@ -186,11 +193,17 @@ export default function AdmissionFeePage() {
     setSelectedClasses([])
     setIsClassDropdownOpen(false)
     setStudentType('All')
+    setOneTimeFee('')
     setMonthlyFee('')
     setQuarterlyFee('')
     setHalfYearlyFee('')
     setYearlyFee('')
     setIsRteEnabled(false)
+    setRteOneTime('0.0')
+    setRteMonthly('0.0')
+    setRteQuarterly('0.0')
+    setRteHalfYearly('0.0')
+    setRteYearly('0.0')
     setIsLateFeeEnabled(false)
     setLateFeePerDay('')
     setFormError('')
@@ -202,10 +215,11 @@ export default function AdmissionFeePage() {
     setSelectedFeeChart(item)
     setEditClass(item.className)
     setEditStudentType(item.studentType)
-    setEditMonthly(item.monthly === '-' ? '' : item.monthly.replace('/-', ''))
-    setEditQuarterly(item.quarterly === '-' ? '' : item.quarterly.replace('/-', ''))
-    setEditHalfYearly(item.halfYearly === '-' ? '' : item.halfYearly.replace('/-', ''))
-    setEditYearly(item.yearly === '-' ? '' : item.yearly.replace('/-', ''))
+    setEditOneTime(item.oneTime === '-' || !item.oneTime ? '' : item.oneTime.replace('/-', ''))
+    setEditMonthly(item.monthly === '-' || !item.monthly ? '' : item.monthly.replace('/-', ''))
+    setEditQuarterly(item.quarterly === '-' || !item.quarterly ? '' : item.quarterly.replace('/-', ''))
+    setEditHalfYearly(item.halfYearly === '-' || !item.halfYearly ? '' : item.halfYearly.replace('/-', ''))
+    setEditYearly(item.yearly === '-' || !item.yearly ? '' : item.yearly.replace('/-', ''))
     setFormError('')
     setEditModalOpen(true)
   }
@@ -226,6 +240,7 @@ export default function AdmissionFeePage() {
           ...item,
           className: editClass,
           studentType: editStudentType,
+          oneTime: formatAmount(editOneTime),
           monthly: formatAmount(editMonthly),
           quarterly: formatAmount(editQuarterly),
           halfYearly: formatAmount(editHalfYearly),
@@ -413,6 +428,17 @@ export default function AdmissionFeePage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">One Time Fees</label>
+                <input 
+                  type="number" 
+                  placeholder="Enter Amount" 
+                  value={oneTimeFee}
+                  onChange={e => setOneTimeFee(e.target.value)}
+                  className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500 font-semibold text-slate-800 dark:text-slate-200" 
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
                 <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Monthly Fees</label>
                 <input 
                   type="number" 
@@ -471,7 +497,16 @@ export default function AdmissionFeePage() {
             </div>
 
             {isRteEnabled && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6 mb-8 animate-in slide-in-from-top-2 fade-in duration-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-6 mb-8 animate-in slide-in-from-top-2 fade-in duration-200">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">One Time Fees</label>
+                  <input 
+                    type="number" 
+                    value={rteOneTime}
+                    onChange={e => setRteOneTime(e.target.value)}
+                    className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500 font-semibold" 
+                  />
+                </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Monthly Fees</label>
                   <input 
@@ -646,6 +681,7 @@ export default function AdmissionFeePage() {
                   <th className="px-4 py-3.5">S. No.</th>
                   <th className="px-4 py-3.5">Class</th>
                   <th className="px-4 py-3.5">Student Type</th>
+                  <th className="px-4 py-3.5">One Time Fee</th>
                   <th className="px-4 py-3.5">Monthly Fee</th>
                   <th className="px-4 py-3.5">Quarterly Fee</th>
                   <th className="px-4 py-3.5">Half Yearly Fee</th>
@@ -657,7 +693,7 @@ export default function AdmissionFeePage() {
               <tbody>
                 {filteredFeeCharts.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-400 font-semibold">
+                    <td colSpan={10} className="py-12 text-center text-slate-400 font-semibold">
                       No admission fee rules found. Create a rule above.
                     </td>
                   </tr>
@@ -667,6 +703,7 @@ export default function AdmissionFeePage() {
                       <td className="px-4 py-4 text-slate-500 font-medium">{idx + 1}.</td>
                       <td className="px-4 py-4 text-slate-700 dark:text-slate-200 font-bold">{item.className}</td>
                       <td className="px-4 py-4 text-slate-600 dark:text-slate-300 font-medium">{item.studentType}</td>
+                      <td className="px-4 py-4 text-slate-700 dark:text-slate-200 font-bold">{item.oneTime || '-'}</td>
                       <td className="px-4 py-4 text-slate-700 dark:text-slate-200 font-bold">{item.monthly || '-'}</td>
                       <td className="px-4 py-4 text-slate-700 dark:text-slate-200 font-bold">{item.quarterly || '-'}</td>
                       <td className="px-4 py-4 text-slate-700 dark:text-slate-200 font-bold">{item.halfYearly || '-'}</td>
@@ -790,7 +827,11 @@ export default function AdmissionFeePage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="col-span-1 sm:col-span-2 flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">One Time Fees</label>
+                  <input type="number" value={editOneTime} onChange={e => setEditOneTime(e.target.value)} className="px-4 py-2 rounded-lg border text-sm font-semibold" placeholder="Enter Amount" />
+                </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Monthly Fees</label>
                   <input type="number" value={editMonthly} onChange={e => setEditMonthly(e.target.value)} className="px-4 py-2 rounded-lg border text-sm font-semibold" placeholder="Enter Amount" />

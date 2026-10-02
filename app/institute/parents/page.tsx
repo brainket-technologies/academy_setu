@@ -1,13 +1,15 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Download, Upload, Plus, Search, Eye, Pencil, Trash2, Check, X } from 'lucide-react'
+import { Download, Upload, Plus, Search, Eye, EyeOff, Pencil, Trash2, Check, X } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { INDIA_STATES_DISTRICTS } from '@/lib/india-data'
 
 export interface ParentRecord {
   id: number
   username: string
+  password?: string
   name: string
   firstName?: string
   lastName?: string
@@ -53,6 +55,10 @@ export default function AllParentsPage() {
   const [editParentId, setEditParentId] = useState<number | null>(null)
   const [modalStep, setModalStep] = useState(0)
   const [formError, setFormError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+
+  // State & District from Main Admin Settings
+  const [statesData, setStatesData] = useState<any[]>([])
 
   // Form Fields State
   const [firstName, setFirstName] = useState('')
@@ -81,6 +87,21 @@ export default function AllParentsPage() {
   const [status, setStatus] = useState<'Active' | 'Inactive'>('Active')
 
   useEffect(() => {
+    // Load states and districts from Admin Settings (/api/admin/settings/state-city)
+    fetch('/api/admin/settings/state-city')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          setStatesData(data.data)
+        } else {
+          setStatesData(INDIA_STATES_DISTRICTS.map(s => ({ state_name: s.state, districts: s.districts })))
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load states/cities', err)
+        setStatesData(INDIA_STATES_DISTRICTS.map(s => ({ state_name: s.state, districts: s.districts })))
+      })
+
     const saved = localStorage.getItem('school_institute_parents')
     if (saved) {
       try {
@@ -94,11 +115,42 @@ export default function AllParentsPage() {
     }
   }, [])
 
+  // Computed state list from Admin Settings
+  const stateOptions = React.useMemo(() => {
+    const list: string[] = statesData.length > 0 
+      ? statesData.map((s: any) => s.state_name || s.name).filter(Boolean)
+      : INDIA_STATES_DISTRICTS.map(s => s.state)
+    return Array.from(new Set(list)).map(String).sort((a: string, b: string) => a.localeCompare(b))
+  }, [statesData])
+
+  // Computed district list for selected state
+  const districtOptions = React.useMemo(() => {
+    if (!stateName) {
+      if (statesData.length > 0) {
+        const all = new Set<string>()
+        statesData.forEach((s: any) => (s.districts || []).forEach((d: string) => all.add(d)))
+        return Array.from(all).sort((a, b) => a.localeCompare(b))
+      }
+      return []
+    }
+    const foundState = statesData.find((s: any) => (s.state_name || s.name)?.toLowerCase() === stateName.toLowerCase())
+    if (foundState && foundState.districts) {
+      const dists = foundState.districts.map((d: any) => typeof d === 'string' ? d : (d.district_name || d.name || String(d)))
+      return Array.from(new Set(dists)).map(String).sort((a: string, b: string) => a.localeCompare(b))
+    }
+    const fallback = INDIA_STATES_DISTRICTS.find(s => s.state.toLowerCase() === stateName.toLowerCase())
+    if (fallback) {
+      return fallback.districts.slice().sort((a, b) => a.localeCompare(b))
+    }
+    return []
+  }, [statesData, stateName])
+
   const resetForm = () => {
     setModalStep(0)
     setFormError('')
     setIsEditMode(false)
     setEditParentId(null)
+    setShowPassword(false)
     setFirstName('')
     setLastName('')
     setMobileNo('')
@@ -140,7 +192,7 @@ export default function AllParentsPage() {
     setGender(parent.gender || 'Male')
     setParentType(parent.parentType || 'Father')
     setUserName(parent.username || '')
-    setPassword('')
+    setPassword(parent.password || '')
 
     setQualification(parent.qualification || '')
     setCollegeName(parent.college || '')
@@ -253,6 +305,7 @@ export default function AllParentsPage() {
             gender,
             parentType,
             username: userName.trim(),
+            password: password.trim(),
             qualification: qualification.trim(),
             college: collegeName.trim(),
             employmentType,
@@ -278,6 +331,7 @@ export default function AllParentsPage() {
       const newParent: ParentRecord = {
         id: Date.now(),
         username: userName.trim() || `Par${Math.floor(100 + Math.random() * 900)}`,
+        password: password.trim(),
         name: fullName,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -568,6 +622,26 @@ export default function AllParentsPage() {
                     <input type="text" placeholder="Enter User Name" value={userName} onChange={e => { setUserName(e.target.value); if (formError) setFormError('') }} className="w-full px-4 py-2 border rounded-lg outline-none font-bold text-slate-700 text-xs focus:border-teal-500" />
                   </div>
                   <div className="flex flex-col gap-1.5">
+                    <label className="text-slate-500 font-bold">Password</label>
+                    <div className="relative">
+                      <input 
+                        type={showPassword ? 'text' : 'password'} 
+                        placeholder="Enter Password" 
+                        value={password} 
+                        onChange={e => setPassword(e.target.value)} 
+                        className="w-full px-4 py-2 pr-10 border rounded-lg outline-none font-bold text-slate-700 text-xs focus:border-teal-500" 
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => setShowPassword(!showPassword)} 
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        title={showPassword ? 'Hide Password' : 'Show Password'}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
                     <label className="text-slate-500 font-bold">Status</label>
                     <select value={status} onChange={e => setStatus(e.target.value as 'Active' | 'Inactive')} className="w-full px-4 py-2 border rounded-lg outline-none font-bold text-slate-700 text-xs focus:border-teal-500 bg-white">
                       <option value="Active">Active</option>
@@ -651,12 +725,41 @@ export default function AllParentsPage() {
                     <textarea rows={2} placeholder="Enter Full Address" value={address} onChange={e => { setAddress(e.target.value); if (formError) setFormError('') }} className="w-full px-4 py-2 border rounded-lg outline-none font-bold text-slate-700 text-xs focus:border-teal-500 resize-none" />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-slate-500 font-bold">State</label>
-                    <input type="text" placeholder="State" value={stateName} onChange={e => setStateName(e.target.value)} className="w-full px-4 py-2 border rounded-lg outline-none font-bold text-slate-700 text-xs focus:border-teal-500" />
+                    <label className="text-slate-500 font-bold">State <span className="text-red-500">*</span></label>
+                    <select 
+                      value={stateName} 
+                      onChange={e => {
+                        const selected = e.target.value
+                        setStateName(selected)
+                        const foundState = statesData.find((s: any) => (s.state_name || s.name)?.toLowerCase() === selected.toLowerCase())
+                        if (foundState && foundState.districts && foundState.districts.length > 0) {
+                          const firstDist = typeof foundState.districts[0] === 'string' ? foundState.districts[0] : (foundState.districts[0].district_name || foundState.districts[0].name)
+                          setDistrict(firstDist || '')
+                        } else {
+                          const fallback = INDIA_STATES_DISTRICTS.find(s => s.state.toLowerCase() === selected.toLowerCase())
+                          setDistrict(fallback?.districts?.[0] || '')
+                        }
+                      }} 
+                      className="w-full px-4 py-2 border rounded-lg outline-none font-bold text-slate-700 text-xs focus:border-teal-500 bg-white"
+                    >
+                      <option value="">Select State</option>
+                      {stateOptions.map((st, idx) => (
+                        <option key={idx} value={st}>{st}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-slate-500 font-bold">District</label>
-                    <input type="text" placeholder="District" value={district} onChange={e => setDistrict(e.target.value)} className="w-full px-4 py-2 border rounded-lg outline-none font-bold text-slate-700 text-xs focus:border-teal-500" />
+                    <label className="text-slate-500 font-bold">District <span className="text-red-500">*</span></label>
+                    <select 
+                      value={district} 
+                      onChange={e => setDistrict(e.target.value)} 
+                      className="w-full px-4 py-2 border rounded-lg outline-none font-bold text-slate-700 text-xs focus:border-teal-500 bg-white"
+                    >
+                      <option value="">Select District</option>
+                      {districtOptions.map((dist, idx) => (
+                        <option key={idx} value={dist}>{dist}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-slate-500 font-bold">Pincode</label>

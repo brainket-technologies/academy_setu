@@ -888,13 +888,14 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
   // Options for Class Fee Duration based on configured chart
   let classDurationOptions = ['Select an Option']
   if (classFeeChart) {
+    if (classFeeChart.oneTime && classFeeChart.oneTime !== '0' && classFeeChart.oneTime !== '0.0') classDurationOptions.push('One Time')
     if (classFeeChart.monthly && classFeeChart.monthly !== '0' && classFeeChart.monthly !== '0.0') classDurationOptions.push('Monthly')
     if (classFeeChart.quarterly && classFeeChart.quarterly !== '0' && classFeeChart.quarterly !== '0.0') classDurationOptions.push('Quarterly')
     if (classFeeChart.halfYearly && classFeeChart.halfYearly !== '0' && classFeeChart.halfYearly !== '0.0') classDurationOptions.push('Half Yearly')
     if (classFeeChart.yearly && classFeeChart.yearly !== '0' && classFeeChart.yearly !== '0.0') classDurationOptions.push('Yearly')
   }
   if (classDurationOptions.length === 1) {
-    classDurationOptions = ['Select an Option', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']
+    classDurationOptions = ['Select an Option', 'One Time', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']
   }
 
   const handleClassDurationChange = (dur: string) => {
@@ -904,7 +905,8 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
       return
     }
     if (classFeeChart) {
-      if (dur === 'Monthly') updateForm('classFee', formatFeeVal(classFeeChart.monthly))
+      if (dur === 'One Time' || dur === 'Onetime') updateForm('classFee', formatFeeVal(classFeeChart.oneTime || classFeeChart.monthly))
+      else if (dur === 'Monthly') updateForm('classFee', formatFeeVal(classFeeChart.monthly))
       else if (dur === 'Quarterly') updateForm('classFee', formatFeeVal(classFeeChart.quarterly))
       else if (dur === 'Half Yearly' || dur === 'Quartly') updateForm('classFee', formatFeeVal(classFeeChart.halfYearly))
       else if (dur === 'Yearly' || dur === 'Annually' || dur === 'Annualy') updateForm('classFee', formatFeeVal(classFeeChart.yearly))
@@ -1205,11 +1207,12 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
     if (found) {
       const dur = formData.hostelFeeDuration || 'Monthly'
       updateForm('hostelFeeDuration', dur)
-      if (dur === 'Monthly' && found.monthly) updateForm('hostelFee', formatFeeVal(found.monthly))
+      if ((dur === 'One Time' || dur === 'Onetime') && found.oneTime) updateForm('hostelFee', formatFeeVal(found.oneTime))
+      else if (dur === 'Monthly' && found.monthly) updateForm('hostelFee', formatFeeVal(found.monthly))
       else if (dur === 'Quarterly' && found.quarterly) updateForm('hostelFee', formatFeeVal(found.quarterly))
       else if ((dur === 'Half Yearly' || dur === 'Quartly') && found.halfYearly) updateForm('hostelFee', formatFeeVal(found.halfYearly))
       else if ((dur === 'Yearly' || dur === 'Annually') && found.yearly) updateForm('hostelFee', formatFeeVal(found.yearly))
-      else if (found.monthly || found.amount) updateForm('hostelFee', formatFeeVal(found.monthly || found.amount))
+      else if (found.oneTime || found.monthly || found.amount) updateForm('hostelFee', formatFeeVal(found.oneTime || found.monthly || found.amount))
     }
   }
 
@@ -1217,7 +1220,8 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
     updateForm('hostelFeeDuration', dur)
     const found = hostelItems.find(h => (h.hostelType || h.name) === formData.hostelType)
     if (found) {
-      if (dur === 'Monthly' && found.monthly) updateForm('hostelFee', formatFeeVal(found.monthly))
+      if ((dur === 'One Time' || dur === 'Onetime') && found.oneTime) updateForm('hostelFee', formatFeeVal(found.oneTime))
+      else if (dur === 'Monthly' && found.monthly) updateForm('hostelFee', formatFeeVal(found.monthly))
       else if (dur === 'Quarterly' && found.quarterly) updateForm('hostelFee', formatFeeVal(found.quarterly))
       else if ((dur === 'Half Yearly' || dur === 'Quartly') && found.halfYearly) updateForm('hostelFee', formatFeeVal(found.halfYearly))
       else if ((dur === 'Yearly' || dur === 'Annually') && found.yearly) updateForm('hostelFee', formatFeeVal(found.yearly))
@@ -1346,7 +1350,7 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
            <SelectField 
              label="Fee Duration" 
              required 
-             options={['Select an Option', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']} 
+             options={['Select an Option', 'One Time', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']} 
              value={formData.hostelFeeDuration || ''}
              onChange={(e: any) => handleHostelDurationChange(e.target.value)}
            />
@@ -1645,19 +1649,21 @@ function FeeSection({
 
   let durationOptions = ['Select an Option']
   if (chart) {
-    if (chart.monthly && chart.monthly !== '0') durationOptions.push('Monthly')
-    if (chart.quarterly && chart.quarterly !== '0') durationOptions.push('Quarterly')
-    if (chart.halfYearly && chart.halfYearly !== '0') durationOptions.push('Half Yearly')
-    if (chart.yearly && chart.yearly !== '0') durationOptions.push('Yearly')
+    if (chart.oneTime && chart.oneTime !== '0' && chart.oneTime !== '-') durationOptions.push('One Time')
+    if (chart.monthly && chart.monthly !== '0' && chart.monthly !== '-') durationOptions.push('Monthly')
+    if (chart.quarterly && chart.quarterly !== '0' && chart.quarterly !== '-') durationOptions.push('Quarterly')
+    if (chart.halfYearly && chart.halfYearly !== '0' && chart.halfYearly !== '-') durationOptions.push('Half Yearly')
+    if (chart.yearly && chart.yearly !== '0' && chart.yearly !== '-') durationOptions.push('Yearly')
   }
   if (durationOptions.length === 1) {
-    durationOptions = ['Select an Option', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']
+    durationOptions = ['Select an Option', 'One Time', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']
   }
 
   const handleSelectDuration = (dur: string) => {
     let feeStr = ''
     if (chart) {
-      if (dur === 'Monthly') feeStr = formatFeeVal(chart.monthly)
+      if (dur === 'One Time' || dur === 'Onetime') feeStr = formatFeeVal(chart.oneTime)
+      else if (dur === 'Monthly') feeStr = formatFeeVal(chart.monthly)
       else if (dur === 'Quarterly') feeStr = formatFeeVal(chart.quarterly)
       else if (dur === 'Half Yearly' || dur === 'Quartly') feeStr = formatFeeVal(chart.halfYearly)
       else if (dur === 'Yearly' || dur === 'Annually' || dur === 'Annualy') feeStr = formatFeeVal(chart.yearly)
