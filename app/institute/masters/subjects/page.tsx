@@ -54,15 +54,38 @@ export default function SubjectsPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [classFilter, setClassFilter] = useState('')
+  const [groupFilter, setGroupFilter] = useState('')
+  const [streamFilter, setStreamFilter] = useState('')
 
   const [toastMsg, setToastMsg] = useState('')
   const [toastOpen, setToastOpen] = useState(false)
+
+  const syncGroupCounts = (allSubjects: SubjectRecord[]) => {
+    const savedGroups = localStorage.getItem('school_masters_subject_groups')
+    if (savedGroups) {
+      try {
+        const parsedGroups = JSON.parse(savedGroups)
+        const updatedGroups = parsedGroups.map((g: any) => {
+          const name = g.groupName || g.name
+          const count = allSubjects.filter(s => !s.deleted && s.groupName === name).length
+          return { ...g, noOfSubjects: count }
+        })
+        localStorage.setItem('school_masters_subject_groups', JSON.stringify(updatedGroups))
+      } catch (e) {
+        console.error(e)
+      }
+    }
+  }
 
   useEffect(() => {
     // Load subjects
     const saved = localStorage.getItem('school_masters_subjects')
     if (saved) {
-      try { setSubjects(JSON.parse(saved)) } catch (e) { console.error(e) }
+      try { 
+        const parsed = JSON.parse(saved)
+        setSubjects(parsed) 
+        syncGroupCounts(parsed)
+      } catch (e) { console.error(e) }
     } else {
       localStorage.setItem('school_masters_subjects', JSON.stringify(INITIAL_SUBJECTS))
     }
@@ -72,7 +95,8 @@ export default function SubjectsPage() {
     if (savedClasses) {
       try {
         const parsed = JSON.parse(savedClasses)
-        setClassList(parsed.map((c: any) => c.className))
+        const names = Array.isArray(parsed) ? parsed.filter((c: any) => !c.deleted).map((c: any) => c.className || c.name).filter(Boolean) : []
+        setClassList(names.length ? names : ['Class VIII', 'Class IX', 'Class X'])
       } catch (e) { console.error(e) }
     } else {
       setClassList(['Class VIII', 'Class IX', 'Class X'])
@@ -83,7 +107,8 @@ export default function SubjectsPage() {
     if (savedGroups) {
       try {
         const parsed = JSON.parse(savedGroups)
-        setGroupList(parsed.map((g: any) => g.groupName))
+        const names = Array.isArray(parsed) ? parsed.filter((g: any) => !g.deleted).map((g: any) => g.groupName || g.name).filter(Boolean) : []
+        setGroupList(names.length ? names : ['PCM', 'ZBC', 'Accounts', 'General'])
       } catch (e) { console.error(e) }
     } else {
       setGroupList(['PCM', 'ZBC', 'Accounts', 'General'])
@@ -94,7 +119,8 @@ export default function SubjectsPage() {
     if (savedStreams) {
       try {
         const parsed = JSON.parse(savedStreams)
-        setStreamList(parsed.map((s: any) => s.streamName))
+        const names = Array.isArray(parsed) ? parsed.filter((s: any) => !s.deleted).map((s: any) => s.streamName || s.name).filter(Boolean) : []
+        setStreamList(names.length ? names : ['Science', 'Commerce', 'Arts'])
       } catch (e) { console.error(e) }
     } else {
       setStreamList(['Science', 'Commerce', 'Arts'])
@@ -109,52 +135,54 @@ export default function SubjectsPage() {
 
   const handleQuickGroupCreate = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!groupNameInput) return
+    if (!groupNameInput.trim()) return
     
     const savedGroups = localStorage.getItem('school_masters_subject_groups')
     let list = []
     if (savedGroups) {
       try { list = JSON.parse(savedGroups) } catch (err) { console.error(err) }
     }
+    const newGroupName = groupNameInput.trim()
     const newGroup = {
       id: Date.now(),
-      groupName: groupNameInput.trim(),
-      noOfSubjects: 0,
+      groupName: newGroupName,
+      noOfSubjects: subjects.filter(s => !s.deleted && s.groupName === newGroupName).length,
       createdAt: new Date().toLocaleDateString('en-GB') + '\n' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
       deleted: false
     }
     const updated = [newGroup, ...list]
     localStorage.setItem('school_masters_subject_groups', JSON.stringify(updated))
-    setGroupList(updated.map(g => g.groupName))
+    setGroupList(updated.filter(g => !g.deleted).map(g => g.groupName))
     setGroupNameInput('')
     showToast(`Subject Group "${newGroup.groupName}" created successfully!`)
   }
 
   const handleSaveSubject = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!subjectName || !subjectGroup || !selectedClass) {
-      alert('Please fill in all mandatory fields.')
+    if (!subjectName.trim() || !subjectGroup || !selectedClass) {
+      alert('Please fill in all mandatory fields (Subject Name, Subject Group, Class).')
       return
     }
 
     const newSub: SubjectRecord = {
       id: Date.now(),
-      subjectCode: subjectCode || '01',
-      subjectName,
-      orderNo: parseInt(orderNumber) || 1,
+      subjectCode: subjectCode.trim() || '01',
+      subjectName: subjectName.trim(),
+      orderNo: parseInt(orderNumber) || (subjects.filter(s => !s.deleted).length + 1),
       groupName: subjectGroup,
       className: selectedClass,
       streamName: selectedStream || 'General',
       type: subjectType,
       createdAt: new Date().toLocaleDateString('en-GB') + '\n' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
       deleted: false,
-      description,
+      description: description.trim(),
       subjectImage
     }
 
     const updated = [newSub, ...subjects]
     setSubjects(updated)
     localStorage.setItem('school_masters_subjects', JSON.stringify(updated))
+    syncGroupCounts(updated)
 
     // Reset Form
     setSubjectName('')
@@ -173,35 +201,38 @@ export default function SubjectsPage() {
 
   const handleOpenEdit = (sub: SubjectRecord) => {
     setSelectedSubject(sub)
-    setSubjectName(sub.subjectName)
-    setSubjectCode(sub.subjectCode)
-    setSubjectGroup(sub.groupName)
-    setSelectedClass(sub.className)
-    setSelectedStream(sub.streamName)
-    setOrderNumber(String(sub.orderNo))
+    setSubjectName(sub.subjectName || '')
+    setSubjectCode(sub.subjectCode || '')
+    setSubjectGroup(sub.groupName || '')
+    setSelectedClass(sub.className || '')
+    setSelectedStream(sub.streamName || '')
+    setOrderNumber(sub.orderNo ? String(sub.orderNo) : '')
     setSubjectImage(sub.subjectImage || '')
     setDescription(sub.description || '')
-    setSubjectType(sub.type)
+    setSubjectType(sub.type || 'Marks')
     setEditModalOpen(true)
   }
 
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedSubject || !subjectName || !selectedClass) return
+    if (!selectedSubject || !subjectName.trim() || !selectedClass || !subjectGroup) {
+      alert('Please fill in all mandatory fields.')
+      return
+    }
 
     const updated = subjects.map(s => {
       if (s.id === selectedSubject.id) {
         return {
           ...s,
-          subjectName,
-          subjectCode,
+          subjectName: subjectName.trim(),
+          subjectCode: subjectCode.trim(),
           groupName: subjectGroup,
           className: selectedClass,
-          streamName: selectedStream,
+          streamName: selectedStream || 'General',
           orderNo: parseInt(orderNumber) || s.orderNo,
           type: subjectType,
           subjectImage,
-          description
+          description: description.trim()
         }
       }
       return s
@@ -209,6 +240,7 @@ export default function SubjectsPage() {
 
     setSubjects(updated)
     localStorage.setItem('school_masters_subjects', JSON.stringify(updated))
+    syncGroupCounts(updated)
     setEditModalOpen(false)
     setSelectedSubject(null)
     setSubjectName('')
@@ -226,6 +258,7 @@ export default function SubjectsPage() {
     const updated = subjects.map(s => s.id === id ? { ...s, deleted: true } : s)
     setSubjects(updated)
     localStorage.setItem('school_masters_subjects', JSON.stringify(updated))
+    syncGroupCounts(updated)
     showToast('Subject moved to deleted list!')
   }
 
@@ -233,6 +266,7 @@ export default function SubjectsPage() {
     const updated = subjects.map(s => s.id === id ? { ...s, deleted: false } : s)
     setSubjects(updated)
     localStorage.setItem('school_masters_subjects', JSON.stringify(updated))
+    syncGroupCounts(updated)
     showToast('Subject restored successfully!')
   }
 
@@ -247,7 +281,9 @@ export default function SubjectsPage() {
       s.subjectCode.toLowerCase().includes(searchQuery.toLowerCase())
     ) : true
     const matchesClass = classFilter ? s.className === classFilter : true
-    return matchesTab && matchesSearch && matchesClass
+    const matchesGroup = groupFilter ? s.groupName === groupFilter : true
+    const matchesStream = streamFilter ? s.streamName === streamFilter : true
+    return matchesTab && matchesSearch && matchesClass && matchesGroup && matchesStream
   })
 
   return (
@@ -260,12 +296,13 @@ export default function SubjectsPage() {
           onClick={() => {
             setSubjectName('')
             setSubjectCode('')
-            setSubjectGroup(groupList[0] || '')
-            setSelectedClass(classList[0] || '')
-            setSelectedStream(streamList[0] || '')
+            setSubjectGroup('')
+            setSelectedClass('')
+            setSelectedStream('')
             setOrderNumber('')
             setSubjectImage('')
             setDescription('')
+            setSubjectType('Marks')
             setCreateModalOpen(true)
           }}
           className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold shadow-md transition-colors text-xs"
@@ -326,7 +363,7 @@ export default function SubjectsPage() {
 
       {/* Toggleable Filters Panel */}
       {showFilters && (
-        <div className="bg-white border rounded-2xl p-5 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-semibold text-slate-700 animate-in slide-in-from-top-3 duration-200">
+        <div className="bg-white border rounded-2xl p-5 shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-semibold text-slate-700 animate-in slide-in-from-top-3 duration-200">
           <div className="flex flex-col gap-1.5">
             <label className="text-slate-500 font-bold">Search Subject</label>
             <div className="relative">
@@ -351,6 +388,34 @@ export default function SubjectsPage() {
               <option value="">All Classes</option>
               {classList.map(c => (
                 <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-slate-500 font-bold">Filter by Group</label>
+            <select
+              value={groupFilter}
+              onChange={e => setGroupFilter(e.target.value)}
+              className="w-full px-4 py-2 border rounded-lg bg-white outline-none font-bold text-xs"
+            >
+              <option value="">All Groups</option>
+              {groupList.map(g => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-slate-500 font-bold">Filter by Stream</label>
+            <select
+              value={streamFilter}
+              onChange={e => setStreamFilter(e.target.value)}
+              className="w-full px-4 py-2 border rounded-lg bg-white outline-none font-bold text-xs"
+            >
+              <option value="">All Streams</option>
+              {streamList.map(s => (
+                <option key={s} value={s}>{s}</option>
               ))}
             </select>
           </div>
@@ -455,6 +520,7 @@ export default function SubjectsPage() {
                     value={subjectName}
                     onChange={e => setSubjectName(e.target.value)}
                     className="px-3 py-2 border rounded-lg outline-none font-bold bg-white"
+                    required
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -473,6 +539,7 @@ export default function SubjectsPage() {
                     value={subjectGroup}
                     onChange={e => setSubjectGroup(e.target.value)}
                     className="px-3 py-2 border rounded-lg bg-white outline-none font-bold text-slate-700"
+                    required
                   >
                     <option value="">Select Subject Group</option>
                     {groupList.map(g => (
@@ -489,6 +556,7 @@ export default function SubjectsPage() {
                     value={selectedClass}
                     onChange={e => setSelectedClass(e.target.value)}
                     className="px-3 py-2 border rounded-lg bg-white outline-none font-bold text-slate-700"
+                    required
                   >
                     <option value="">Select Class</option>
                     {classList.map(c => (
@@ -504,6 +572,7 @@ export default function SubjectsPage() {
                     className="px-3 py-2 border rounded-lg bg-white outline-none font-bold text-slate-700"
                   >
                     <option value="">Select Stream</option>
+                    <option value="All">All Streams</option>
                     {streamList.map(s => (
                       <option key={s} value={s}>{s}</option>
                     ))}
@@ -590,6 +659,7 @@ export default function SubjectsPage() {
                     value={subjectName}
                     onChange={e => setSubjectName(e.target.value)}
                     className="px-3 py-2 border rounded-lg outline-none font-bold bg-white"
+                    required
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -608,7 +678,9 @@ export default function SubjectsPage() {
                     value={subjectGroup}
                     onChange={e => setSubjectGroup(e.target.value)}
                     className="px-3 py-2 border rounded-lg bg-white outline-none font-bold text-slate-700"
+                    required
                   >
+                    <option value="">Select Subject Group</option>
                     {groupList.map(g => (
                       <option key={g} value={g}>{g}</option>
                     ))}
@@ -623,7 +695,9 @@ export default function SubjectsPage() {
                     value={selectedClass}
                     onChange={e => setSelectedClass(e.target.value)}
                     className="px-3 py-2 border rounded-lg bg-white outline-none font-bold text-slate-700"
+                    required
                   >
+                    <option value="">Select Class</option>
                     {classList.map(c => (
                       <option key={c} value={c}>{c}</option>
                     ))}
@@ -636,6 +710,8 @@ export default function SubjectsPage() {
                     onChange={e => setSelectedStream(e.target.value)}
                     className="px-3 py-2 border rounded-lg bg-white outline-none font-bold text-slate-700"
                   >
+                    <option value="">Select Stream</option>
+                    <option value="All">All Streams</option>
                     {streamList.map(s => (
                       <option key={s} value={s}>{s}</option>
                     ))}

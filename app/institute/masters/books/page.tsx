@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, RotateCcw, CheckCircle2, X, Upload, Search, Filter } from 'lucide-react'
+import { Plus, Pencil, Trash2, RotateCcw, CheckCircle2, X, Upload, Search, Filter, BookOpen } from 'lucide-react'
 
 interface BookRecord {
   id: number
@@ -13,8 +13,12 @@ interface BookRecord {
   bookImage?: string
 }
 
-const INITIAL_BOOKS: BookRecord[] = [
-]
+interface SubjectItem {
+  subjectName: string
+  className: string
+}
+
+const INITIAL_BOOKS: BookRecord[] = []
 
 export default function BooksPage() {
   const [books, setBooks] = useState<BookRecord[]>(INITIAL_BOOKS)
@@ -23,6 +27,7 @@ export default function BooksPage() {
   // Dynamic dropdowns
   const [classList, setClassList] = useState<string[]>([])
   const [subjectList, setSubjectList] = useState<string[]>([])
+  const [allSubjects, setAllSubjects] = useState<SubjectItem[]>([])
 
   // Modal State
   const [addModalOpen, setAddModalOpen] = useState(false)
@@ -32,7 +37,6 @@ export default function BooksPage() {
   // Add Book Form state
   const [bookNameInput, setBookNameInput] = useState('')
   const [selectedClass, setSelectedClass] = useState('')
-  const [selectedSection, setSelectedSection] = useState('')
   const [selectedSubject, setSelectedSubject] = useState('')
   const [attachedImage, setAttachedImage] = useState('')
 
@@ -40,6 +44,7 @@ export default function BooksPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [classFilter, setClassFilter] = useState('')
+  const [subjectFilter, setSubjectFilter] = useState('')
 
   const [toastMsg, setToastMsg] = useState('')
   const [toastOpen, setToastOpen] = useState(false)
@@ -58,7 +63,8 @@ export default function BooksPage() {
     if (savedClasses) {
       try {
         const parsed = JSON.parse(savedClasses)
-        setClassList(parsed.map((c: any) => c.className))
+        const names = Array.isArray(parsed) ? parsed.filter((c: any) => !c.deleted).map((c: any) => c.className || c.name).filter(Boolean) : []
+        setClassList(names.length ? names : ['Class VIII', 'Class IX', 'Class X'])
       } catch (e) { console.error(e) }
     } else {
       setClassList(['Class VIII', 'Class IX', 'Class X'])
@@ -69,12 +75,30 @@ export default function BooksPage() {
     if (savedSubjects) {
       try {
         const parsed = JSON.parse(savedSubjects)
-        setSubjectList(parsed.map((s: any) => s.subjectName))
+        if (Array.isArray(parsed)) {
+          const valid = parsed.filter((s: any) => !s.deleted)
+          setAllSubjects(valid.map((s: any) => ({
+            subjectName: s.subjectName || s.name || '',
+            className: s.className || ''
+          })))
+          const names = Array.from(new Set(valid.map((s: any) => s.subjectName || s.name).filter(Boolean)))
+          setSubjectList(names)
+        }
       } catch (e) { console.error(e) }
     } else {
-      setSubjectList(['Physics', 'Mathematics', 'Commerce', 'Chemistry'])
+      setSubjectList([])
+      setAllSubjects([])
     }
   }, [])
+
+  const getSubjectsForClass = (className: string) => {
+    if (!className) return []
+    const filtered = allSubjects
+      .filter(s => s.className && s.className.trim().toLowerCase() === className.trim().toLowerCase())
+      .map(s => s.subjectName)
+      .filter(Boolean)
+    return Array.from(new Set(filtered))
+  }
 
   const showToast = (msg: string) => {
     setToastMsg(msg)
@@ -82,9 +106,24 @@ export default function BooksPage() {
     setTimeout(() => setToastOpen(false), 2500)
   }
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size exceeds 5MB limit.')
+        return
+      }
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setAttachedImage(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
   const handleAddBook = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!bookNameInput || !selectedClass || !selectedSubject) {
+    if (!bookNameInput.trim() || !selectedClass || !selectedSubject) {
       alert('Please fill in Book Name, Class, and Subject.')
       return
     }
@@ -96,7 +135,7 @@ export default function BooksPage() {
       subjectName: selectedSubject,
       createdAt: new Date().toLocaleDateString('en-GB') + '\n' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
       deleted: false,
-      bookImage: attachedImage || 'default_book.png'
+      bookImage: attachedImage.trim() || ''
     }
 
     const updated = [newBook, ...books]
@@ -106,7 +145,6 @@ export default function BooksPage() {
     // Reset Form
     setBookNameInput('')
     setSelectedClass('')
-    setSelectedSection('')
     setSelectedSubject('')
     setAttachedImage('')
     setAddModalOpen(false)
@@ -115,16 +153,19 @@ export default function BooksPage() {
 
   const handleOpenEdit = (book: BookRecord) => {
     setSelectedBook(book)
-    setBookNameInput(book.bookName)
-    setSelectedClass(book.className)
-    setSelectedSubject(book.subjectName)
+    setBookNameInput(book.bookName || '')
+    setSelectedClass(book.className || '')
+    setSelectedSubject(book.subjectName || '')
     setAttachedImage(book.bookImage || '')
     setEditModalOpen(true)
   }
 
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedBook || !bookNameInput || !selectedClass || !selectedSubject) return
+    if (!selectedBook || !bookNameInput.trim() || !selectedClass || !selectedSubject) {
+      alert('Please fill in all mandatory fields.')
+      return
+    }
 
     const updated = books.map(b => {
       if (b.id === selectedBook.id) {
@@ -133,7 +174,7 @@ export default function BooksPage() {
           bookName: bookNameInput.trim(),
           className: selectedClass,
           subjectName: selectedSubject,
-          bookImage: attachedImage
+          bookImage: attachedImage.trim()
         }
       }
       return b
@@ -172,7 +213,8 @@ export default function BooksPage() {
     const matchesTab = activeTab === 'All' ? !b.deleted : b.deleted
     const matchesSearch = searchQuery ? b.bookName.toLowerCase().includes(searchQuery.toLowerCase()) : true
     const matchesClass = classFilter ? b.className === classFilter : true
-    return matchesTab && matchesSearch && matchesClass
+    const matchesSubject = subjectFilter ? b.subjectName === subjectFilter : true
+    return matchesTab && matchesSearch && matchesClass && matchesSubject
   })
 
   return (
@@ -184,8 +226,8 @@ export default function BooksPage() {
         <button
           onClick={() => {
             setBookNameInput('')
-            setSelectedClass(classList[0] || '')
-            setSelectedSubject(subjectList[0] || '')
+            setSelectedClass('')
+            setSelectedSubject('')
             setAttachedImage('')
             setAddModalOpen(true)
           }}
@@ -224,7 +266,7 @@ export default function BooksPage() {
 
       {/* Toggleable Filters Panel */}
       {showFilters && (
-        <div className="bg-white border rounded-2xl p-5 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-semibold text-slate-700 animate-in slide-in-from-top-3 duration-200">
+        <div className="bg-white border rounded-2xl p-5 shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-semibold text-slate-700 animate-in slide-in-from-top-3 duration-200">
           <div className="flex flex-col gap-1.5">
             <label className="text-slate-500 font-bold">Search Book</label>
             <div className="relative">
@@ -243,12 +285,35 @@ export default function BooksPage() {
             <label className="text-slate-500 font-bold">Filter by Class</label>
             <select
               value={classFilter}
-              onChange={e => setClassFilter(e.target.value)}
+              onChange={e => {
+                const newClass = e.target.value
+                setClassFilter(newClass)
+                if (newClass) {
+                  const allowed = getSubjectsForClass(newClass)
+                  if (subjectFilter && !allowed.includes(subjectFilter)) {
+                    setSubjectFilter('')
+                  }
+                }
+              }}
               className="w-full px-4 py-2 border rounded-lg bg-white outline-none font-bold text-xs"
             >
               <option value="">All Classes</option>
               {classList.map(c => (
                 <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-slate-500 font-bold">Filter by Subject</label>
+            <select
+              value={subjectFilter}
+              onChange={e => setSubjectFilter(e.target.value)}
+              className="w-full px-4 py-2 border rounded-lg bg-white outline-none font-bold text-xs"
+            >
+              <option value="">All Subjects</option>
+              {getSubjectsForClass(classFilter).map(s => (
+                <option key={s} value={s}>{s}</option>
               ))}
             </select>
           </div>
@@ -273,7 +338,18 @@ export default function BooksPage() {
               {filtered.map((item, idx) => (
                 <tr key={item.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors font-semibold">
                   <td className="px-3 py-3.5 text-slate-500">{idx + 1}.</td>
-                  <td className="px-3 py-3.5 text-left font-bold text-slate-800">{item.bookName}</td>
+                  <td className="px-3 py-3.5 text-left font-bold text-slate-800">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-10 rounded bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
+                        {item.bookImage ? (
+                          <img src={item.bookImage} alt={item.bookName} className="w-full h-full object-cover" />
+                        ) : (
+                          <BookOpen className="w-4 h-4 text-slate-400" />
+                        )}
+                      </div>
+                      <span className="font-bold text-slate-800">{item.bookName}</span>
+                    </div>
+                  </td>
                   <td className="px-3 py-3.5 text-slate-600 font-bold">{item.className}</td>
                   <td className="px-3 py-3.5 text-slate-600 font-bold">{item.subjectName}</td>
                   <td className="px-3 py-3.5 text-slate-500 text-[10px] whitespace-pre-line leading-tight">{item.createdAt}</td>
@@ -310,7 +386,7 @@ export default function BooksPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400 font-bold">
+                  <td colSpan={6} className="py-8 text-center text-slate-400 font-bold">
                     No books found in this category.
                   </td>
                 </tr>
@@ -340,6 +416,7 @@ export default function BooksPage() {
                   value={bookNameInput}
                   onChange={e => setBookNameInput(e.target.value)}
                   className="px-3 py-2 border rounded-lg outline-none font-bold bg-white"
+                  required
                 />
               </div>
 
@@ -348,8 +425,16 @@ export default function BooksPage() {
                   <label className="text-slate-550 font-bold">Class <span className="text-red-500">*</span></label>
                   <select
                     value={selectedClass}
-                    onChange={e => setSelectedClass(e.target.value)}
+                    onChange={e => {
+                      const newClass = e.target.value
+                      setSelectedClass(newClass)
+                      const allowed = getSubjectsForClass(newClass)
+                      if (!allowed.includes(selectedSubject)) {
+                        setSelectedSubject('')
+                      }
+                    }}
                     className="px-3 py-2 border rounded-lg bg-white outline-none font-bold text-slate-700"
+                    required
                   >
                     <option value="">Select Class</option>
                     {classList.map(c => (
@@ -363,25 +448,61 @@ export default function BooksPage() {
                   <select
                     value={selectedSubject}
                     onChange={e => setSelectedSubject(e.target.value)}
-                    className="px-3 py-2 border rounded-lg bg-white outline-none font-bold text-slate-700"
+                    className="px-3 py-2 border rounded-lg bg-white outline-none font-bold text-slate-700 disabled:bg-slate-50 disabled:text-slate-400"
+                    required
+                    disabled={!selectedClass || getSubjectsForClass(selectedClass).length === 0}
                   >
-                    <option value="">Select Subject</option>
-                    {subjectList.map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
+                    {!selectedClass ? (
+                      <option value="">Select Class First</option>
+                    ) : getSubjectsForClass(selectedClass).length === 0 ? (
+                      <option value="">No subjects added for {selectedClass}</option>
+                    ) : (
+                      <>
+                        <option value="">Select Subject</option>
+                        {getSubjectsForClass(selectedClass).map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </>
+                    )}
                   </select>
                 </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-slate-500 font-bold">Book Cover Image</label>
-                <input
-                  type="text"
-                  placeholder="Attach file path..."
-                  value={attachedImage}
-                  onChange={e => setAttachedImage(e.target.value)}
-                  className="px-3 py-2 border rounded-lg outline-none font-bold bg-white"
-                />
+                <div className="flex items-center gap-3 p-3 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
+                  {attachedImage ? (
+                    <div className="relative w-14 h-16 rounded-lg overflow-hidden border border-slate-300 shadow-sm shrink-0 bg-white">
+                      <img src={attachedImage} alt="Book cover" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setAttachedImage('')}
+                        className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600 shadow"
+                        title="Remove image"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-14 h-16 rounded-lg border border-slate-200 bg-white flex items-center justify-center shrink-0 text-slate-400">
+                      <BookOpen className="w-6 h-6 text-slate-300" />
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-1 flex-1">
+                    <label className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-bold text-slate-700 cursor-pointer shadow-sm transition-colors w-fit">
+                      <Upload className="w-3.5 h-3.5 text-teal-600" />
+                      <span>{attachedImage ? 'Change Cover' : 'Upload Cover Image'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-semibold">PNG, JPG or WebP (Max 5MB)</span>
+                  </div>
+                </div>
               </div>
 
               <div className="flex justify-end gap-3 pt-2 border-t">
@@ -424,6 +545,7 @@ export default function BooksPage() {
                   value={bookNameInput}
                   onChange={e => setBookNameInput(e.target.value)}
                   className="px-3 py-2 border rounded-lg outline-none font-bold bg-white"
+                  required
                 />
               </div>
 
@@ -432,9 +554,18 @@ export default function BooksPage() {
                   <label className="text-slate-550 font-bold">Class <span className="text-red-500">*</span></label>
                   <select
                     value={selectedClass}
-                    onChange={e => setSelectedClass(e.target.value)}
+                    onChange={e => {
+                      const newClass = e.target.value
+                      setSelectedClass(newClass)
+                      const allowed = getSubjectsForClass(newClass)
+                      if (!allowed.includes(selectedSubject)) {
+                        setSelectedSubject('')
+                      }
+                    }}
                     className="px-3 py-2 border rounded-lg bg-white outline-none font-bold text-slate-700"
+                    required
                   >
+                    <option value="">Select Class</option>
                     {classList.map(c => (
                       <option key={c} value={c}>{c}</option>
                     ))}
@@ -446,24 +577,61 @@ export default function BooksPage() {
                   <select
                     value={selectedSubject}
                     onChange={e => setSelectedSubject(e.target.value)}
-                    className="px-3 py-2 border rounded-lg bg-white outline-none font-bold text-slate-700"
+                    className="px-3 py-2 border rounded-lg bg-white outline-none font-bold text-slate-700 disabled:bg-slate-50 disabled:text-slate-400"
+                    required
+                    disabled={!selectedClass || getSubjectsForClass(selectedClass).length === 0}
                   >
-                    {subjectList.map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
+                    {!selectedClass ? (
+                      <option value="">Select Class First</option>
+                    ) : getSubjectsForClass(selectedClass).length === 0 ? (
+                      <option value="">No subjects added for {selectedClass}</option>
+                    ) : (
+                      <>
+                        <option value="">Select Subject</option>
+                        {getSubjectsForClass(selectedClass).map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </>
+                    )}
                   </select>
                 </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-slate-500 font-bold">Book Cover Image</label>
-                <input
-                  type="text"
-                  placeholder="Attach file path..."
-                  value={attachedImage}
-                  onChange={e => setAttachedImage(e.target.value)}
-                  className="px-3 py-2 border rounded-lg outline-none font-bold bg-white"
-                />
+                <div className="flex items-center gap-3 p-3 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
+                  {attachedImage ? (
+                    <div className="relative w-14 h-16 rounded-lg overflow-hidden border border-slate-300 shadow-sm shrink-0 bg-white">
+                      <img src={attachedImage} alt="Book cover" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setAttachedImage('')}
+                        className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600 shadow"
+                        title="Remove image"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-14 h-16 rounded-lg border border-slate-200 bg-white flex items-center justify-center shrink-0 text-slate-400">
+                      <BookOpen className="w-6 h-6 text-slate-300" />
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-1 flex-1">
+                    <label className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-bold text-slate-700 cursor-pointer shadow-sm transition-colors w-fit">
+                      <Upload className="w-3.5 h-3.5 text-teal-600" />
+                      <span>{attachedImage ? 'Change Cover' : 'Upload Cover Image'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-semibold">PNG, JPG or WebP (Max 5MB)</span>
+                  </div>
+                </div>
               </div>
 
               <div className="flex justify-end gap-3 pt-2 border-t">

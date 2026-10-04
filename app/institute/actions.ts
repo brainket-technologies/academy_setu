@@ -7,6 +7,17 @@ export async function fetchInstituteName() {
   return session?.name || 'Name'
 }
 
+export async function fetchCurrentInstituteInfo() {
+  const session = await getSession('institute_session')
+  if (!session?.userId) return null
+  return {
+    id: session.userId,
+    name: session.name,
+    email: session.email,
+    role: session.role
+  }
+}
+
 export async function fetchStatesDistricts() {
   const session = await getSession('institute_session')
   if (!session?.userId) return { success: false, error: 'Unauthorized' }

@@ -1,13 +1,23 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Check, X, Camera, Paperclip, Plus, FileEdit, Printer, Upload } from 'lucide-react'
 import Link from 'next/link'
+import { fetchEmployeeRoles } from '../roles/actions'
 
 const STEPS = ['Personal Details', 'Qualification Details', 'Address Details', 'Payroll & Leave', 'Payment Details']
 
 export default function AddEmployeePage() {
   const [currentStep, setCurrentStep] = useState(0)
+  const [roles, setRoles] = useState<any[]>([])
+
+  useEffect(() => {
+    fetchEmployeeRoles().then(res => {
+      if (res.success && Array.isArray(res.data)) {
+        setRoles(res.data)
+      }
+    })
+  }, [])
 
   return (
     <div className="flex flex-col gap-6 max-w-[1200px] mx-auto w-full pb-10 animate-in fade-in duration-300">
@@ -65,7 +75,10 @@ export default function AddEmployeePage() {
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-700">Role <span className="text-red-500">*</span></label>
                 <select className="px-4 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500">
-                  <option>Select Role</option>
+                  <option value="">Select Role</option>
+                  {roles.map((r: any) => (
+                    <option key={r.id} value={r.name}>{r.name}</option>
+                  ))}
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">

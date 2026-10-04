@@ -19,8 +19,18 @@ const STEPS = [
   'Fee Details'
 ]
 
-export default function AddStudentWizard({ initialData, onClose }: { initialData?: any, onClose: () => void }) {
-  const [currentStep, setCurrentStep] = useState(1)
+export default function AddStudentWizard({ 
+  initialData, 
+  initialStep = 1,
+  onClose,
+  onDraftSaved
+}: { 
+  initialData?: any, 
+  initialStep?: number,
+  onClose: () => void,
+  onDraftSaved?: () => void
+}) {
+  const [currentStep, setCurrentStep] = useState(initialData?.draftStep || initialStep || 1)
   
   const [formData, setFormData] = useState<any>(() => {
     const defaultData = {
@@ -145,9 +155,77 @@ export default function AddStudentWizard({ initialData, onClose }: { initialData
     })
   }, [])
 
-  const [showPromoModal, setShowPromoModal] = useState(false)
+  const [promoModalState, setPromoModalState] = useState<{ open: boolean, feeType?: string, targetKey?: string }>({ open: false })
+
+  const handleOpenPromo = (targetKey: string, feeType?: string) => {
+    setPromoModalState({ open: true, targetKey, feeType })
+  }
+
+  const handleApplyPromo = (promo: any) => {
+    if (promoModalState.targetKey) {
+      const codeStr = promo.promoCode || promo.code || promo.name || 'APPLIED'
+      updateForm(`${promoModalState.targetKey}Promo`, codeStr)
+    }
+    setPromoModalState({ open: false })
+  }
 
   const updateForm = (key: string, value: any) => setFormData((prev: any) => ({ ...prev, [key]: value }))
+
+  // Save Draft Helper
+  const saveDraftRecord = (step: number = currentStep, customData?: any, showToast: boolean = false) => {
+    const dataToSave = customData || formData
+    if (!dataToSave.firstName && !dataToSave.mobileNo && !dataToSave.class) {
+      return null
+    }
+
+    const draftId = dataToSave.draftId || dataToSave.id || `DRAFT-${Date.now()}`
+    const draftRecord = {
+      ...dataToSave,
+      draftId,
+      id: draftId,
+      draftStep: step,
+      lastSaved: new Date().toISOString(),
+      status: 'Draft',
+      firstName: dataToSave.firstName || '',
+      lastName: dataToSave.lastName || '',
+      name: `${dataToSave.firstName || 'Draft'} ${dataToSave.lastName || ''}`.trim(),
+      class_name: `${dataToSave.class || 'N/A'}${dataToSave.section ? ` (${dataToSave.section})` : ''}`,
+      contact: dataToSave.mobileNo || '',
+    }
+
+    try {
+      const raw = localStorage.getItem('school_draft_students')
+      let list: any[] = []
+      if (raw) list = JSON.parse(raw)
+      const idx = list.findIndex((d: any) => String(d.draftId || d.id) === String(draftId))
+      if (idx >= 0) {
+        list[idx] = draftRecord
+      } else {
+        list.unshift(draftRecord)
+      }
+      localStorage.setItem('school_draft_students', JSON.stringify(list))
+      if (showToast) {
+        toast.success('Student saved to Drafts! You can resume anytime from Draft Students.')
+      }
+      if (onDraftSaved) onDraftSaved()
+      return draftRecord
+    } catch (e) {
+      console.error('Error saving draft:', e)
+      return null
+    }
+  }
+
+  const handleSaveAndExit = () => {
+    saveDraftRecord(currentStep, formData, true)
+    onClose()
+  }
+
+  const handleClose = () => {
+    if (formData.firstName || formData.mobileNo || formData.class) {
+      saveDraftRecord(currentStep, formData, false)
+    }
+    onClose()
+  }
 
   const validateStep = (step: number): boolean => {
     if (step === 1) {
@@ -200,10 +278,13 @@ export default function AddStudentWizard({ initialData, onClose }: { initialData
     if (!validateStep(currentStep)) {
       return
     }
-    setCurrentStep(prev => Math.min(prev + 1, 6))
+    const nextStep = Math.min(currentStep + 1, 6)
+    setCurrentStep(nextStep)
+    // Auto-save draft on step progression
+    saveDraftRecord(nextStep, formData, false)
   }
   
-  const handleBack = () => setCurrentStep(prev => Math.max(prev - 1, 1))
+  const handleBack = () => setCurrentStep((prev: number) => Math.max(prev - 1, 1))
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-[1050px] shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200 my-auto">
@@ -211,16 +292,33 @@ export default function AddStudentWizard({ initialData, onClose }: { initialData
       {/* Modal Header */}
       <div className="bg-slate-900 text-white px-8 py-5 flex justify-between items-center shrink-0">
         <div>
-          <h1 className="text-lg font-black uppercase tracking-wider text-teal-400">Add Student</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-black uppercase tracking-wider text-teal-400">Add Student</h1>
+            {initialData?.draftStep && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                Draft (Step {initialData.draftStep}/5)
+              </span>
+            )}
+          </div>
           <p className="text-[12px] text-slate-300 font-medium">Configure student profile, credentials, documents & fee structure</p>
         </div>
-        <button 
-          type="button"
-          onClick={onClose} 
-          className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            type="button"
+            onClick={handleSaveAndExit}
+            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all flex items-center gap-1.5"
+            title="Save your progress as Draft"
+          >
+            💾 Save as Draft
+          </button>
+          <button 
+            type="button"
+            onClick={handleClose} 
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Stepper Bar Header */}
@@ -236,7 +334,9 @@ export default function AddStudentWizard({ initialData, onClose }: { initialData
                 key={stepNumber}
                 type="button"
                 onClick={() => {
-                  if (stepNumber < currentStep) setCurrentStep(stepNumber)
+                  if (stepNumber < currentStep || (initialData && initialData.draftStep >= stepNumber)) {
+                    setCurrentStep(stepNumber)
+                  }
                 }}
                 className={`flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                   isActive 
@@ -264,15 +364,22 @@ export default function AddStudentWizard({ initialData, onClose }: { initialData
 
       {/* Modal Scrollable Core */}
       <div className="p-8 overflow-y-auto flex-1 space-y-8">
-        {currentStep === 1 && <Step1 formData={formData} masters={masters} updateForm={updateForm} onNext={handleNext} onCancel={onClose} />}
-        {currentStep === 2 && <Step2 formData={formData} updateForm={updateForm} onNext={handleNext} onBack={handleBack} onCancel={onClose} />}
-        {currentStep === 3 && <Step3 formData={formData} masters={masters} updateForm={updateForm} onNext={handleNext} onBack={handleBack} onCancel={onClose} />}
-        {currentStep === 4 && <Step4 formData={formData} masters={masters} updateForm={updateForm} onNext={handleNext} onBack={handleBack} onCancel={onClose} />}
-        {currentStep === 5 && <Step5 formData={formData} updateForm={updateForm} onNext={handleNext} onBack={handleBack} onCancel={onClose} onOpenPromo={() => setShowPromoModal(true)} />}
-        {currentStep === 6 && <Step6 formData={formData} onBack={handleBack} onCancel={onClose} onEditStep={(step: number) => setCurrentStep(step)} />}
+        {currentStep === 1 && <Step1 formData={formData} masters={masters} updateForm={updateForm} onNext={handleNext} onCancel={handleClose} onSaveDraft={handleSaveAndExit} />}
+        {currentStep === 2 && <Step2 formData={formData} updateForm={updateForm} onNext={handleNext} onBack={handleBack} onCancel={handleClose} onSaveDraft={handleSaveAndExit} />}
+        {currentStep === 3 && <Step3 formData={formData} masters={masters} updateForm={updateForm} onNext={handleNext} onBack={handleBack} onCancel={handleClose} onSaveDraft={handleSaveAndExit} />}
+        {currentStep === 4 && <Step4 formData={formData} masters={masters} updateForm={updateForm} onNext={handleNext} onBack={handleBack} onCancel={handleClose} onSaveDraft={handleSaveAndExit} />}
+        {currentStep === 5 && <Step5 formData={formData} updateForm={updateForm} onNext={handleNext} onBack={handleBack} onCancel={handleClose} onOpenPromo={handleOpenPromo} onSaveDraft={handleSaveAndExit} />}
+        {currentStep === 6 && <Step6 formData={formData} onBack={handleBack} onCancel={handleClose} onEditStep={(step: number) => setCurrentStep(step)} />}
       </div>
 
-      {showPromoModal && <PromoCodeModal onClose={() => setShowPromoModal(false)} />}
+      {promoModalState.open && (
+        <PromoCodeModal 
+          feeType={promoModalState.feeType}
+          targetKey={promoModalState.targetKey}
+          onApply={handleApplyPromo}
+          onClose={() => setPromoModalState({ open: false })} 
+        />
+      )}
     </div>
   )
 }
@@ -375,15 +482,39 @@ function FileUploadField({ label, required, placeholder, value, onChange }: any)
   )
 }
 
-function PromoCodeField({ label, placeholder, onClick }: any) {
+function PromoCodeField({ label, placeholder, value, onClear, onClick }: any) {
   return (
     <div className="flex flex-col gap-1.5 w-full relative">
        <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">
          {label}
        </label>
-       <div className="relative w-full cursor-pointer" onClick={onClick}>
-         <input type="text" placeholder={placeholder} readOnly className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-400 cursor-pointer pr-10 pointer-events-none" />
-         <Percent className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-teal-500" />
+       <div className="relative w-full cursor-pointer group" onClick={onClick}>
+         <input 
+           type="text" 
+           placeholder={placeholder || 'Select an Option'} 
+           value={value ? `Promo: ${value}` : ''}
+           readOnly 
+           className={`w-full px-3 py-2 border rounded-lg text-sm cursor-pointer pr-10 pointer-events-none font-semibold transition-all ${
+             value 
+               ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-300' 
+               : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 group-hover:border-teal-400'
+           }`} 
+         />
+         {value ? (
+           <button
+             type="button"
+             onClick={(e) => {
+               e.stopPropagation()
+               if (onClear) onClear()
+             }}
+             title="Remove Promo Code"
+             className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 cursor-pointer pointer-events-auto transition-colors"
+           >
+             <X className="w-3.5 h-3.5" />
+           </button>
+         ) : (
+           <Percent className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-teal-500 pointer-events-none" />
+         )}
        </div>
     </div>
   )
@@ -392,7 +523,7 @@ function PromoCodeField({ label, placeholder, onClick }: any) {
 // ---------------------------------------------------------
 // STEP 1: PERSONAL DETAILS
 // ---------------------------------------------------------
-function Step1({ formData, masters, updateForm, onNext, onCancel }: any) {
+function Step1({ formData, masters, updateForm, onNext, onCancel, onSaveDraft }: any) {
   const todayStr = new Date().toISOString().split('T')[0]
   const isClassSelected = Boolean(formData.class && formData.class !== 'Select a Class')
 
@@ -526,8 +657,13 @@ function Step1({ formData, masters, updateForm, onNext, onCancel }: any) {
       </div>
 
       <div className="flex justify-center gap-4 pt-4">
-        <button onClick={onCancel} className="px-10 py-2.5 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-all shadow-sm">Cancel</button>
-        <button onClick={onNext} className="px-10 py-2.5 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 transition-all shadow-sm">Save & Next</button>
+        <button type="button" onClick={onCancel} className="px-8 py-2.5 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-all shadow-sm">Cancel</button>
+        {onSaveDraft && (
+          <button type="button" onClick={onSaveDraft} className="px-8 py-2.5 bg-amber-50 border border-amber-300 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 font-bold rounded-xl hover:bg-amber-100 transition-all shadow-sm flex items-center gap-1.5">
+            <span>💾</span> Save as Draft
+          </button>
+        )}
+        <button type="button" onClick={onNext} className="px-10 py-2.5 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 transition-all shadow-sm">Save & Next</button>
       </div>
 
     </div>
@@ -537,7 +673,7 @@ function Step1({ formData, masters, updateForm, onNext, onCancel }: any) {
 // ---------------------------------------------------------
 // STEP 2: EDUCATION DETAILS
 // ---------------------------------------------------------
-function Step2({ formData, updateForm, onNext, onBack, onCancel }: any) {
+function Step2({ formData, updateForm, onNext, onBack, onCancel, onSaveDraft }: any) {
   return (
     <div className="flex flex-col gap-8 animate-in fade-in duration-300">
       
@@ -599,9 +735,14 @@ function Step2({ formData, updateForm, onNext, onBack, onCancel }: any) {
       </div>
 
       <div className="flex justify-center gap-4 pt-4">
-        <button onClick={onBack} className="px-10 py-2.5 bg-white border border-slate-200 text-teal-600 font-bold rounded-xl hover:bg-slate-50 transition-all shadow-sm">Back</button>
-        <button onClick={onCancel} className="px-10 py-2.5 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-all shadow-sm">Cancel</button>
-        <button onClick={onNext} className="px-10 py-2.5 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 transition-all shadow-sm">Save & Next</button>
+        <button type="button" onClick={onBack} className="px-8 py-2.5 bg-white border border-slate-200 text-teal-600 font-bold rounded-xl hover:bg-slate-50 transition-all shadow-sm">Back</button>
+        <button type="button" onClick={onCancel} className="px-8 py-2.5 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-all shadow-sm">Cancel</button>
+        {onSaveDraft && (
+          <button type="button" onClick={onSaveDraft} className="px-8 py-2.5 bg-amber-50 border border-amber-300 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 font-bold rounded-xl hover:bg-amber-100 transition-all shadow-sm flex items-center gap-1.5">
+            <span>💾</span> Save as Draft
+          </button>
+        )}
+        <button type="button" onClick={onNext} className="px-10 py-2.5 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 transition-all shadow-sm">Save & Next</button>
       </div>
     </div>
   )
@@ -612,6 +753,29 @@ function Step2({ formData, updateForm, onNext, onBack, onCancel }: any) {
 // ---------------------------------------------------------
 function Step3({ formData, masters, updateForm, onNext, onBack, onCancel }: any) {
   const [parentList, setParentList] = useState<any[]>([])
+  const [selectedParentId, setSelectedParentId] = useState<string>('')
+
+  const handleClearParent = () => {
+    setSelectedParentId('')
+    updateForm('fatherName', '')
+    updateForm('fatherContact', '')
+    updateForm('fatherOccupation', '')
+    updateForm('fatherIncome', '')
+    updateForm('fatherIncomeCert', '')
+    updateForm('fatherPhoto', '')
+
+    updateForm('motherName', '')
+    updateForm('motherContact', '')
+    updateForm('motherOccupation', '')
+    updateForm('motherIncome', '')
+    updateForm('motherIncomeCert', '')
+    updateForm('motherPhoto', '')
+
+    updateForm('address', '')
+    updateForm('state', '')
+    updateForm('district', '')
+    updateForm('pincode', '')
+  }
 
   useEffect(() => {
     let rawParents: any[] = []
@@ -653,50 +817,95 @@ function Step3({ formData, masters, updateForm, onNext, onBack, onCancel }: any)
         <div className="flex items-center gap-4 mb-6">
            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">Parents Details</h3>
            <div className="h-[1px] w-full bg-slate-200 dark:bg-slate-700" />
-           <select 
-             className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold bg-white text-slate-700 outline-none max-w-[220px] shrink-0 cursor-pointer"
-             onChange={(e) => {
-               const selectedVal = e.target.value
-               if (selectedVal && parentList.length > 0) {
-                 const found = parentList.find((p: any) => String(p.id) === selectedVal || String(p.name) === selectedVal || String(p.fatherName) === selectedVal || String(p.firstName) === selectedVal)
-                 if (found) {
-                   const fatherName = found.fatherName || found.name || (found.firstName ? `${found.firstName} ${found.lastName || ''}`.trim() : '')
-                   const contact = found.fatherContact || found.contact || found.mobileNo || ''
-                   const occupation = found.fatherOccupation || found.occupation || found.employmentType || ''
-                   const income = found.fatherIncome || found.annualIncome || ''
-
-                   updateForm('fatherName', fatherName)
-                   updateForm('fatherContact', contact)
-                   updateForm('fatherOccupation', occupation)
-                   updateForm('fatherIncome', income)
-
-                   if (found.motherName) updateForm('motherName', found.motherName)
-                   if (found.motherContact) updateForm('motherContact', found.motherContact)
-                   if (found.motherOccupation) updateForm('motherOccupation', found.motherOccupation)
-
-                   if (found.address) updateForm('address', found.address)
-                   if (found.state || found.stateName) updateForm('state', found.state || found.stateName)
-                   if (found.district) updateForm('district', found.district)
-                   if (found.pincode) updateForm('pincode', found.pincode)
+           <div className="flex items-center gap-2 shrink-0">
+             <select 
+               value={selectedParentId}
+               className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold bg-white text-slate-700 outline-none max-w-[260px] shrink-0 cursor-pointer"
+               onChange={(e) => {
+                 const selectedVal = e.target.value
+                 setSelectedParentId(selectedVal)
+                 if (!selectedVal) {
+                   handleClearParent()
+                   return
                  }
-               }
-             }}
-           >
-             <option value="">Select Parent</option>
-             {parentList && parentList.length > 0 ? (
-               parentList.map((p: any, idx: number) => {
-                 const displayName = p.fatherName || p.name || (p.firstName ? `${p.firstName} ${p.lastName || ''}`.trim() : `Parent #${p.id}`)
-                 const displayContact = p.fatherContact || p.contact || p.mobileNo || 'N/A'
-                 return (
-                   <option key={idx} value={String(p.id || displayName)}>
-                     {displayName} ({displayContact})
-                   </option>
-                 )
-               })
-             ) : (
-               <option value="" disabled>No Parents Registered</option>
+                 if (selectedVal && parentList.length > 0) {
+                   const found = parentList.find((p: any) => 
+                     String(p.id) === selectedVal || 
+                     String(p.name) === selectedVal || 
+                     String(p.fatherName) === selectedVal || 
+                     String(p.motherName) === selectedVal || 
+                     String(p.firstName) === selectedVal
+                   )
+                   if (found) {
+                     const rawName = found.name || (found.firstName ? `${found.firstName} ${found.lastName || ''}`.trim() : '')
+                     const contact = found.contact || found.mobileNo || found.fatherContact || found.motherContact || ''
+                     const occupation = found.occupation || found.employmentType || found.fatherOccupation || found.motherOccupation || ''
+                     const income = found.annualIncome || found.income || found.fatherIncome || found.motherIncome || ''
+
+                     const pType = (found.parentType || '').toLowerCase()
+                     const gender = (found.gender || '').toLowerCase()
+                     const isMother = pType === 'mother' || (!pType && gender === 'female') || (found.motherName && !found.fatherName)
+
+                     if (isMother) {
+                       updateForm('motherName', found.motherName || rawName)
+                       updateForm('motherContact', found.motherContact || contact)
+                       updateForm('motherOccupation', found.motherOccupation || occupation)
+                       updateForm('motherIncome', found.motherIncome || income)
+
+                       updateForm('fatherName', found.fatherName || '')
+                       updateForm('fatherContact', found.fatherContact || '')
+                       updateForm('fatherOccupation', found.fatherOccupation || '')
+                       updateForm('fatherIncome', found.fatherIncome || '')
+                     } else {
+                       updateForm('fatherName', found.fatherName || rawName)
+                       updateForm('fatherContact', found.fatherContact || contact)
+                       updateForm('fatherOccupation', found.fatherOccupation || occupation)
+                       updateForm('fatherIncome', found.fatherIncome || income)
+
+                       updateForm('motherName', found.motherName || '')
+                       updateForm('motherContact', found.motherContact || '')
+                       updateForm('motherOccupation', found.motherOccupation || '')
+                       updateForm('motherIncome', found.motherIncome || '')
+                     }
+
+                     if (found.address) updateForm('address', found.address)
+                     if (found.state || found.stateName) updateForm('state', found.state || found.stateName)
+                     if (found.district) updateForm('district', found.district)
+                     if (found.pincode) updateForm('pincode', found.pincode)
+                   }
+                 }
+               }}
+             >
+               <option value="">Select Parent</option>
+               {parentList && parentList.length > 0 ? (
+                 parentList.map((p: any, idx: number) => {
+                   const rawName = p.name || (p.firstName ? `${p.firstName} ${p.lastName || ''}`.trim() : '')
+                   const pType = p.parentType || (p.gender === 'Female' ? 'Mother' : p.gender === 'Male' ? 'Father' : 'Parent')
+                   const displayName = (pType.toLowerCase() === 'mother' ? (p.motherName || rawName) : (p.fatherName || rawName)) || `Parent #${p.id}`
+                   const displayContact = p.contact || p.mobileNo || p.fatherContact || p.motherContact || 'N/A'
+                   return (
+                     <option key={idx} value={String(p.id || displayName)}>
+                       {displayName} ({pType} - {displayContact})
+                     </option>
+                   )
+                 })
+               ) : (
+                 <option value="" disabled>No Parents Registered</option>
+               )}
+             </select>
+
+             {selectedParentId && (
+               <button
+                 type="button"
+                 onClick={handleClearParent}
+                 title="Deselect parent"
+                 className="px-2.5 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer"
+               >
+                 <X className="w-3.5 h-3.5" />
+                 <span>Deselect</span>
+               </button>
              )}
-           </select>
+           </div>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -706,8 +915,8 @@ function Step3({ formData, masters, updateForm, onNext, onBack, onCancel }: any)
            <div /> {/* spacing */}
 
            <InputField label="Father Annual Income" placeholder="Enter Annual Income" value={formData.fatherIncome} onChange={(e: any) => updateForm('fatherIncome', e.target.value)} />
-           <InputField label="Father Income Certificate" placeholder="Enter Income Certificate No." />
-           <FileUploadField label="Father Photo" placeholder="Upload Photo" />
+           <InputField label="Father Income Certificate" placeholder="Enter Income Certificate No." value={formData.fatherIncomeCert} onChange={(e: any) => updateForm('fatherIncomeCert', e.target.value)} />
+           <FileUploadField label="Father Photo" placeholder="Upload Photo" value={formData.fatherPhoto} onChange={(val: string) => updateForm('fatherPhoto', val)} />
            <div /> {/* spacing */}
 
            <div className="col-span-full h-4" />
@@ -717,9 +926,9 @@ function Step3({ formData, masters, updateForm, onNext, onBack, onCancel }: any)
            <InputField label="Mother Occupation" placeholder="Enter Occupation" value={formData.motherOccupation} onChange={(e: any) => updateForm('motherOccupation', e.target.value)} />
            <div /> {/* spacing */}
 
-           <InputField label="Mother Annual Income" placeholder="Enter Annual Income" />
-           <InputField label="Mother Income Certificate" placeholder="Enter Income Certificate No." />
-           <FileUploadField label="Mother Photo" placeholder="Upload Photo" />
+           <InputField label="Mother Annual Income" placeholder="Enter Annual Income" value={formData.motherIncome} onChange={(e: any) => updateForm('motherIncome', e.target.value)} />
+           <InputField label="Mother Income Certificate" placeholder="Enter Income Certificate No." value={formData.motherIncomeCert} onChange={(e: any) => updateForm('motherIncomeCert', e.target.value)} />
+           <FileUploadField label="Mother Photo" placeholder="Upload Photo" value={formData.motherPhoto} onChange={(val: string) => updateForm('motherPhoto', val)} />
            <div /> {/* spacing */}
         </div>
       </div>
@@ -982,44 +1191,52 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
       } catch (e) {}
     }
 
-    // 3. Read transportation_fees
+    // 3. Read transportation_fees (configured under Fees Setup -> Transportation Fee)
     const savedFees = localStorage.getItem('transportation_fees')
     if (savedFees) {
       try {
         const list = JSON.parse(savedFees)
         if (Array.isArray(list)) {
           list.forEach((f: any) => {
-            const rName = f.route || f.routeName
+            const rName = (f.route || f.routeName || '').trim()
+            const pickup = (f.pickupLocation || f.location || f.stoppage || '').trim()
+            const drop = (f.dropLocation || '').trim()
+            const locLabel = pickup || (drop ? `Drop: ${drop}` : `Stop #${f.id}`)
+            
             const stItem = {
-              location: f.location || f.stoppage || `Stop ${f.id}`,
-              km: f.km || f.distance || '15',
-              fee: f.monthly || f.amount || f.fee || '1000',
-              monthly: f.monthly || (f.amount ? `${f.amount}/-` : ''),
-              quarterly: f.quarterly || '',
-              halfYearly: f.halfYearly || '',
-              yearly: f.yearly || ''
+              pickupLocation: pickup,
+              dropLocation: drop,
+              location: locLabel,
+              km: String(f.km || f.distance || '10'),
+              oneTime: f.oneTime && f.oneTime !== '-' ? f.oneTime : '',
+              monthly: f.monthly && f.monthly !== '-' ? f.monthly : (f.amount ? `${f.amount}/-` : ''),
+              quarterly: f.quarterly && f.quarterly !== '-' ? f.quarterly : '',
+              halfYearly: f.halfYearly && f.halfYearly !== '-' ? f.halfYearly : '',
+              yearly: f.yearly && f.yearly !== '-' ? f.yearly : '',
+              fee: f.monthly || f.oneTime || (f.amount ? `${f.amount}/-` : '500/-')
             }
+
             if (rName) {
               const cleanR = rName.replace(/\s*\([^)]*\)/, '').trim().toLowerCase()
-              if (!routesArr.some(rKey => rKey.replace(/\s*\([^)]*\)/, '').trim().toLowerCase() === cleanR)) {
-                routesArr.push(rName)
-              }
-              routesArr.forEach(rKey => {
+              
+              const matchedKey = routesArr.find(rKey => {
                 const cleanKey = rKey.replace(/\s*\([^)]*\)/, '').trim().toLowerCase()
-                if (rKey === rName || cleanKey === cleanR || cleanKey.includes(cleanR) || cleanR.includes(cleanKey)) {
-                  if (!stoppagesMap[rKey]) stoppagesMap[rKey] = []
-                  if (!stoppagesMap[rKey].some((s: any) => s.location === stItem.location)) {
-                    stoppagesMap[rKey].push(stItem)
-                  }
-                }
+                return cleanKey === cleanR || cleanKey.includes(cleanR) || cleanR.includes(cleanKey)
               })
-              if (!stoppagesMap[rName]) {
-                stoppagesMap[rName] = [stItem]
-              } else if (!stoppagesMap[rName].some((s: any) => s.location === stItem.location)) {
+              const targetRouteKey = matchedKey || (f.vehicle ? `${rName} (${f.vehicle})` : rName)
+              if (!routesArr.includes(targetRouteKey)) {
+                routesArr.push(targetRouteKey)
+              }
+
+              if (!stoppagesMap[targetRouteKey]) stoppagesMap[targetRouteKey] = []
+              if (!stoppagesMap[targetRouteKey].some((s: any) => s.location === stItem.location)) {
+                stoppagesMap[targetRouteKey].push(stItem)
+              }
+              if (!stoppagesMap[rName]) stoppagesMap[rName] = []
+              if (!stoppagesMap[rName].some((s: any) => s.location === stItem.location)) {
                 stoppagesMap[rName].push(stItem)
               }
             } else {
-              // Attach to all routes if no specific route name specified
               routesArr.forEach(rKey => {
                 if (!stoppagesMap[rKey]) stoppagesMap[rKey] = []
                 if (!stoppagesMap[rKey].some((s: any) => s.location === stItem.location)) {
@@ -1077,11 +1294,12 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
   const calculateTransFeeForDuration = (found: any, dur: string) => {
     if (!found) return
     let feeStr = ''
-    if (dur === 'Monthly') feeStr = found.monthly || found.fee
+    if (dur === 'One Time' || dur === 'Onetime') feeStr = found.oneTime || found.monthly || found.fee
+    else if (dur === 'Monthly') feeStr = found.monthly || found.fee
     else if (dur === 'Quarterly') feeStr = found.quarterly || found.monthly || found.fee
     else if (dur === 'Half Yearly' || dur === 'Quartly') feeStr = found.halfYearly || found.monthly || found.fee
     else if (dur === 'Yearly' || dur === 'Annually') feeStr = found.yearly || found.monthly || found.fee
-    else feeStr = found.monthly || found.fee
+    else feeStr = found.monthly || found.fee || ''
 
     if (feeStr) updateForm('transFee', formatFeeVal(feeStr))
   }
@@ -1096,7 +1314,8 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
         }
         const dur = formData.transFeeDuration || 'Monthly'
         let feeStr = ''
-        if (dur === 'Monthly') feeStr = found.monthly || found.fee
+        if (dur === 'One Time' || dur === 'Onetime') feeStr = found.oneTime || found.monthly || found.fee
+        else if (dur === 'Monthly') feeStr = found.monthly || found.fee
         else if (dur === 'Quarterly') feeStr = found.quarterly || found.monthly || found.fee
         else if (dur === 'Half Yearly' || dur === 'Quartly') feeStr = found.halfYearly || found.monthly || found.fee
         else if (dur === 'Yearly' || dur === 'Annually') feeStr = found.yearly || found.monthly || found.fee
@@ -1114,7 +1333,7 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
     updateForm('transStoppage', stopVal)
     const found = availableStoppages.find(s => s.location === stopVal)
     if (found) {
-      updateForm('transDistance', `${found.km} Km`)
+      updateForm('transDistance', found.km ? `${found.km} Km` : '')
       const dur = formData.transFeeDuration || 'Monthly'
       if (!formData.transFeeDuration) updateForm('transFeeDuration', 'Monthly')
       calculateTransFeeForDuration(found, dur)
@@ -1228,6 +1447,28 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
     }
   }
 
+  // Calculate Summary for all active fees
+  let totalGrossBase = 0
+  let totalDiscountAll = 0
+  let totalNetAll = 0
+
+  const accumulateFee = (enabled: boolean, baseStr: any, promo?: string) => {
+    if (!enabled) return
+    const res = calculateFinalFee(baseStr, promo)
+    totalGrossBase += res.baseFee
+    totalDiscountAll += res.discount
+    totalNetAll += res.finalFee
+  }
+
+  accumulateFee(feeEnabled.regFee, formData.regFee, formData.regFeePromo)
+  accumulateFee(feeEnabled.admFee, formData.admFee, formData.admFeePromo)
+  accumulateFee(feeEnabled.classFee, formData.isRteStudent === 'Yes' ? '0' : formData.classFee, formData.classFeePromo)
+  accumulateFee(feeEnabled.libFee, formData.libFee, formData.libFeePromo)
+  accumulateFee(feeEnabled.examFee, formData.examFee, formData.examFeePromo)
+  accumulateFee(feeEnabled.hostelFee, formData.hostelFee, formData.hostelFeePromo)
+  accumulateFee(feeEnabled.extraFee, formData.extraFee, formData.extraFeePromo)
+  accumulateFee(feeEnabled.transFee, formData.transFee, formData.transFeePromo)
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-300">
       
@@ -1235,7 +1476,9 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
         title="Registration Fee" 
         enabled={feeEnabled.regFee} 
         onToggle={() => toggleFee('regFee')} 
-        onOpenPromo={onOpenPromo} 
+        onOpenPromo={() => onOpenPromo('regFee', 'Registration Fee')} 
+        promoValue={formData.regFeePromo}
+        onClearPromo={() => updateForm('regFeePromo', '')}
         storageKey="school_registration_fees"
         studentClass={formData.class}
         durationValue={formData.regFeeDuration}
@@ -1250,7 +1493,9 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
         title="Admission Fee" 
         enabled={feeEnabled.admFee} 
         onToggle={() => toggleFee('admFee')} 
-        onOpenPromo={onOpenPromo} 
+        onOpenPromo={() => onOpenPromo('admFee', 'Admission Fee')} 
+        promoValue={formData.admFeePromo}
+        onClearPromo={() => updateForm('admFeePromo', '')}
         storageKey="school_admission_fees"
         studentClass={formData.class}
         durationValue={formData.admFeeDuration}
@@ -1266,48 +1511,89 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
         required 
         enabled={feeEnabled.classFee} 
         onToggle={() => toggleFee('classFee')} 
-        onOpenPromo={onOpenPromo}
+        onOpenPromo={() => onOpenPromo('classFee', 'Class Fee')}
+        promoValue={formData.classFeePromo}
+        onClearPromo={() => updateForm('classFeePromo', '')}
       >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-           <div className="col-span-full mb-2">
-              <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">RTE Student <span className="text-red-500">*</span></label>
-              <p className="text-[10px] text-slate-400">Class Fee is not applicable for RTE Student according to Government.</p>
-              <div className="flex items-center gap-4 mt-2">
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-300">
-                  <input type="radio" name="rte" checked={formData.isRteStudent === 'Yes'} onChange={() => handleRteChange('Yes')} className="text-teal-600 focus:ring-teal-500" /> Yes
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-300">
-                  <input type="radio" name="rte" checked={formData.isRteStudent !== 'Yes'} onChange={() => handleRteChange('No')} className="text-teal-600 focus:ring-teal-500" /> No
-                </label>
-              </div>
-           </div>
-           
-           <SelectField 
-             label="Fee Duration" 
-             required 
-             options={classDurationOptions} 
-             value={formData.classFeeDuration || ''} 
-             onChange={(e: any) => handleClassDurationChange(e.target.value)} 
-           />
-           
-           <div className="flex flex-col gap-1.5 w-full">
-             <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">Fee</label>
-             <input 
-               value={formData.classFee || (formData.isRteStudent === 'Yes' ? '0/-' : '')} 
-               readOnly 
-               placeholder="Select Fee Duration"
-               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-300 outline-none font-semibold" 
-             />
-           </div>
-           <PromoCodeField label="Promo Code" placeholder="Select an Option" onClick={onOpenPromo} />
-        </div>
+        {(() => {
+          const classBaseFee = formData.isRteStudent === 'Yes' ? '0/-' : formData.classFee
+          const calculatedClass = calculateFinalFee(classBaseFee, formData.classFeePromo)
+
+          return (
+            <div className="flex flex-col gap-4">
+               <div className="mb-1">
+                  <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">RTE Student <span className="text-red-500">*</span></label>
+                  <p className="text-[10px] text-slate-400">Class Fee is not applicable for RTE Student according to Government.</p>
+                  <div className="flex items-center gap-4 mt-2">
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-300">
+                      <input type="radio" name="rte" checked={formData.isRteStudent === 'Yes'} onChange={() => handleRteChange('Yes')} className="text-teal-600 focus:ring-teal-500" /> Yes
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-300">
+                      <input type="radio" name="rte" checked={formData.isRteStudent !== 'Yes'} onChange={() => handleRteChange('No')} className="text-teal-600 focus:ring-teal-500" /> No
+                    </label>
+                  </div>
+               </div>
+               
+               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                 <SelectField 
+                   label="Fee Duration" 
+                   required 
+                   options={classDurationOptions} 
+                   value={formData.classFeeDuration || ''} 
+                   onChange={(e: any) => handleClassDurationChange(e.target.value)} 
+                 />
+                 
+                 <div className="flex flex-col gap-1.5 w-full">
+                   <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">Fee</label>
+                   <input 
+                     value={formData.classFee || (formData.isRteStudent === 'Yes' ? '0/-' : '')} 
+                     readOnly 
+                     placeholder="Select Fee Duration"
+                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-300 outline-none font-semibold" 
+                   />
+                 </div>
+
+                 <PromoCodeField 
+                   label="Promo Code" 
+                   placeholder="Select an Option" 
+                   value={formData.classFeePromo}
+                   onClear={() => updateForm('classFeePromo', '')}
+                   onClick={() => onOpenPromo('classFee', 'Class Fee')} 
+                 />
+
+                 <div className="flex flex-col gap-1.5 w-full">
+                   <div className="flex items-center justify-between">
+                     <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">Final Amount</label>
+                     {calculatedClass.discount > 0 && (
+                       <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                         {calculatedClass.discountTag}
+                       </span>
+                     )}
+                   </div>
+                   <input 
+                     value={formData.classFee || formData.isRteStudent === 'Yes' ? (calculatedClass.finalFeeStr || formData.classFee || '0/-') : ''} 
+                     readOnly 
+                     placeholder="Amount after Promo"
+                     className={`w-full px-3 py-2 border rounded-lg text-sm font-bold outline-none transition-all ${
+                       calculatedClass.discount > 0 
+                         ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-400 dark:border-emerald-600 text-emerald-600 dark:text-emerald-400' 
+                         : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                     }`} 
+                   />
+                 </div>
+               </div>
+            </div>
+          )
+        })()}
       </FeeSection>
 
       <FeeSection 
         title="Library Fee" 
         enabled={feeEnabled.libFee} 
         onToggle={() => toggleFee('libFee')} 
-        onOpenPromo={onOpenPromo} 
+        onOpenPromo={() => onOpenPromo('libFee', 'Library Fee')} 
+        promoValue={formData.libFeePromo}
+        onClearPromo={() => updateForm('libFeePromo', '')}
         storageKey="school_library_fees"
         studentClass={formData.class}
         durationValue={formData.libFeeDuration}
@@ -1322,7 +1608,9 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
         title="Exam Fee" 
         enabled={feeEnabled.examFee} 
         onToggle={() => toggleFee('examFee')} 
-        onOpenPromo={onOpenPromo} 
+        onOpenPromo={() => onOpenPromo('examFee', 'Exam Fee')} 
+        promoValue={formData.examFeePromo}
+        onClearPromo={() => updateForm('examFeePromo', '')}
         storageKey="school_exam_fees"
         studentClass={formData.class}
         durationValue={formData.examFeeDuration}
@@ -1337,101 +1625,237 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
         title="Hostel Fee" 
         enabled={feeEnabled.hostelFee} 
         onToggle={() => toggleFee('hostelFee')} 
-        onOpenPromo={onOpenPromo}
+        onOpenPromo={() => onOpenPromo('hostelFee', 'Hostel Fee')}
+        promoValue={formData.hostelFeePromo}
+        onClearPromo={() => updateForm('hostelFeePromo', '')}
       >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-           <SelectField 
-             label="Select Hostel Type" 
-             required 
-             options={hostelTypeOptions} 
-             value={formData.hostelType || ''}
-             onChange={(e: any) => handleHostelTypeChange(e.target.value)}
-           />
-           <SelectField 
-             label="Fee Duration" 
-             required 
-             options={['Select an Option', 'One Time', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']} 
-             value={formData.hostelFeeDuration || ''}
-             onChange={(e: any) => handleHostelDurationChange(e.target.value)}
-           />
-           <div className="flex flex-col gap-1.5 w-full">
-             <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">Fee</label>
-             <input 
-               value={formData.hostelFee || ''} 
-               onChange={(e: any) => updateForm('hostelFee', e.target.value)}
-               placeholder="Ex : 1,000/-" 
-               className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all text-slate-600 dark:text-slate-300 font-semibold" 
-             />
-           </div>
-           <PromoCodeField label="Promo Code" placeholder="Select an Option" onClick={onOpenPromo} />
-        </div>
+        {(() => {
+          const calculatedHostel = calculateFinalFee(formData.hostelFee, formData.hostelFeePromo)
+
+          return (
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <SelectField 
+                   label="Select Hostel Type" 
+                   required 
+                   options={hostelTypeOptions} 
+                   value={formData.hostelType || ''}
+                   onChange={(e: any) => handleHostelTypeChange(e.target.value)}
+                 />
+                 <SelectField 
+                   label="Fee Duration" 
+                   required 
+                   options={['Select an Option', 'One Time', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']} 
+                   value={formData.hostelFeeDuration || ''}
+                   onChange={(e: any) => handleHostelDurationChange(e.target.value)}
+                 />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                 <div className="flex flex-col gap-1.5 w-full">
+                   <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">Fee</label>
+                   <input 
+                     value={formData.hostelFee || ''} 
+                     onChange={(e: any) => updateForm('hostelFee', e.target.value)}
+                     placeholder="Ex : 1,000/-" 
+                     className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all text-slate-600 dark:text-slate-300 font-semibold" 
+                   />
+                 </div>
+                 <PromoCodeField 
+                   label="Promo Code" 
+                   placeholder="Select an Option" 
+                   value={formData.hostelFeePromo}
+                   onClear={() => updateForm('hostelFeePromo', '')}
+                   onClick={() => onOpenPromo('hostelFee', 'Hostel Fee')} 
+                 />
+                 <div className="flex flex-col gap-1.5 w-full">
+                   <div className="flex items-center justify-between">
+                     <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">Final Amount</label>
+                     {calculatedHostel.discount > 0 && (
+                       <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                         {calculatedHostel.discountTag}
+                       </span>
+                     )}
+                   </div>
+                   <input 
+                     value={formData.hostelFee ? (calculatedHostel.finalFeeStr || formData.hostelFee) : ''} 
+                     readOnly 
+                     placeholder="Amount after Promo"
+                     className={`w-full px-3 py-2 border rounded-lg text-sm font-bold outline-none transition-all ${
+                       calculatedHostel.discount > 0 
+                         ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-400 dark:border-emerald-600 text-emerald-600 dark:text-emerald-400' 
+                         : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                     }`} 
+                   />
+                 </div>
+              </div>
+            </div>
+          )
+        })()}
       </FeeSection>
       
       <FeeSection 
         title="Extra Curricular Fee" 
         enabled={feeEnabled.extraFee} 
         onToggle={() => toggleFee('extraFee')} 
-        onOpenPromo={onOpenPromo}
+        onOpenPromo={() => onOpenPromo('extraFee', 'Extra Curricular Fee')}
+        promoValue={formData.extraFeePromo}
+        onClearPromo={() => updateForm('extraFeePromo', '')}
       >
-        <ExtraCurricularMultiSelect 
-          formData={formData} 
-          updateForm={updateForm} 
-          masterActivities={extraActivities}
-        />
+        {(() => {
+          const calculatedExtra = calculateFinalFee(formData.extraFee, formData.extraFeePromo)
+          return (
+            <div className="flex flex-col gap-5">
+              <ExtraCurricularMultiSelect 
+                formData={formData} 
+                updateForm={updateForm} 
+                masterActivities={extraActivities}
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-100 dark:border-slate-700">
+                 <PromoCodeField 
+                   label="Extra Curricular Promo Code" 
+                   placeholder="Select an Option" 
+                   value={formData.extraFeePromo}
+                   onClear={() => updateForm('extraFeePromo', '')}
+                   onClick={() => onOpenPromo('extraFee', 'Extra Curricular Fee')} 
+                 />
+                 <div className="flex flex-col gap-1.5 w-full">
+                   <div className="flex items-center justify-between">
+                     <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">Final Amount</label>
+                     {calculatedExtra.discount > 0 && (
+                       <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                         {calculatedExtra.discountTag}
+                       </span>
+                     )}
+                   </div>
+                   <input 
+                     value={formData.extraFee ? (calculatedExtra.finalFeeStr || formData.extraFee) : ''} 
+                     readOnly 
+                     placeholder="Amount after Promo"
+                     className={`w-full px-3 py-2 border rounded-lg text-sm font-bold outline-none transition-all ${
+                       calculatedExtra.discount > 0 
+                         ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-400 dark:border-emerald-600 text-emerald-600 dark:text-emerald-400' 
+                         : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                     }`} 
+                   />
+                 </div>
+              </div>
+            </div>
+          )
+        })()}
       </FeeSection>
 
       <FeeSection 
         title="Transportation Service Fee" 
         enabled={feeEnabled.transFee} 
         onToggle={() => toggleFee('transFee')} 
-        onOpenPromo={onOpenPromo}
+        onOpenPromo={() => onOpenPromo('transFee', 'Transportation Fee')}
+        promoValue={formData.transFeePromo}
+        onClearPromo={() => updateForm('transFeePromo', '')}
       >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-           <SelectField 
-             label="Select Route" 
-             required 
-             options={routeOptions} 
-             value={formData.transRoute || ''}
-             onChange={(e: any) => handleTransRouteChange(e.target.value)}
-           />
-           <SelectField 
-             label="Select Pickup/Stoppage Location" 
-             required 
-             options={stoppageOptions} 
-             value={formData.transStoppage || ''}
-             onChange={(e: any) => handleTransStoppageChange(e.target.value)}
-           />
-           <div className="flex flex-col gap-1.5 w-full">
-             <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">Distance (Approx.)</label>
-             <input 
-               value={formData.transDistance || ''} 
-               placeholder="Ex: 20 Km"
-               readOnly 
-               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 outline-none font-semibold" 
-             />
-           </div>
+        {(() => {
+          const calculatedTrans = calculateFinalFee(formData.transFee, formData.transFeePromo)
 
-           <SelectField 
-             label="Fee Duration" 
-             required 
-             options={['Select an Option', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']} 
-             value={formData.transFeeDuration || ''}
-             onChange={(e: any) => handleTransFeeDurationChange(e.target.value)}
-           />
-           <div className="flex flex-col gap-1.5 w-full">
-             <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">Fee</label>
-             <input 
-               value={formData.transFee || ''} 
-               onChange={(e: any) => updateForm('transFee', e.target.value)}
-               placeholder="Ex : 1,000/-" 
-               className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all text-slate-600 dark:text-slate-300 font-semibold" 
-             />
-           </div>
-           <PromoCodeField label="Promo Code" placeholder="Select an Option" onClick={onOpenPromo} />
-        </div>
+          return (
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                 <SelectField 
+                   label="Select Route" 
+                   required 
+                   options={routeOptions} 
+                   value={formData.transRoute || ''}
+                   onChange={(e: any) => handleTransRouteChange(e.target.value)}
+                 />
+                 <SelectField 
+                   label="Select Pickup/Stoppage Location" 
+                   required 
+                   options={stoppageOptions} 
+                   value={formData.transStoppage || ''}
+                   onChange={(e: any) => handleTransStoppageChange(e.target.value)}
+                 />
+                 <div className="flex flex-col gap-1.5 w-full">
+                   <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">Distance (Approx.)</label>
+                   <input 
+                     value={formData.transDistance || ''} 
+                     placeholder="Ex: 20 Km"
+                     readOnly 
+                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 outline-none font-semibold" 
+                   />
+                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                 <SelectField 
+                   label="Fee Duration" 
+                   required 
+                   options={['Select an Option', 'One Time', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']} 
+                   value={formData.transFeeDuration || ''}
+                   onChange={(e: any) => handleTransFeeDurationChange(e.target.value)}
+                 />
+                 <div className="flex flex-col gap-1.5 w-full">
+                   <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">Fee</label>
+                   <input 
+                     value={formData.transFee || ''} 
+                     onChange={(e: any) => updateForm('transFee', e.target.value)}
+                     placeholder="Ex : 1,000/-" 
+                     className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all text-slate-600 dark:text-slate-300 font-semibold" 
+                   />
+                 </div>
+                 <PromoCodeField 
+                   label="Promo Code" 
+                   placeholder="Select an Option" 
+                   value={formData.transFeePromo}
+                   onClear={() => updateForm('transFeePromo', '')}
+                   onClick={() => onOpenPromo('transFee', 'Transportation Fee')} 
+                 />
+                 <div className="flex flex-col gap-1.5 w-full">
+                   <div className="flex items-center justify-between">
+                     <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">Final Amount</label>
+                     {calculatedTrans.discount > 0 && (
+                       <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                         {calculatedTrans.discountTag}
+                       </span>
+                     )}
+                   </div>
+                   <input 
+                     value={formData.transFee ? (calculatedTrans.finalFeeStr || formData.transFee) : ''} 
+                     readOnly 
+                     placeholder="Amount after Promo"
+                     className={`w-full px-3 py-2 border rounded-lg text-sm font-bold outline-none transition-all ${
+                       calculatedTrans.discount > 0 
+                         ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-400 dark:border-emerald-600 text-emerald-600 dark:text-emerald-400' 
+                         : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                     }`} 
+                   />
+                 </div>
+              </div>
+            </div>
+          )
+        })()}
       </FeeSection>
 
-      <div className="flex justify-center gap-4 pt-8">
+      {/* Interactive Total Fee Summary Bar */}
+      <div className="p-5 bg-gradient-to-r from-teal-50 via-emerald-50 to-teal-50 dark:from-teal-950/40 dark:via-emerald-950/30 dark:to-teal-950/40 rounded-2xl border-2 border-teal-200 dark:border-teal-800 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+        <div className="flex items-center gap-6 sm:gap-10">
+          <div>
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block uppercase tracking-wider">Total Base Fees</span>
+            <span className="text-lg font-black text-slate-800 dark:text-slate-100">₹{totalGrossBase.toLocaleString()}/-</span>
+          </div>
+          {totalDiscountAll > 0 && (
+            <div>
+              <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 block uppercase tracking-wider">Total Promo Discount</span>
+              <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">- ₹{totalDiscountAll.toLocaleString()}/-</span>
+            </div>
+          )}
+        </div>
+
+        <div className="text-right">
+          <span className="text-[11px] font-black text-teal-700 dark:text-teal-300 uppercase tracking-widest block">Final Total Net Amount</span>
+          <span className="text-2xl font-black text-teal-600 dark:text-teal-400">₹{totalNetAll.toLocaleString()}/-</span>
+        </div>
+      </div>
+
+      <div className="flex justify-center gap-4 pt-4">
         <button onClick={onBack} className="px-10 py-2.5 bg-white border border-slate-200 text-teal-600 font-bold rounded-xl hover:bg-slate-50 transition-all shadow-sm">Back</button>
         <button onClick={onNext} className="px-10 py-2.5 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 transition-all shadow-sm">Final Preview</button>
         <button onClick={onCancel} className="px-10 py-2.5 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-all shadow-sm">Cancel</button>
@@ -1536,7 +1960,16 @@ function Step6({ formData, onBack, onCancel, onEditStep }: any) {
     } else {
       allFeesList = [feeRecordItem, ...allFeesList]
     }
-    localStorage.setItem('school_all_fees', JSON.stringify(allFeesList))
+    // 4. Clear from drafts list if it was saved as a draft
+    try {
+      const draftKey = formData.draftId || formData.id
+      const rawDrafts = localStorage.getItem('school_draft_students')
+      if (rawDrafts) {
+        const dList = JSON.parse(rawDrafts)
+        const filtered = dList.filter((d: any) => String(d.draftId || d.id) !== String(draftKey))
+        localStorage.setItem('school_draft_students', JSON.stringify(filtered))
+      }
+    } catch (e) {}
 
     toast.success(formData.id ? 'Student details updated successfully!' : 'Student successfully registered!')
     onCancel()
@@ -1620,12 +2053,90 @@ function Step6({ formData, onBack, onCancel, onEditStep }: any) {
   )
 }
 
+export function calculateFinalFee(baseFeeStr: string | number | undefined, promoCode?: string) {
+  const base = parseFloat(String(baseFeeStr || '').replace(/[^0-9.]/g, '')) || 0
+  if (!promoCode || base <= 0) {
+    return {
+      baseFee: base,
+      discount: 0,
+      discountTag: '',
+      finalFee: base,
+      finalFeeStr: base > 0 ? `${base}/-` : (baseFeeStr ? String(baseFeeStr) : '')
+    }
+  }
+
+  let discount = 0
+  let discountTag = ''
+  let foundMaster: any = null
+
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem('school_masters_discounts') : null
+    if (raw) {
+      const list = JSON.parse(raw)
+      if (Array.isArray(list)) {
+        foundMaster = list.find((d: any) => 
+          (d.promoCode && d.promoCode.trim().toLowerCase() === promoCode.trim().toLowerCase()) ||
+          (d.name && d.name.trim().toLowerCase() === promoCode.trim().toLowerCase())
+        )
+      }
+    }
+  } catch (e) {}
+
+  if (foundMaster) {
+    if (foundMaster.valueType === 'Percentage' || (!foundMaster.valueType && foundMaster.percentage && foundMaster.percentage !== '0')) {
+      const p = parseFloat(foundMaster.percentage) || 0
+      discount = Math.round((base * p) / 100)
+      discountTag = `${p}% Off (-₹${discount})`
+    } else {
+      const amt = parseFloat(foundMaster.amount) || 0
+      discount = Math.min(base, amt)
+      discountTag = `₹${amt} Off (-₹${discount})`
+    }
+  } else {
+    // Check if promo code has percentage or amount patterns like NEW20, ADM10, 500OFF, 20%, etc.
+    const clean = promoCode.toUpperCase()
+    let isPercent = clean.includes('%')
+    let pVal = 0
+
+    const numMatch = clean.match(/\d+/)
+    if (numMatch) {
+      const extracted = parseFloat(numMatch[0])
+      if (clean.includes('%') || extracted <= 100) {
+        isPercent = true
+        pVal = extracted
+      } else {
+        isPercent = false
+        pVal = extracted
+      }
+    }
+
+    if (isPercent) {
+      discount = Math.round((base * (pVal || 0)) / 100)
+      discountTag = `${pVal}% Off (-₹${discount})`
+    } else {
+      discount = Math.min(base, Math.round(pVal || 0))
+      discountTag = `₹${pVal} Off (-₹${discount})`
+    }
+  }
+
+  const finalAmt = Math.max(0, base - discount)
+  return {
+    baseFee: base,
+    discount,
+    discountTag,
+    finalFee: finalAmt,
+    finalFeeStr: `${finalAmt}/-`
+  }
+}
+
 function FeeSection({ 
   title, 
   required, 
   enabled, 
   onToggle, 
   onOpenPromo, 
+  promoValue,
+  onClearPromo,
   storageKey,
   studentClass,
   durationValue,
@@ -1638,6 +2149,8 @@ function FeeSection({
   enabled: boolean, 
   onToggle: () => void, 
   onOpenPromo: () => void, 
+  promoValue?: string,
+  onClearPromo?: () => void,
   storageKey?: string,
   studentClass?: string,
   durationValue?: string,
@@ -1675,6 +2188,8 @@ function FeeSection({
     }
   }
 
+  const calculated = calculateFinalFee(feeValue, promoValue)
+
   return (
     <div className="border border-slate-200 dark:border-slate-700 rounded-2xl p-5 bg-white dark:bg-slate-800 shadow-sm transition-all">
       <div className="flex items-center justify-between">
@@ -1700,7 +2215,7 @@ function FeeSection({
       {enabled && (
         <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-700 animate-in fade-in duration-200">
            {children || (
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <SelectField 
                   label="Fee Duration" 
                   required 
@@ -1717,7 +2232,33 @@ function FeeSection({
                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-300 outline-none font-semibold" 
                   />
                 </div>
-                <PromoCodeField label="Promo Code" placeholder="Select an Option" onClick={onOpenPromo} />
+                <PromoCodeField 
+                  label="Promo Code" 
+                  placeholder="Select an Option" 
+                  value={promoValue}
+                  onClear={onClearPromo}
+                  onClick={onOpenPromo} 
+                />
+                <div className="flex flex-col gap-1.5 w-full">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[12px] font-bold text-slate-700 dark:text-slate-300 ml-1">Final Amount</label>
+                    {calculated.discount > 0 && (
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                        {calculated.discountTag}
+                      </span>
+                    )}
+                  </div>
+                  <input 
+                    value={feeValue ? (calculated.finalFeeStr || feeValue) : ''} 
+                    readOnly 
+                    placeholder="Amount after Promo"
+                    className={`w-full px-3 py-2 border rounded-lg text-sm font-bold outline-none transition-all ${
+                      calculated.discount > 0 
+                        ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-400 dark:border-emerald-600 text-emerald-600 dark:text-emerald-400' 
+                        : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                    }`} 
+                  />
+                </div>
              </div>
            )}
         </div>
@@ -1729,69 +2270,134 @@ function FeeSection({
 // ---------------------------------------------------------
 // PROMO CODE MODAL
 // ---------------------------------------------------------
-function PromoCodeModal({ onClose }: { onClose: () => void }) {
+function PromoCodeModal({ 
+  feeType, 
+  targetKey,
+  onApply, 
+  onClose 
+}: { 
+  feeType?: string, 
+  targetKey?: string,
+  onApply: (promo: any) => void, 
+  onClose: () => void 
+}) {
   const [tab, setTab] = useState<'AMOUNT' | 'PERCENTAGE'>('AMOUNT')
-  
-  const promos = [
-    { title: 'Admission Time', code: 'Promo Code Name', context: '(All Fee)', amount: '1000/-', percent: '10%', color: 'bg-green-600' },
-    { title: 'Fee Collection Time', code: 'Promo Code Name', context: '(Class Fee)', amount: '1000/-', percent: '10%', color: 'bg-fuchsia-700' },
-    { title: 'Admission Time', code: 'Promo Code Name', context: '(Admission Fee)', amount: '1000/-', percent: '10%', color: 'bg-violet-700' },
-    { title: 'Fee Collection Time', code: 'Promo Code Name', context: '(Extra Curriculam Fee)', amount: '1000/-', percent: '10%', color: 'bg-red-700' },
-    { title: 'Fee Collection Time', code: 'Promo Code Name', context: '(Transportation Fee)', amount: '1000/-', percent: '10%', color: 'bg-teal-800' },
-    { title: 'Admission Time', code: 'Promo Code Name', context: '(Registration Fee)', amount: '1000/-', percent: '10%', color: 'bg-lime-600' }
-  ]
+  const [discountsList, setDiscountsList] = useState<any[]>([])
+
+  useEffect(() => {
+    let list: any[] = []
+    const savedMasters = localStorage.getItem('school_masters_discounts')
+    if (savedMasters) {
+      try {
+        const parsed = JSON.parse(savedMasters)
+        if (Array.isArray(parsed)) list.push(...parsed.filter((d: any) => !d.deleted))
+      } catch (e) {}
+    }
+
+    if (list.length === 0) {
+      const defaultMasters = [
+        { id: 1, name: 'Welcome Admission Discount', promoCode: 'ADM10', applicableType: 'Admission Time', applicableFee: 'All Fee', valueType: 'Fixed amount', amount: '1000', percentage: '10', continuity: 'One Time' },
+        { id: 2, name: 'Class Fee Concession', promoCode: 'CLASS500', applicableType: 'Fee Collection Time', applicableFee: 'Class Fee', valueType: 'Fixed amount', amount: '500', percentage: '5', continuity: 'Every Month' },
+        { id: 3, name: 'Early Bird Admission', promoCode: 'EARLY15', applicableType: 'Admission Time', applicableFee: 'Admission Fee', valueType: 'Percentage', amount: '1500', percentage: '15', continuity: 'One Time' },
+        { id: 4, name: 'Transport Subsidy', promoCode: 'TRANS10', applicableType: 'Fee Collection Time', applicableFee: 'Transportation Fee', valueType: 'Percentage', amount: '300', percentage: '10', continuity: 'Every Month' },
+        { id: 5, name: 'Registration Special', promoCode: 'REG200', applicableType: 'Admission Time', applicableFee: 'Registration Fee', valueType: 'Fixed amount', amount: '200', percentage: '20', continuity: 'One Time' },
+        { id: 6, name: 'Sibling Fee Discount', promoCode: 'SIBLING1000', applicableType: 'Fee Collection Time', applicableFee: 'All Fee', valueType: 'Fixed amount', amount: '1000', percentage: '10', continuity: 'Every Month' }
+      ]
+      list = defaultMasters
+    }
+
+    setDiscountsList(list)
+  }, [])
+
+  const amountPromos = discountsList.filter(d => d.valueType === 'Fixed amount' || (!d.valueType && d.amount && d.amount !== '0'))
+  const percentagePromos = discountsList.filter(d => d.valueType === 'Percentage' || (!d.valueType && d.percentage && d.percentage !== '0'))
+
+  const currentPromos = tab === 'AMOUNT' ? amountPromos : percentagePromos
+
+  const colors = ['bg-teal-700', 'bg-blue-700', 'bg-violet-700', 'bg-emerald-700', 'bg-amber-700', 'bg-rose-700', 'bg-fuchsia-700', 'bg-indigo-700']
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
         
-        <div className="relative p-6 bg-slate-50 dark:bg-slate-900/50 flex justify-center">
-          
+        <div className="relative p-6 bg-slate-50 dark:bg-slate-900/50 flex flex-col items-center gap-3">
+          {feeType && (
+            <span className="text-xs font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 px-3 py-1 rounded-full border border-teal-200 dark:border-teal-800">
+              Applying to: {feeType}
+            </span>
+          )}
+
           {/* Tabs */}
           <div className="flex border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white shadow-sm">
              <button 
+               type="button"
                onClick={() => setTab('AMOUNT')}
-               className={`px-4 py-2 font-bold text-sm flex items-center gap-2 transition-colors ${tab === 'AMOUNT' ? 'bg-teal-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+               className={`px-4 py-2 font-bold text-sm flex items-center gap-2 transition-colors cursor-pointer ${tab === 'AMOUNT' ? 'bg-teal-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
              >
-               Amount Discount <span className="bg-white text-teal-600 rounded-md px-1.5 py-0.5 text-xs">06</span>
+               Amount Discount <span className={`rounded-md px-1.5 py-0.5 text-xs ${tab === 'AMOUNT' ? 'bg-white text-teal-600' : 'bg-slate-100 text-slate-700'}`}>{String(amountPromos.length).padStart(2, '0')}</span>
              </button>
              <button 
+               type="button"
                onClick={() => setTab('PERCENTAGE')}
-               className={`px-4 py-2 font-bold text-sm flex items-center gap-2 transition-colors border-l border-slate-200 ${tab === 'PERCENTAGE' ? 'bg-teal-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+               className={`px-4 py-2 font-bold text-sm flex items-center gap-2 transition-colors border-l border-slate-200 cursor-pointer ${tab === 'PERCENTAGE' ? 'bg-teal-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
              >
-               Percentage Discount <span className="border border-fuchsia-300 text-fuchsia-500 rounded-md px-1.5 py-0.5 text-xs">04</span>
+               Percentage Discount <span className={`rounded-md px-1.5 py-0.5 text-xs ${tab === 'PERCENTAGE' ? 'bg-white text-teal-600' : 'bg-slate-100 text-slate-700'}`}>{String(percentagePromos.length).padStart(2, '0')}</span>
              </button>
           </div>
 
-          <button onClick={onClose} className="absolute right-6 top-6 p-1.5 bg-slate-100 hover:bg-slate-200 rounded-full transition-colors text-slate-400">
+          <button onClick={onClose} className="absolute right-6 top-6 p-1.5 bg-slate-100 hover:bg-slate-200 rounded-full transition-colors text-slate-400 cursor-pointer">
             <X className="w-5 h-5 stroke-[3]" />
           </button>
         </div>
 
         <div className="p-8 overflow-y-auto">
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {promos.map((promo, idx) => (
-                 <div key={idx} className="flex border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                    <div className={`${promo.color} w-1/3 flex items-center justify-center`}>
-                       <Percent className="w-10 h-10 text-white" />
-                    </div>
-                    <div className="w-2/3 p-4 flex flex-col bg-white dark:bg-slate-800">
-                       <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{promo.title}</span>
-                       <span className={`text-sm font-black mt-0.5 ${promo.color.replace('bg-', 'text-')}`}>{promo.code}</span>
-                       <span className="text-[11px] text-slate-500 mb-2">{promo.context}</span>
-                       
-                       <div className="mt-auto flex items-center justify-between">
-                         <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                           {tab === 'AMOUNT' ? `Amount ${promo.amount} Off` : `${promo.percent} Off`}
-                         </span>
-                         <button onClick={onClose} className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1">
-                           Apply &rarr;
-                         </button>
-                       </div>
-                    </div>
-                 </div>
-              ))}
-           </div>
+           {currentPromos.length === 0 ? (
+             <div className="py-12 text-center text-slate-400">
+               <Percent className="w-12 h-12 mx-auto mb-3 opacity-40 text-teal-500" />
+               <p className="font-bold text-slate-600 dark:text-slate-300">No {tab === 'AMOUNT' ? 'Amount' : 'Percentage'} discount promo codes configured.</p>
+               <p className="text-xs text-slate-400 mt-1">Configure discount heads under Masters &rarr; Discount Heads.</p>
+             </div>
+           ) : (
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {currentPromos.map((promo, idx) => {
+                   const colorClass = colors[idx % colors.length]
+                   const code = promo.promoCode || promo.code || promo.name || 'PROMO'
+                   const title = promo.name || promo.applicableType || 'Discount Promo'
+                   const context = promo.applicableFee ? `(${promo.applicableFee})` : '(All Fee)'
+                   const discountDisplay = tab === 'AMOUNT' 
+                     ? `Amount ₹${promo.amount ? promo.amount.replace('/-', '').replace('₹', '') : '0'}/- Off` 
+                     : `${promo.percentage || '0'}% Off`
+
+                   return (
+                     <div key={idx} className="flex border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all group">
+                        <div className={`${colorClass} w-1/3 flex items-center justify-center`}>
+                           <Percent className="w-10 h-10 text-white group-hover:scale-110 transition-transform" />
+                        </div>
+                        <div className="w-2/3 p-4 flex flex-col justify-between bg-white dark:bg-slate-800">
+                           <div>
+                             <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 line-clamp-1">{title}</span>
+                             <span className={`text-sm font-black mt-0.5 block ${colorClass.replace('bg-', 'text-')}`}>{code}</span>
+                             <span className="text-[11px] text-slate-500 mb-2 block">{context}</span>
+                           </div>
+                           
+                           <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                             <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                               {discountDisplay}
+                             </span>
+                             <button 
+                               type="button"
+                               onClick={() => onApply(promo)} 
+                               className="text-xs font-bold text-teal-600 hover:text-teal-800 flex items-center gap-1 cursor-pointer bg-teal-50 hover:bg-teal-100 px-2 py-1 rounded transition-colors"
+                             >
+                               Apply &rarr;
+                             </button>
+                           </div>
+                        </div>
+                     </div>
+                   )
+                })}
+             </div>
+           )}
         </div>
 
       </div>

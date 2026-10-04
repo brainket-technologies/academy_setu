@@ -97,14 +97,18 @@ function AddRouteForm() {
     }
 
     const firstDest = stoppages[0]?.location || 'School'
-    const lastDest = stoppages[stoppages.length - 1]?.location || 'Destination'
-
+    const lastDest = stoppages[stoppages.length - 1]?.location || ''
     const routePayload = {
       id: editId ? Number(editId) : Date.now(),
       routeName,
       vehicleName,
       firstDestination: firstDest,
-      lastDestination: lastDest
+      lastDestination: lastDest,
+      stoppages: stoppages.map(s => ({
+        from: s.from,
+        location: s.location,
+        km: s.km
+      }))
     }
 
     let updatedRoutes = []
@@ -115,29 +119,8 @@ function AddRouteForm() {
     }
     localStorage.setItem('transport_routes', JSON.stringify(updatedRoutes))
 
-    // 2. Save each Stoppage Fee to local storage
-    const savedFees = localStorage.getItem('transportation_fees')
-    let activeFees: any[] = []
-    if (savedFees) {
-      try { activeFees = JSON.parse(savedFees) } catch (e) { console.error(e) }
-    }
-
-    const todayStr = new Date().toLocaleDateString('en-GB') + ' 11:00 AM'
-    const newFees = stoppages.map((s, idx) => ({
-      id: Date.now() + idx,
-      from: s.from,
-      location: s.location || 'Unknown Stoppage',
-      km: Number(s.km) || 10,
-      amount: Number(s.fee) || 500,
-      createdAt: todayStr
-    }))
-
-    // Merge or overwrite fees
-    const updatedFees = [...newFees, ...activeFees.filter(f => f.id !== Number(editId))]
-    localStorage.setItem('transportation_fees', JSON.stringify(updatedFees))
-
-    alert(editId ? 'Route and fee changes updated successfully!' : 'Route and stoppage fees created successfully!')
-    router.push('/institute/fees-setup/transportation-fee')
+    alert(editId ? 'Route details updated successfully!' : 'Route registered successfully! You can now configure fee slabs under Fees Setup -> Transportation Fee.')
+    router.push('/institute/transport/route')
   }
 
   return (
@@ -235,7 +218,7 @@ function AddRouteForm() {
                   <X className="w-3.5 h-3.5" />
                 </button>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-700">S. No. / From</label>
                     <div className="flex items-center gap-2">
@@ -256,31 +239,19 @@ function AddRouteForm() {
                       placeholder="e.g. Ex: Delhi Sector - 1" 
                       value={s.location}
                       onChange={e => handleUpdateStoppage(s.id, 'location', e.target.value)}
-                      className="w-full px-4 py-2 border rounded-lg text-xs outline-none focus:border-teal-500"
+                      className="w-full px-4 py-2 border rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
                       required
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-700">Km *</label>
+                    <label className="text-xs font-bold text-slate-700">Distance (Km) *</label>
                     <input 
                       type="number" 
                       placeholder="e.g. 15" 
                       value={s.km}
                       onChange={e => handleUpdateStoppage(s.id, 'km', e.target.value)}
-                      className="w-full px-4 py-2 border rounded-lg text-xs outline-none focus:border-teal-500 text-center"
-                      required
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-700">Fee *</label>
-                    <input 
-                      type="number" 
-                      placeholder="e.g. 500" 
-                      value={s.fee}
-                      onChange={e => handleUpdateStoppage(s.id, 'fee', e.target.value)}
-                      className="w-full px-4 py-2 border rounded-lg text-xs outline-none focus:border-teal-500 text-center"
+                      className="w-full px-4 py-2 border rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-center"
                       required
                     />
                   </div>

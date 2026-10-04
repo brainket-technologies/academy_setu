@@ -1,11 +1,10 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
-import { X, Plus, Trash2, Upload, Calendar, ChevronDown, Check, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react'
+import { X, Plus, Trash2, Upload, Calendar, ChevronDown, ChevronLeft, ChevronRight, Check, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react'
 import { createTeacher } from '../actions'
 import { fetchStatesDistricts } from '../../actions'
 import { useClasses, useDepartments, useSubjects } from '@/lib/mastersData'
-import { INDIA_STATES_DISTRICTS } from '@/lib/india-data'
 
 // ─── Step Config ──────────────────────────────────────────────────────────────
 const STEPS = [
@@ -320,9 +319,13 @@ function QualificationDetailsStep({ data, setData }: { data: any; setData: (d: a
 function AddressDetailsStep({ data, setData, statesData, errors }: { data: any; setData: (d: any) => void; statesData: any[]; errors: Record<string, string> }) {
   const set = (k: string, v: string) => setData({ ...data, [k]: v })
   
-  const states = statesData.map(s => s.state || s.state_name || s.name || s)
-  const selectedStateObj = statesData.find(s => (s.state || s.state_name || s.name) === data.state)
-  const districts = selectedStateObj ? (selectedStateObj.districts || []) : []
+  const states = Array.from(new Set(statesData.map(s => s.state || s.state_name || s.name || (typeof s === 'string' ? s : '')).filter(Boolean))).sort((a: any, b: any) => a.localeCompare(b))
+  
+  const selectedStateObj = statesData.find(s => {
+    const sName = s.state || s.state_name || s.name || (typeof s === 'string' ? s : '')
+    return sName.trim().toLowerCase() === (data.state || '').trim().toLowerCase()
+  })
+  const districts = selectedStateObj ? (selectedStateObj.districts || selectedStateObj.cities || []) : []
 
   return (
     <div className="space-y-6">
@@ -332,8 +335,22 @@ function AddressDetailsStep({ data, setData, statesData, errors }: { data: any; 
           <input className={inputCls(!!errors.address)} placeholder="Enter Address" value={data.address || ''} onChange={e => set('address', e.target.value)} />
         </Field>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <SelectField label="State" required value={data.state || ''} onChange={v => { set('state', v); set('district', '') }} options={states} placeholder="Select State" error={errors.state} />
-          <SelectField label="District" required value={data.district || ''} onChange={v => set('district', v)} options={districts} placeholder="Select District" error={errors.district} />
+          <SelectField 
+            label="State (Optional)" 
+            value={data.state || ''} 
+            onChange={v => setData({ ...data, state: v, district: '' })} 
+            options={states} 
+            placeholder={states.length > 0 ? "Select State" : "No states in Admin Settings"} 
+            error={errors.state} 
+          />
+          <SelectField 
+            label="District (Optional)" 
+            value={data.district || ''} 
+            onChange={v => setData({ ...data, district: v })} 
+            options={districts} 
+            placeholder={data.state ? (districts.length > 0 ? "Select District" : "No districts in Admin Settings") : "Select State First"} 
+            error={errors.district} 
+          />
           <Field label="Pincode">
             <input className={inputCls(false)} placeholder="Enter Pincode" value={data.pincode || ''} onChange={e => set('pincode', e.target.value)} maxLength={6} />
           </Field>
@@ -423,8 +440,8 @@ function AssignClassStep({ data, setData, classesData, subjectsData }: { data: a
 }
 
 // ─── Step 5: Payroll & Leave ──────────────────────────────────────────────────
-function PayrollLeaveStep({ data, setData, errors }: { data: any; setData: (d: any) => void; errors: Record<string, string> }) {
-  const set = (k: string, v: string) => {
+function PayrollLeaveStep({ data, setData, leaveTypesList = [], errors }: { data: any; setData: (d: any) => void; leaveTypesList?: any[]; errors: Record<string, string> }) {
+  const set = (k: string, v: any) => {
     const next = { ...data, [k]: v }
     const basic = Number(k === 'basicSalary' ? v : data.basicSalary) || 0
     const hra = Number(k === 'hra' ? v : data.hra) || 0
@@ -433,6 +450,67 @@ function PayrollLeaveStep({ data, setData, errors }: { data: any; setData: (d: a
     const gross = basic + hra + conv + spec
     next.grossSalary = gross > 0 ? String(gross) : ''
     setData(next)
+  }
+
+  // Active leave types list
+  const [allocatedLeaves, setAllocatedLeaves] = useState<any[]>(() => {
+    if (Array.isArray(data.allocatedLeaves) && data.allocatedLeaves.length > 0) {
+      return data.allocatedLeaves
+    }
+    if (Array.isArray(leaveTypesList) && leaveTypesList.length > 0) {
+      return leaveTypesList.map((lt: any) => ({
+        id: lt.id || Date.now(),
+        leaveType: lt.leaveType || lt.name || 'Leave',
+        leaveAbbr: lt.leaveAbbr || lt.abbr || 'LV',
+        allowedLeaves: lt.allowedLeaves || '12',
+        applyFrom: lt.applyFrom || ''
+      }))
+    }
+    return [
+      { id: 1, leaveType: 'Casual Leave', leaveAbbr: 'CL', allowedLeaves: data.casualLeaveNo || '12', applyFrom: data.casualLeaveFrom || '' },
+      { id: 2, leaveType: 'Medical Leave', leaveAbbr: 'ML', allowedLeaves: data.medicalLeaveNo || '10', applyFrom: data.medicalLeaveFrom || '' },
+      { id: 3, leaveType: 'Half Day Leave', leaveAbbr: 'HDL', allowedLeaves: data.halfDayLeaveNo || '6', applyFrom: data.halfDayLeaveFrom || '' },
+      { id: 4, leaveType: 'Sick Leave', leaveAbbr: 'SL', allowedLeaves: '8', applyFrom: '' }
+    ]
+  })
+
+  // Sync to parent
+  const updateLeaveRow = (index: number, field: string, val: string) => {
+    const updated = [...allocatedLeaves]
+    updated[index] = { ...updated[index], [field]: val }
+    setAllocatedLeaves(updated)
+    set('allocatedLeaves', updated)
+
+    const name = (updated[index].leaveType || '').toLowerCase()
+    if (name.includes('casual')) {
+      if (field === 'allowedLeaves') set('casualLeaveNo', val)
+      if (field === 'applyFrom') set('casualLeaveFrom', val)
+    } else if (name.includes('medical')) {
+      if (field === 'allowedLeaves') set('medicalLeaveNo', val)
+      if (field === 'applyFrom') set('medicalLeaveFrom', val)
+    } else if (name.includes('half')) {
+      if (field === 'allowedLeaves') set('halfDayLeaveNo', val)
+      if (field === 'applyFrom') set('halfDayLeaveFrom', val)
+    }
+  }
+
+  const addCustomLeave = () => {
+    const newRow = {
+      id: Date.now(),
+      leaveType: 'Special Leave',
+      leaveAbbr: 'SPL',
+      allowedLeaves: '5',
+      applyFrom: ''
+    }
+    const updated = [...allocatedLeaves, newRow]
+    setAllocatedLeaves(updated)
+    set('allocatedLeaves', updated)
+  }
+
+  const removeCustomLeave = (index: number) => {
+    const updated = allocatedLeaves.filter((_, i) => i !== index)
+    setAllocatedLeaves(updated)
+    set('allocatedLeaves', updated)
   }
 
   return (
@@ -461,32 +539,64 @@ function PayrollLeaveStep({ data, setData, errors }: { data: any; setData: (d: a
       </div>
       
       <div>
-        <SectionTitle>Paid Leave (Optional)</SectionTitle>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-4">
-          <div className="col-span-full sm:col-span-1 lg:col-span-1">
-             <SelectField label="Leave Option" value={data.leaveOption || ''} onChange={v => set('leaveOption', v)} options={['Option 1', 'Option 2']} placeholder="Select an Option" />
-          </div>
-          <div className="col-span-full hidden lg:block -mt-5" />
-          <Field label="Casual Leave">
-            <input className={inputCls(false)} placeholder="Enter No. of leave" value={data.casualLeaveNo || ''} onChange={e => set('casualLeaveNo', e.target.value)} />
-          </Field>
-          <Field label="Apply From">
-             <input type="date" className={inputCls(false)} value={data.casualLeaveFrom || ''} onChange={e => set('casualLeaveFrom', e.target.value)} />
-          </Field>
-          <div className="hidden lg:block" />
-          <Field label="Medical Leave">
-            <input className={inputCls(false)} placeholder="Enter No. of leave" value={data.medicalLeaveNo || ''} onChange={e => set('medicalLeaveNo', e.target.value)} />
-          </Field>
-          <Field label="Apply From">
-             <input type="date" className={inputCls(false)} value={data.medicalLeaveFrom || ''} onChange={e => set('medicalLeaveFrom', e.target.value)} />
-          </Field>
-          <div className="hidden lg:block" />
-          <Field label="Half Day Leave">
-            <input className={inputCls(false)} placeholder="Enter No. of leave" value={data.halfDayLeaveNo || ''} onChange={e => set('halfDayLeaveNo', e.target.value)} />
-          </Field>
-          <Field label="Apply From">
-             <input type="date" className={inputCls(false)} value={data.halfDayLeaveFrom || ''} onChange={e => set('halfDayLeaveFrom', e.target.value)} />
-          </Field>
+        <div className="flex items-center justify-between mb-4">
+          <SectionTitle>Paid Leave (Configured Institute Leave Types)</SectionTitle>
+          <button 
+            type="button" 
+            onClick={addCustomLeave} 
+            className="text-xs font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 px-3 py-1.5 rounded-xl border border-teal-200 dark:border-teal-800 flex items-center gap-1 hover:bg-teal-100 transition-colors cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[3]" /> Add Leave Type
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {allocatedLeaves.map((leave, idx) => (
+            <div key={leave.id || idx} className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-7 h-7 rounded-lg bg-teal-600 text-white font-black text-xs flex items-center justify-center shadow-sm">
+                    {leave.leaveAbbr || leave.leaveType?.slice(0, 2).toUpperCase() || 'LV'}
+                  </span>
+                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                    {leave.leaveType}
+                  </span>
+                </div>
+                {allocatedLeaves.length > 1 && (
+                  <button 
+                    type="button" 
+                    onClick={() => removeCustomLeave(idx)} 
+                    className="text-slate-400 hover:text-rose-500 p-1 rounded-lg transition-colors"
+                    title="Remove leave type"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">No. of Leaves</label>
+                  <input 
+                    type="number" 
+                    placeholder="e.g. 12" 
+                    value={leave.allowedLeaves || ''} 
+                    onChange={e => updateLeaveRow(idx, 'allowedLeaves', e.target.value)} 
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-xs font-bold text-teal-600 dark:text-teal-400 outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">Apply From</label>
+                  <input 
+                    type="date" 
+                    value={leave.applyFrom || ''} 
+                    onChange={e => updateLeaveRow(idx, 'applyFrom', e.target.value)} 
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-xs font-semibold text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -563,6 +673,7 @@ export default function AddTeacherModal({ isOpen, onClose, onSuccess }: AddTeach
   const [step, setStep] = useState(0)
   const [formData, setFormData] = useState<Record<string, any>>({})
   const [statesData, setStatesData] = useState<any[]>([])
+  const [leaveTypesList, setLeaveTypesList] = useState<any[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [stepErrors, setStepErrors] = useState<Record<string, string>>({})
   const [bannerError, setBannerError] = useState('')
@@ -580,23 +691,57 @@ export default function AddTeacherModal({ isOpen, onClose, onSuccess }: AddTeach
       return
     }
 
+    // 1. Load Leave Types
+    let leaves: any[] = []
+    const savedLeaveTypes = localStorage.getItem('leave_types') || localStorage.getItem('school_leave_types') || localStorage.getItem('school_masters_leave_types')
+    if (savedLeaveTypes) {
+      try {
+        const parsed = JSON.parse(savedLeaveTypes)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          leaves = parsed.filter((l: any) => !l.deleted)
+        }
+      } catch (e) {}
+    }
+    if (leaves.length === 0) {
+      leaves = [
+        { id: 1, leaveType: 'Casual Leave', leaveAbbr: 'CL', markAs: 'Leave' },
+        { id: 2, leaveType: 'Medical Leave', leaveAbbr: 'ML', markAs: 'Leave' },
+        { id: 3, leaveType: 'Half Day Leave', leaveAbbr: 'HDL', markAs: 'Leave' },
+        { id: 4, leaveType: 'Sick Leave', leaveAbbr: 'SL', markAs: 'Leave' },
+        { id: 5, leaveType: 'Earned Leave', leaveAbbr: 'EL', markAs: 'Leave' }
+      ]
+    }
+    setLeaveTypesList(leaves)
+
+    // 2. Load States & Districts strictly from Admin Settings
     fetch('/api/admin/settings/state-city')
       .then(res => res.json())
       .then(data => {
-        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
-          setStatesData(data.data)
+        if (data.success && Array.isArray(data.data)) {
+          const mapped = data.data.map((s: any) => ({
+            id: s.id,
+            state: s.state_name || s.state || s.name,
+            districts: s.districts || []
+          })).filter((s: any) => Boolean(s.state))
+          setStatesData(mapped)
         } else {
           fetchStatesDistricts().then(res2 => {
             if (res2.success && Array.isArray(res2.data)) {
               setStatesData(res2.data)
             } else {
-              setStatesData(INDIA_STATES_DISTRICTS.map(s => ({ state: s.state, districts: s.districts })))
+              setStatesData([])
             }
-          })
+          }).catch(() => setStatesData([]))
         }
       })
       .catch(() => {
-        setStatesData(INDIA_STATES_DISTRICTS.map(s => ({ state: s.state, districts: s.districts })))
+        fetchStatesDistricts().then(res2 => {
+          if (res2.success && Array.isArray(res2.data)) {
+            setStatesData(res2.data)
+          } else {
+            setStatesData([])
+          }
+        }).catch(() => setStatesData([]))
       })
   }, [isOpen])
 
@@ -642,8 +787,6 @@ export default function AddTeacherModal({ isOpen, onClose, onSuccess }: AddTeach
     } else if (stepIdx === 2) {
       const a = formData.address || {}
       if (!a.address?.trim()) errors.address = 'Address is required'
-      if (!a.state?.trim()) errors.state = 'State is required'
-      if (!a.district?.trim()) errors.district = 'District is required'
       if (!a.aadhar?.trim()) {
         errors.aadhar = 'Aadhar number is required'
       } else if (!/^\d{12}$/.test(a.aadhar.replace(/\D/g, ''))) {
@@ -757,62 +900,61 @@ export default function AddTeacherModal({ isOpen, onClose, onSuccess }: AddTeach
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0">
           <div>
-            <h2 className="text-xl font-black text-slate-800 dark:text-slate-100">Add Teacher</h2>
+            <h2 className="text-lg font-black text-slate-800 dark:text-slate-100">Add Teacher</h2>
             <p className="text-xs text-slate-500 font-medium">Create a new teacher profile and assign classes</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-500 hover:text-slate-800 dark:hover:text-slate-100 transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-500 hover:text-slate-800 dark:hover:text-slate-100 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Step Navigation Tabs */}
-        <div className="border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 overflow-x-auto flex-shrink-0">
-          <div className="flex min-w-max px-2">
-            {STEPS.map((s, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => handleStepClick(i)}
-                className={`px-4 py-3 text-xs font-bold border-b-2 transition-all whitespace-nowrap flex items-center gap-2 ${
-                  step === i
-                    ? 'border-teal-600 text-teal-600 bg-teal-50/70 dark:bg-teal-900/20'
-                    : i < step
-                    ? 'border-transparent text-slate-600 dark:text-slate-300 hover:text-teal-600 cursor-pointer'
-                    : 'border-transparent text-slate-400 hover:text-slate-600 cursor-pointer opacity-70'
-                }`}
-              >
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
-                  i < step ? 'bg-teal-600 text-white' : step === i ? 'bg-teal-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'
-                }`}>
-                  {i < step ? <Check className="w-3 h-3" /> : i + 1}
-                </span>
-                {s}
-              </button>
-            ))}
+        {/* Step Navigation Tabs - Clean Unified Stepper */}
+        <div className="border-b border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-900/60 px-5 py-3 flex-shrink-0 overflow-x-auto">
+          <div className="flex items-center gap-1.5 min-w-max">
+            {STEPS.map((s, i) => {
+              const isPast = i < step
+              const isCurrent = i === step
+              return (
+                <React.Fragment key={i}>
+                  <button
+                    type="button"
+                    onClick={() => handleStepClick(i)}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                      isCurrent
+                        ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/25 ring-2 ring-teal-600/30'
+                        : isPast
+                        ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100/80 dark:hover:bg-teal-900/60'
+                        : 'bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    <span
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 transition-colors ${
+                        isCurrent
+                          ? 'bg-white text-teal-700'
+                          : isPast
+                          ? 'bg-teal-600 text-white'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-500'
+                      }`}
+                    >
+                      {isPast ? <Check className="w-3 h-3 stroke-[3]" /> : i + 1}
+                    </span>
+                    <span>{s}</span>
+                  </button>
+                  {i < STEPS.length - 1 && (
+                    <div
+                      className={`h-0.5 w-3 shrink-0 rounded-full transition-colors ${
+                        i < step ? 'bg-teal-500' : 'bg-slate-200 dark:bg-slate-700'
+                      }`}
+                    />
+                  )}
+                </React.Fragment>
+              )
+            })}
           </div>
-        </div>
-
-        {/* Step Progress Indicator */}
-        <div className="flex items-center justify-center gap-2 py-2.5 px-6 bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-700/50 flex-shrink-0">
-          {STEPS.map((_, i) => (
-            <div
-              key={i}
-              className={`transition-all duration-300 rounded-full flex items-center justify-center ${
-                i < step
-                  ? 'w-5 h-5 bg-teal-600 text-white shadow-sm'
-                  : i === step
-                  ? 'w-5 h-5 bg-teal-600 text-white ring-4 ring-teal-100 dark:ring-teal-900/40 shadow'
-                  : 'w-3 h-3 bg-slate-200 dark:bg-slate-700'
-              }`}
-            >
-              {i < step && <Check className="w-3 h-3" />}
-              {i === step && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-            </div>
-          ))}
         </div>
 
         {/* Form Body - Scrollable */}
@@ -858,6 +1000,7 @@ export default function AddTeacherModal({ isOpen, onClose, onSuccess }: AddTeach
             <PayrollLeaveStep 
               data={formData.payroll || {}} 
               setData={d => updateStepData('payroll', d)} 
+              leaveTypesList={leaveTypesList}
               errors={stepErrors}
             />
           )}
@@ -871,14 +1014,15 @@ export default function AddTeacherModal({ isOpen, onClose, onSuccess }: AddTeach
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80 flex-shrink-0">
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50/90 dark:bg-slate-900/60 flex-shrink-0">
           <button
             type="button"
             onClick={handleBack}
             disabled={step === 0 || submitting}
-            className="px-5 py-2.5 rounded-xl text-sm font-bold border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2.5 rounded-xl text-xs font-bold border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 cursor-pointer"
           >
-            Back
+            <ChevronLeft className="w-4 h-4" />
+            <span>Back</span>
           </button>
           
           <div className="flex items-center gap-3">
@@ -886,7 +1030,7 @@ export default function AddTeacherModal({ isOpen, onClose, onSuccess }: AddTeach
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="px-5 py-2.5 rounded-xl text-sm font-bold border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              className="px-4 py-2.5 rounded-xl text-xs font-bold border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -895,19 +1039,20 @@ export default function AddTeacherModal({ isOpen, onClose, onSuccess }: AddTeach
                 type="button"
                 onClick={handleNext}
                 disabled={submitting}
-                className="px-6 py-2.5 rounded-xl text-sm font-bold bg-teal-600 text-white hover:bg-teal-700 active:scale-95 transition-all shadow flex items-center gap-2"
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 active:scale-95 text-white transition-all shadow-md shadow-teal-600/20 flex items-center gap-1.5 cursor-pointer"
               >
-                Save &amp; Next
+                <span>Save &amp; Next</span>
+                <ChevronRight className="w-4 h-4" />
               </button>
             ) : (
               <button
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="px-7 py-2.5 rounded-xl text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all shadow flex items-center gap-2"
+                className="px-6 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white transition-all shadow-md shadow-emerald-600/20 flex items-center gap-2 cursor-pointer"
               >
-                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                Save Teacher
+                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4 stroke-[2.5]" />}
+                <span>Save Teacher</span>
               </button>
             )}
           </div>

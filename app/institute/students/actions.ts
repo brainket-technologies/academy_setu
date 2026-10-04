@@ -103,3 +103,34 @@ export async function fetchStudentFees(studentId: string) {
     return { success: false, error: err.message }
   }
 }
+
+export async function fetchDraftStudents() {
+  const session = await getSession('institute_session')
+  if (!session?.userId) return { success: false, error: 'Unauthorized' }
+  
+  try {
+    const res = await pool.query(`
+      SELECT * FROM institute_students 
+      WHERE institution_id = $1 AND (status = 'Draft' OR status ILIKE '%draft%')
+      ORDER BY updated_at DESC, created_at DESC
+    `, [session.userId])
+    return { success: true, data: res.rows }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+export async function deleteDraftStudent(id: string | number) {
+  const session = await getSession('institute_session')
+  if (!session?.userId) return { success: false, error: 'Unauthorized' }
+
+  try {
+    await pool.query(`
+      DELETE FROM institute_students 
+      WHERE id = $1 AND institution_id = $2
+    `, [id, session.userId])
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}

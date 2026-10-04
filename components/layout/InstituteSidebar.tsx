@@ -63,6 +63,7 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
       icon: Users, label: 'Students', href: '#',
       subItems: [
         { label: 'All Students', href: '/institute/students' },
+        { label: 'Draft Students', href: '/institute/students/drafts' },
         { label: 'Bulk Edit', href: '/institute/students/bulk-edit' },
         { label: 'Deleted Students', href: '/institute/students/deleted-students' },
         { label: 'Passed Students', href: '/institute/students/passed-students' },
@@ -290,7 +291,6 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
         { label: 'Document Types', href: '/institute/masters/document-types' },
         { label: 'Departments', href: '/institute/masters/departments' },
         { label: 'Lead Sources', href: '/institute/leads-sources' },
-        { label: 'Data Settings', href: '/institute/masters/data-settings' },
       ]
     },
     { icon: ShoppingCart, label: 'Shop', href: '/institute/shop' },

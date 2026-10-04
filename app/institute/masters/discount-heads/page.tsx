@@ -3,12 +3,25 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, RotateCcw, CheckCircle2, X, Search, Filter } from 'lucide-react'
 
+export const ALL_FEE_STRUCTURES = [
+  'All Fee',
+  'Registration Fee',
+  'Admission Fee',
+  'Class Fee',
+  'Library Fee',
+  'Exam Fee',
+  'Hostel Fee',
+  'Extra Curricular Fee',
+  'Transportation Fee',
+]
+
 interface DiscountHeadRecord {
   id: number
   name: string
   promoCode: string
   applicableType: string
   continuity: 'One Time' | 'Every Month'
+  applicableFee?: string
   valueType: 'Fixed amount' | 'Percentage'
   amount: string
   percentage: string
@@ -18,8 +31,7 @@ interface DiscountHeadRecord {
   deleted: boolean
 }
 
-const INITIAL_DISCOUNTS: DiscountHeadRecord[] = [
-]
+const INITIAL_DISCOUNTS: DiscountHeadRecord[] = []
 
 export default function DiscountHeadsPage() {
   const [discounts, setDiscounts] = useState<DiscountHeadRecord[]>(INITIAL_DISCOUNTS)
@@ -45,6 +57,7 @@ export default function DiscountHeadsPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
+  const [feeFilter, setFeeFilter] = useState('')
 
   const [toastMsg, setToastMsg] = useState('')
   const [toastOpen, setToastOpen] = useState(false)
@@ -70,7 +83,7 @@ export default function DiscountHeadsPage() {
 
   const handleAddDiscount = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!discountName || !promoCode || !discountAmountVal) {
+    if (!discountName.trim() || !promoCode.trim() || !discountAmountVal) {
       alert('Please fill in all mandatory fields.')
       return
     }
@@ -81,6 +94,7 @@ export default function DiscountHeadsPage() {
       promoCode: promoCode.trim(),
       applicableType,
       continuity,
+      applicableFee: applicableFee || 'All Fee',
       valueType,
       amount: valueType === 'Fixed amount' ? discountAmountVal : '—',
       percentage: valueType === 'Percentage' ? discountAmountVal + '%' : '—',
@@ -98,6 +112,7 @@ export default function DiscountHeadsPage() {
     setDiscountName('')
     setPromoCode('')
     setDiscountAmountVal('')
+    setApplicableFee('All Fee')
     setStartDate('')
     setExpireDate('')
     setAddModalOpen(false)
@@ -106,20 +121,21 @@ export default function DiscountHeadsPage() {
 
   const handleOpenEdit = (item: DiscountHeadRecord) => {
     setSelectedDiscount(item)
-    setDiscountName(item.name)
-    setPromoCode(item.promoCode)
-    setValueType(item.valueType)
-    setDiscountAmountVal(item.valueType === 'Fixed amount' ? item.amount : item.percentage.replace('%', ''))
-    setApplicableType(item.applicableType)
-    setContinuity(item.continuity)
-    setStartDate(item.startDate === '—' ? '' : item.startDate)
-    setExpireDate(item.expireDate === '—' ? '' : item.expireDate)
+    setDiscountName(item.name || '')
+    setPromoCode(item.promoCode || '')
+    setValueType(item.valueType || 'Fixed amount')
+    setDiscountAmountVal(item.valueType === 'Fixed amount' ? item.amount : (item.percentage || '').replace('%', ''))
+    setApplicableType(item.applicableType || 'Admission Time')
+    setContinuity(item.continuity || 'One Time')
+    setApplicableFee(item.applicableFee || 'All Fee')
+    setStartDate(item.startDate === '—' ? '' : (item.startDate || ''))
+    setExpireDate(item.expireDate === '—' ? '' : (item.expireDate || ''))
     setEditModalOpen(true)
   }
 
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedDiscount || !discountName || !promoCode) return
+    if (!selectedDiscount || !discountName.trim() || !promoCode.trim()) return
 
     const updated = discounts.map(d => {
       if (d.id === selectedDiscount.id) {
@@ -129,6 +145,7 @@ export default function DiscountHeadsPage() {
           promoCode: promoCode.trim(),
           applicableType,
           continuity,
+          applicableFee: applicableFee || 'All Fee',
           valueType,
           amount: valueType === 'Fixed amount' ? discountAmountVal : '—',
           percentage: valueType === 'Percentage' ? discountAmountVal + '%' : '—',
@@ -146,6 +163,7 @@ export default function DiscountHeadsPage() {
     setDiscountName('')
     setPromoCode('')
     setDiscountAmountVal('')
+    setApplicableFee('All Fee')
     showToast('Discount Head updated successfully!')
   }
 
@@ -171,7 +189,8 @@ export default function DiscountHeadsPage() {
     const matchesTab = activeTab === 'All' ? !d.deleted : d.deleted
     const matchesSearch = searchQuery ? d.name.toLowerCase().includes(searchQuery.toLowerCase()) || d.promoCode.toLowerCase().includes(searchQuery.toLowerCase()) : true
     const matchesType = typeFilter ? d.valueType === typeFilter : true
-    return matchesTab && matchesSearch && matchesType
+    const matchesFee = feeFilter ? (d.applicableFee || 'All Fee') === feeFilter : true
+    return matchesTab && matchesSearch && matchesType && matchesFee
   })
 
   return (
@@ -185,6 +204,7 @@ export default function DiscountHeadsPage() {
             setDiscountName('')
             setPromoCode('')
             setDiscountAmountVal('')
+            setApplicableFee('All Fee')
             setStartDate('')
             setExpireDate('')
             setAddModalOpen(true)
@@ -224,7 +244,7 @@ export default function DiscountHeadsPage() {
 
       {/* Toggleable Filters Panel */}
       {showFilters && (
-        <div className="bg-white border rounded-2xl p-5 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-semibold text-slate-700 animate-in slide-in-from-top-3 duration-200">
+        <div className="bg-white border rounded-2xl p-5 shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-semibold text-slate-700 animate-in slide-in-from-top-3 duration-200">
           <div className="flex flex-col gap-1.5">
             <label className="text-slate-500 font-bold">Search Discount / Code</label>
             <div className="relative">
@@ -251,6 +271,20 @@ export default function DiscountHeadsPage() {
               <option value="Percentage">Percentage</option>
             </select>
           </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-slate-500 font-bold">Applicable Fee Structure</label>
+            <select
+              value={feeFilter}
+              onChange={e => setFeeFilter(e.target.value)}
+              className="w-full px-4 py-2 border rounded-lg bg-white outline-none font-bold text-xs"
+            >
+              <option value="">All Fee Structures</option>
+              {ALL_FEE_STRUCTURES.map(fee => (
+                <option key={fee} value={fee}>{fee}</option>
+              ))}
+            </select>
+          </div>
         </div>
       )}
 
@@ -263,7 +297,8 @@ export default function DiscountHeadsPage() {
                 <th className="px-3 py-4 w-14">S. No.</th>
                 <th className="px-3 py-4 text-left">Discount Name</th>
                 <th className="px-3 py-4">Promo Code</th>
-                <th className="px-3 py-4">continuity</th>
+                <th className="px-3 py-4">Applicable On</th>
+                <th className="px-3 py-4">Continuity</th>
                 <th className="px-3 py-4">Amount / %</th>
                 <th className="px-3 py-4">Start Date</th>
                 <th className="px-3 py-4">Expire Date</th>
@@ -277,6 +312,11 @@ export default function DiscountHeadsPage() {
                   <td className="px-3 py-3.5 text-slate-500">{idx + 1}.</td>
                   <td className="px-3 py-3.5 text-left font-bold text-slate-800">{item.name}</td>
                   <td className="px-3 py-3.5 text-slate-600 font-bold text-[10px] tracking-wide bg-slate-50 py-0.5 rounded border inline-block mt-3">{item.promoCode}</td>
+                  <td className="px-3 py-3.5">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-100">
+                      {item.applicableFee || 'All Fee'}
+                    </span>
+                  </td>
                   <td className="px-3 py-3.5 text-slate-500">{item.continuity}</td>
                   <td className="px-3 py-3.5 font-bold text-teal-600">
                     {item.valueType === 'Percentage' ? item.percentage : `₹${item.amount}`}
@@ -319,7 +359,7 @@ export default function DiscountHeadsPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-slate-400 font-bold">
+                  <td colSpan={10} className="py-8 text-center text-slate-400 font-bold">
                     No discount heads found in this category.
                   </td>
                 </tr>
@@ -350,6 +390,7 @@ export default function DiscountHeadsPage() {
                     value={discountName}
                     onChange={e => setDiscountName(e.target.value)}
                     className="px-3 py-2 border rounded-lg outline-none font-bold bg-white"
+                    required
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -360,6 +401,7 @@ export default function DiscountHeadsPage() {
                     value={promoCode}
                     onChange={e => setPromoCode(e.target.value)}
                     className="px-3 py-2 border rounded-lg outline-none font-bold bg-white"
+                    required
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -381,11 +423,12 @@ export default function DiscountHeadsPage() {
                     {valueType === 'Fixed amount' ? 'Discount Amount *' : 'Discount Percentage *'}
                   </label>
                   <input
-                    type="text"
+                    type="number"
                     placeholder={valueType === 'Fixed amount' ? 'e.g. 500' : 'e.g. 20'}
                     value={discountAmountVal}
                     onChange={e => setDiscountAmountVal(e.target.value)}
                     className="px-3 py-2 border rounded-lg outline-none font-bold bg-white"
+                    required
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -434,9 +477,9 @@ export default function DiscountHeadsPage() {
                     onChange={e => setApplicableFee(e.target.value)}
                     className="px-3 py-2 border rounded-lg bg-white outline-none font-bold text-slate-700"
                   >
-                    <option value="All Fee">All Fee</option>
-                    <option value="Admission Fee">Admission Fee</option>
-                    <option value="Registration Fee">Registration Fee</option>
+                    {ALL_FEE_STRUCTURES.map(fee => (
+                      <option key={fee} value={fee}>{fee}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -500,6 +543,7 @@ export default function DiscountHeadsPage() {
                     value={discountName}
                     onChange={e => setDiscountName(e.target.value)}
                     className="px-3 py-2 border rounded-lg outline-none font-bold bg-white"
+                    required
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -510,6 +554,7 @@ export default function DiscountHeadsPage() {
                     value={promoCode}
                     onChange={e => setPromoCode(e.target.value)}
                     className="px-3 py-2 border rounded-lg outline-none font-bold bg-white"
+                    required
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -531,11 +576,12 @@ export default function DiscountHeadsPage() {
                     {valueType === 'Fixed amount' ? 'Discount Amount *' : 'Discount Percentage *'}
                   </label>
                   <input
-                    type="text"
+                    type="number"
                     placeholder={valueType === 'Fixed amount' ? 'e.g. 500' : 'e.g. 20'}
                     value={discountAmountVal}
                     onChange={e => setDiscountAmountVal(e.target.value)}
                     className="px-3 py-2 border rounded-lg outline-none font-bold bg-white"
+                    required
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -584,16 +630,15 @@ export default function DiscountHeadsPage() {
                     onChange={e => setApplicableFee(e.target.value)}
                     className="px-3 py-2 border rounded-lg bg-white outline-none font-bold text-slate-700"
                   >
-                    <option value="All Fee">All Fee</option>
-                    <option value="Admission Fee">Admission Fee</option>
-                    <option value="Registration Fee">Registration Fee</option>
+                    {ALL_FEE_STRUCTURES.map(fee => (
+                      <option key={fee} value={fee}>{fee}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-slate-550 font-bold">Start Date</label>
                   <input
-                    type="text"
-                    placeholder="DD/MM/YYYY"
+                    type="date"
                     value={startDate}
                     onChange={e => setStartDate(e.target.value)}
                     className="px-3 py-2 border rounded-lg outline-none font-bold bg-white text-slate-600"
@@ -602,8 +647,7 @@ export default function DiscountHeadsPage() {
                 <div className="flex flex-col gap-1.5">
                   <label className="text-slate-550 font-bold">Expire Date</label>
                   <input
-                    type="text"
-                    placeholder="DD/MM/YYYY"
+                    type="date"
                     value={expireDate}
                     onChange={e => setExpireDate(e.target.value)}
                     className="px-3 py-2 border rounded-lg outline-none font-bold bg-white text-slate-600"

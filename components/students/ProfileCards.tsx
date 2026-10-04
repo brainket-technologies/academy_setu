@@ -267,49 +267,162 @@ export function GovtPortalDetailsCard({ data, onEdit }: any) {
 }
 
 export function FeeDetailsCard({ data, onEdit }: any) {
-  const feeItems: { label: string, detail?: string, fee?: string }[] = []
+  const parseNum = (str: any) => parseFloat(String(str || '').replace(/[^0-9.]/g, '')) || 0
+
+  const computeItem = (label: string, detail?: string, feeStr?: string, promoCode?: string) => {
+    const base = parseNum(feeStr)
+    let discount = 0
+    let discountTag = ''
+
+    if (promoCode && base > 0) {
+      let pVal = 0
+      let isPercent = false
+      try {
+        const saved = localStorage.getItem('school_masters_discounts')
+        if (saved) {
+          const list = JSON.parse(saved)
+          if (Array.isArray(list)) {
+            const matched = list.find((d: any) => 
+              (d.promoCode && d.promoCode.toLowerCase() === promoCode.toLowerCase()) ||
+              (d.name && d.name.toLowerCase() === promoCode.toLowerCase())
+            )
+            if (matched) {
+              isPercent = matched.valueType === 'Percentage'
+              pVal = parseFloat(isPercent ? matched.percentage : (matched.amount || matched.percentage || '0')) || 0
+            }
+          }
+        }
+      } catch (e) {}
+
+      if (!pVal) {
+        const numMatch = promoCode.match(/\d+/)
+        if (numMatch) {
+          const extracted = parseFloat(numMatch[0])
+          if (extracted <= 100) { isPercent = true; pVal = extracted }
+          else { isPercent = false; pVal = extracted }
+        }
+      }
+
+      if (isPercent) {
+        discount = Math.round((base * (pVal || 0)) / 100)
+        discountTag = `${pVal}% Off (-₹${discount})`
+      } else {
+        discount = Math.min(base, Math.round(pVal || 0))
+        discountTag = `₹${pVal} Off (-₹${discount})`
+      }
+    }
+
+    const finalAmt = Math.max(0, base - discount)
+    return {
+      label,
+      detail,
+      baseFee: base,
+      discount,
+      discountTag,
+      promoCode,
+      finalFee: finalAmt,
+      finalFeeStr: `${finalAmt}/-`,
+      origFeeStr: feeStr || `${base}/-`
+    }
+  }
+
+  const feeItems: any[] = []
 
   if (data?.regFee || data?.regFeeDuration) {
-    feeItems.push({ label: 'Registration Fee', detail: data.regFeeDuration, fee: data.regFee })
+    feeItems.push(computeItem('Registration Fee', data.regFeeDuration, data.regFee, data.regFeePromo))
   }
   if (data?.admFee || data?.admFeeDuration) {
-    feeItems.push({ label: 'Admission Fee', detail: data.admFeeDuration, fee: data.admFee })
+    feeItems.push(computeItem('Admission Fee', data.admFeeDuration, data.admFee, data.admFeePromo))
   }
   if (data?.classFee || data?.classFeeDuration) {
-    feeItems.push({ label: 'Class Fee', detail: `${data.classFeeDuration || ''}${data.isRteStudent === 'Yes' ? ' (RTE Exemption)' : ''}`, fee: data.classFee })
+    feeItems.push(computeItem('Class Fee', `${data.classFeeDuration || ''}${data.isRteStudent === 'Yes' ? ' (RTE Exemption)' : ''}`, data.classFee, data.classFeePromo))
   }
   if (data?.libFee || data?.libFeeDuration) {
-    feeItems.push({ label: 'Library Fee', detail: data.libFeeDuration, fee: data.libFee })
+    feeItems.push(computeItem('Library Fee', data.libFeeDuration, data.libFee, data.libFeePromo))
   }
   if (data?.examFee || data?.examFeeDuration) {
-    feeItems.push({ label: 'Exam Fee', detail: data.examFeeDuration, fee: data.examFee })
+    feeItems.push(computeItem('Exam Fee', data.examFeeDuration, data.examFee, data.examFeePromo))
   }
   if (data?.hostelFee || data?.hostelType || data?.hostelFeeDuration) {
-    feeItems.push({ label: 'Hostel Fee', detail: `${data.hostelType ? `${data.hostelType} • ` : ''}${data.hostelFeeDuration || ''}`, fee: data.hostelFee })
+    feeItems.push(computeItem('Hostel Fee', `${data.hostelType ? `${data.hostelType} • ` : ''}${data.hostelFeeDuration || ''}`, data.hostelFee, data.hostelFeePromo))
   }
   if (data?.extraFee || data?.extraActivityName) {
-    feeItems.push({ label: 'Extra Curricular Fee', detail: data.extraActivityName, fee: data.extraFee })
+    feeItems.push(computeItem('Extra Curricular Fee', data.extraActivityName, data.extraFee, data.extraFeePromo))
   }
   if (data?.transFee || data?.transRoute || data?.transStoppage) {
     const routeInfo = [data.transRoute, data.transStoppage, data.transDistance, data.transFeeDuration].filter(Boolean).join(' • ')
-    feeItems.push({ label: 'Transportation Fee', detail: routeInfo, fee: data.transFee })
+    feeItems.push(computeItem('Transportation Fee', routeInfo, data.transFee, data.transFeePromo))
   }
+
+  const totalGross = feeItems.reduce((sum, it) => sum + (it.baseFee || 0), 0)
+  const totalDiscount = feeItems.reduce((sum, it) => sum + (it.discount || 0), 0)
+  const totalNet = feeItems.reduce((sum, it) => sum + (it.finalFee || 0), 0)
 
   return (
     <InfoCard title="Fee Structure Details" icon={Award} fullWidth onEdit={onEdit}>
       {feeItems.length === 0 ? (
         <p className="text-xs text-slate-400 text-center py-2 font-medium">No fee items configured for this student</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {feeItems.map((item, idx) => (
-            <div key={idx} className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col justify-between">
-              <div>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 block">{item.label}</span>
-                {item.detail && <span className="text-[11px] text-slate-400 block mt-0.5 font-medium">{item.detail}</span>}
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {feeItems.map((item, idx) => (
+              <div key={idx} className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200 block">{item.label}</span>
+                    {item.promoCode && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded border border-emerald-200 dark:border-emerald-800">
+                        {item.promoCode}
+                      </span>
+                    )}
+                  </div>
+                  {item.detail && <span className="text-[11px] text-slate-400 block mt-0.5 font-medium">{item.detail}</span>}
+                </div>
+                
+                <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <div>
+                    {item.discount > 0 && (
+                      <span className="text-[11px] line-through text-slate-400 block font-medium">
+                        ₹{item.origFeeStr}
+                      </span>
+                    )}
+                    <span className="text-xs font-semibold text-slate-500">Final Amount:</span>
+                  </div>
+                  <div className="text-right">
+                    {item.discountTag && (
+                      <span className="text-[10px] text-emerald-600 font-bold block">
+                        {item.discountTag}
+                      </span>
+                    )}
+                    <span className="text-sm font-black text-teal-600 dark:text-teal-400 block">
+                      ₹{item.finalFeeStr}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <span className="text-sm font-black text-teal-600 dark:text-teal-400 mt-2 block">{item.fee || 'Configured'}</span>
+            ))}
+          </div>
+
+          {/* Total Fee Summary Bar */}
+          <div className="p-3.5 bg-teal-50/60 dark:bg-teal-950/30 rounded-xl border border-teal-200 dark:border-teal-800/60 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-6">
+              <div>
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block">Total Base Fee</span>
+                <span className="text-sm font-bold text-slate-700 dark:text-slate-200">₹{totalGross}/-</span>
+              </div>
+              {totalDiscount > 0 && (
+                <div>
+                  <span className="text-[11px] font-bold text-emerald-600 block">Total Promo Discount</span>
+                  <span className="text-sm font-bold text-emerald-600">- ₹{totalDiscount}/-</span>
+                </div>
+              )}
             </div>
-          ))}
+
+            <div className="text-right">
+              <span className="text-[11px] font-bold text-teal-700 dark:text-teal-300 uppercase tracking-wider block">Final Net Payable Amount</span>
+              <span className="text-lg font-black text-teal-600 dark:text-teal-400">₹{totalNet}/-</span>
+            </div>
+          </div>
         </div>
       )}
     </InfoCard>
