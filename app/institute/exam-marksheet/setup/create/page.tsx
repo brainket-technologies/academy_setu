@@ -3,7 +3,11 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, X, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Save, Check, Award, Eye, FileText, LayoutTemplate, ShieldAlert } from 'lucide-react'
+import { Plus, X, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Save, Check, CheckCircle2, Award, Eye, FileText, LayoutTemplate, ShieldAlert, Sparkles, Printer, RefreshCw, Layers } from 'lucide-react'
+import { toast } from 'sonner'
+import { saveMultipleMarksheetSetups, fetchExamGroups, saveExamGroup } from '../actions'
+import { MarksheetPreview } from '@/components/marksheets/MarksheetPreview'
+import { getInstituteAddedClasses, MasterClassWithSections } from '@/lib/institute-classes'
 
 // Step Definitions
 type StepType = 'Exams' | 'Marks & Grade Range' | 'Marksheet Design Setup' | 'Certificate Design'
@@ -12,6 +16,7 @@ const STEPS: StepType[] = ['Exams', 'Marks & Grade Range', 'Marksheet Design Set
 interface SubjectConfig {
   id: number
   subjectName: string
+  examDate?: string
   maxMarks: string
   practicalColumn: boolean
   practicalMarks: string
@@ -20,55 +25,130 @@ interface SubjectConfig {
 interface ClassConfig {
   id: number
   className: string
+  sections: string[]
   subjects: SubjectConfig[]
 }
 
 export default function AddSetupWizardPage() {
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState<StepType>('Exams')
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // ==================== STEP 1: EXAMS STATE ====================
   const [groupName, setGroupName] = useState('Exam')
   const [availableGroups, setAvailableGroups] = useState<string[]>(['Exam', 'Theory Exam', 'Practical Exam'])
+  
+  // Master added classes & sections state
+  const [masterClasses, setMasterClasses] = useState<MasterClassWithSections[]>([])
+  const [availableMasterSubjects, setAvailableMasterSubjects] = useState<string[]>([
+    'Mathematics', 'English', 'Hindi', 'Science', 'Social Science', 
+    'Physics', 'Chemistry', 'Biology', 'Computer Science', 'General Knowledge', 'EVS'
+  ])
+
+  // Create Group Popup State
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false)
+  const [newGroupName, setNewGroupName] = useState('')
+  const [newGroupDesc, setNewGroupDesc] = useState('')
+  const [isSavingGroup, setIsSavingGroup] = useState(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem('exam_groups')
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed)) {
-          setAvailableGroups(parsed.map((item: any) => item.groupName))
-        }
-      } catch (e) {
-        console.error(e)
-      }
+    loadGroups()
+    const addedClasses = getInstituteAddedClasses()
+    setMasterClasses(addedClasses)
+    if (addedClasses.length > 0) {
+      setClasses(prev => prev.map((c, i) => i === 0 && !c.className ? {
+        ...c,
+        className: addedClasses[0].className,
+        sections: [...addedClasses[0].sections]
+      } : c))
     }
+
+    try {
+      const savedSubs = localStorage.getItem('school_masters_subjects')
+      if (savedSubs) {
+        const parsed = JSON.parse(savedSubs)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const names = parsed.filter((s: any) => !s.deleted && s.subjectName).map((s: any) => s.subjectName.trim())
+          if (names.length > 0) {
+            setAvailableMasterSubjects(Array.from(new Set([...names, 'Mathematics', 'English', 'Hindi', 'Science', 'Social Science'])))
+          }
+        }
+      }
+    } catch (e) {}
   }, [])
+
+  const loadGroups = async () => {
+    try {
+      const res = await fetchExamGroups()
+      if (res.success && res.data && res.data.length > 0) {
+        const names = res.data.map((g: any) => g.groupName)
+        setAvailableGroups(names)
+        if (!names.includes(groupName)) {
+          setGroupName(names[0])
+        }
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const handleCreateGroup = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newGroupName.trim()) {
+      toast.error('Please enter a group name')
+      return
+    }
+
+    setIsSavingGroup(true)
+    try {
+      const res = await saveExamGroup(newGroupName, newGroupDesc)
+      if (res.success && res.data) {
+        toast.success(`Exam group "${newGroupName.trim()}" created successfully!`)
+        const createdName = res.data.groupName
+        setAvailableGroups(prev => Array.from(new Set([...prev, createdName])))
+        setGroupName(createdName)
+        setNewGroupName('')
+        setNewGroupDesc('')
+        setIsGroupModalOpen(false)
+      } else {
+        toast.error(res.error || 'Failed to create group')
+      }
+    } catch (err: any) {
+      toast.error('Error creating group: ' + err.message)
+    } finally {
+      setIsSavingGroup(false)
+    }
+  }
 
   const [examName, setExamName] = useState('')
   const [session, setSession] = useState('2025-2026')
   const [dateOfExam, setDateOfExam] = useState('')
   const [admitCardDate, setAdmitCardDate] = useState('')
-  const [lockExam, setLockExam] = useState(false)
+  const [lockExam, setLockExam] = useState(true)
   const [lastDateToEnter, setLastDateToEnter] = useState('')
-  const [lockClasses, setLockClasses] = useState('Select Multiple Classes')
+  const [lockClasses, setLockClasses] = useState('')
 
   const [classes, setClasses] = useState<ClassConfig[]>([
     {
       id: 1,
       className: '',
-      subjects: [{ id: 1, subjectName: '', maxMarks: '100', practicalColumn: false, practicalMarks: '' }]
+      sections: [],
+      subjects: [{ id: 1, subjectName: '', examDate: '', maxMarks: '100', practicalColumn: false, practicalMarks: '' }]
     }
   ])
 
   // Class / Subject Handlers
   const handleAddClass = () => {
+    const firstCls = masterClasses[0]?.className || ''
+    const firstSecs = masterClasses[0]?.sections || ['Section A']
     setClasses(prev => [
       ...prev,
       {
         id: Date.now(),
-        className: '',
-        subjects: [{ id: Date.now() + 1, subjectName: '', maxMarks: '100', practicalColumn: false, practicalMarks: '' }]
+        className: firstCls,
+        sections: [...firstSecs],
+        subjects: [{ id: Date.now() + 1, subjectName: '', examDate: '', maxMarks: '100', practicalColumn: false, practicalMarks: '' }]
       }
     ])
   }
@@ -79,7 +159,34 @@ export default function AddSetupWizardPage() {
   }
 
   const handleClassChange = (classId: number, name: string) => {
-    setClasses(prev => prev.map(c => c.id === classId ? { ...c, className: name } : c))
+    const found = masterClasses.find(m => m.className === name)
+    const defaultSecs = found ? found.sections : ['Section A']
+    setClasses(prev => prev.map(c => c.id === classId ? {
+      ...c,
+      className: name,
+      sections: [...defaultSecs]
+    } : c))
+  }
+
+  const handleToggleSection = (classId: number, sec: string) => {
+    setClasses(prev => prev.map(c => {
+      if (c.id === classId) {
+        const exists = c.sections.includes(sec)
+        const updated = exists ? c.sections.filter(s => s !== sec) : [...c.sections, sec]
+        return { ...c, sections: updated }
+      }
+      return c
+    }))
+  }
+
+  const handleSelectAllSections = (classId: number, allSecs: string[]) => {
+    setClasses(prev => prev.map(c => {
+      if (c.id === classId) {
+        const isAll = c.sections.length === allSecs.length
+        return { ...c, sections: isAll ? [] : [...allSecs] }
+      }
+      return c
+    }))
   }
 
   const handleAddSubject = (classId: number) => {
@@ -89,7 +196,7 @@ export default function AddSetupWizardPage() {
           ...c,
           subjects: [
             ...c.subjects,
-            { id: Date.now(), subjectName: '', maxMarks: '100', practicalColumn: false, practicalMarks: '' }
+            { id: Date.now(), subjectName: '', examDate: '', maxMarks: '100', practicalColumn: false, practicalMarks: '' }
           ]
         }
       }
@@ -196,23 +303,27 @@ export default function AddSetupWizardPage() {
   // ==================== GENERAL ACTIONS ====================
   const validateStep1 = () => {
     if (!examName) {
-      alert('Please fill in the Exam Name.')
+      toast.error('Please fill in the Exam Name.')
       return false
     }
     for (const c of classes) {
       if (!c.className) {
-        alert('Please fill in the Class Name for all class cards.')
+        toast.error('Please select an added Class for all class cards.')
+        return false
+      }
+      if (!c.sections || c.sections.length === 0) {
+        toast.error(`Please select at least one Section for ${c.className}.`)
         return false
       }
       for (const s of c.subjects) {
         if (!s.subjectName) {
-          alert(`Please configure the Subject Name for ${c.className || 'all classes'}.`)
+          toast.error(`Please configure the Subject Name for ${c.className}.`)
           return false
         }
       }
     }
     if (!dateOfExam || !admitCardDate) {
-      alert('Please enter both Exam Date and Admit Card Generated Date.')
+      toast.error('Please enter both Exam Date and Admit Card Generated Date.')
       return false
     }
     return true
@@ -238,64 +349,124 @@ export default function AddSetupWizardPage() {
     }
   }
 
-  const handleSaveSetup = () => {
-    // Generate dates
-    const today = new Date()
-    const formattedDate = today.toLocaleDateString('en-GB')
-    const formattedTime = today.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-
-    // Build the objects for each class
-    const savedSetupsStr = localStorage.getItem('exam_setups')
-    let currentSetups = []
-    if (savedSetupsStr) {
-      try {
-        currentSetups = JSON.parse(savedSetupsStr)
-      } catch (e) {
-        console.error(e)
-      }
+  const handleSaveSetup = async () => {
+    if (!examName) {
+      toast.error('Please enter the Exam Name in Step 1.')
+      setCurrentStep('Exams')
+      return
     }
 
-    // Add multiple entries if they configured multiple classes
-    const newSetups = classes.map((c, i) => ({
-      id: Date.now() + i,
-      group: groupName,
-      exam: examName,
-      classGrade: c.className,
-      marksGrade: 'Percentage',
-      templateName: selectedTemplate,
-      date: formattedDate,
-      time: formattedTime
-    }))
+    setIsSubmitting(true)
+    try {
+      const payload = classes.map((c) => ({
+        groupName: groupName || 'Exam',
+        examName: examName,
+        classGrade: c.sections.length > 0 
+          ? `${c.className} (${c.sections.map(s => s.replace('Section ', 'Sec ')).join(', ')})`
+          : c.className,
+        marksGrade: 'Percentage',
+        templateName: selectedTemplate,
+        session: session,
+        examDate: dateOfExam || undefined,
+        admitCardDate: admitCardDate || undefined,
+        lockExam: lockExam,
+        lastDateToEnter: lastDateToEnter || undefined,
+        config: {
+          className: c.className,
+          sections: c.sections,
+          subjects: c.subjects,
+          percentRanges,
+          gradeRanges,
+          divisionRanges,
+          minPassingPct,
+          minPassingMarks,
+          gradeToDisplay,
+          heading1,
+          heading2,
+          headingHeader,
+          showTestMarks,
+          logoWidth,
+          affWordWidth,
+          photoWidth,
+          photoHeight,
+          logoPos,
+          showHeaderSign,
+          showHeaderStamp,
+          showStudentPhoto,
+          showBlankSpace,
+          showParentMobile,
+          showRoundBorderPhoto,
+          columnsList,
+          schoolDetails: {
+            schoolName,
+            affiliateTo,
+            schoolAddress,
+            schoolCode,
+            phone,
+            email,
+            principalName,
+            academicYear
+          },
+          certTemplate,
+          lockClasses
+        }
+      }))
 
-    const updated = [...newSetups, ...currentSetups]
-    localStorage.setItem('exam_setups', JSON.stringify(updated))
-
-    alert('Exam and Marksheet Setup configured successfully!')
-    router.push('/institute/exam-marksheet/setup')
+      const res = await saveMultipleMarksheetSetups(payload)
+      if (res.success) {
+        toast.success(`${classes.length} marksheet setup(s) created & saved to PostgreSQL!`)
+        router.push('/institute/exam-marksheet/setup')
+      } else {
+        toast.error(res.error || 'Failed to save to PostgreSQL database')
+      }
+    } catch (err: any) {
+      toast.error('Error saving setup: ' + err.message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
     <div className="flex flex-col gap-6 w-full pb-10 animate-in fade-in duration-300">
       
       {/* Header bar */}
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm flex items-center justify-between">
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-black text-slate-800 dark:text-slate-100">Add Setup</h1>
+          <h1 className="text-xl font-black text-slate-800 dark:text-slate-100">Add Marksheet Setup</h1>
           <p className="text-xs text-slate-400">Configure exams, ranges, layouts, and designs in 4 steps</p>
         </div>
         
-        <div className="flex items-center gap-3">
-          <Link 
-            href="/institute/exam-marksheet/group"
-            className="flex items-center gap-2 px-4 py-2 border border-teal-600 text-teal-655 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-slate-700 rounded-lg text-xs font-bold transition-colors"
+        <div className="flex flex-wrap items-center gap-3">
+          <button 
+            type="button"
+            onClick={() => setShowPreviewModal(true)}
+            className="flex items-center gap-2 px-4 py-2 border border-purple-600 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-xl text-xs font-bold transition-all shadow-xs"
+          >
+            <Eye className="w-4 h-4" /> Live Marksheet Preview
+          </button>
+          
+          <button 
+            type="button"
+            onClick={() => setIsGroupModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-xs font-bold transition-colors"
           >
             + Create Group
-          </Link>
+          </button>
+
           <button 
             onClick={handleSaveSetup}
-            className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
+            disabled={isSubmitting}
+            className="flex items-center gap-2 px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm disabled:opacity-50"
           >
-            <Save className="w-4 h-4" /> Create Setup
+            {isSubmitting ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" /> Saving to DB...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" /> Save Setup
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -363,7 +534,16 @@ export default function AddSetupWizardPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Group Name <span className="text-red-500">*</span></label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700">Group Name <span className="text-red-500">*</span></label>
+                  <button
+                    type="button"
+                    onClick={() => setIsGroupModalOpen(true)}
+                    className="text-[11px] font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" /> New Group
+                  </button>
+                </div>
                 <select 
                   value={groupName}
                   onChange={e => setGroupName(e.target.value)}
@@ -404,84 +584,164 @@ export default function AddSetupWizardPage() {
                     </button>
                   )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-slate-700">Select Class <span className="text-red-500">*</span></label>
+                  {/* Class & Multi-Select Section Selector */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6 pb-6 border-b border-slate-200 dark:border-slate-800">
+                    
+                    {/* 1. Only Added Classes Dropdown */}
+                    <div className="flex flex-col gap-1.5 lg:col-span-5">
+                      <label className="text-xs font-black text-slate-700 dark:text-slate-300">
+                        Select Added Class <span className="text-red-500">*</span>
+                      </label>
                       <select 
                         value={cls.className}
                         onChange={e => handleClassChange(cls.id, e.target.value)}
-                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-600"
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-bold text-slate-800 dark:text-slate-100 shadow-xs"
                         required
                       >
-                        <option value="">Select Class</option>
-                        <option value="Class II">Class II</option>
-                        <option value="Class III">Class III</option>
-                        <option value="Class V">Class V</option>
-                        <option value="Class VIII">Class VIII</option>
+                        <option value="">-- Choose Added Class --</option>
+                        {masterClasses.map(m => (
+                          <option key={m.className} value={m.className}>
+                            {m.className} ({m.sections.length} Sections)
+                          </option>
+                        ))}
                       </select>
+                      <p className="text-[10px] text-slate-400">
+                        Only classes added in Institute Masters
+                      </p>
                     </div>
+
+                    {/* 2. Multi-Select Sections of Selected Class */}
+                    <div className="flex flex-col gap-1.5 lg:col-span-7">
+                      {(() => {
+                        const currentClassObj = masterClasses.find(m => m.className === cls.className)
+                        const availableSecs = currentClassObj?.sections || ['Section A', 'Section B', 'Section C']
+                        const allSelected = cls.sections.length === availableSecs.length && availableSecs.length > 0
+
+                        return (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                                <span>Applicable Sections (Multi-Select)</span>
+                                <span className="text-red-500">*</span>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                                  {cls.sections.length} Selected
+                                </span>
+                              </label>
+
+                              <button
+                                type="button"
+                                onClick={() => handleSelectAllSections(cls.id, availableSecs)}
+                                className="text-[11px] font-bold text-teal-600 dark:text-teal-400 hover:underline"
+                              >
+                                {allSelected ? 'Deselect All' : 'Select All Sections'}
+                              </button>
+                            </div>
+
+                            {/* Section Multi-Select Badges */}
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              {availableSecs.map(sec => {
+                                const isChecked = cls.sections.includes(sec)
+                                return (
+                                  <button
+                                    key={sec}
+                                    type="button"
+                                    onClick={() => handleToggleSection(cls.id, sec)}
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 shadow-xs ${
+                                      isChecked 
+                                        ? 'bg-teal-600 text-white border-teal-600 ring-2 ring-teal-500/20' 
+                                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400 hover:bg-slate-50'
+                                    }`}
+                                  >
+                                    <Check className={`w-3.5 h-3.5 stroke-[3] transition-all ${isChecked ? 'opacity-100' : 'opacity-20'}`} />
+                                    <span>{sec}</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+
+                            {cls.sections.length === 0 && (
+                              <span className="text-[10px] font-semibold text-red-500 mt-0.5">
+                                Please select at least one section for this class
+                              </span>
+                            )}
+                          </>
+                        )
+                      })()}
+                    </div>
+
                   </div>
 
                   {/* Subject configurator row inside this Class card */}
                   <div className="space-y-4">
                     {cls.subjects.map((sub, subIdx) => (
-                      <div key={sub.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-white dark:bg-slate-800 p-4 border border-slate-100 dark:border-slate-700 rounded-xl relative shadow-sm">
-                        <div className="flex flex-col gap-1.5">
+                      <div key={sub.id} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3.5 items-end bg-white dark:bg-slate-800 p-4 border border-slate-100 dark:border-slate-700 rounded-xl relative shadow-xs">
+                        
+                        {/* 1. Select Subject */}
+                        <div className="flex flex-col gap-1.5 lg:col-span-4">
                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select Subject *</label>
                           <select 
                             value={sub.subjectName}
                             onChange={e => handleSubjectChange(cls.id, sub.id, 'subjectName', e.target.value)}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
+                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold bg-white dark:bg-slate-900"
                             required
                           >
                             <option value="">Select Subject</option>
-                            <option value="Mathematics">Mathematics</option>
-                            <option value="English">English</option>
-                            <option value="Hindi">Hindi</option>
-                            <option value="Hindi Practical">Hindi Practical</option>
-                            <option value="Science">Science</option>
-                            <option value="EVS">EVS</option>
+                            {availableMasterSubjects.map(s => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
                           </select>
                         </div>
 
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Maximum Marks *</label>
+                        {/* 2. Exam Date for this Subject */}
+                        <div className="flex flex-col gap-1.5 lg:col-span-3">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subject Exam Date</label>
                           <input 
-                            type="text" 
-                            placeholder="Enter Marks"
-                            value={sub.maxMarks}
-                            onChange={e => handleSubjectChange(cls.id, sub.id, 'maxMarks', e.target.value)}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-center"
+                            type="date"
+                            value={sub.examDate || ''}
+                            onChange={e => handleSubjectChange(cls.id, sub.id, 'examDate', e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900"
                           />
                         </div>
 
-                        <div className="flex items-center gap-3 py-2.5">
-                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Practical Column</span>
-                          <button 
-                            type="button"
-                            onClick={() => handleSubjectChange(cls.id, sub.id, 'practicalColumn', !sub.practicalColumn)}
-                            className={`w-11 h-6 rounded-full relative transition-colors ${
-                              sub.practicalColumn ? 'bg-teal-600' : 'bg-slate-200'
-                            }`}
-                          >
-                            <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${
-                              sub.practicalColumn ? 'left-5.5' : 'left-0.5'
-                            }`}></div>
-                          </button>
+                        {/* 3. Maximum Marks */}
+                        <div className="flex flex-col gap-1.5 lg:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Max Marks *</label>
+                          <input 
+                            type="text" 
+                            placeholder="100"
+                            value={sub.maxMarks}
+                            onChange={e => handleSubjectChange(cls.id, sub.id, 'maxMarks', e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-center bg-white dark:bg-slate-900"
+                          />
                         </div>
 
-                        {sub.practicalColumn && (
-                          <div className="flex flex-col gap-1.5 animate-in fade-in slide-in-from-left-2 duration-200">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Practical Marks</label>
+                        {/* 4. Practical Column Toggle & Marks */}
+                        <div className="flex items-center gap-2.5 py-1.5 lg:col-span-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Practical</span>
+                            <button 
+                              type="button"
+                              onClick={() => handleSubjectChange(cls.id, sub.id, 'practicalColumn', !sub.practicalColumn)}
+                              className={`w-10 h-5 rounded-full relative transition-colors ${
+                                sub.practicalColumn ? 'bg-teal-600' : 'bg-slate-200 dark:bg-slate-700'
+                              }`}
+                            >
+                              <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${
+                                sub.practicalColumn ? 'left-5.5' : 'left-0.5'
+                              }`}></div>
+                            </button>
+                          </div>
+
+                          {sub.practicalColumn && (
                             <input 
                               type="text" 
-                              placeholder="Enter Practical Marks"
+                              placeholder="Pr. Marks"
                               value={sub.practicalMarks}
                               onChange={e => handleSubjectChange(cls.id, sub.id, 'practicalMarks', e.target.value)}
-                              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-center"
+                              className="w-20 px-2 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-center bg-white dark:bg-slate-900 animate-in fade-in"
                             />
-                          </div>
-                        )}
+                          )}
+                        </div>
                         
                         {/* Remove subject button */}
                         {cls.subjects.length > 1 && (
@@ -520,76 +780,86 @@ export default function AddSetupWizardPage() {
                 <Plus className="w-4 h-4" /> Add Class
               </button>
             </div>
-
-            {/* Exam dates */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Date of Exam <span className="text-red-500">*</span></label>
-                <input 
-                  type="date"
-                  value={dateOfExam}
-                  onChange={e => setDateOfExam(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 text-slate-500"
-                  required
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Admit Card Generated Date <span className="text-red-500">*</span></label>
-                <input 
-                  type="date"
-                  value={admitCardDate}
-                  onChange={e => setAdmitCardDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 text-slate-500"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Exam Lock Settings */}
-            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 space-y-4">
-              <div className="flex items-center justify-between">
+            
+            {/* Exam Notification & Locking System (Default Open - No Toggle) */}
+            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
                 <div>
-                  <h3 className="text-xs font-bold text-slate-800">Lock exam modifications?</h3>
-                  <p className="text-[10px] text-slate-400">Lock the exam from updating marks after a certain date.</p>
+                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                    Exam Notification & Locking System
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Configure official schedule release dates, admit card availability, and mark entry lock deadlines
+                  </p>
                 </div>
-                <button 
-                  type="button"
-                  onClick={() => setLockExam(!lockExam)}
-                  className={`w-11 h-6 rounded-full relative transition-colors ${
-                    lockExam ? 'bg-teal-600' : 'bg-slate-200'
-                  }`}
-                >
-                  <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${
-                    lockExam ? 'left-5.5' : 'left-0.5'
-                  }`}></div>
-                </button>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                  Active
+                </span>
               </div>
 
-              {lockExam && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-700">Last date to enter marks <span className="text-red-500">*</span></label>
-                    <input 
-                      type="date"
-                      value={lastDateToEnter}
-                      onChange={e => setLastDateToEnter(e.target.value)}
-                      className="w-full px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 text-slate-500"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-700">Select Class <span className="text-red-500">*</span></label>
-                    <input 
-                      type="text"
-                      placeholder="e.g. Select Multiple Classes"
-                      value={lockClasses}
-                      onChange={e => setLockClasses(e.target.value)}
-                      className="w-full px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
-                    />
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                {/* 1. Exam Notification Date */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Exam Notification Date <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="date"
+                    value={dateOfExam}
+                    onChange={e => setDateOfExam(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
+                    required
+                  />
+                  <span className="text-[10px] text-slate-400">Date exam notice is published</span>
                 </div>
-              )}
+
+                {/* 2. Admit Card Generated Date */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Admit Card Generated Date <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="date"
+                    value={admitCardDate}
+                    onChange={e => setAdmitCardDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
+                    required
+                  />
+                  <span className="text-[10px] text-slate-400">Date hall tickets are available</span>
+                </div>
+
+                {/* 3. Last Date to Enter Marks */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Last Date to Enter Marks <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="date" 
+                    value={lastDateToEnter}
+                    onChange={e => setLastDateToEnter(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
+                  />
+                  <span className="text-[10px] text-slate-400">Lock entry deadline</span>
+                </div>
+
+                {/* 4. Lock Modifications for Class */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Lock Applicable Class <span className="text-red-500">*</span>
+                  </label>
+                  <select 
+                    value={lockClasses}
+                    onChange={e => setLockClasses(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
+                  >
+                    <option value="">All Applicable Classes</option>
+                    {masterClasses.map(m => (
+                      <option key={m.className} value={m.className}>{m.className}</option>
+                    ))}
+                  </select>
+                  <span className="text-[10px] text-slate-400">Target class for lock policy</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -898,6 +1168,31 @@ export default function AddSetupWizardPage() {
                   <span className="text-xs font-black text-slate-800">Skills Aspect Grid (Indigo)</span>
                 </div>
               </div>
+
+              {/* Live Preview Banner in Step 3 */}
+              <div className="bg-gradient-to-r from-purple-50 via-teal-50 to-emerald-50 dark:from-purple-950/30 dark:to-emerald-950/30 border border-purple-200 dark:border-purple-800/50 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-600/20">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-slate-800 dark:text-slate-100">
+                      Live Marksheet Preview • {selectedTemplate}
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Inspect your marksheet layout, subjects, and grading scale in real time before finalizing.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPreviewModal(true)}
+                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-purple-600/20 transition-all shrink-0"
+                >
+                  <Eye className="w-4 h-4" />
+                  Show Full Marksheet Preview
+                </button>
+              </div>
             </div>
 
             {/* Columns Checkbox Grid */}
@@ -1036,6 +1331,185 @@ export default function AddSetupWizardPage() {
           )}
         </div>
       </div>
+
+      {/* ============================================================== */}
+      {/* LIVE MARKSHEET PREVIEW MODAL                                    */}
+      {/* ============================================================== */}
+      {showPreviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto py-8">
+          <div className="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 my-auto">
+            
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-850">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-sm">
+                  <Eye className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">
+                    Interactive Marksheet Preview • {selectedTemplate}
+                  </h3>
+                  <div className="text-[11px] text-purple-600 font-semibold">
+                    {examName || 'Upcoming Examination'} • {classes[0]?.className || 'Class 10'} ({session})
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  Print / PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPreviewModal(false)}
+                  className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Marksheet Display Container */}
+            <div className="p-6 md:p-8 bg-slate-100 dark:bg-slate-950 flex items-center justify-center overflow-x-auto">
+              <div className="w-full max-w-[820px] shadow-2xl rounded-sm">
+                <MarksheetPreview
+                  templateName={selectedTemplate}
+                  examName={examName || 'Annual Examination 2025-26'}
+                  className={classes[0]?.className || 'Class 10'}
+                  academicYear={session}
+                  subjects={classes[0]?.subjects}
+                  percentRanges={percentRanges}
+                  gradeRanges={gradeRanges}
+                  divisionRanges={divisionRanges}
+                  schoolName={schoolName}
+                  affiliateTo={affiliateTo}
+                  schoolAddress={schoolAddress}
+                  schoolCode={schoolCode}
+                  phone={phone}
+                  email={email}
+                  principalName={principalName}
+                  headingHeader={headingHeader}
+                  showStudentPhoto={showStudentPhoto}
+                  showRoundBorderPhoto={showRoundBorderPhoto}
+                  showTestMarks={showTestMarks}
+                  showHeaderSign={showHeaderSign}
+                  showHeaderStamp={showHeaderStamp}
+                  columnsList={columnsList}
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+              <span>Preview updating in real time with your wizard parameters</span>
+              <button
+                type="button"
+                onClick={() => setShowPreviewModal(false)}
+                className="px-4 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs"
+              >
+                Close Preview
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* CREATE GROUP POPUP MODAL                                       */}
+      {/* ============================================================== */}
+      {isGroupModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-950/70 backdrop-blur-md overflow-y-auto py-10">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 my-auto">
+            
+            {/* Header */}
+            <div className="px-7 py-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-850">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-600/20">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-black text-slate-800 dark:text-slate-100">
+                    Create Exam Group
+                  </h2>
+                  <p className="text-[11px] text-slate-500">
+                    Add new scheme to PostgreSQL and select immediately
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setIsGroupModalOpen(false)}
+                className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCreateGroup} className="p-7 flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-black text-slate-700 dark:text-slate-300">
+                  Group Scheme Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder="e.g. Unit Test Scheme, Term 1 Scheme"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-black text-slate-700 dark:text-slate-300">
+                  Description (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  value={newGroupDesc}
+                  onChange={(e) => setNewGroupDesc(e.target.value)}
+                  placeholder="e.g. Summative assessments for secondary classes"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsGroupModalOpen(false)}
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingGroup}
+                  className="px-6 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-black text-xs shadow-md shadow-teal-600/20 transition-all disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isSavingGroup ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" /> Creating...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" /> Create & Select
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
 
     </div>
   )

@@ -22,7 +22,7 @@ interface StudentMarksheet {
 const INITIAL_MARKSHEETS: StudentMarksheet[] = [
 ]
 
-export default function AllMarksheetReportPage() {
+export default function DownloadMarksheetPage() {
   const [marksheets, setMarksheets] = useState<StudentMarksheet[]>(INITIAL_MARKSHEETS)
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -145,8 +145,8 @@ export default function AllMarksheetReportPage() {
       {/* Header */}
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-black text-slate-800 dark:text-slate-100">All Marksheets</h1>
-          <p className="text-xs text-slate-400">View, update and generate report cards for students</p>
+          <h1 className="text-xl font-black text-slate-800 dark:text-slate-100">Download Marksheet</h1>
+          <p className="text-xs text-slate-400">View, preview and download examination marksheets for students</p>
         </div>
         
         <div className="flex items-center gap-3">

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Search, Plus, Eye, Pencil, Trash2, X, DownloadCloud, Sparkles, QrCode } from 'lucide-react'
 import Link from 'next/link'
+import { getInstituteAddedClasses, MasterClassWithSections } from '@/lib/institute-classes'
 
 interface AdmitCardConfig {
   id: number
@@ -28,12 +29,15 @@ export default function AdmitCardsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSession, setSelectedSession] = useState('2025-2026')
   const [filterClass, setFilterClass] = useState('')
+  const [masterClasses, setMasterClasses] = useState<MasterClassWithSections[]>([])
   const [previewCard, setPreviewCard] = useState<AdmitCardConfig | null>(null)
   
   // Dynamic lookup for timetables
   const [timetables, setTimetables] = useState<any[]>([])
 
   useEffect(() => {
+    // Load Added Master Classes
+    setMasterClasses(getInstituteAddedClasses())
     // Load Admit Cards
     const savedCards = localStorage.getItem('exam_admit_cards')
     if (savedCards) {
@@ -128,12 +132,9 @@ export default function AdmitCardsPage() {
             className="px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none font-bold text-slate-600 bg-white"
           >
             <option value="">All Classes</option>
-            <option value="Class I">Class I</option>
-            <option value="Class II">Class II</option>
-            <option value="Class III">Class III</option>
-            <option value="Class IV">Class IV</option>
-            <option value="Class V">Class V</option>
-            <option value="Class VI">Class VI</option>
+            {masterClasses.map(m => (
+              <option key={m.className} value={m.className}>{m.className}</option>
+            ))}
           </select>
 
           <Link 

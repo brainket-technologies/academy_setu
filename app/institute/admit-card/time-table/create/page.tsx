@@ -1,8 +1,10 @@
 'use client'
 
 import React, { useState, useEffect, Suspense } from 'react'
-import { Plus, X, Calendar, Clock, ArrowLeft } from 'lucide-react'
+import { Plus, X, Calendar, Clock, ArrowLeft, Link as LinkIcon, Sparkles } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { fetchMarksheetSetups, ExamMarksheetSetupRecord } from '@/app/institute/exam-marksheet/setup/actions'
+import { getInstituteAddedClasses, MasterClassWithSections } from '@/lib/institute-classes'
 
 interface SubjectRow {
   id: number
@@ -23,6 +25,31 @@ function CreateTimeTableForm() {
   const [subjects, setSubjects] = useState<SubjectRow[]>([
     { id: 1, subjectName: '', date: '', fromTime: '', toTime: '' }
   ])
+
+  // Marksheet Setups from PostgreSQL & Master Classes
+  const [marksheetSetups, setMarksheetSetups] = useState<ExamMarksheetSetupRecord[]>([])
+  const [masterClasses, setMasterClasses] = useState<MasterClassWithSections[]>([])
+  const [selectedSetupId, setSelectedSetupId] = useState('')
+
+  // Load setups and classes
+  useEffect(() => {
+    // 1. Load added classes
+    const addedClasses = getInstituteAddedClasses()
+    setMasterClasses(addedClasses)
+
+    // 2. Load marksheet setups
+    const loadSetups = async () => {
+      try {
+        const res = await fetchMarksheetSetups()
+        if (res.success && res.data) {
+          setMarksheetSetups(res.data)
+        }
+      } catch (err) {
+        console.error('Failed to load marksheet setups for timetable:', err)
+      }
+    }
+    loadSetups()
+  }, [])
 
   // Load for edit mode
   useEffect(() => {
@@ -52,6 +79,33 @@ function CreateTimeTableForm() {
       }
     }
   }, [editId])
+
+  const handleSelectExamSetup = (setupId: string) => {
+    setSelectedSetupId(setupId)
+    if (!setupId) return
+
+    const matched = marksheetSetups.find(s => s.id === setupId)
+    if (matched) {
+      if (matched.exam) setTitle(matched.exam)
+      if (matched.classGrade) {
+        const baseClass = matched.classGrade.split('(')[0].trim()
+        setClassGrade(baseClass)
+      }
+      if (matched.session) setSession(matched.session)
+
+      // Auto populate subjects from the setup config with their scheduled dates!
+      if (matched.config?.subjects && matched.config.subjects.length > 0) {
+        const mappedSubjects: SubjectRow[] = matched.config.subjects.map((sub: any, idx: number) => ({
+          id: Date.now() + idx,
+          subjectName: sub.subjectName || `Subject ${idx + 1}`,
+          date: sub.examDate || matched.examDate || '',
+          fromTime: '10:00',
+          toTime: '13:00'
+        }))
+        setSubjects(mappedSubjects)
+      }
+    }
+  }
 
   const handleAddSubject = () => {
     setSubjects(prev => [
@@ -148,50 +202,95 @@ function CreateTimeTableForm() {
       {/* Form Container */}
       <form onSubmit={handleSave} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-8 shadow-sm space-y-6">
         
+        {/* Link with Exam Marksheet Setup */}
+        <div className="p-4 bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-sm shrink-0">
+              <LinkIcon className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs font-black text-slate-800 dark:text-slate-100">
+                  Link with Exam Marksheet Setup
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 dark:bg-teal-900/60 text-teal-700 dark:text-teal-300">
+                  Auto-Populate
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Select an exam marksheet setup to automatically fill exam title, class, session, and subjects with their dates.
+              </p>
+            </div>
+          </div>
+
+          <div className="w-full md:w-80 shrink-0">
+            <select
+              value={selectedSetupId}
+              onChange={e => handleSelectExamSetup(e.target.value)}
+              className="w-full px-3.5 py-2 bg-white dark:bg-slate-800 border border-teal-300 dark:border-teal-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-teal-500 shadow-sm"
+            >
+              <option value="">-- Choose Exam Marksheet Setup --</option>
+              {marksheetSetups.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.exam} ({s.classGrade}) {s.session ? `[${s.session}]` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
           {/* Title */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-700">Title <span className="text-red-500">*</span></label>
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+              Title <span className="text-red-500">*</span>
+            </label>
             <input 
               type="text"
               required
               placeholder="Ex: Half Yearly Exam"
               value={title}
               onChange={e => setTitle(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
+              className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
             />
           </div>
 
           {/* Class */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-700">Class <span className="text-red-500">*</span></label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Class <span className="text-red-500">*</span>
+              </label>
+              <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold">
+                Masters
+              </span>
+            </div>
             <select
               required
               value={classGrade}
               onChange={e => setClassGrade(e.target.value)}
-              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
+              className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
             >
               <option value="">Select Class</option>
-              <option value="Class I">Class I</option>
-              <option value="Class II">Class II</option>
-              <option value="Class III">Class III</option>
-              <option value="Class IV">Class IV</option>
-              <option value="Class V">Class V</option>
-              <option value="Class VI">Class VI</option>
-              <option value="Class VII">Class VII</option>
-              <option value="Class VIII">Class VIII</option>
+              {masterClasses.map(m => (
+                <option key={m.className} value={m.className}>
+                  {m.className}
+                </option>
+              ))}
             </select>
           </div>
 
           {/* Session */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-700">Session <span className="text-red-500">*</span></label>
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+              Session <span className="text-red-500">*</span>
+            </label>
             <select
               required
               value={session}
               onChange={e => setSession(e.target.value)}
-              className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
+              className="w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
             >
               <option value="2024-25">2024-25</option>
               <option value="2025-26">2025-26</option>
