@@ -1,6 +1,6 @@
-'use client'
+﻿'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { createStudent } from '@/app/institute/students/actions'
 import { X, Check, Paperclip, Plus, Camera, Percent, Search, Eye, Edit2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -753,160 +753,268 @@ function Step2({ formData, updateForm, onNext, onBack, onCancel, onSaveDraft }: 
 // ---------------------------------------------------------
 function Step3({ formData, masters, updateForm, onNext, onBack, onCancel }: any) {
   const [parentList, setParentList] = useState<any[]>([])
-  const [selectedParentId, setSelectedParentId] = useState<string>('')
 
-  const handleClearParent = () => {
-    setSelectedParentId('')
-    updateForm('fatherName', '')
-    updateForm('fatherContact', '')
-    updateForm('fatherOccupation', '')
-    updateForm('fatherIncome', '')
-    updateForm('fatherIncomeCert', '')
-    updateForm('fatherPhoto', '')
+  // Searchable parent picker state
+  const [parentSearch, setParentSearch] = useState('')
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [selectedParent, setSelectedParent] = useState<any>(null)
+  // 'father' | 'mother' | '' — which role this parent is filling
+  const [assignRole, setAssignRole] = useState<'father' | 'mother' | ''>('')
+  // 'choose_role' step shown after picking a parent
+  const [rolePrompt, setRolePrompt] = useState(false)
+  const pickerRef = useRef<HTMLDivElement>(null)
 
-    updateForm('motherName', '')
-    updateForm('motherContact', '')
-    updateForm('motherOccupation', '')
-    updateForm('motherIncome', '')
-    updateForm('motherIncomeCert', '')
-    updateForm('motherPhoto', '')
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
-    updateForm('address', '')
-    updateForm('state', '')
-    updateForm('district', '')
-    updateForm('pincode', '')
-  }
-
+  // Build parent list from localStorage + masters
   useEffect(() => {
     let rawParents: any[] = []
     const savedInstParents = localStorage.getItem('school_institute_parents')
     const savedParents = localStorage.getItem('school_parents')
-    
     if (savedInstParents) {
-      try {
-        const p1 = JSON.parse(savedInstParents)
-        if (Array.isArray(p1)) rawParents.push(...p1)
-      } catch (e) {}
+      try { const p1 = JSON.parse(savedInstParents); if (Array.isArray(p1)) rawParents.push(...p1) } catch (e) {}
     }
     if (savedParents) {
-      try {
-        const p2 = JSON.parse(savedParents)
-        if (Array.isArray(p2)) rawParents.push(...p2)
-      } catch (e) {}
+      try { const p2 = JSON.parse(savedParents); if (Array.isArray(p2)) rawParents.push(...p2) } catch (e) {}
     }
-    if (masters.parents && Array.isArray(masters.parents)) {
-      rawParents.push(...masters.parents)
-    }
+    if (masters.parents && Array.isArray(masters.parents)) rawParents.push(...masters.parents)
 
     const parentMap = new Map()
     rawParents.forEach((p: any) => {
       if (!p.deleted) {
         const key = String(p.id || p.contact || p.mobileNo || p.name || p.firstName)
-        if (key && !parentMap.has(key)) {
-          parentMap.set(key, p)
-        }
+        if (key && !parentMap.has(key)) parentMap.set(key, p)
       }
     })
     setParentList(Array.from(parentMap.values()))
   }, [masters.parents])
 
+  // Helper: readable display name + contact for a parent record
+  const getParentDisplay = (p: any) => {
+    const rawName = p.name || (p.firstName ? `${p.firstName} ${p.lastName || ''}`.trim() : '')
+    const pType = p.parentType || (p.gender === 'Female' ? 'Mother' : p.gender === 'Male' ? 'Father' : 'Parent')
+    const isMother = pType.toLowerCase() === 'mother'
+    const displayName = (isMother ? (p.motherName || rawName) : (p.fatherName || rawName)) || rawName || `Parent #${p.id}`
+    const contact = p.contact || p.mobileNo || p.fatherContact || p.motherContact || ''
+    return { displayName, pType, contact, rawName, isMother }
+  }
+
+  // Filtered list based on search
+  const filteredParents = parentList.filter((p: any) => {
+    if (!parentSearch.trim()) return true
+    const { displayName, contact } = getParentDisplay(p)
+    const q = parentSearch.toLowerCase()
+    return displayName.toLowerCase().includes(q) || contact.includes(q)
+  })
+
+  // Apply a parent to a specific role (father / mother) and fill form
+  const applyParent = useCallback((found: any, role: 'father' | 'mother') => {
+    const rawName = found.name || (found.firstName ? `${found.firstName} ${found.lastName || ''}`.trim() : '')
+    const contact = found.contact || found.mobileNo || found.fatherContact || found.motherContact || ''
+    const occupation = found.occupation || found.employmentType || found.fatherOccupation || found.motherOccupation || ''
+    const income = found.annualIncome || found.income || found.fatherIncome || found.motherIncome || ''
+
+    if (role === 'father') {
+      updateForm('fatherName', found.fatherName || rawName)
+      updateForm('fatherContact', found.fatherContact || contact)
+      updateForm('fatherOccupation', found.fatherOccupation || occupation)
+      updateForm('fatherIncome', found.fatherIncome || income)
+      if (found.fatherIncomeCert) updateForm('fatherIncomeCert', found.fatherIncomeCert)
+      if (found.fatherPhoto) updateForm('fatherPhoto', found.fatherPhoto)
+    } else {
+      updateForm('motherName', found.motherName || rawName)
+      updateForm('motherContact', found.motherContact || contact)
+      updateForm('motherOccupation', found.motherOccupation || occupation)
+      updateForm('motherIncome', found.motherIncome || income)
+      if (found.motherIncomeCert) updateForm('motherIncomeCert', found.motherIncomeCert)
+      if (found.motherPhoto) updateForm('motherPhoto', found.motherPhoto)
+    }
+
+    if (found.address) updateForm('address', found.address)
+    if (found.state || found.stateName) updateForm('state', found.state || found.stateName)
+    if (found.district) updateForm('district', found.district)
+    if (found.pincode) updateForm('pincode', found.pincode)
+  }, [updateForm])
+
+  // When user picks a parent from the dropdown
+  const handlePickParent = (p: any) => {
+    setSelectedParent(p)
+    setPickerOpen(false)
+    setParentSearch('')
+    const { isMother } = getParentDisplay(p)
+    // Show role-choice prompt
+    setRolePrompt(true)
+    setAssignRole(isMother ? 'mother' : 'father')
+  }
+
+  // Confirm role assignment
+  const handleConfirmRole = (role: 'father' | 'mother') => {
+    if (selectedParent) {
+      setAssignRole(role)
+      applyParent(selectedParent, role)
+    }
+    setRolePrompt(false)
+  }
+
+  // Clear a specific role
+  const handleClearRole = (role: 'father' | 'mother') => {
+    if (role === 'father') {
+      updateForm('fatherName', '')
+      updateForm('fatherContact', '')
+      updateForm('fatherOccupation', '')
+      updateForm('fatherIncome', '')
+      updateForm('fatherIncomeCert', '')
+      updateForm('fatherPhoto', '')
+    } else {
+      updateForm('motherName', '')
+      updateForm('motherContact', '')
+      updateForm('motherOccupation', '')
+      updateForm('motherIncome', '')
+      updateForm('motherIncomeCert', '')
+      updateForm('motherPhoto', '')
+    }
+    if (assignRole === role) {
+      setSelectedParent(null)
+      setAssignRole('')
+    }
+  }
+
   return (
     <div className="flex flex-col gap-8 animate-in fade-in duration-300">
       
       <div>
+        {/* Parent Search Picker */}
         <div className="flex items-center gap-4 mb-6">
            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">Parents Details</h3>
            <div className="h-[1px] w-full bg-slate-200 dark:bg-slate-700" />
-           <div className="flex items-center gap-2 shrink-0">
-             <select 
-               value={selectedParentId}
-               className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold bg-white text-slate-700 outline-none max-w-[260px] shrink-0 cursor-pointer"
-               onChange={(e) => {
-                 const selectedVal = e.target.value
-                 setSelectedParentId(selectedVal)
-                 if (!selectedVal) {
-                   handleClearParent()
-                   return
-                 }
-                 if (selectedVal && parentList.length > 0) {
-                   const found = parentList.find((p: any) => 
-                     String(p.id) === selectedVal || 
-                     String(p.name) === selectedVal || 
-                     String(p.fatherName) === selectedVal || 
-                     String(p.motherName) === selectedVal || 
-                     String(p.firstName) === selectedVal
-                   )
-                   if (found) {
-                     const rawName = found.name || (found.firstName ? `${found.firstName} ${found.lastName || ''}`.trim() : '')
-                     const contact = found.contact || found.mobileNo || found.fatherContact || found.motherContact || ''
-                     const occupation = found.occupation || found.employmentType || found.fatherOccupation || found.motherOccupation || ''
-                     const income = found.annualIncome || found.income || found.fatherIncome || found.motherIncome || ''
 
-                     const pType = (found.parentType || '').toLowerCase()
-                     const gender = (found.gender || '').toLowerCase()
-                     const isMother = pType === 'mother' || (!pType && gender === 'female') || (found.motherName && !found.fatherName)
-
-                     if (isMother) {
-                       updateForm('motherName', found.motherName || rawName)
-                       updateForm('motherContact', found.motherContact || contact)
-                       updateForm('motherOccupation', found.motherOccupation || occupation)
-                       updateForm('motherIncome', found.motherIncome || income)
-
-                       updateForm('fatherName', found.fatherName || '')
-                       updateForm('fatherContact', found.fatherContact || '')
-                       updateForm('fatherOccupation', found.fatherOccupation || '')
-                       updateForm('fatherIncome', found.fatherIncome || '')
-                     } else {
-                       updateForm('fatherName', found.fatherName || rawName)
-                       updateForm('fatherContact', found.fatherContact || contact)
-                       updateForm('fatherOccupation', found.fatherOccupation || occupation)
-                       updateForm('fatherIncome', found.fatherIncome || income)
-
-                       updateForm('motherName', found.motherName || '')
-                       updateForm('motherContact', found.motherContact || '')
-                       updateForm('motherOccupation', found.motherOccupation || '')
-                       updateForm('motherIncome', found.motherIncome || '')
-                     }
-
-                     if (found.address) updateForm('address', found.address)
-                     if (found.state || found.stateName) updateForm('state', found.state || found.stateName)
-                     if (found.district) updateForm('district', found.district)
-                     if (found.pincode) updateForm('pincode', found.pincode)
-                   }
-                 }
-               }}
-             >
-               <option value="">Select Parent</option>
-               {parentList && parentList.length > 0 ? (
-                 parentList.map((p: any, idx: number) => {
-                   const rawName = p.name || (p.firstName ? `${p.firstName} ${p.lastName || ''}`.trim() : '')
-                   const pType = p.parentType || (p.gender === 'Female' ? 'Mother' : p.gender === 'Male' ? 'Father' : 'Parent')
-                   const displayName = (pType.toLowerCase() === 'mother' ? (p.motherName || rawName) : (p.fatherName || rawName)) || `Parent #${p.id}`
-                   const displayContact = p.contact || p.mobileNo || p.fatherContact || p.motherContact || 'N/A'
-                   return (
-                     <option key={idx} value={String(p.id || displayName)}>
-                       {displayName} ({pType} - {displayContact})
-                     </option>
-                   )
-                 })
-               ) : (
-                 <option value="" disabled>No Parents Registered</option>
-               )}
-             </select>
-
-             {selectedParentId && (
+           {/* Searchable parent picker */}
+           <div className="flex items-center gap-2 shrink-0" ref={pickerRef}>
+             <div className="relative">
+               {/* Trigger button */}
                <button
                  type="button"
-                 onClick={handleClearParent}
-                 title="Deselect parent"
-                 className="px-2.5 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer"
+                 onClick={() => { setPickerOpen(prev => !prev); setParentSearch('') }}
+                 className="flex items-center gap-2 px-3 py-1.5 border border-teal-200 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer"
                >
-                 <X className="w-3.5 h-3.5" />
-                 <span>Deselect</span>
+                 <Search className="w-3.5 h-3.5" />
+                 <span>Search & Select Parent</span>
                </button>
+
+               {/* Dropdown */}
+               {pickerOpen && (
+                 <div className="absolute right-0 top-full mt-1.5 w-80 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
+                   {/* Search input */}
+                   <div className="p-2 border-b border-slate-100">
+                     <div className="relative">
+                       <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
+                       <input
+                         autoFocus
+                         type="text"
+                         value={parentSearch}
+                         onChange={e => setParentSearch(e.target.value)}
+                         placeholder="Search by name or mobile..."
+                         className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-teal-400 bg-slate-50"
+                       />
+                     </div>
+                   </div>
+
+                   {/* Parent list */}
+                   <div className="max-h-52 overflow-y-auto">
+                     {filteredParents.length === 0 ? (
+                       <div className="px-4 py-6 text-center">
+                         <p className="text-xs text-slate-400 font-medium">
+                           {parentSearch ? 'No parents match your search' : 'No parents registered yet'}
+                         </p>
+                       </div>
+                     ) : (
+                       filteredParents.map((p: any, idx: number) => {
+                         const { displayName, pType, contact } = getParentDisplay(p)
+                         const isFather = pType.toLowerCase() === 'father'
+                         return (
+                           <button
+                             key={idx}
+                             type="button"
+                             onClick={() => handlePickParent(p)}
+                             className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-teal-50 transition-colors text-left"
+                           >
+                             {/* Avatar initial */}
+                             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${isFather ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}`}>
+                               {displayName.charAt(0).toUpperCase()}
+                             </div>
+                             <div className="flex-1 min-w-0">
+                               <p className="text-xs font-bold text-slate-800 truncate">{displayName}</p>
+                               <p className="text-[10px] text-slate-400 truncate">
+                                 <span className={`font-semibold mr-1 ${isFather ? 'text-blue-600' : 'text-pink-600'}`}>{pType}</span>
+                                 {contact && `· ${contact}`}
+                               </p>
+                             </div>
+                           </button>
+                         )
+                       })
+                     )}
+                   </div>
+                 </div>
+               )}
+             </div>
+
+             {/* Role choice prompt (mini inline modal) */}
+             {rolePrompt && selectedParent && (
+               <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5 text-xs font-bold text-amber-800 animate-in fade-in duration-200">
+                 <span className="whitespace-nowrap">Add as:</span>
+                 <button
+                   type="button"
+                   onClick={() => handleConfirmRole('father')}
+                   className="px-2.5 py-1 bg-blue-600 text-white rounded-lg text-[11px] font-bold hover:bg-blue-700 transition-colors cursor-pointer"
+                 >
+                   Father
+                 </button>
+                 <button
+                   type="button"
+                   onClick={() => handleConfirmRole('mother')}
+                   className="px-2.5 py-1 bg-pink-600 text-white rounded-lg text-[11px] font-bold hover:bg-pink-700 transition-colors cursor-pointer"
+                 >
+                   Mother
+                 </button>
+                 <button
+                   type="button"
+                   onClick={() => { setRolePrompt(false); setSelectedParent(null) }}
+                   className="ml-1 text-slate-400 hover:text-slate-600"
+                 >
+                   <X className="w-3.5 h-3.5" />
+                 </button>
+               </div>
+             )}
+
+             {/* Applied parent chips */}
+             {formData.fatherName && !rolePrompt && (
+               <div className="flex items-center gap-1 bg-blue-50 border border-blue-200 rounded-lg px-2 py-1 text-[11px] font-bold text-blue-700">
+                 <span className="max-w-[110px] truncate">👨 {formData.fatherName}</span>
+                 <button type="button" onClick={() => handleClearRole('father')} className="text-blue-400 hover:text-blue-700 cursor-pointer">
+                   <X className="w-3 h-3" />
+                 </button>
+               </div>
+             )}
+             {formData.motherName && !rolePrompt && (
+               <div className="flex items-center gap-1 bg-pink-50 border border-pink-200 rounded-lg px-2 py-1 text-[11px] font-bold text-pink-700">
+                 <span className="max-w-[110px] truncate">👩 {formData.motherName}</span>
+                 <button type="button" onClick={() => handleClearRole('mother')} className="text-pink-400 hover:text-pink-700 cursor-pointer">
+                   <X className="w-3 h-3" />
+                 </button>
+               </div>
              )}
            </div>
         </div>
+      </div>
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
            <InputField label="Father Name" required placeholder="Enter Father Name" value={formData.fatherName} onChange={(e: any) => updateForm('fatherName', e.target.value)} />
@@ -931,7 +1039,6 @@ function Step3({ formData, masters, updateForm, onNext, onBack, onCancel }: any)
            <FileUploadField label="Mother Photo" placeholder="Upload Photo" value={formData.motherPhoto} onChange={(val: string) => updateForm('motherPhoto', val)} />
            <div /> {/* spacing */}
         </div>
-      </div>
 
       <div>
         <SectionHeader title="Address Details" />
