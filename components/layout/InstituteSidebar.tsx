@@ -5,13 +5,13 @@ import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { 
   LayoutDashboard, UserPlus, Users, UserCheck, UserCog, 
-  IndianRupee, Wallet, CreditCard, Award, FileText, FileCheck, 
+  IndianRupee, Wallet, CreditCard, Award, FileText, FileCheck,
   FileMinus, Cpu, ShoppingCart, Bus, ClipboardCheck, CalendarOff, 
   Banknote, TrendingDown, TrendingUp, Settings2, BookOpen, Book, 
   Clock, Smartphone, Bell, MessageSquare, Megaphone, Mail, 
   Calendar, Ticket, Files, MonitorPlay, Image, LifeBuoy, Home, 
   Tag, FileSignature, Database, Settings, ShieldCheck, LogOut, 
-  ChevronDown, X
+  ChevronDown, X, Globe
 } from 'lucide-react'
 
 import { logoutAction } from '@/app/institute/login/actions'
@@ -136,8 +136,7 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
     { 
       icon: FileCheck, label: 'Admit Cards', href: '#',
       subItems: [
-        { label: 'Admit Card', href: '/institute/admit-card' },
-        { label: 'Exam Time Table', href: '/institute/admit-card/time-table' },
+        { label: 'Download Admit Card', href: '/institute/admit-card' },
       ]
     },
     { 
@@ -293,7 +292,12 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
         { label: 'Lead Sources', href: '/institute/leads-sources' },
       ]
     },
-    { icon: ShoppingCart, label: 'Shop', href: '/institute/shop' },
+    { 
+      icon: Globe, label: 'Website Management', href: '#',
+      subItems: [
+        { label: 'Manage Website', href: '/institute/website' },
+      ]
+    },
     { 
       icon: Settings, label: 'Settings', href: '#',
       subItems: [

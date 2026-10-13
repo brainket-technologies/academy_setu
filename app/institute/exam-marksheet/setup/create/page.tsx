@@ -8,10 +8,33 @@ import { toast } from 'sonner'
 import { saveMultipleMarksheetSetups, fetchExamGroups, saveExamGroup } from '../actions'
 import { MarksheetPreview } from '@/components/marksheets/MarksheetPreview'
 import { getInstituteAddedClasses, MasterClassWithSections } from '@/lib/institute-classes'
+import { generateAdmitCardAndTimetableForSetup } from '@/lib/admit-card-sync'
 
 // Step Definitions
 type StepType = 'Exams' | 'Marks & Grade Range' | 'Marksheet Design Setup' | 'Certificate Design'
 const STEPS: StepType[] = ['Exams', 'Marks & Grade Range', 'Marksheet Design Setup', 'Certificate Design']
+
+// Admit Card field keys
+const ADMIT_DISPLAY_FIELDS_KEYS = [
+  { key: 'name', label: 'Name' },
+  { key: 'fatherName', label: 'Father Name' },
+  { key: 'motherName', label: 'Mother Name' },
+  { key: 'mobileNo', label: 'Mobile No.' },
+  { key: 'admissionNo', label: 'Admission No.' },
+  { key: 'registrationNo', label: 'Registration No.' },
+  { key: 'rollNo', label: 'Roll No.' },
+  { key: 'enrollmentNo', label: 'Enrollment No.' },
+  { key: 'dob', label: 'DOB' },
+  { key: 'address', label: 'Address' },
+  { key: 'class', label: 'Class' },
+  { key: 'section', label: 'Section' },
+  { key: 'photo', label: 'Photo' },
+  { key: 'studentSign', label: 'Student Sign.' },
+  { key: 'teacherSign', label: 'Teacher Sign.' },
+  { key: 'principalSign', label: 'Principal Sign.' },
+  { key: 'parentSign', label: 'Parent Sign.' },
+  { key: 'schoolStamp', label: 'School Stamp' }
+]
 
 interface SubjectConfig {
   id: number
@@ -128,6 +151,44 @@ export default function AddSetupWizardPage() {
   const [lockExam, setLockExam] = useState(true)
   const [lastDateToEnter, setLastDateToEnter] = useState('')
   const [lockClasses, setLockClasses] = useState('')
+
+  // ==================== ADMIT CARD SETTINGS STATE ====================
+  const [admitDisplayFields, setAdmitDisplayFields] = useState<{ [key: string]: boolean }>({
+    name: true, fatherName: true, motherName: true, mobileNo: false,
+    admissionNo: true, registrationNo: true, rollNo: true, enrollmentNo: false,
+    dob: true, address: true, class: true, section: true, photo: true,
+    studentSign: true, teacherSign: true, principalSign: true, parentSign: true,
+    schoolStamp: false
+  })
+  const [admitCardStatus, setAdmitCardStatus] = useState(true)
+  const [showExamTimeTableOnAdmit, setShowExamTimeTableOnAdmit] = useState(true)
+  const [admitInstructions, setAdmitInstructions] = useState('')
+  const [admitLabel, setAdmitLabel] = useState('Admit Card')
+  const [admitNoOfPrintPerPage, setAdmitNoOfPrintPerPage] = useState('1')
+  const [admitHeaderNameFontSize, setAdmitHeaderNameFontSize] = useState('30')
+  const [admitHeaderDetailsFontSize, setAdmitHeaderDetailsFontSize] = useState('30')
+  const [admitStudentDetailsFontSize, setAdmitStudentDetailsFontSize] = useState('14')
+  const [admitTimetableDetailsFontSize, setAdmitTimetableDetailsFontSize] = useState('14')
+  const [admitHeadingFontSize, setAdmitHeadingFontSize] = useState('18')
+  const [admitDefaultFontSize, setAdmitDefaultFontSize] = useState('18')
+  const [admitSpacing, setAdmitSpacing] = useState('20')
+  const [admitStudentPhotoSize, setAdmitStudentPhotoSize] = useState('100')
+  const [admitTeacherSignLabel, setAdmitTeacherSignLabel] = useState("Class Teacher's Sign.")
+  const [admitStudentSignLabel, setAdmitStudentSignLabel] = useState("Student's Sign.")
+  const [admitParentSignLabel, setAdmitParentSignLabel] = useState("Parent's Sign.")
+  const [admitPrincipalSignLabel, setAdmitPrincipalSignLabel] = useState("Principal's Sign.")
+  const [admitSignatureWidth, setAdmitSignatureWidth] = useState('30')
+  const [admitSchoolStampWidth, setAdmitSchoolStampWidth] = useState('30')
+
+  const handleAdmitCheckboxChange = (key: string) => {
+    setAdmitDisplayFields(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+  const handleAdmitSelectAllChange = (checked: boolean) => {
+    const updated: { [key: string]: boolean } = {}
+    ADMIT_DISPLAY_FIELDS_KEYS.forEach(f => { updated[f.key] = checked })
+    setAdmitDisplayFields(updated)
+  }
+  const isAdmitAllSelected = ADMIT_DISPLAY_FIELDS_KEYS.every(f => admitDisplayFields[f.key])
 
   const [classes, setClasses] = useState<ClassConfig[]>([
     {
@@ -414,7 +475,16 @@ export default function AddSetupWizardPage() {
 
       const res = await saveMultipleMarksheetSetups(payload)
       if (res.success) {
-        toast.success(`${classes.length} marksheet setup(s) created & saved to PostgreSQL!`)
+        // Simultaneously generate Admit Cards and Exam TimeTables for all classes
+        payload.forEach(item => {
+          try {
+            generateAdmitCardAndTimetableForSetup(item)
+          } catch (e) {
+            console.error('Error generating simultaneous admit card:', e)
+          }
+        })
+
+        toast.success(`${classes.length} marksheet setup(s) & admit card(s) created simultaneously!`)
         router.push('/institute/exam-marksheet/setup')
       } else {
         toast.error(res.error || 'Failed to save to PostgreSQL database')
@@ -859,6 +929,143 @@ export default function AddSetupWizardPage() {
                   </select>
                   <span className="text-[10px] text-slate-400">Target class for lock policy</span>
                 </div>
+              </div>
+            </div>
+
+            {/* ================================== ADMIT CARD SETTINGS ================================== */}
+            <div className="bg-white dark:bg-slate-800 border border-teal-200 dark:border-teal-800 rounded-2xl p-6 space-y-5 mt-2">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3">
+                <div>
+                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-teal-500 inline-block"></span>
+                    Admit Card Settings
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Configure fields, layout, and printing options for the auto-generated admit card
+                  </p>
+                </div>
+              </div>
+
+              {/* Admit Card Label */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Admit Card Label</label>
+                  <input
+                    type="text"
+                    value={admitLabel}
+                    onChange={e => setAdmitLabel(e.target.value)}
+                    placeholder="Admit Card"
+                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
+                  />
+                  <span className="text-[10px] text-slate-400">Title printed on the admit card</span>
+                </div>
+              </div>
+
+              {/* Display Fields Checkboxes */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide">Select Fields to Display on Student Admit Card</span>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-600 dark:text-slate-400">
+                    <input
+                      type="checkbox"
+                      checked={isAdmitAllSelected}
+                      onChange={e => handleAdmitSelectAllChange(e.target.checked)}
+                      className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500 rounded"
+                    />
+                    <span>Select All</span>
+                  </label>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-bold text-slate-700 dark:text-slate-300">
+                  {ADMIT_DISPLAY_FIELDS_KEYS.map(f => (
+                    <label key={f.key} className="flex items-center gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!admitDisplayFields[f.key]}
+                        onChange={() => handleAdmitCheckboxChange(f.key)}
+                        className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500 rounded"
+                      />
+                      <span>{f.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Toggles */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-150 dark:border-slate-700">
+                  <div>
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-100 block">Admit Card Status</span>
+                    <span className="text-[10px] text-slate-400">If activated, students can download through App.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAdmitCardStatus(!admitCardStatus)}
+                    className={`w-10 h-5.5 rounded-full relative transition-colors ${admitCardStatus ? 'bg-teal-600' : 'bg-slate-200'}`}
+                  >
+                    <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${admitCardStatus ? 'left-5' : 'left-0.5'}`}></div>
+                  </button>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-150 dark:border-slate-700">
+                  <div>
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-100 block">Exam Time Table</span>
+                    <span className="text-[10px] text-slate-400">Do you want to show exam time table on admit card?</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowExamTimeTableOnAdmit(!showExamTimeTableOnAdmit)}
+                    className={`w-10 h-5.5 rounded-full relative transition-colors ${showExamTimeTableOnAdmit ? 'bg-teal-600' : 'bg-slate-200'}`}
+                  >
+                    <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showExamTimeTableOnAdmit ? 'left-5' : 'left-0.5'}`}></div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Instructions */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Instruction</label>
+                <textarea
+                  placeholder="Write instructions..."
+                  value={admitInstructions}
+                  onChange={e => setAdmitInstructions(e.target.value)}
+                  className="w-full min-h-[70px] p-4 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold bg-white dark:bg-slate-800"
+                />
+              </div>
+
+              {/* Font Sizes & Print Settings */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {[
+                  { label: 'No. of Print Per Page', val: admitNoOfPrintPerPage, set: setAdmitNoOfPrintPerPage },
+                  { label: 'Header Name Font Size (px)', val: admitHeaderNameFontSize, set: setAdmitHeaderNameFontSize },
+                  { label: 'Header Details Font Size (px)', val: admitHeaderDetailsFontSize, set: setAdmitHeaderDetailsFontSize },
+                  { label: 'Student Details Font Size (px)', val: admitStudentDetailsFontSize, set: setAdmitStudentDetailsFontSize },
+                  { label: 'Timetable Details Font Size (px)', val: admitTimetableDetailsFontSize, set: setAdmitTimetableDetailsFontSize },
+                  { label: 'Heading Font Size (px)', val: admitHeadingFontSize, set: setAdmitHeadingFontSize },
+                  { label: 'Default Font Size (px)', val: admitDefaultFontSize, set: setAdmitDefaultFontSize },
+                  { label: 'Spacing (px)', val: admitSpacing, set: setAdmitSpacing },
+                  { label: 'Student Photo Size (px)', val: admitStudentPhotoSize, set: setAdmitStudentPhotoSize },
+                ].map(({ label, val, set }) => (
+                  <div key={label} className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{label}</label>
+                    <input type="text" value={val} onChange={e => set(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none text-center bg-white dark:bg-slate-800 font-semibold" />
+                  </div>
+                ))}
+              </div>
+
+              {/* Sign Labels */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {[
+                  { label: 'Teacher Sign Label', val: admitTeacherSignLabel, set: setAdmitTeacherSignLabel },
+                  { label: 'Student Sign Label', val: admitStudentSignLabel, set: setAdmitStudentSignLabel },
+                  { label: 'Parent Sign Label', val: admitParentSignLabel, set: setAdmitParentSignLabel },
+                  { label: 'Principal Sign Label', val: admitPrincipalSignLabel, set: setAdmitPrincipalSignLabel },
+                  { label: 'Signature Width (px)', val: admitSignatureWidth, set: setAdmitSignatureWidth },
+                  { label: 'School Stamp Width (px)', val: admitSchoolStampWidth, set: setAdmitSchoolStampWidth },
+                ].map(({ label, val, set }) => (
+                  <div key={label} className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{label}</label>
+                    <input type="text" value={val} onChange={e => set(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200" />
+                  </div>
+                ))}
               </div>
             </div>
           </div>
