@@ -7,7 +7,7 @@ import {
   Search, Plus, Pencil, Trash2, X, AlertTriangle, Eye, Printer,
   Sparkles, RefreshCw, BookOpen, Layers, Check, CheckCircle2, ShieldCheck,
   FileText, LayoutTemplate, School, Calendar, ChevronRight, FileCheck,
-  QrCode, Clock, ArrowRight, ToggleLeft, ToggleRight, CheckSquare, LayoutGrid, List
+  QrCode, Clock, ArrowRight, ToggleLeft, ToggleRight, CheckSquare, LayoutGrid, List, Award
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -33,6 +33,139 @@ import {
 
 interface UnifiedExamAdmitHubProps {
   defaultTab?: 'marksheet' | 'admit-card'
+}
+
+// ─────────────────────────────────────────────────────────────
+// MINI MARKSHEET CARD FRAME COMPONENT (CRISP REALISTIC A4 PREVIEW)
+// ─────────────────────────────────────────────────────────────
+function MiniMarksheetFrame({ 
+  item, 
+  schoolName = 'COSMOPOLITAN INTER COLLEGE' 
+}: { 
+  item: ExamMarksheetSetupRecord
+  schoolName?: string 
+}) {
+  const norm = (item.templateName || '').toLowerCase()
+  const isDualTerm = norm.includes('term') || norm.includes('split') || norm.includes('scholastic')
+  const isHolistic = norm.includes('skills') || norm.includes('aspect') || norm.includes('holistic') || norm.includes('grid')
+  const isNavy = norm.includes('navy') || norm.includes('minimal') || norm.includes('modern')
+  const isPurple = !isDualTerm && !isHolistic && !isNavy
+
+  // Theme configuration for each template
+  const theme = isPurple ? {
+    headerBg: 'bg-gradient-to-r from-[#4c1d95] via-[#5b21b6] to-[#3730a3] text-white',
+    badgeBg: 'bg-purple-100 text-purple-900 border-purple-200',
+    tag: 'CBSE ROYAL REPORT',
+    border: 'border-purple-200 shadow-purple-500/5',
+    subGradeBg: 'bg-purple-100 text-purple-800'
+  } : isDualTerm ? {
+    headerBg: 'bg-gradient-to-r from-[#881337] via-[#9f1239] to-[#991b1b] text-white',
+    badgeBg: 'bg-rose-100 text-rose-900 border-rose-200',
+    tag: 'DUAL-TERM EVALUATION',
+    border: 'border-rose-200 shadow-rose-500/5',
+    subGradeBg: 'bg-rose-100 text-rose-800'
+  } : isHolistic ? {
+    headerBg: 'bg-gradient-to-r from-[#0f766e] via-[#0e7490] to-[#047857] text-white',
+    badgeBg: 'bg-cyan-100 text-cyan-900 border-cyan-200',
+    tag: 'HOLISTIC 360° REPORT',
+    border: 'border-teal-200 shadow-teal-500/5',
+    subGradeBg: 'bg-teal-100 text-teal-800'
+  } : {
+    headerBg: 'bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#1e3a8a] text-white',
+    badgeBg: 'bg-blue-100 text-blue-900 border-blue-200',
+    tag: 'MODERN ACADEMIC REPORT',
+    border: 'border-slate-300 shadow-slate-500/5',
+    subGradeBg: 'bg-blue-100 text-blue-800'
+  }
+
+  return (
+    <div className={`w-[260px] h-[348px] bg-white text-slate-800 rounded-xl shadow-md border ${theme.border} p-3 flex flex-col justify-between select-none font-sans text-left relative overflow-hidden transition-transform duration-300 group-hover:shadow-xl`}>
+      {/* Top Ornamental Header */}
+      <div>
+        <div className={`${theme.headerBg} -mx-3 -mt-3 p-2.5 rounded-t-xl text-center shadow-xs relative`}>
+          <div className="flex items-center justify-center gap-1.5 text-[10px] font-black tracking-tight uppercase">
+            <School className="w-3 h-3 text-amber-300 shrink-0" />
+            <span className="truncate max-w-[190px]">{schoolName}</span>
+          </div>
+          <p className="text-[7.5px] text-white/80 uppercase tracking-widest mt-0.5">
+            Affiliated to CBSE, New Delhi • Session {item.session || '2025-2026'}
+          </p>
+          <div className="mt-1 inline-block px-2 py-0.5 rounded-full text-[8px] font-black bg-white/20 backdrop-blur-xs text-white uppercase tracking-wider">
+            {theme.tag}
+          </div>
+        </div>
+
+        {/* Student Profile Strip */}
+        <div className="flex items-center justify-between border-b border-slate-100 py-1.5 mt-1 text-[9px]">
+          <div>
+            <div className="font-extrabold text-slate-800">Aarav Sharma</div>
+            <div className="text-[8px] text-slate-400 font-medium">Roll No: 24 • Adm: AS-4892</div>
+          </div>
+          <div className="text-right">
+            <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-slate-100 text-slate-700">
+              {item.classGrade}
+            </span>
+          </div>
+        </div>
+
+        {/* Subject Scores Mini Table */}
+        <div className="mt-1.5 space-y-1 text-[8.5px]">
+          <div className="grid grid-cols-12 font-black text-slate-400 text-[7.5px] uppercase border-b border-slate-100 pb-0.5">
+            <span className="col-span-6">Subject</span>
+            <span className="col-span-3 text-center">Marks</span>
+            <span className="col-span-3 text-right">Grade</span>
+          </div>
+          
+          {[
+            { name: 'English Lang & Lit', score: '92/100', grade: 'A1' },
+            { name: 'Mathematics Standard', score: '95/100', grade: 'A1' },
+            { name: 'Science & Practical', score: '89/100', grade: 'A1' },
+            { name: 'Social Studies', score: '91/100', grade: 'A1' },
+            { name: 'Information Tech', score: '96/100', grade: 'A1' },
+          ].map((sub, idx) => (
+            <div key={idx} className="grid grid-cols-12 items-center font-semibold text-slate-700 py-0.5">
+              <span className="col-span-6 truncate font-bold text-slate-800">{sub.name}</span>
+              <span className="col-span-3 text-center text-slate-600 font-mono text-[8px]">{sub.score}</span>
+              <span className="col-span-3 text-right">
+                <span className={`px-1 py-0.2 rounded text-[7.5px] font-black ${theme.subGradeBg}`}>
+                  {sub.grade}
+                </span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Result Summary & Official Signatures */}
+      <div className="border-t border-slate-100 pt-1.5 mt-1">
+        {/* Total & Percentage Pill */}
+        <div className={`p-1.5 rounded-lg ${theme.badgeBg} flex items-center justify-between text-[9px] font-bold mb-1.5`}>
+          <div className="flex items-center gap-1">
+            <Award className="w-3 h-3 text-amber-500" />
+            <span>Total: <strong>463 / 500</strong></span>
+          </div>
+          <div className="font-black text-[9.5px]">
+            92.6% • PASSED
+          </div>
+        </div>
+
+        {/* Signatures & Verification */}
+        <div className="flex items-end justify-between text-[7px] text-slate-400 pt-0.5">
+          <div className="text-center">
+            <div className="font-serif italic text-slate-600 text-[8px] border-b border-slate-200 pb-0.5 w-14">Class Teacher</div>
+            <span>Teacher Sign</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <QrCode className="w-4 h-4 text-slate-700" />
+          </div>
+          <div className="text-center">
+            <div className="font-serif italic text-slate-600 text-[8px] border-b border-slate-200 pb-0.5 w-14">Principal</div>
+            <span>Authorized Sign</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: UnifiedExamAdmitHubProps) {
@@ -809,47 +942,36 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                         </div>
 
                         {/* Card Frame Preview Area */}
-                        <div className="relative bg-slate-100/70 dark:bg-slate-900/80 p-3 h-[340px] flex items-center justify-center overflow-hidden">
-                          <div 
-                            className="transition-transform duration-300 group-hover:scale-[0.43] pointer-events-none select-none drop-shadow-md origin-top shrink-0"
-                            style={{
-                              transform: 'scale(0.39)',
-                              width: '780px',
-                              marginTop: '-25px'
-                            }}
-                          >
-                            <MarksheetPreview 
-                              templateName={item.templateName}
-                              examName={item.exam}
-                              className={item.classGrade}
-                              academicYear={item.session}
-                            />
-                          </div>
+                        <div className="relative bg-gradient-to-b from-slate-100/90 to-slate-200/60 dark:from-slate-900/80 dark:to-slate-950 p-4 min-h-[380px] flex items-center justify-center overflow-hidden">
+                          <MiniMarksheetFrame 
+                            item={item} 
+                            schoolName={item.config?.schoolDetails?.schoolName || 'COSMOPOLITAN INTER COLLEGE'}
+                          />
 
-                          {/* Hover Overlay Button to open Preview / Edit */}
-                          <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-auto gap-2">
+                          {/* Quick Floating Action Pills on Hover */}
+                          <div className="absolute inset-x-0 bottom-3 px-4 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-auto">
                             <button
                               onClick={() => setPreviewSetup(item)}
-                              className="px-3 py-1.5 rounded-xl bg-white text-slate-800 font-bold text-xs shadow-lg hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                              className="px-3 py-1.5 rounded-xl bg-white/95 backdrop-blur-sm text-slate-800 font-bold text-xs shadow-lg hover:bg-white hover:text-teal-600 transition-all flex items-center gap-1.5 border border-slate-200"
                             >
                               <Eye className="w-3.5 h-3.5 text-teal-600" />
-                              Preview Marksheet
+                              <span>Preview</span>
                             </button>
                             {linkedCard && (
                               <button
                                 onClick={() => setPreviewCard(linkedCard)}
-                                className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-lg hover:bg-emerald-700 transition-all flex items-center gap-1.5"
+                                className="px-3 py-1.5 rounded-xl bg-emerald-600/95 backdrop-blur-sm text-white font-bold text-xs shadow-lg hover:bg-emerald-700 transition-all flex items-center gap-1.5"
                               >
                                 <FileCheck className="w-3.5 h-3.5" />
-                                Admit Card
+                                <span>Admit Card</span>
                               </button>
                             )}
                             <button
                               onClick={() => handleOpenEdit(item)}
-                              className="px-3 py-1.5 rounded-xl bg-teal-600 text-white font-bold text-xs shadow-lg hover:bg-teal-700 transition-all flex items-center gap-1.5"
+                              className="px-3 py-1.5 rounded-xl bg-teal-600/95 backdrop-blur-sm text-white font-bold text-xs shadow-lg hover:bg-teal-700 transition-all flex items-center gap-1.5"
                             >
                               <Pencil className="w-3.5 h-3.5" />
-                              Edit Content
+                              <span>Edit</span>
                             </button>
                           </div>
                         </div>
