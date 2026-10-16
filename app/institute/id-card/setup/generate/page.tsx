@@ -11,6 +11,12 @@ import {
   TeacherDesignHorizontal, 
   EmployeeDesignVertical, 
   EmployeeDesignHorizontal,
+  StudentDesignPinterestVertical,
+  StudentDesignPinterestHorizontal,
+  TeacherDesignPinterestVertical,
+  TeacherDesignPinterestHorizontal,
+  EmployeeDesignPinterestVertical,
+  EmployeeDesignPinterestHorizontal,
   IdCardBackDesign
 } from '@/components/id-cards/IdCardTemplates'
 import { saveIdCardSetup } from '../../actions'
@@ -20,12 +26,13 @@ function GenerateIdCardContent() {
   const searchParams = useSearchParams()
 
   const initialRole = searchParams.get('for') || 'Student'
-  const initialDesign = Number(searchParams.get('design')) || 1
+  const initialDesignParam = Number(searchParams.get('design')) || 1
+  const initialDesign = [1, 2, 3, 4].includes(initialDesignParam) ? initialDesignParam : 1
 
   const [role, setRole] = useState<'Student' | 'Teacher' | 'Employee'>(
     initialRole === 'Teacher' ? 'Teacher' : initialRole === 'Employee' ? 'Employee' : 'Student'
   )
-  const [selectedDesign, setSelectedDesign] = useState<number>(initialDesign === 2 ? 2 : 1)
+  const [selectedDesign, setSelectedDesign] = useState<number>(initialDesign)
   const [activeSide, setActiveSide] = useState<'front' | 'back'>('front')
 
   // Form Fields
@@ -61,18 +68,19 @@ function GenerateIdCardContent() {
     else setTitle('STAFF IDENTITY CARD')
   }
 
-  // Get current design orientations
+  // Get current design orientations (strictly 2 allowed: 1 Vertical, 2 Horizontal)
   const isLandscape = selectedDesign === 2
 
-  // Designs list for current role
+  // Designs list for current role (strictly 2 designs per role)
   const roleDesigns = [
     {
       id: 1,
       name: role === 'Student' 
-        ? 'Design 1: Modern Smart Badge' 
+        ? 'Design 1: Smart ID Badge (Vertical)' 
         : role === 'Teacher' 
-          ? 'Design 1: Executive Faculty Pass' 
-          : 'Design 1: Corporate Staff Badge',
+          ? 'Design 1: Executive Faculty Pass (Vertical)' 
+          : 'Design 1: Corporate Staff Badge (Vertical)',
+      badge: 'Vertical Format',
       orientation: 'Portrait (Vertical)',
       dimensions: '280 × 450 px',
       accentColor: role === 'Student' ? '#0284c7' : role === 'Teacher' ? '#831843' : '#2563eb',
@@ -85,10 +93,11 @@ function GenerateIdCardContent() {
     {
       id: 2,
       name: role === 'Student' 
-        ? 'Design 2: Academic Smart Card' 
+        ? 'Design 2: Campus RFID Card (Horizontal)' 
         : role === 'Teacher' 
-          ? 'Design 2: Prestige Faculty Badge' 
-          : 'Design 2: Modern Tech Staff Card',
+          ? 'Design 2: Prestige Faculty Badge (Horizontal)' 
+          : 'Design 2: Modern Tech Staff Card (Horizontal)',
+      badge: 'Horizontal Format',
       orientation: 'Landscape (Horizontal)',
       dimensions: '450 × 280 px',
       accentColor: role === 'Student' ? '#047857' : role === 'Teacher' ? '#0d9488' : '#4338ca',
@@ -140,8 +149,8 @@ function GenerateIdCardContent() {
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-slate-800 dark:text-slate-100">Configure ID Card Design</h1>
-            <p className="text-xs text-slate-500 font-medium">Create tailored ID card templates for Students, Teachers, and Employees</p>
+            <h1 className="text-xl font-black text-slate-800 dark:text-slate-100">Edit ID Card Content</h1>
+            <p className="text-xs text-slate-500 font-medium">Customize institute details, branding, signatures, and toggles for this ID card frame</p>
           </div>
         </div>
         <Link 
@@ -210,22 +219,22 @@ function GenerateIdCardContent() {
           </div>
         </section>
 
-        {/* Id Card Design Selection (Tailored 2 designs per role) */}
+        {/* Id Card Design Selection (Strictly 2 designs per role: 1 Vertical & 1 Horizontal) */}
         <section>
           <div className="flex items-center justify-between gap-4 mb-4">
             <div className="flex items-center gap-4 w-full">
               <h2 className="text-sm font-black text-slate-800 dark:text-slate-200 whitespace-nowrap uppercase tracking-wider">
-                2. Choose {role} ID Card Design (2 Specialized Designs)
+                2. {role} ID Card Design Frame (2 System Designs: 1 Vertical & 1 Horizontal)
               </h2>
               <div className="h-px bg-slate-200 dark:bg-slate-700 w-full"></div>
             </div>
           </div>
 
           <p className="text-xs text-slate-500 mb-6">
-            Each role includes 2 distinct, highly specialized professional templates with proper metadata fields.
+            Only 2 specialized ID card design frames are allowed per category (Vertical and Horizontal). Layout frame is fixed — customize institute branding and content details below.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl">
             {roleDesigns.map((design) => {
               const isSelected = selectedDesign === design.id
 
@@ -239,15 +248,15 @@ function GenerateIdCardContent() {
                       : 'border-slate-200 dark:border-slate-700 hover:border-teal-300 bg-white dark:bg-slate-800'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <div>
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-black text-slate-800 dark:text-slate-100">
                           {design.name}
                         </span>
                         {isSelected && (
                           <span className="bg-teal-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                            Active
+                            Active Frame
                           </span>
                         )}
                       </div>
@@ -262,10 +271,10 @@ function GenerateIdCardContent() {
                       </div>
                     </div>
 
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                    <div className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
                       isSelected ? 'border-teal-600 bg-teal-600 text-white' : 'border-slate-300'
                     }`}>
-                      {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                      {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                     </div>
                   </div>
 
@@ -274,7 +283,7 @@ function GenerateIdCardContent() {
                     <div className="absolute inset-0 bg-dot-pattern opacity-10"></div>
                     
                     {design.id === 1 ? (
-                      // Portrait thumbnail
+                      // Portrait thumbnail 1
                       <div className="w-20 h-28 bg-white dark:bg-slate-800 rounded-lg shadow-md border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
                         <div className={`h-8 w-full bg-gradient-to-r ${design.bgPreview} flex items-center justify-center`}>
                           <div className="w-10 h-1 bg-white/60 rounded-full"></div>
@@ -291,7 +300,7 @@ function GenerateIdCardContent() {
                         </div>
                       </div>
                     ) : (
-                      // Landscape thumbnail
+                      // Landscape thumbnail 2
                       <div className="w-36 h-22 bg-white dark:bg-slate-800 rounded-lg shadow-md border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
                         <div className={`h-5 w-full bg-gradient-to-r ${design.bgPreview} flex items-center justify-between px-2`}>
                           <div className="w-12 h-1 bg-white/70 rounded-full"></div>
@@ -673,7 +682,7 @@ function GenerateIdCardContent() {
             className="px-10 py-2.5 rounded-lg bg-teal-600 text-white font-bold hover:bg-teal-700 transition-colors shadow-md text-sm flex items-center gap-2"
           >
             <Check className="w-4 h-4 stroke-[2.5]" />
-            Save ID Card Design
+            Save Content Changes
           </button>
         </div>
 

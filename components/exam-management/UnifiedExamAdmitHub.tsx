@@ -7,7 +7,7 @@ import {
   Search, Plus, Pencil, Trash2, X, AlertTriangle, Eye, Printer,
   Sparkles, RefreshCw, BookOpen, Layers, Check, CheckCircle2, ShieldCheck,
   FileText, LayoutTemplate, School, Calendar, ChevronRight, FileCheck,
-  QrCode, Clock, ArrowRight, ToggleLeft, ToggleRight, CheckSquare
+  QrCode, Clock, ArrowRight, ToggleLeft, ToggleRight, CheckSquare, LayoutGrid, List
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -44,6 +44,9 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
   const [activeTab, setActiveTab] = useState<'marksheet' | 'admit-card'>(
     tabParam === 'admit-card' ? 'admit-card' : defaultTab
   )
+
+  // View Mode for Marksheet Setups (Card View frame is first visible by default)
+  const [marksheetViewMode, setMarksheetViewMode] = useState<'cards' | 'table'>('cards')
 
   const [loading, setLoading] = useState(true)
   const [setups, setSetups] = useState<ExamMarksheetSetupRecord[]>([])
@@ -530,10 +533,10 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
           </div>
           <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2.5">
             <Layers className="w-7 h-7 text-teal-600" />
-            Exam Marksheet & Admit Card Hub
+            Exam Marksheet & Admit Card Setup
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Unified management for examinations, marksheets, and admit cards. Both work simultaneously in real time without separate disjointed setups.
+            2-in-1 real-time synchronized management for examinations, marksheets, and admit cards • Customize content according to your institute requirements
           </p>
         </div>
 
@@ -545,30 +548,6 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
           >
             <Sparkles className="w-3.5 h-3.5 text-teal-600 animate-pulse" />
             ⚡ Simultaneous Sync
-          </button>
-
-          <button
-            onClick={() => setIsGroupModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center gap-2"
-          >
-            <BookOpen className="w-3.5 h-3.5 text-teal-600" />
-            + Create Group
-          </button>
-
-          <Link
-            href="/institute/exam-marksheet/setup/create"
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white text-xs font-black shadow-md shadow-teal-600/20 hover:shadow-lg transition-all flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            Full Setup Wizard (4 Steps)
-          </Link>
-
-          <button
-            onClick={handleOpenAdd}
-            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition-all flex items-center gap-2 shadow-sm"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Quick Add Both
           </button>
         </div>
       </div>
@@ -736,7 +715,33 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              {/* View Switcher: Card View (Default / First Visible) vs Table View */}
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+                <button
+                  onClick={() => setMarksheetViewMode('cards')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    marksheetViewMode === 'cards'
+                      ? 'bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  }`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span>Card View</span>
+                </button>
+                <button
+                  onClick={() => setMarksheetViewMode('table')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    marksheetViewMode === 'table'
+                      ? 'bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  }`}
+                >
+                  <List className="w-3.5 h-3.5" />
+                  <span>Table View</span>
+                </button>
+              </div>
+
               <button
                 onClick={loadAllData}
                 className="p-2 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
@@ -747,163 +752,287 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
             </div>
           </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto rounded-2xl border border-slate-200/80 dark:border-slate-800">
-            <table className="w-full text-xs text-center whitespace-nowrap">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 font-black text-slate-600 dark:text-slate-300 border-b border-slate-200/80 dark:border-slate-800">
-                <tr>
-                  <th className="px-4 py-3.5 text-left">S. No.</th>
-                  <th className="px-4 py-3.5 text-left">Group</th>
-                  <th className="px-4 py-3.5 text-left">Exam Name</th>
-                  <th className="px-4 py-3.5">Class Grade</th>
-                  <th className="px-4 py-3.5">Marks Grade</th>
-                  <th className="px-4 py-3.5 text-left">Template Layout</th>
-                  <th className="px-4 py-3.5">Admit Card & Schedule</th>
-                  <th className="px-4 py-3.5 text-right">Actions (Both)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                {loading ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-400">
-                      <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-teal-600" />
-                      Loading exam setups & admit cards...
-                    </td>
-                  </tr>
-                ) : filteredSetups.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="py-16 text-center">
-                      <div className="max-w-sm mx-auto flex flex-col items-center">
-                        <div className="w-14 h-14 rounded-2xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 flex items-center justify-center mb-3">
-                          <Layers className="w-7 h-7" />
-                        </div>
-                        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">No Marksheet Setups Found</h3>
-                        <p className="text-xs text-slate-400 mt-1 mb-4">
-                          {searchQuery ? 'Try adjusting your search criteria.' : 'Create your first exam setup to automatically generate admit cards.'}
-                        </p>
-                        <button
-                          onClick={handleOpenAdd}
-                          className="px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-bold hover:bg-teal-700 transition-all flex items-center gap-1.5"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          Quick Add Both
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredSetups.map((item, i) => {
+          {/* ─── CARD VIEW (FRAME PREVIEW FIRST VISIBLE) ─── */}
+          {marksheetViewMode === 'cards' && (
+            <div className="animate-in fade-in duration-300">
+              {loading ? (
+                <div className="py-16 text-center text-slate-400">
+                  <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-teal-600" />
+                  Loading marksheet frames & setups...
+                </div>
+              ) : filteredSetups.length === 0 ? (
+                <div className="py-16 text-center bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 p-8">
+                  <Layers className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-xs font-bold text-slate-600 dark:text-slate-300">No marksheet setups found matching criteria.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredSetups.map((item) => {
                     const badge = getTemplateBadge(item.templateName)
                     const linkedCard = getLinkedAdmitCard(item)
 
                     return (
-                      <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="px-4 py-3.5 text-left text-slate-400 font-bold">{i + 1}.</td>
-
-                        {/* Group */}
-                        <td className="px-4 py-3.5 text-left">
-                          <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                            {item.group}
-                          </span>
-                        </td>
-
-                        {/* Exam Name */}
-                        <td className="px-4 py-3.5 text-left font-bold text-slate-800 dark:text-slate-100">
-                          {item.exam}
-                          <div className="text-[10px] text-slate-400 font-normal">Session: {item.session || '2025-2026'}</div>
-                        </td>
-
-                        {/* Class Grade */}
-                        <td className="px-4 py-3.5">
-                          <span className="px-2.5 py-1 rounded-md text-[10.5px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
-                            {item.classGrade}
-                          </span>
-                        </td>
-
-                        {/* Marks Grade */}
-                        <td className="px-4 py-3.5 font-semibold text-slate-600 dark:text-slate-300">
-                          {item.marksGrade}
-                        </td>
-
-                        {/* Template Layout */}
-                        <td className="px-4 py-3.5 text-left">
-                          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10.5px] font-bold border ${badge.bg}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`}></span>
-                            <span>{item.templateName}</span>
+                      <div
+                        key={item.id}
+                        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col group"
+                      >
+                        {/* Card Top Info */}
+                        <div className="p-4 border-b border-slate-100 dark:border-slate-700/60 flex items-start justify-between gap-3 bg-slate-50/50 dark:bg-slate-900/40">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                                {item.group}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
+                                {item.classGrade}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                {item.templateName}
+                              </span>
+                            </div>
+                            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 truncate" title={item.exam}>
+                              {item.exam}
+                            </h3>
+                            <p className="text-[11px] text-slate-400 font-medium">
+                              Session: {item.session} • Grade: {item.marksGrade}
+                            </p>
                           </div>
-                        </td>
 
-                        {/* Simultaneous Admit Card Badge / Action */}
-                        <td className="px-4 py-3.5">
-                          {linkedCard ? (
-                            <button
-                              onClick={() => setPreviewCard(linkedCard)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-extrabold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-all shadow-2xs"
-                              title="Click to View & Print Admit Card"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>Admit Card Ready</span>
-                              <Eye className="w-3 h-3 text-emerald-600 ml-0.5" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleOpenAdmitCardForSetup(item)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 transition-all"
-                            >
-                              <Sparkles className="w-3 h-3 text-amber-600" />
-                              <span>Generate Admit Card</span>
-                            </button>
-                          )}
-                        </td>
+                          {/* Quick Preview Eye */}
+                          <button
+                            onClick={() => setPreviewSetup(item)}
+                            title="Preview Marksheet"
+                            className="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-teal-600 hover:border-teal-500 transition-colors flex items-center justify-center shrink-0 shadow-xs"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </div>
 
-                        {/* Actions (Both Marksheet & Admit Card) */}
-                        <td className="px-4 py-3.5 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {/* Marksheet Preview */}
+                        {/* Card Frame Preview Area */}
+                        <div className="relative bg-slate-100/70 dark:bg-slate-900/80 p-3 h-[340px] flex items-center justify-center overflow-hidden">
+                          <div 
+                            className="transition-transform duration-300 group-hover:scale-[0.43] pointer-events-none select-none drop-shadow-md origin-top shrink-0"
+                            style={{
+                              transform: 'scale(0.39)',
+                              width: '780px',
+                              marginTop: '-25px'
+                            }}
+                          >
+                            <MarksheetPreview 
+                              templateName={item.templateName}
+                              examName={item.exam}
+                              className={item.classGrade}
+                              academicYear={item.session}
+                            />
+                          </div>
+
+                          {/* Hover Overlay Button to open Preview / Edit */}
+                          <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-auto gap-2">
                             <button
                               onClick={() => setPreviewSetup(item)}
-                              title="Preview Marksheet Design"
-                              className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 hover:bg-purple-100 border border-purple-200/60 flex items-center justify-center transition-all"
+                              className="px-3 py-1.5 rounded-xl bg-white text-slate-800 font-bold text-xs shadow-lg hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-teal-600" />
+                              Preview Marksheet
+                            </button>
+                            {linkedCard && (
+                              <button
+                                onClick={() => setPreviewCard(linkedCard)}
+                                className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-lg hover:bg-emerald-700 transition-all flex items-center gap-1.5"
+                              >
+                                <FileCheck className="w-3.5 h-3.5" />
+                                Admit Card
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleOpenEdit(item)}
+                              className="px-3 py-1.5 rounded-xl bg-teal-600 text-white font-bold text-xs shadow-lg hover:bg-teal-700 transition-all flex items-center gap-1.5"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              Edit Content
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Card Footer Actions */}
+                        <div className="p-3 border-t border-slate-100 dark:border-slate-700/60 bg-white dark:bg-slate-800 flex items-center justify-between text-xs">
+                          {linkedCard ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              Admit Card Ready
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              {item.date}
+                            </span>
+                          )}
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => setPreviewSetup(item)}
+                              title="Preview Marksheet"
+                              className="w-7 h-7 rounded bg-purple-50 text-purple-600 hover:bg-purple-100 flex items-center justify-center border border-purple-100 transition-colors"
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
-
-                            {/* Admit Card Preview */}
-                            <button
-                              onClick={() => handleOpenAdmitCardForSetup(item)}
-                              title="Preview & Print Admit Card"
-                              className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200/60 flex items-center justify-center transition-all"
-                            >
-                              <FileCheck className="w-3.5 h-3.5" />
-                            </button>
-
-                            {/* Edit Button */}
+                            {linkedCard && (
+                              <button
+                                onClick={() => setPreviewCard(linkedCard)}
+                                title="Preview Admit Card"
+                                className="w-7 h-7 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100 flex items-center justify-center border border-emerald-100 transition-colors"
+                              >
+                                <FileCheck className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                             <button
                               onClick={() => handleOpenEdit(item)}
-                              title="Edit Setup"
-                              className="w-7 h-7 rounded-lg bg-teal-50 dark:bg-teal-950/50 text-teal-600 hover:bg-teal-100 border border-teal-200/60 flex items-center justify-center transition-all"
+                              title="Edit Content"
+                              className="px-2.5 py-1 rounded bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-100 transition-colors font-bold text-xs flex items-center gap-1"
                             >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-
-                            {/* Delete Button */}
-                            <button
-                              onClick={() => handleDelete(item.id, item.exam)}
-                              disabled={isDeletingId === item.id}
-                              title="Delete from PostgreSQL"
-                              className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-950/50 text-red-500 hover:bg-red-100 border border-red-200/60 flex items-center justify-center transition-all disabled:opacity-50"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Pencil className="w-3 h-3" />
+                              <span>Edit Content</span>
                             </button>
                           </div>
-                        </td>
-                      </tr>
+                        </div>
+                      </div>
                     )
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ─── TABLE VIEW ─── */}
+          {marksheetViewMode === 'table' && (
+            <div className="overflow-x-auto rounded-2xl border border-slate-200/80 dark:border-slate-800 animate-in fade-in duration-300">
+              <table className="w-full text-xs text-center whitespace-nowrap">
+                <thead className="bg-slate-50 dark:bg-slate-800/80 font-black text-slate-600 dark:text-slate-300 border-b border-slate-200/80 dark:border-slate-800">
+                  <tr>
+                    <th className="px-4 py-3.5 text-left">S. No.</th>
+                    <th className="px-4 py-3.5 text-left">Group</th>
+                    <th className="px-4 py-3.5 text-left">Exam Name</th>
+                    <th className="px-4 py-3.5">Class Grade</th>
+                    <th className="px-4 py-3.5">Marks Grade</th>
+                    <th className="px-4 py-3.5 text-left">Template Layout</th>
+                    <th className="px-4 py-3.5">Admit Card & Schedule</th>
+                    <th className="px-4 py-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-slate-400">
+                        <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-teal-600" />
+                        Loading exam setups & admit cards...
+                      </td>
+                    </tr>
+                  ) : filteredSetups.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-16 text-center text-slate-400">
+                        No Marksheet Setups Found.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredSetups.map((item, i) => {
+                      const badge = getTemplateBadge(item.templateName)
+                      const linkedCard = getLinkedAdmitCard(item)
+
+                      return (
+                        <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="px-4 py-3.5 text-left text-slate-400 font-bold">{i + 1}.</td>
+
+                          {/* Group */}
+                          <td className="px-4 py-3.5 text-left">
+                            <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                              {item.group}
+                            </span>
+                          </td>
+
+                          {/* Exam Name */}
+                          <td className="px-4 py-3.5 text-left font-bold text-slate-800 dark:text-slate-100">
+                            {item.exam}
+                            <div className="text-[10px] text-slate-400 font-normal">Session: {item.session || '2025-2026'}</div>
+                          </td>
+
+                          {/* Class Grade */}
+                          <td className="px-4 py-3.5">
+                            <span className="px-2.5 py-1 rounded-md text-[10.5px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                              {item.classGrade}
+                            </span>
+                          </td>
+
+                          {/* Marks Grade */}
+                          <td className="px-4 py-3.5 font-semibold text-slate-600 dark:text-slate-300">
+                            {item.marksGrade}
+                          </td>
+
+                          {/* Template Layout */}
+                          <td className="px-4 py-3.5 text-left">
+                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10.5px] font-bold border ${badge.bg}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`}></span>
+                              <span>{item.templateName}</span>
+                            </div>
+                          </td>
+
+                          {/* Simultaneous Admit Card Badge / Action */}
+                          <td className="px-4 py-3.5">
+                            {linkedCard ? (
+                              <button
+                                onClick={() => setPreviewCard(linkedCard)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-extrabold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-all shadow-2xs"
+                                title="Click to View & Print Admit Card"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Admit Card Ready</span>
+                                <Eye className="w-3 h-3 text-emerald-600 ml-0.5" />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleOpenAdmitCardForSetup(item)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 transition-all"
+                              >
+                                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Generate Admit Card</span>
+                              </button>
+                            )}
+                          </td>
+
+                          {/* Actions: Preview Marksheet, Preview Admit Card, Edit Content */}
+                          <td className="px-4 py-3.5 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => setPreviewSetup(item)}
+                                title="Preview Marksheet Design"
+                                className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 hover:bg-purple-100 border border-purple-200/60 flex items-center justify-center transition-all"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                onClick={() => handleOpenAdmitCardForSetup(item)}
+                                title="Preview & Print Admit Card"
+                                className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200/60 flex items-center justify-center transition-all"
+                              >
+                                <FileCheck className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                onClick={() => handleOpenEdit(item)}
+                                title="Edit Setup Content"
+                                className="px-2.5 py-1 rounded bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 hover:bg-teal-100 border border-teal-200/60 flex items-center gap-1 font-bold text-[11px] transition-all"
+                              >
+                                <Pencil className="w-3 h-3 text-teal-600" />
+                                <span>Edit Content</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Footer info */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 text-xs text-slate-500">

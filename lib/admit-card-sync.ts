@@ -13,6 +13,22 @@ export interface AdmitCardConfig {
   displayFields: { [key: string]: boolean }
   status: 'Active' | 'Inactive'
   instructions: string
+  showExamTimeTable?: boolean
+  noOfPrintPerPage?: string
+  headerNameFontSize?: string
+  headerDetailsFontSize?: string
+  studentDetailsFontSize?: string
+  timetableDetailsFontSize?: string
+  headingFontSize?: string
+  defaultFontSize?: string
+  spacing?: string
+  studentPhotoSize?: string
+  teacherSignLabel?: string
+  studentSignLabel?: string
+  parentSignLabel?: string
+  principalSignLabel?: string
+  signatureWidth?: string
+  schoolStampWidth?: string
   dateCreated: string
   timeCreated: string
 }
@@ -136,8 +152,8 @@ export function generateAdmitCardAndTimetableForSetup(setup: {
       return {
         subjectName: sub.subjectName || `Paper ${idx + 1}`,
         date: subDate,
-        fromTime: '10:00',
-        toTime: '13:00'
+        fromTime: sub.startTime || sub.fromTime || '10:00',
+        toTime: sub.endTime || sub.toTime || '13:00'
       }
     })
   } else {
@@ -194,20 +210,39 @@ export function generateAdmitCardAndTimetableForSetup(setup: {
       (c.examName.toLowerCase() === examTitle.toLowerCase() && c.className === baseClassName)
   )
 
-  const admitCardId = existingCard ? existingCard.id : Date.now() + 1
+  const customAdmit = setup.config?.admitCardSettings || {}
+  const admitCardId = existingCard ? existingCard.id : (Date.now() + Math.floor(Math.random() * 1000))
   const admitCard: AdmitCardConfig = {
     id: admitCardId,
     setupId: setup.id,
     className: baseClassName,
     examName: examTitle,
-    admitCardLabel: 'Admit Card',
+    admitCardLabel: customAdmit.admitLabel || existingCard?.admitCardLabel || 'Admit Card',
     timeTableId: timetableId,
     session: sessionStr,
     schoolName,
     schoolAddress,
-    displayFields: existingCard ? existingCard.displayFields : { ...DEFAULT_DISPLAY_FIELDS },
-    status: 'Active',
-    instructions: existingCard ? existingCard.instructions : DEFAULT_INSTRUCTIONS,
+    displayFields: customAdmit.displayFields || existingCard?.displayFields || { ...DEFAULT_DISPLAY_FIELDS },
+    status: customAdmit.status !== undefined 
+      ? (customAdmit.status ? 'Active' : 'Inactive') 
+      : (existingCard?.status || 'Active'),
+    instructions: customAdmit.instructions || existingCard?.instructions || DEFAULT_INSTRUCTIONS,
+    showExamTimeTable: customAdmit.showExamTimeTable ?? existingCard?.showExamTimeTable ?? true,
+    noOfPrintPerPage: customAdmit.noOfPrintPerPage || existingCard?.noOfPrintPerPage || '1',
+    headerNameFontSize: customAdmit.headerNameFontSize || existingCard?.headerNameFontSize || '30',
+    headerDetailsFontSize: customAdmit.headerDetailsFontSize || existingCard?.headerDetailsFontSize || '30',
+    studentDetailsFontSize: customAdmit.studentDetailsFontSize || existingCard?.studentDetailsFontSize || '14',
+    timetableDetailsFontSize: customAdmit.timetableDetailsFontSize || existingCard?.timetableDetailsFontSize || '14',
+    headingFontSize: customAdmit.headingFontSize || existingCard?.headingFontSize || '18',
+    defaultFontSize: customAdmit.defaultFontSize || existingCard?.defaultFontSize || '18',
+    spacing: customAdmit.spacing || existingCard?.spacing || '20',
+    studentPhotoSize: customAdmit.studentPhotoSize || existingCard?.studentPhotoSize || '100',
+    teacherSignLabel: customAdmit.teacherSignLabel || existingCard?.teacherSignLabel || "Class Teacher's Sign.",
+    studentSignLabel: customAdmit.studentSignLabel || existingCard?.studentSignLabel || "Student's Sign.",
+    parentSignLabel: customAdmit.parentSignLabel || existingCard?.parentSignLabel || "Parent's Sign.",
+    principalSignLabel: customAdmit.principalSignLabel || existingCard?.principalSignLabel || "Principal's Sign.",
+    signatureWidth: customAdmit.signatureWidth || existingCard?.signatureWidth || '30',
+    schoolStampWidth: customAdmit.schoolStampWidth || existingCard?.schoolStampWidth || '30',
     dateCreated: existingCard ? existingCard.dateCreated : dateStr,
     timeCreated: existingCard ? existingCard.timeCreated : timeStr
   }

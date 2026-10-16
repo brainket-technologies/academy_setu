@@ -99,8 +99,8 @@ function CreateTimeTableForm() {
           id: Date.now() + idx,
           subjectName: sub.subjectName || `Subject ${idx + 1}`,
           date: sub.examDate || matched.examDate || '',
-          fromTime: '10:00',
-          toTime: '13:00'
+          fromTime: sub.startTime || sub.fromTime || '10:00',
+          toTime: sub.endTime || sub.toTime || '13:00'
         }))
         setSubjects(mappedSubjects)
       }

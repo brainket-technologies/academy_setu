@@ -6,10 +6,11 @@ import { AdmitCardConfig, getStoredTimetables } from '@/lib/admit-card-sync'
 
 interface AdmitCardModalPreviewProps {
   card: AdmitCardConfig | null
+  customSubjects?: { subjectName: string; date: string; fromTime: string; toTime: string }[]
   onClose: () => void
 }
 
-export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({ card, onClose }) => {
+export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({ card, customSubjects, onClose }) => {
   const printRef = useRef<HTMLDivElement>(null)
 
   if (!card) return null
@@ -17,9 +18,11 @@ export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({ ca
   // Lookup timetable subjects
   const timetables = getStoredTimetables()
   const table = timetables.find(t => t.id === Number(card.timeTableId))
-  const subjects = table && table.subjects && table.subjects.length > 0
-    ? table.subjects
-    : [
+  const subjects = (customSubjects && customSubjects.length > 0)
+    ? customSubjects
+    : (table && table.subjects && table.subjects.length > 0)
+      ? table.subjects
+      : [
         { subjectName: 'English Core', date: '2025-03-21', fromTime: '10:00', toTime: '13:00' },
         { subjectName: 'Mathematics', date: '2025-03-23', fromTime: '10:00', toTime: '13:00' },
         { subjectName: 'General Science', date: '2025-03-25', fromTime: '10:00', toTime: '13:00' },

@@ -69,8 +69,26 @@ const DEFAULT_MEMBERS: IdCardPerson[] = [
     dob: '05/03/2010', 
     bloodGroup: 'A+', 
     designId: 1, 
-    generatedAt: '16/09/2025',
+    generatedAt: '16/10/2026',
     avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=300&q=80'
+  },
+  { 
+    id: 'student-4', 
+    uniqueId: 'AS-2024-1245', 
+    name: 'Kavya Singhania', 
+    role: 'Student', 
+    className: 'Class 12', 
+    section: 'Commerce', 
+    session: '2025-26', 
+    contact: '+91 98334 55667', 
+    email: 'kavya.s@student.edu', 
+    fatherName: 'Aditya Singhania', 
+    motherName: 'Pooja Singhania', 
+    dob: '18/02/2008', 
+    bloodGroup: 'AB+', 
+    designId: 2, 
+    generatedAt: '16/10/2026',
+    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80'
   },
   { 
     id: 'teacher-1', 
@@ -107,6 +125,23 @@ const DEFAULT_MEMBERS: IdCardPerson[] = [
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80'
   },
   { 
+    id: 'teacher-3', 
+    uniqueId: 'FAC-PHY-091', 
+    name: 'Dr. Alok Nath Mukherjee', 
+    role: 'Teacher', 
+    className: 'Lead Physics & Robotics Mentor', 
+    section: 'Department of Physical Sciences', 
+    session: '2025-26', 
+    contact: '+91 98777 88990', 
+    email: 'alok.mukherjee@academy.edu', 
+    qualification: 'Ph.D Physics (IIT Delhi)', 
+    joiningDate: '10/01/2019', 
+    bloodGroup: 'O+', 
+    designId: 1, 
+    generatedAt: '16/10/2026',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=300&q=80'
+  },
+  { 
     id: 'employee-1', 
     uniqueId: 'EMP-ADM-019', 
     name: 'Vikram Singh Rathore', 
@@ -135,7 +170,7 @@ const DEFAULT_MEMBERS: IdCardPerson[] = [
     joiningDate: '10/11/2021', 
     bloodGroup: 'O+', 
     designId: 2, 
-    generatedAt: '15/09/2025',
+    generatedAt: '16/10/2026',
     avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=300&q=80'
   },
 ]
@@ -300,7 +335,7 @@ export default function IdCardDownloadPage() {
     }
   }
 
-  // Toggle design per row
+  // Toggle design per row (toggles 1 <-> 2)
   const handleToggleDesign = (id: string) => {
     setMembers(prev => prev.map(m => {
       if (m.id === id) {
@@ -314,13 +349,13 @@ export default function IdCardDownloadPage() {
   const handleOpenPreview = (person: IdCardPerson) => {
     setPreviewMember(person)
     setPreviewSide('front')
-    setModalDesignId(person.designId)
+    setModalDesignId(person.designId === 2 ? 2 : 1)
   }
 
   // Print Single Card
   const handlePrintSingle = (person: IdCardPerson) => {
     setPreviewMember(person)
-    setModalDesignId(person.designId)
+    setModalDesignId(person.designId === 2 ? 2 : 1)
     setTimeout(() => {
       window.print()
     }, 250)
@@ -400,12 +435,14 @@ export default function IdCardDownloadPage() {
                 {item.role === 'Student' && item.designId === 2 && (
                   <StudentDesignHorizontal data={{ name: item.name, class: item.className, rollNo: item.uniqueId, phone: item.contact, bloodGroup: item.bloodGroup }} />
                 )}
+
                 {item.role === 'Teacher' && item.designId === 1 && (
                   <TeacherDesignVertical data={{ name: item.name, designation: item.className, department: item.section, empId: item.uniqueId, phone: item.contact, bloodGroup: item.bloodGroup }} />
                 )}
                 {item.role === 'Teacher' && item.designId === 2 && (
                   <TeacherDesignHorizontal data={{ name: item.name, designation: item.className, department: item.section, empId: item.uniqueId, phone: item.contact, bloodGroup: item.bloodGroup }} />
                 )}
+
                 {item.role === 'Employee' && item.designId === 1 && (
                   <EmployeeDesignVertical data={{ name: item.name, designation: item.className, department: item.section, empId: item.uniqueId, phone: item.contact, bloodGroup: item.bloodGroup }} />
                 )}
@@ -422,12 +459,14 @@ export default function IdCardDownloadPage() {
               {previewMember.role === 'Student' && modalDesignId === 2 && (
                 <StudentDesignHorizontal data={{ name: previewMember.name, class: previewMember.className, rollNo: previewMember.uniqueId, phone: previewMember.contact, bloodGroup: previewMember.bloodGroup }} />
               )}
+
               {previewMember.role === 'Teacher' && modalDesignId === 1 && (
                 <TeacherDesignVertical data={{ name: previewMember.name, designation: previewMember.className, department: previewMember.section, empId: previewMember.uniqueId, phone: previewMember.contact, bloodGroup: previewMember.bloodGroup }} />
               )}
               {previewMember.role === 'Teacher' && modalDesignId === 2 && (
                 <TeacherDesignHorizontal data={{ name: previewMember.name, designation: previewMember.className, department: previewMember.section, empId: previewMember.uniqueId, phone: previewMember.contact, bloodGroup: previewMember.bloodGroup }} />
               )}
+
               {previewMember.role === 'Employee' && modalDesignId === 1 && (
                 <EmployeeDesignVertical data={{ name: previewMember.name, designation: previewMember.className, department: previewMember.section, empId: previewMember.uniqueId, phone: previewMember.contact, bloodGroup: previewMember.bloodGroup }} />
               )}
@@ -771,7 +810,9 @@ export default function IdCardDownloadPage() {
                             title="Click to toggle between Design 1 (Vertical) and Design 2 (Horizontal)"
                             className="group flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:border-teal-500 hover:bg-teal-50/50 transition-all shadow-xs"
                           >
-                            <span className={`w-2 h-2 rounded-full ${item.designId === 1 ? 'bg-sky-500' : 'bg-emerald-500'}`}></span>
+                            <span className={`w-2 h-2 rounded-full ${
+                              item.designId === 1 ? 'bg-sky-500' : 'bg-emerald-500'
+                            }`}></span>
                             <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-teal-600">
                               Design {item.designId} ({item.designId === 1 ? 'Vertical' : 'Horizontal'})
                             </span>
@@ -877,14 +918,14 @@ export default function IdCardDownloadPage() {
             </div>
 
             {/* Design Selector Toolbar */}
-            <div className="bg-slate-100 dark:bg-slate-900/80 px-6 py-2.5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
+            <div className="bg-slate-100 dark:bg-slate-900/80 px-6 py-2.5 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="font-bold text-slate-600 dark:text-slate-300">
                 Choose Design Version for {previewMember.role}:
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   onClick={() => setModalDesignId(1)}
-                  className={`px-3 py-1 rounded-lg font-bold text-xs transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-colors ${
                     modalDesignId === 1 
                       ? 'bg-teal-600 text-white shadow-xs' 
                       : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200'
@@ -894,7 +935,7 @@ export default function IdCardDownloadPage() {
                 </button>
                 <button
                   onClick={() => setModalDesignId(2)}
-                  className={`px-3 py-1 rounded-lg font-bold text-xs transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-colors ${
                     modalDesignId === 2 
                       ? 'bg-teal-600 text-white shadow-xs' 
                       : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200'

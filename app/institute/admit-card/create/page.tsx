@@ -219,8 +219,8 @@ function CreateAdmitCardForm() {
         return matchedSetup.config.subjects.map((sub: any, idx: number) => ({
           subjectName: sub.subjectName || `Subject ${idx + 1}`,
           date: sub.examDate || matchedSetup.examDate || '2025-03-21',
-          fromTime: '10:00',
-          toTime: '13:00'
+          fromTime: sub.startTime || sub.fromTime || '10:00',
+          toTime: sub.endTime || sub.toTime || '13:00'
         }))
       }
     }

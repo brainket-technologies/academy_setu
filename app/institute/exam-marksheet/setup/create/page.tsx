@@ -3,12 +3,13 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, X, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Save, Check, CheckCircle2, Award, Eye, FileText, LayoutTemplate, ShieldAlert, Sparkles, Printer, RefreshCw, Layers } from 'lucide-react'
+import { Plus, X, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Save, Check, CheckCircle2, Award, Eye, FileText, LayoutTemplate, ShieldAlert, Sparkles, Printer, RefreshCw, Layers, Clock, Calendar, School } from 'lucide-react'
 import { toast } from 'sonner'
 import { saveMultipleMarksheetSetups, fetchExamGroups, saveExamGroup } from '../actions'
 import { MarksheetPreview } from '@/components/marksheets/MarksheetPreview'
 import { getInstituteAddedClasses, MasterClassWithSections } from '@/lib/institute-classes'
-import { generateAdmitCardAndTimetableForSetup } from '@/lib/admit-card-sync'
+import { generateAdmitCardAndTimetableForSetup, AdmitCardConfig } from '@/lib/admit-card-sync'
+import { AdmitCardModalPreview } from '@/components/admit-card/AdmitCardModalPreview'
 
 // Step Definitions
 type StepType = 'Exams' | 'Marks & Grade Range' | 'Marksheet Design Setup' | 'Certificate Design'
@@ -40,6 +41,10 @@ interface SubjectConfig {
   id: number
   subjectName: string
   examDate?: string
+  startTime?: string
+  endTime?: string
+  fromTime?: string
+  toTime?: string
   maxMarks: string
   practicalColumn: boolean
   practicalMarks: string
@@ -56,6 +61,8 @@ export default function AddSetupWizardPage() {
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState<StepType>('Exams')
   const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [showAdmitPreviewModal, setShowAdmitPreviewModal] = useState(false)
+  const [showAdvancedAdmitStyles, setShowAdvancedAdmitStyles] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // ==================== STEP 1: EXAMS STATE ====================
@@ -162,7 +169,9 @@ export default function AddSetupWizardPage() {
   })
   const [admitCardStatus, setAdmitCardStatus] = useState(true)
   const [showExamTimeTableOnAdmit, setShowExamTimeTableOnAdmit] = useState(true)
-  const [admitInstructions, setAdmitInstructions] = useState('')
+  const [admitInstructions, setAdmitInstructions] = useState(
+    '1. Candidates must arrive at the examination center 30 minutes before the scheduled time.\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.'
+  )
   const [admitLabel, setAdmitLabel] = useState('Admit Card')
   const [admitNoOfPrintPerPage, setAdmitNoOfPrintPerPage] = useState('1')
   const [admitHeaderNameFontSize, setAdmitHeaderNameFontSize] = useState('30')
@@ -195,7 +204,18 @@ export default function AddSetupWizardPage() {
       id: 1,
       className: '',
       sections: [],
-      subjects: [{ id: 1, subjectName: '', examDate: '', maxMarks: '100', practicalColumn: false, practicalMarks: '' }]
+      subjects: [{ 
+        id: 1, 
+        subjectName: '', 
+        examDate: '', 
+        startTime: '10:00', 
+        endTime: '13:00', 
+        fromTime: '10:00', 
+        toTime: '13:00', 
+        maxMarks: '100', 
+        practicalColumn: false, 
+        practicalMarks: '' 
+      }]
     }
   ])
 
@@ -209,7 +229,18 @@ export default function AddSetupWizardPage() {
         id: Date.now(),
         className: firstCls,
         sections: [...firstSecs],
-        subjects: [{ id: Date.now() + 1, subjectName: '', examDate: '', maxMarks: '100', practicalColumn: false, practicalMarks: '' }]
+        subjects: [{ 
+          id: Date.now() + 1, 
+          subjectName: '', 
+          examDate: '', 
+          startTime: '10:00', 
+          endTime: '13:00', 
+          fromTime: '10:00', 
+          toTime: '13:00', 
+          maxMarks: '100', 
+          practicalColumn: false, 
+          practicalMarks: '' 
+        }]
       }
     ])
   }
@@ -253,11 +284,25 @@ export default function AddSetupWizardPage() {
   const handleAddSubject = (classId: number) => {
     setClasses(prev => prev.map(c => {
       if (c.id === classId) {
+        const lastSub = c.subjects[c.subjects.length - 1]
+        const defaultStartTime = lastSub?.startTime || lastSub?.fromTime || '10:00'
+        const defaultEndTime = lastSub?.endTime || lastSub?.toTime || '13:00'
         return {
           ...c,
           subjects: [
             ...c.subjects,
-            { id: Date.now(), subjectName: '', examDate: '', maxMarks: '100', practicalColumn: false, practicalMarks: '' }
+            { 
+              id: Date.now(), 
+              subjectName: '', 
+              examDate: '', 
+              startTime: defaultStartTime, 
+              endTime: defaultEndTime, 
+              fromTime: defaultStartTime, 
+              toTime: defaultEndTime, 
+              maxMarks: '100', 
+              practicalColumn: false, 
+              practicalMarks: '' 
+            }
           ]
         }
       }
@@ -270,7 +315,17 @@ export default function AddSetupWizardPage() {
       if (c.id === classId) {
         return {
           ...c,
-          subjects: c.subjects.map(s => s.id === subId ? { ...s, [field]: val } : s)
+          subjects: c.subjects.map(s => {
+            if (s.id === subId) {
+              const updated = { ...s, [field]: val }
+              if (field === 'startTime') updated.fromTime = val
+              if (field === 'fromTime') updated.startTime = val
+              if (field === 'endTime') updated.toTime = val
+              if (field === 'toTime') updated.endTime = val
+              return updated
+            }
+            return s
+          })
         }
       }
       return c
@@ -334,7 +389,7 @@ export default function AddSetupWizardPage() {
   const [showRoundBorderPhoto, setShowRoundBorderPhoto] = useState(false)
 
   // Templates
-  const [selectedTemplate, setSelectedTemplate] = useState('Purple Classic')
+  const [selectedTemplate, setSelectedTemplate] = useState('CBSE Royal Emerald')
 
   // Columns Checkboxes
   const [columnsList, setColumnsList] = useState({
@@ -411,8 +466,7 @@ export default function AddSetupWizardPage() {
   }
 
   const handleSaveSetup = async () => {
-    if (!examName) {
-      toast.error('Please enter the Exam Name in Step 1.')
+    if (!validateStep1()) {
       setCurrentStep('Exams')
       return
     }
@@ -469,22 +523,47 @@ export default function AddSetupWizardPage() {
             academicYear
           },
           certTemplate,
-          lockClasses
+          lockClasses,
+          admitCardSettings: {
+            admitLabel,
+            displayFields: admitDisplayFields,
+            status: admitCardStatus,
+            showExamTimeTable: showExamTimeTableOnAdmit,
+            instructions: admitInstructions,
+            noOfPrintPerPage: admitNoOfPrintPerPage,
+            headerNameFontSize: admitHeaderNameFontSize,
+            headerDetailsFontSize: admitHeaderDetailsFontSize,
+            studentDetailsFontSize: admitStudentDetailsFontSize,
+            timetableDetailsFontSize: admitTimetableDetailsFontSize,
+            headingFontSize: admitHeadingFontSize,
+            defaultFontSize: admitDefaultFontSize,
+            spacing: admitSpacing,
+            studentPhotoSize: admitStudentPhotoSize,
+            teacherSignLabel: admitTeacherSignLabel,
+            studentSignLabel: admitStudentSignLabel,
+            parentSignLabel: admitParentSignLabel,
+            principalSignLabel: admitPrincipalSignLabel,
+            signatureWidth: admitSignatureWidth,
+            schoolStampWidth: admitSchoolStampWidth
+          }
         }
       }))
 
       const res = await saveMultipleMarksheetSetups(payload)
       if (res.success) {
-        // Simultaneously generate Admit Cards and Exam TimeTables for all classes
-        payload.forEach(item => {
+        // Simultaneously generate Admit Cards and Exam TimeTables for all classes with database setup IDs
+        const savedData = Array.isArray(res.data) ? res.data : []
+        payload.forEach((item, idx) => {
           try {
-            generateAdmitCardAndTimetableForSetup(item)
+            const savedItem = savedData[idx]
+            const realId = savedItem?.id || undefined
+            generateAdmitCardAndTimetableForSetup({ ...item, id: realId })
           } catch (e) {
             console.error('Error generating simultaneous admit card:', e)
           }
         })
 
-        toast.success(`${classes.length} marksheet setup(s) & admit card(s) created simultaneously!`)
+        toast.success(`Exam Setup & Admit Card created successfully in a single event!`)
         router.push('/institute/exam-marksheet/setup')
       } else {
         toast.error(res.error || 'Failed to save to PostgreSQL database')
@@ -509,6 +588,14 @@ export default function AddSetupWizardPage() {
         <div className="flex flex-wrap items-center gap-3">
           <button 
             type="button"
+            onClick={() => setShowAdmitPreviewModal(true)}
+            className="flex items-center gap-2 px-4 py-2 border border-teal-600 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/40 rounded-xl text-xs font-bold transition-all shadow-xs"
+          >
+            <Eye className="w-4 h-4" /> Live Admit Card Preview
+          </button>
+
+          <button 
+            type="button"
             onClick={() => setShowPreviewModal(true)}
             className="flex items-center gap-2 px-4 py-2 border border-purple-600 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-xl text-xs font-bold transition-all shadow-xs"
           >
@@ -530,11 +617,11 @@ export default function AddSetupWizardPage() {
           >
             {isSubmitting ? (
               <>
-                <RefreshCw className="w-4 h-4 animate-spin" /> Saving to DB...
+                <RefreshCw className="w-4 h-4 animate-spin" /> Saving Setup & Admit Card...
               </>
             ) : (
               <>
-                <Save className="w-4 h-4" /> Save Setup
+                <Save className="w-4 h-4" /> Save Setup & Admit Card
               </>
             )}
           </button>
@@ -562,16 +649,21 @@ export default function AddSetupWizardPage() {
             const isActive = currentStep === step
             const isCompleted = STEPS.indexOf(currentStep) > idx
             return (
-              <div key={step} className="flex flex-col items-center gap-2 relative z-10">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border transition-all ${
-                  isActive ? 'bg-teal-600 border-teal-600 text-white shadow-md' :
+              <div 
+                key={step} 
+                onClick={() => setCurrentStep(step)}
+                className="flex flex-col items-center gap-2 relative z-10 cursor-pointer group"
+                title={`Jump to step ${idx + 1}: ${step}`}
+              >
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border transition-all group-hover:scale-105 ${
+                  isActive ? 'bg-teal-600 border-teal-600 text-white shadow-md ring-2 ring-teal-500/20' :
                   isCompleted ? 'bg-teal-100 border-teal-500 text-teal-600 font-bold' :
-                  'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400'
+                  'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 group-hover:border-teal-400'
                 }`}>
                   {isCompleted ? '✓' : idx + 1}
                 </div>
-                <span className={`text-[10px] font-black uppercase tracking-wider ${
-                  isActive ? 'text-teal-600' : 'text-slate-400'
+                <span className={`text-[10px] font-black uppercase tracking-wider transition-colors ${
+                  isActive ? 'text-teal-600' : 'text-slate-400 group-hover:text-slate-600'
                 }`}>
                   {step}
                 </span>
@@ -586,60 +678,88 @@ export default function AddSetupWizardPage() {
         
         {/* ================================== STEP 1: EXAMS ================================== */}
         {currentStep === 'Exams' && (
-          <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-              <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider">Exam Settings & Class Config</h2>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Copy from Session:</span>
-                <select 
-                  value={session} 
-                  onChange={e => setSession(e.target.value)}
-                  className="px-2 py-1 bg-slate-50 border rounded text-xs outline-none font-semibold text-slate-600"
-                >
-                  <option value="2025-2026">2025-2026</option>
-                  <option value="2026-2027">2026-2027</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-700">Group Name <span className="text-red-500">*</span></label>
-                  <button
-                    type="button"
-                    onClick={() => setIsGroupModalOpen(true)}
-                    className="text-[11px] font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1"
-                  >
-                    <Plus className="w-3 h-3" /> New Group
-                  </button>
+          <div className="space-y-8 animate-in fade-in duration-300">
+            
+            {/* ==================== 1. BASIC EXAM & ACADEMIC SESSION ==================== */}
+            <div className="bg-slate-50/70 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-800 gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-teal-600 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
+                    1
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                      Basic Exam & Session Information
+                    </h2>
+                    <p className="text-[11px] text-slate-400">Select group scheme, session year, and give the official examination title</p>
+                  </div>
                 </div>
-                <select 
-                  value={groupName}
-                  onChange={e => setGroupName(e.target.value)}
-                  className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
-                >
-                  {availableGroups.map(g => (
-                    <option key={g} value={g}>{g}</option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2 self-start sm:self-auto bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Session:</span>
+                  <select 
+                    value={session} 
+                    onChange={e => setSession(e.target.value)}
+                    className="bg-transparent text-xs outline-none font-bold text-slate-700 dark:text-slate-200 cursor-pointer"
+                  >
+                    <option value="2025-2026">2025-2026</option>
+                    <option value="2026-2027">2026-2027</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Exam Name <span className="text-red-500">*</span></label>
-                <input 
-                  type="text" 
-                  placeholder="Enter Name"
-                  value={examName}
-                  onChange={e => setExamName(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
-                  required
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Group Name <span className="text-red-500">*</span></label>
+                    <button
+                      type="button"
+                      onClick={() => setIsGroupModalOpen(true)}
+                      className="text-[11px] font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1 transition-colors"
+                    >
+                      <Plus className="w-3 h-3" /> New Group
+                    </button>
+                  </div>
+                  <select 
+                    value={groupName}
+                    onChange={e => setGroupName(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-bold text-slate-800 dark:text-slate-100 shadow-xs"
+                  >
+                    {availableGroups.map(g => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Exam Name <span className="text-red-500">*</span></label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Final Term Examination 2025-26"
+                    value={examName}
+                    onChange={e => setExamName(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-bold text-slate-800 dark:text-slate-100 shadow-xs placeholder:text-slate-400"
+                    required
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Class Card config list */}
-            <div className="space-y-4 pt-4">
+            {/* ==================== 2. CLASS, SECTIONS & SUBJECT SCHEDULE ==================== */}
+            <div className="bg-slate-50/70 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-5">
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-200/80 dark:border-slate-800">
+                <div className="w-8 h-8 rounded-xl bg-teal-600 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
+                  2
+                </div>
+                <div>
+                  <h2 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                    Class & Subject Examination Schedule
+                  </h2>
+                  <p className="text-[11px] text-slate-400">Map added classes, sections, and subject-wise dates & start/end times</p>
+                </div>
+              </div>
+
+              {/* Class Card config list */}
+              <div className="space-y-4">
               {classes.map((cls, classIdx) => (
                 <div key={cls.id} className="relative bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-6">
                   
@@ -747,7 +867,7 @@ export default function AddSetupWizardPage() {
                       <div key={sub.id} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3.5 items-end bg-white dark:bg-slate-800 p-4 border border-slate-100 dark:border-slate-700 rounded-xl relative shadow-xs">
                         
                         {/* 1. Select Subject */}
-                        <div className="flex flex-col gap-1.5 lg:col-span-4">
+                        <div className="flex flex-col gap-1.5 lg:col-span-3">
                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select Subject *</label>
                           <select 
                             value={sub.subjectName}
@@ -763,8 +883,11 @@ export default function AddSetupWizardPage() {
                         </div>
 
                         {/* 2. Exam Date for this Subject */}
-                        <div className="flex flex-col gap-1.5 lg:col-span-3">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subject Exam Date</label>
+                        <div className="flex flex-col gap-1.5 lg:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                            <Calendar className="w-3 h-3 text-slate-400" />
+                            <span>Subject Exam Date</span>
+                          </label>
                           <input 
                             type="date"
                             value={sub.examDate || ''}
@@ -773,7 +896,34 @@ export default function AddSetupWizardPage() {
                           />
                         </div>
 
-                        {/* 3. Maximum Marks */}
+                        {/* 3. Exam Time (Start - End) */}
+                        <div className="flex flex-col gap-1.5 lg:col-span-3">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-slate-400" />
+                              <span>Exam Time</span>
+                            </label>
+                            <span className="text-[9px] font-semibold text-slate-400">Start — End</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input 
+                              type="time"
+                              value={sub.startTime || sub.fromTime || ''}
+                              onChange={e => handleSubjectChange(cls.id, sub.id, 'startTime', e.target.value)}
+                              title="Start Time (From)"
+                              className="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900"
+                            />
+                            <input 
+                              type="time"
+                              value={sub.endTime || sub.toTime || ''}
+                              onChange={e => handleSubjectChange(cls.id, sub.id, 'endTime', e.target.value)}
+                              title="End Time (To)"
+                              className="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900"
+                            />
+                          </div>
+                        </div>
+
+                        {/* 4. Maximum Marks */}
                         <div className="flex flex-col gap-1.5 lg:col-span-2">
                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Max Marks *</label>
                           <input 
@@ -785,19 +935,19 @@ export default function AddSetupWizardPage() {
                           />
                         </div>
 
-                        {/* 4. Practical Column Toggle & Marks */}
-                        <div className="flex items-center gap-2.5 py-1.5 lg:col-span-3">
-                          <div className="flex items-center gap-2">
+                        {/* 5. Practical Column Toggle & Marks */}
+                        <div className="flex items-center gap-2.5 py-1.5 lg:col-span-2">
+                          <div className="flex items-center gap-2 shrink-0">
                             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Practical</span>
                             <button 
                               type="button"
                               onClick={() => handleSubjectChange(cls.id, sub.id, 'practicalColumn', !sub.practicalColumn)}
-                              className={`w-10 h-5 rounded-full relative transition-colors ${
+                              className={`w-9 h-5 rounded-full relative transition-colors ${
                                 sub.practicalColumn ? 'bg-teal-600' : 'bg-slate-200 dark:bg-slate-700'
                               }`}
                             >
                               <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${
-                                sub.practicalColumn ? 'left-5.5' : 'left-0.5'
+                                sub.practicalColumn ? 'left-4.5' : 'left-0.5'
                               }`}></div>
                             </button>
                           </div>
@@ -808,7 +958,7 @@ export default function AddSetupWizardPage() {
                               placeholder="Pr. Marks"
                               value={sub.practicalMarks}
                               onChange={e => handleSubjectChange(cls.id, sub.id, 'practicalMarks', e.target.value)}
-                              className="w-20 px-2 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-center bg-white dark:bg-slate-900 animate-in fade-in"
+                              className="w-18 px-2 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-center bg-white dark:bg-slate-900 animate-in fade-in"
                             />
                           )}
                         </div>
@@ -850,226 +1000,271 @@ export default function AddSetupWizardPage() {
                 <Plus className="w-4 h-4" /> Add Class
               </button>
             </div>
+          </div>
             
-            {/* Exam Notification & Locking System (Default Open - No Toggle) */}
-            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 space-y-5">
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+          {/* ==================== 3. EXAM TIMELINE & ENTRY DEADLINES ==================== */}
+          <div className="bg-slate-50/70 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-teal-600 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
+                  3
+                </div>
                 <div>
-                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-                    Exam Notification & Locking System
+                  <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                    Exam Timeline & Entry Deadlines
                   </h3>
                   <p className="text-[11px] text-slate-400 mt-0.5">
                     Configure official schedule release dates, admit card availability, and mark entry lock deadlines
                   </p>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
-                  Active
-                </span>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                {/* 1. Exam Notification Date */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Exam Notification Date <span className="text-red-500">*</span>
-                  </label>
-                  <input 
-                    type="date"
-                    value={dateOfExam}
-                    onChange={e => setDateOfExam(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
-                    required
-                  />
-                  <span className="text-[10px] text-slate-400">Date exam notice is published</span>
-                </div>
-
-                {/* 2. Admit Card Generated Date */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Admit Card Generated Date <span className="text-red-500">*</span>
-                  </label>
-                  <input 
-                    type="date"
-                    value={admitCardDate}
-                    onChange={e => setAdmitCardDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
-                    required
-                  />
-                  <span className="text-[10px] text-slate-400">Date hall tickets are available</span>
-                </div>
-
-                {/* 3. Last Date to Enter Marks */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Last Date to Enter Marks <span className="text-red-500">*</span>
-                  </label>
-                  <input 
-                    type="date" 
-                    value={lastDateToEnter}
-                    onChange={e => setLastDateToEnter(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
-                  />
-                  <span className="text-[10px] text-slate-400">Lock entry deadline</span>
-                </div>
-
-                {/* 4. Lock Modifications for Class */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Lock Applicable Class <span className="text-red-500">*</span>
-                  </label>
-                  <select 
-                    value={lockClasses}
-                    onChange={e => setLockClasses(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
-                  >
-                    <option value="">All Applicable Classes</option>
-                    {masterClasses.map(m => (
-                      <option key={m.className} value={m.className}>{m.className}</option>
-                    ))}
-                  </select>
-                  <span className="text-[10px] text-slate-400">Target class for lock policy</span>
-                </div>
-              </div>
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                Active
+              </span>
             </div>
 
-            {/* ================================== ADMIT CARD SETTINGS ================================== */}
-            <div className="bg-white dark:bg-slate-800 border border-teal-200 dark:border-teal-800 rounded-2xl p-6 space-y-5 mt-2">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+              {/* 1. Exam Notification Date */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Exam Notification Date <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="date"
+                  value={dateOfExam}
+                  onChange={e => setDateOfExam(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
+                  required
+                />
+                <span className="text-[10px] text-slate-400">Date exam notice is published</span>
+              </div>
+
+              {/* 2. Admit Card Generated Date */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Admit Card Generated Date <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="date"
+                  value={admitCardDate}
+                  onChange={e => setAdmitCardDate(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
+                  required
+                />
+                <span className="text-[10px] text-slate-400">Date hall tickets are available</span>
+              </div>
+
+              {/* 3. Last Date to Enter Marks */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Last Date to Enter Marks <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="date" 
+                  value={lastDateToEnter}
+                  onChange={e => setLastDateToEnter(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
+                />
+                <span className="text-[10px] text-slate-400">Lock entry deadline</span>
+              </div>
+
+              {/* 4. Lock Modifications for Class */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Lock Applicable Class <span className="text-red-500">*</span>
+                </label>
+                <select 
+                  value={lockClasses}
+                  onChange={e => setLockClasses(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
+                >
+                  <option value="">All Applicable Classes</option>
+                  {masterClasses.map(m => (
+                    <option key={m.className} value={m.className}>{m.className}</option>
+                  ))}
+                </select>
+                <span className="text-[10px] text-slate-400">Target class for lock policy</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ==================== 4. UNIFIED ADMIT CARD & HALL TICKET CONFIGURATION ==================== */}
+          <div className="bg-white dark:bg-slate-850 border-2 border-teal-500/30 rounded-2xl p-6 space-y-6 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
+                  4
+                </div>
                 <div>
-                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-teal-500 inline-block"></span>
-                    Admit Card Settings
-                  </h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Configure fields, layout, and printing options for the auto-generated admit card
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                      Admit Card & Hall Ticket Configuration
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-teal-600 to-emerald-600 text-white uppercase tracking-wider shadow-2xs">
+                      ⚡ Single Event Sync
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Official Student Admit Cards & Timetables will be simultaneously generated and linked with this exam setup.
                   </p>
                 </div>
               </div>
 
-              {/* Admit Card Label */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Admit Card Label</label>
-                  <input
-                    type="text"
-                    value={admitLabel}
-                    onChange={e => setAdmitLabel(e.target.value)}
-                    placeholder="Admit Card"
-                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
-                  />
-                  <span className="text-[10px] text-slate-400">Title printed on the admit card</span>
-                </div>
+              <button
+                type="button"
+                onClick={() => setShowAdmitPreviewModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/50 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 rounded-xl text-xs font-bold transition-all shadow-xs shrink-0"
+              >
+                <Eye className="w-4 h-4 text-teal-600 dark:text-teal-400" /> Preview Hall Ticket
+              </button>
+            </div>
+
+            {/* Title & Core Toggles */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Admit Card Document Title</label>
+                <input
+                  type="text"
+                  value={admitLabel}
+                  onChange={e => setAdmitLabel(e.target.value)}
+                  placeholder="Admit Card"
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-bold text-slate-800 dark:text-slate-100 shadow-xs"
+                />
+                <span className="text-[10px] text-slate-400">Heading printed on hall ticket</span>
               </div>
 
-              {/* Display Fields Checkboxes */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide">Select Fields to Display on Student Admit Card</span>
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-600 dark:text-slate-400">
+              <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800">
+                <div>
+                  <span className="text-xs font-black text-slate-800 dark:text-slate-100 block">Admit Card Status</span>
+                  <span className="text-[10px] text-slate-400">Available to students online</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAdmitCardStatus(!admitCardStatus)}
+                  className={`w-10 h-5.5 rounded-full relative transition-colors ${admitCardStatus ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                >
+                  <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${admitCardStatus ? 'left-5' : 'left-0.5'}`}></div>
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800">
+                <div>
+                  <span className="text-xs font-black text-slate-800 dark:text-slate-100 block">Exam Timetable</span>
+                  <span className="text-[10px] text-slate-400">Show schedule on admit card</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowExamTimeTableOnAdmit(!showExamTimeTableOnAdmit)}
+                  className={`w-10 h-5.5 rounded-full relative transition-colors ${showExamTimeTableOnAdmit ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                >
+                  <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showExamTimeTableOnAdmit ? 'left-5' : 'left-0.5'}`}></div>
+                </button>
+              </div>
+            </div>
+
+            {/* Display Fields Checkboxes */}
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                <span className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                  Select Fields to Display on Student Admit Card
+                </span>
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-teal-600 hover:text-teal-700 select-none">
+                  <input
+                    type="checkbox"
+                    checked={isAdmitAllSelected}
+                    onChange={e => handleAdmitSelectAllChange(e.target.checked)}
+                    className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500 rounded"
+                  />
+                  <span>Select All Fields</span>
+                </label>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs font-bold text-slate-700 dark:text-slate-300">
+                {ADMIT_DISPLAY_FIELDS_KEYS.map(f => (
+                  <label key={f.key} className={`flex items-center gap-2.5 p-2 rounded-lg border transition-all cursor-pointer ${
+                    admitDisplayFields[f.key] 
+                      ? 'bg-teal-50/50 dark:bg-teal-950/20 border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-200' 
+                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                  }`}>
                     <input
                       type="checkbox"
-                      checked={isAdmitAllSelected}
-                      onChange={e => handleAdmitSelectAllChange(e.target.checked)}
-                      className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500 rounded"
+                      checked={!!admitDisplayFields[f.key]}
+                      onChange={() => handleAdmitCheckboxChange(f.key)}
+                      className="w-3.5 h-3.5 text-teal-600 border-slate-300 focus:ring-teal-500 rounded"
                     />
-                    <span>Select All</span>
+                    <span className="truncate">{f.label}</span>
                   </label>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-bold text-slate-700 dark:text-slate-300">
-                  {ADMIT_DISPLAY_FIELDS_KEYS.map(f => (
-                    <label key={f.key} className="flex items-center gap-2.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={!!admitDisplayFields[f.key]}
-                        onChange={() => handleAdmitCheckboxChange(f.key)}
-                        className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500 rounded"
-                      />
-                      <span>{f.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Toggles */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-150 dark:border-slate-700">
-                  <div>
-                    <span className="text-xs font-black text-slate-800 dark:text-slate-100 block">Admit Card Status</span>
-                    <span className="text-[10px] text-slate-400">If activated, students can download through App.</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setAdmitCardStatus(!admitCardStatus)}
-                    className={`w-10 h-5.5 rounded-full relative transition-colors ${admitCardStatus ? 'bg-teal-600' : 'bg-slate-200'}`}
-                  >
-                    <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${admitCardStatus ? 'left-5' : 'left-0.5'}`}></div>
-                  </button>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-150 dark:border-slate-700">
-                  <div>
-                    <span className="text-xs font-black text-slate-800 dark:text-slate-100 block">Exam Time Table</span>
-                    <span className="text-[10px] text-slate-400">Do you want to show exam time table on admit card?</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowExamTimeTableOnAdmit(!showExamTimeTableOnAdmit)}
-                    className={`w-10 h-5.5 rounded-full relative transition-colors ${showExamTimeTableOnAdmit ? 'bg-teal-600' : 'bg-slate-200'}`}
-                  >
-                    <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showExamTimeTableOnAdmit ? 'left-5' : 'left-0.5'}`}></div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Instructions */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Instruction</label>
-                <textarea
-                  placeholder="Write instructions..."
-                  value={admitInstructions}
-                  onChange={e => setAdmitInstructions(e.target.value)}
-                  className="w-full min-h-[70px] p-4 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold bg-white dark:bg-slate-800"
-                />
-              </div>
-
-              {/* Font Sizes & Print Settings */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {[
-                  { label: 'No. of Print Per Page', val: admitNoOfPrintPerPage, set: setAdmitNoOfPrintPerPage },
-                  { label: 'Header Name Font Size (px)', val: admitHeaderNameFontSize, set: setAdmitHeaderNameFontSize },
-                  { label: 'Header Details Font Size (px)', val: admitHeaderDetailsFontSize, set: setAdmitHeaderDetailsFontSize },
-                  { label: 'Student Details Font Size (px)', val: admitStudentDetailsFontSize, set: setAdmitStudentDetailsFontSize },
-                  { label: 'Timetable Details Font Size (px)', val: admitTimetableDetailsFontSize, set: setAdmitTimetableDetailsFontSize },
-                  { label: 'Heading Font Size (px)', val: admitHeadingFontSize, set: setAdmitHeadingFontSize },
-                  { label: 'Default Font Size (px)', val: admitDefaultFontSize, set: setAdmitDefaultFontSize },
-                  { label: 'Spacing (px)', val: admitSpacing, set: setAdmitSpacing },
-                  { label: 'Student Photo Size (px)', val: admitStudentPhotoSize, set: setAdmitStudentPhotoSize },
-                ].map(({ label, val, set }) => (
-                  <div key={label} className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{label}</label>
-                    <input type="text" value={val} onChange={e => set(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none text-center bg-white dark:bg-slate-800 font-semibold" />
-                  </div>
-                ))}
-              </div>
-
-              {/* Sign Labels */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {[
-                  { label: 'Teacher Sign Label', val: admitTeacherSignLabel, set: setAdmitTeacherSignLabel },
-                  { label: 'Student Sign Label', val: admitStudentSignLabel, set: setAdmitStudentSignLabel },
-                  { label: 'Parent Sign Label', val: admitParentSignLabel, set: setAdmitParentSignLabel },
-                  { label: 'Principal Sign Label', val: admitPrincipalSignLabel, set: setAdmitPrincipalSignLabel },
-                  { label: 'Signature Width (px)', val: admitSignatureWidth, set: setAdmitSignatureWidth },
-                  { label: 'School Stamp Width (px)', val: admitSchoolStampWidth, set: setAdmitSchoolStampWidth },
-                ].map(({ label, val, set }) => (
-                  <div key={label} className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{label}</label>
-                    <input type="text" value={val} onChange={e => set(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200" />
-                  </div>
                 ))}
               </div>
             </div>
+
+            {/* Instructions */}
+            <div className="flex flex-col gap-1.5 pt-2">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Candidate Examination Instructions</label>
+              <textarea
+                rows={4}
+                placeholder="Write official examination instructions for students..."
+                value={admitInstructions}
+                onChange={e => setAdmitInstructions(e.target.value)}
+                className="w-full p-4 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-xs leading-relaxed"
+              />
+            </div>
+
+            {/* Collapsible Advanced Print & Layout Settings */}
+            <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
+              <button
+                type="button"
+                onClick={() => setShowAdvancedAdmitStyles(!showAdvancedAdmitStyles)}
+                className="w-full flex items-center justify-between px-5 py-3 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <span>Advanced Typography, Signatures & Print Dimensions</span>
+                  <span className="text-[10px] text-slate-400 font-normal">(Font sizes, stamp widths, signature titles)</span>
+                </span>
+                {showAdvancedAdmitStyles ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+
+              {showAdvancedAdmitStyles && (
+                <div className="p-5 space-y-5 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 animate-in fade-in duration-200">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {[
+                      { label: 'No. of Print Per Page', val: admitNoOfPrintPerPage, set: setAdmitNoOfPrintPerPage },
+                      { label: 'Header Name Font Size (px)', val: admitHeaderNameFontSize, set: setAdmitHeaderNameFontSize },
+                      { label: 'Header Details Font Size (px)', val: admitHeaderDetailsFontSize, set: setAdmitHeaderDetailsFontSize },
+                      { label: 'Student Details Font Size (px)', val: admitStudentDetailsFontSize, set: setAdmitStudentDetailsFontSize },
+                      { label: 'Timetable Details Font Size (px)', val: admitTimetableDetailsFontSize, set: setAdmitTimetableDetailsFontSize },
+                      { label: 'Heading Font Size (px)', val: admitHeadingFontSize, set: setAdmitHeadingFontSize },
+                      { label: 'Default Font Size (px)', val: admitDefaultFontSize, set: setAdmitDefaultFontSize },
+                      { label: 'Spacing (px)', val: admitSpacing, set: setAdmitSpacing },
+                      { label: 'Student Photo Size (px)', val: admitStudentPhotoSize, set: setAdmitStudentPhotoSize },
+                    ].map(({ label, val, set }) => (
+                      <div key={label} className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{label}</label>
+                        <input type="text" value={val} onChange={e => set(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none text-center bg-white dark:bg-slate-800 font-semibold" />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    {[
+                      { label: 'Teacher Sign Label', val: admitTeacherSignLabel, set: setAdmitTeacherSignLabel },
+                      { label: 'Student Sign Label', val: admitStudentSignLabel, set: setAdmitStudentSignLabel },
+                      { label: 'Parent Sign Label', val: admitParentSignLabel, set: setAdmitParentSignLabel },
+                      { label: 'Principal Sign Label', val: admitPrincipalSignLabel, set: setAdmitPrincipalSignLabel },
+                      { label: 'Signature Width (px)', val: admitSignatureWidth, set: setAdmitSignatureWidth },
+                      { label: 'School Stamp Width (px)', val: admitSchoolStampWidth, set: setAdmitSchoolStampWidth },
+                    ].map(({ label, val, set }) => (
+                      <div key={label} className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{label}</label>
+                        <input type="text" value={val} onChange={e => set(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        )}
+        </div>
+      )}
 
         {/* ================================== STEP 2: MARKS & GRADE RANGE ================================== */}
         {currentStep === 'Marks & Grade Range' && (
@@ -1343,36 +1538,135 @@ export default function AddSetupWizardPage() {
 
             {/* Templates Selector */}
             <div className="space-y-4">
-              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Select Marksheet Template Design</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                    Select Marksheet Template Design
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Choose from 4 professionally crafted web & Pinterest-inspired academic designs
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                  4 Templates Available
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* 1. CBSE Royal Emerald */}
                 <div 
-                  onClick={() => setSelectedTemplate('Purple Classic')}
-                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col items-center gap-3 transition-all ${
-                    selectedTemplate === 'Purple Classic' ? 'border-teal-600 bg-teal-50/30 ring-2 ring-teal-500/10' : 'border-slate-200 hover:bg-slate-50'
+                  onClick={() => setSelectedTemplate('CBSE Royal Emerald')}
+                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
+                    selectedTemplate === 'CBSE Royal Emerald' 
+                      ? 'border-[#065f46] bg-emerald-50/40 ring-2 ring-[#065f46]/20 shadow-md' 
+                      : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                   }`}
                 >
-                  <FileText className="w-12 h-12 text-[#4c2472]" />
-                  <span className="text-xs font-black text-slate-800">Purple Classic (Portrait)</span>
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      CBSE / Board
+                    </span>
+                    {selectedTemplate === 'CBSE Royal Emerald' && (
+                      <CheckCircle2 className="w-4 h-4 text-[#065f46]" />
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center text-center my-2">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-[#065f46] flex items-center justify-center shadow-xs mb-2">
+                      <School className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">CBSE Royal Emerald</span>
+                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Official Board Format • Gold Crest</span>
+                  </div>
+                  <span className="text-[9px] text-center font-bold text-[#065f46] bg-emerald-50 py-1 rounded-lg">
+                    Part 1 Scholastic + Part 2 Co-Scholastic
+                  </span>
                 </div>
 
+                {/* 2. Minimalist Modern */}
                 <div 
-                  onClick={() => setSelectedTemplate('Scholastic Term Split')}
-                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col items-center gap-3 transition-all ${
-                    selectedTemplate === 'Scholastic Term Split' ? 'border-teal-600 bg-teal-50/30 ring-2 ring-teal-500/10' : 'border-slate-200 hover:bg-slate-50'
+                  onClick={() => setSelectedTemplate('Minimalist Modern')}
+                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
+                    selectedTemplate === 'Minimalist Modern' 
+                      ? 'border-teal-600 bg-teal-50/40 ring-2 ring-teal-500/20 shadow-md' 
+                      : 'border-slate-200 dark:border-slate-700 hover:border-teal-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                   }`}
                 >
-                  <LayoutTemplate className="w-12 h-12 text-[#660033]" />
-                  <span className="text-xs font-black text-slate-800">Scholastic Term Split (Maroon)</span>
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-teal-100 text-teal-800 border border-teal-200">
+                      Canva / Pinterest
+                    </span>
+                    {selectedTemplate === 'Minimalist Modern' && (
+                      <CheckCircle2 className="w-4 h-4 text-teal-600" />
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center text-center my-2">
+                    <div className="w-12 h-12 rounded-2xl bg-teal-100 text-teal-700 flex items-center justify-center shadow-xs mb-2">
+                      <LayoutTemplate className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">Minimalist Modern</span>
+                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Teal & Slate • KPI Badges</span>
+                  </div>
+                  <span className="text-[9px] text-center font-bold text-teal-700 bg-teal-50 py-1 rounded-lg">
+                    Attendance Meter + Progress Bars
+                  </span>
                 </div>
 
+                {/* 3. Dual-Term Consolidated */}
                 <div 
-                  onClick={() => setSelectedTemplate('Skills Aspect Grid')}
-                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col items-center gap-3 transition-all ${
-                    selectedTemplate === 'Skills Aspect Grid' ? 'border-teal-600 bg-teal-50/30 ring-2 ring-teal-500/10' : 'border-slate-200 hover:bg-slate-50'
+                  onClick={() => setSelectedTemplate('Dual-Term Consolidated')}
+                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
+                    selectedTemplate === 'Dual-Term Consolidated' 
+                      ? 'border-[#660033] bg-pink-50/40 ring-2 ring-[#660033]/20 shadow-md' 
+                      : 'border-slate-200 dark:border-slate-700 hover:border-pink-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                   }`}
                 >
-                  <Award className="w-12 h-12 text-[#1b3a60]" />
-                  <span className="text-xs font-black text-slate-800">Skills Aspect Grid (Indigo)</span>
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-pink-100 text-pink-900 border border-pink-200">
+                      ICSE / State
+                    </span>
+                    {selectedTemplate === 'Dual-Term Consolidated' && (
+                      <CheckCircle2 className="w-4 h-4 text-[#660033]" />
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center text-center my-2">
+                    <div className="w-12 h-12 rounded-2xl bg-pink-100 text-[#660033] flex items-center justify-center shadow-xs mb-2">
+                      <FileText className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">Dual-Term Consolidated</span>
+                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Burgundy & Navy • Term 1 vs 2</span>
+                  </div>
+                  <span className="text-[9px] text-center font-bold text-[#660033] bg-pink-50 py-1 rounded-lg">
+                    Class Rank #3 + 4 Signatures
+                  </span>
+                </div>
+
+                {/* 4. Holistic Early Skills */}
+                <div 
+                  onClick={() => setSelectedTemplate('Holistic Early Skills')}
+                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
+                    selectedTemplate === 'Holistic Early Skills' 
+                      ? 'border-sky-500 bg-sky-50/40 ring-2 ring-sky-500/20 shadow-md' 
+                      : 'border-slate-200 dark:border-slate-700 hover:border-sky-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-sky-100 text-sky-800 border border-sky-200">
+                      Montessori / Primary
+                    </span>
+                    {selectedTemplate === 'Holistic Early Skills' && (
+                      <CheckCircle2 className="w-4 h-4 text-sky-600" />
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center text-center my-2">
+                    <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-600 flex items-center justify-center shadow-xs mb-2">
+                      <Award className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">Holistic Early Skills</span>
+                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Kindergarten & Primary • Stars</span>
+                  </div>
+                  <span className="text-[9px] text-center font-bold text-sky-700 bg-sky-50 py-1 rounded-lg">
+                    5 Domains + Star Ratings
+                  </span>
                 </div>
               </div>
 
@@ -1625,6 +1919,52 @@ export default function AddSetupWizardPage() {
 
           </div>
         </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* LIVE ADMIT CARD PREVIEW MODAL                                  */}
+      {/* ============================================================== */}
+      {showAdmitPreviewModal && (
+        <AdmitCardModalPreview
+          card={{
+            id: 999999,
+            className: classes[0]?.className || 'Class X',
+            examName: examName || 'Final Term Examination',
+            admitCardLabel: admitLabel || 'Admit Card',
+            timeTableId: 999999,
+            session: session,
+            schoolName: schoolName || 'COSMOPOLITAN INTER COLLEGE',
+            schoolAddress: schoolAddress || 'Green Park Sector 4, New Delhi',
+            displayFields: admitDisplayFields,
+            status: admitCardStatus ? 'Active' : 'Inactive',
+            instructions: admitInstructions || '1. Candidates must arrive at the examination center 30 minutes before the scheduled time.\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.',
+            showExamTimeTable: showExamTimeTableOnAdmit,
+            noOfPrintPerPage: admitNoOfPrintPerPage,
+            headerNameFontSize: admitHeaderNameFontSize,
+            headerDetailsFontSize: admitHeaderDetailsFontSize,
+            studentDetailsFontSize: admitStudentDetailsFontSize,
+            timetableDetailsFontSize: admitTimetableDetailsFontSize,
+            headingFontSize: admitHeadingFontSize,
+            defaultFontSize: admitDefaultFontSize,
+            spacing: admitSpacing,
+            studentPhotoSize: admitStudentPhotoSize,
+            teacherSignLabel: admitTeacherSignLabel,
+            studentSignLabel: admitStudentSignLabel,
+            parentSignLabel: admitParentSignLabel,
+            principalSignLabel: admitPrincipalSignLabel,
+            signatureWidth: admitSignatureWidth,
+            schoolStampWidth: admitSchoolStampWidth,
+            dateCreated: new Date().toLocaleDateString('en-GB'),
+            timeCreated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }}
+          customSubjects={classes[0]?.subjects.map(s => ({
+            subjectName: s.subjectName || 'Subject Name',
+            date: s.examDate || dateOfExam || '2025-03-20',
+            fromTime: s.startTime || s.fromTime || '10:00',
+            toTime: s.endTime || s.toTime || '13:00'
+          }))}
+          onClose={() => setShowAdmitPreviewModal(false)}
+        />
       )}
 
       {/* ============================================================== */}
