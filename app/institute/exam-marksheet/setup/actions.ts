@@ -56,6 +56,43 @@ export async function fetchMarksheetSetups() {
 }
 
 // -------------------------------------------------------------
+// READ SINGLE SETUP BY ID
+// -------------------------------------------------------------
+export async function fetchMarksheetSetupById(id: string) {
+  const session = await getSession('institute_session')
+  const institutionId = session?.userId || 'default_institution'
+
+  try {
+    const res = await pool.query(`
+      SELECT 
+        id,
+        group_name as "group",
+        exam_name as "exam",
+        class_grade as "classGrade",
+        marks_grade as "marksGrade",
+        template_name as "templateName",
+        session,
+        TO_CHAR(exam_date, 'YYYY-MM-DD') as "examDate",
+        TO_CHAR(admit_card_date, 'YYYY-MM-DD') as "admitCardDate",
+        lock_exam as "lockExam",
+        TO_CHAR(last_date_to_enter, 'YYYY-MM-DD') as "lastDateToEnter",
+        config,
+        TO_CHAR(created_at, 'DD/MM/YYYY') as "date",
+        TO_CHAR(created_at, 'HH12:MI AM') as "time"
+      FROM institute_marksheet_setups
+      WHERE id = $1 AND (institution_id = $2 OR institution_id = 'default_institution')
+    `, [id, institutionId])
+
+    if (!res.rows[0]) {
+      return { success: false, error: 'Setup not found', data: null }
+    }
+    return { success: true, data: res.rows[0] }
+  } catch (err: any) {
+    return { success: false, error: err.message, data: null }
+  }
+}
+
+// -------------------------------------------------------------
 // CREATE / UPDATE
 // -------------------------------------------------------------
 export async function saveMarksheetSetup(data: {

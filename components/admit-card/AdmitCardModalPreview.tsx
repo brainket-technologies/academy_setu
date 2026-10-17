@@ -38,6 +38,45 @@ export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({ ca
 
   const fields = card.displayFields || {}
 
+  const styleKey = (card.templateStyle || 'Classic Navy').toLowerCase()
+  const isEmerald = styleKey.includes('emerald')
+  const isCrimson = styleKey.includes('crimson') || styleKey.includes('maroon')
+  const isSlate = styleKey.includes('slate') || styleKey.includes('minimal')
+
+  const theme = isEmerald ? {
+    border: 'border-2 border-emerald-600',
+    headerBadge: 'bg-emerald-600 text-white',
+    titleBg: 'bg-gradient-to-r from-emerald-800 to-teal-800 text-white',
+    accentText: 'text-emerald-800',
+    subBar: 'bg-emerald-50/80 border-emerald-200 text-emerald-950',
+    tableHeader: 'bg-emerald-800 text-white',
+    badgeText: 'Emerald Modern Format'
+  } : isCrimson ? {
+    border: 'border-2 border-rose-800',
+    headerBadge: 'bg-rose-700 text-white',
+    titleBg: 'bg-gradient-to-r from-rose-900 to-red-900 text-white',
+    accentText: 'text-rose-900',
+    subBar: 'bg-rose-50/80 border-rose-200 text-rose-950',
+    tableHeader: 'bg-rose-900 text-white',
+    badgeText: 'Executive Crimson Format'
+  } : isSlate ? {
+    border: 'border-2 border-slate-700',
+    headerBadge: 'bg-slate-700 text-white',
+    titleBg: 'bg-gradient-to-r from-slate-800 to-slate-900 text-white',
+    accentText: 'text-slate-900',
+    subBar: 'bg-slate-100 border-slate-300 text-slate-850',
+    tableHeader: 'bg-slate-800 text-white',
+    badgeText: 'Minimalist Slate Format'
+  } : {
+    border: 'border-2 border-[#1e3a8a]',
+    headerBadge: 'bg-[#1e3a8a] text-white',
+    titleBg: 'bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#1e3a8a] text-white',
+    accentText: 'text-blue-900',
+    subBar: 'bg-blue-50/80 border-blue-200 text-blue-950',
+    tableHeader: 'bg-[#1e293b] text-white',
+    badgeText: 'Classic Navy Format'
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
       <style jsx global>{`
@@ -102,7 +141,7 @@ export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({ ca
           <div
             id="printable-admit-card-container"
             ref={printRef}
-            className="w-full max-w-[780px] bg-white text-slate-900 border-2 border-slate-300 p-6 sm:p-8 flex flex-col font-sans shrink-0 relative shadow-xl rounded-xl select-none"
+            className={`w-full max-w-[780px] bg-white text-slate-900 ${theme.border} p-6 sm:p-8 flex flex-col font-sans shrink-0 relative shadow-xl rounded-xl select-none`}
           >
             {/* School Header */}
             <div className="flex justify-between items-center border-b-2 border-slate-300 pb-4 mb-4">
@@ -130,7 +169,10 @@ export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({ ca
               </div>
 
               <div className="flex flex-col items-end gap-1">
-                <QrCode className="w-12 h-12 text-slate-800 bg-white p-0.5 border border-slate-200 rounded" />
+                <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${theme.headerBadge}`}>
+                  {theme.badgeText}
+                </div>
+                <QrCode className="w-12 h-12 text-slate-800 bg-white p-0.5 border border-slate-200 rounded mt-1" />
                 <span className="text-[7.5px] text-slate-400 font-bold font-mono">CODE: 123456</span>
               </div>
             </div>
@@ -144,7 +186,7 @@ export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({ ca
 
             {/* Admit Card Title */}
             <div className="text-center my-2">
-              <div className="inline-block bg-slate-900 text-white px-6 py-1.5 rounded-md">
+              <div className={`inline-block ${theme.titleBg} px-7 py-2 rounded-lg shadow-md`}>
                 <h2 className="text-base sm:text-lg font-black tracking-widest uppercase">
                   {card.admitCardLabel || 'ADMIT CARD • HALL TICKET'}
                 </h2>
@@ -152,7 +194,7 @@ export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({ ca
             </div>
 
             {/* Term & Session info */}
-            <div className="flex justify-between items-center text-xs font-black uppercase text-slate-800 mb-4 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded">
+            <div className={`flex justify-between items-center text-xs font-black uppercase mb-4 px-3 py-2 border rounded-lg ${theme.subBar}`}>
               <span>EXAM : {card.examName}</span>
               <span>ACADEMIC SESSION : {card.session}</span>
             </div>
@@ -271,12 +313,12 @@ export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({ ca
               <div className="border-2 border-slate-300 rounded-lg overflow-hidden">
                 <table className="w-full text-xs text-center border-collapse">
                   <thead>
-                    <tr className="bg-slate-100 font-black border-b-2 border-slate-300 text-slate-800">
-                      <th className="py-2 px-2 border-r border-slate-300 w-12">S.No.</th>
-                      <th className="py-2 px-3 border-r border-slate-300 w-28">Exam Date</th>
-                      <th className="py-2 px-3 border-r border-slate-300 w-32">Time Slot</th>
-                      <th className="py-2 px-3 border-r border-slate-300 text-left">Subject / Paper</th>
-                      <th className="py-2 px-3 w-32">Invigilator Sign</th>
+                    <tr className={`${theme.tableHeader} font-black border-b border-slate-300 text-xs`}>
+                      <th className="py-2.5 px-2 border-r border-white/20 w-12">S.No.</th>
+                      <th className="py-2.5 px-3 border-r border-white/20 w-28">Exam Date</th>
+                      <th className="py-2.5 px-3 border-r border-white/20 w-32">Time Slot</th>
+                      <th className="py-2.5 px-3 border-r border-white/20 text-left">Subject / Paper</th>
+                      <th className="py-2.5 px-3 w-32">Invigilator Sign</th>
                     </tr>
                   </thead>
                   <tbody>

@@ -29,6 +29,7 @@ export interface AdmitCardConfig {
   principalSignLabel?: string
   signatureWidth?: string
   schoolStampWidth?: string
+  templateStyle?: string
   dateCreated: string
   timeCreated: string
 }
@@ -218,6 +219,7 @@ export function generateAdmitCardAndTimetableForSetup(setup: {
     className: baseClassName,
     examName: examTitle,
     admitCardLabel: customAdmit.admitLabel || existingCard?.admitCardLabel || 'Admit Card',
+    templateStyle: setup.config?.admitTemplateStyle || customAdmit.templateStyle || existingCard?.templateStyle || 'Classic Navy',
     timeTableId: timetableId,
     session: sessionStr,
     schoolName,

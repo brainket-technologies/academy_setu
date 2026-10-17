@@ -221,6 +221,55 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
   const [autoGenerateAdmitCard, setAutoGenerateAdmitCard] = useState(true)
   const [formAdmitCardLabel, setFormAdmitCardLabel] = useState('Admit Card')
 
+  // Modal Subject Configuration Interface & State
+  interface ModalSubject {
+    id: number
+    subjectName: string
+    examDate: string
+    startTime: string
+    endTime: string
+    maxMarks: string
+    practicalColumn: boolean
+    practicalMarks: string
+  }
+
+  const [formSubjects, setFormSubjects] = useState<ModalSubject[]>([])
+  const [formAdmitTemplateStyle, setFormAdmitTemplateStyle] = useState('Classic Navy')
+  const [availableMasterSubjects] = useState<string[]>([
+    'Mathematics', 'English Core', 'General Science', 'Social Science', 'Hindi / Regional',
+    'Physics', 'Chemistry', 'Biology', 'Computer Science', 'General Knowledge', 'Economics'
+  ])
+
+  const handleAddModalSubject = () => {
+    const last = formSubjects[formSubjects.length - 1]
+    const nextDate = formExamDate || new Date().toISOString().split('T')[0]
+    setFormSubjects(prev => [
+      ...prev,
+      {
+        id: Date.now(),
+        subjectName: '',
+        examDate: nextDate,
+        startTime: last?.startTime || '10:00',
+        endTime: last?.endTime || '13:00',
+        maxMarks: '100',
+        practicalColumn: false,
+        practicalMarks: ''
+      }
+    ])
+  }
+
+  const handleRemoveModalSubject = (subId: number) => {
+    if (formSubjects.length <= 1) {
+      toast.error('At least one subject is required.')
+      return
+    }
+    setFormSubjects(prev => prev.filter(s => s.id !== subId))
+  }
+
+  const handleUpdateModalSubject = (subId: number, field: keyof ModalSubject, val: any) => {
+    setFormSubjects(prev => prev.map(s => s.id === subId ? { ...s, [field]: val } : s))
+  }
+
   // Create Group Popup State
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false)
   const [newGroupName, setNewGroupName] = useState('')
@@ -327,17 +376,28 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
   const handleOpenAdd = () => {
     const firstCls = masterClasses[0]?.className || 'Class 10'
     const firstSecs = masterClasses[0]?.sections || ['Section A']
+    const today = new Date().toISOString().split('T')[0]
     setEditingSetup(null)
     setFormGroup(availableGroups[0] || 'Exam')
     setFormExam('')
     setFormClassGrade(firstCls)
     setFormSections([...firstSecs])
     setFormMarksGrade('Percentage')
-    setFormTemplateName('Purple Classic')
+    setFormTemplateName('CBSE Royal Emerald')
+    setFormAdmitTemplateStyle('Classic Navy')
     setFormSession('2025-2026')
-    setFormExamDate(new Date().toISOString().split('T')[0])
+    setFormExamDate(today)
     setAutoGenerateAdmitCard(true)
     setFormAdmitCardLabel('Admit Card')
+
+    const defaultSubs: ModalSubject[] = [
+      { id: 1, subjectName: 'English Core', examDate: today, startTime: '10:00', endTime: '13:00', maxMarks: '100', practicalColumn: true, practicalMarks: '20' },
+      { id: 2, subjectName: 'Mathematics', examDate: today, startTime: '10:00', endTime: '13:00', maxMarks: '100', practicalColumn: false, practicalMarks: '' },
+      { id: 3, subjectName: 'General Science', examDate: today, startTime: '10:00', endTime: '13:00', maxMarks: '100', practicalColumn: true, practicalMarks: '30' },
+      { id: 4, subjectName: 'Social Science', examDate: today, startTime: '10:00', endTime: '13:00', maxMarks: '100', practicalColumn: false, practicalMarks: '' },
+      { id: 5, subjectName: 'Hindi / Regional', examDate: today, startTime: '10:00', endTime: '13:00', maxMarks: '100', practicalColumn: false, practicalMarks: '' }
+    ]
+    setFormSubjects(defaultSubs)
     setIsModalOpen(true)
   }
 
@@ -357,11 +417,34 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
     }
     setFormSections(existingSecs)
     setFormMarksGrade(setup.marksGrade || 'Percentage')
-    setFormTemplateName(setup.templateName || 'Purple Classic')
+    setFormTemplateName(setup.templateName || 'CBSE Royal Emerald')
+    setFormAdmitTemplateStyle(setup.config?.admitTemplateStyle || setup.config?.admitCardSettings?.templateStyle || 'Classic Navy')
     setFormSession(setup.session || '2025-2026')
     setFormExamDate(setup.examDate || new Date().toISOString().split('T')[0])
     setAutoGenerateAdmitCard(true)
-    setFormAdmitCardLabel('Admit Card')
+    setFormAdmitCardLabel(setup.config?.admitCardSettings?.admitLabel || 'Admit Card')
+
+    if (Array.isArray(setup.config?.subjects) && setup.config.subjects.length > 0) {
+      setFormSubjects(setup.config.subjects.map((s: any, idx: number) => ({
+        id: s.id || (idx + 1),
+        subjectName: s.subjectName || '',
+        examDate: s.examDate || setup.examDate || new Date().toISOString().split('T')[0],
+        startTime: s.startTime || s.fromTime || '10:00',
+        endTime: s.endTime || s.toTime || '13:00',
+        maxMarks: s.maxMarks ? String(s.maxMarks) : '100',
+        practicalColumn: !!s.practicalColumn,
+        practicalMarks: s.practicalMarks ? String(s.practicalMarks) : ''
+      })))
+    } else {
+      const today = setup.examDate || new Date().toISOString().split('T')[0]
+      setFormSubjects([
+        { id: 1, subjectName: 'English Core', examDate: today, startTime: '10:00', endTime: '13:00', maxMarks: '100', practicalColumn: true, practicalMarks: '20' },
+        { id: 2, subjectName: 'Mathematics', examDate: today, startTime: '10:00', endTime: '13:00', maxMarks: '100', practicalColumn: false, practicalMarks: '' },
+        { id: 3, subjectName: 'General Science', examDate: today, startTime: '10:00', endTime: '13:00', maxMarks: '100', practicalColumn: true, practicalMarks: '30' },
+        { id: 4, subjectName: 'Social Science', examDate: today, startTime: '10:00', endTime: '13:00', maxMarks: '100', practicalColumn: false, practicalMarks: '' },
+        { id: 5, subjectName: 'Hindi / Regional', examDate: today, startTime: '10:00', endTime: '13:00', maxMarks: '100', practicalColumn: false, practicalMarks: '' }
+      ])
+    }
     setIsModalOpen(true)
   }
 
@@ -433,17 +516,19 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
       toast.error('Please select at least one section for this class.')
       return
     }
+    if (formSubjects.length === 0) {
+      toast.error('Please add at least one subject to the schedule.')
+      return
+    }
+    for (const sub of formSubjects) {
+      if (!sub.subjectName.trim()) {
+        toast.error('Please fill in Subject Name for all subjects in the schedule.')
+        return
+      }
+    }
 
     setIsSubmitting(true)
     try {
-      const defaultSubjects = editingSetup?.config?.subjects || [
-        { id: 1, subjectName: 'English Core', maxMarks: '100', practicalColumn: true, practicalMarks: '20' },
-        { id: 2, subjectName: 'Mathematics', maxMarks: '100', practicalColumn: false, practicalMarks: '' },
-        { id: 3, subjectName: 'General Science', maxMarks: '100', practicalColumn: true, practicalMarks: '30' },
-        { id: 4, subjectName: 'Social Science', maxMarks: '100', practicalColumn: false, practicalMarks: '' },
-        { id: 5, subjectName: 'Hindi / Regional', maxMarks: '100', practicalColumn: false, practicalMarks: '' }
-      ]
-
       const formattedClassGrade = formSections.length > 0
         ? `${formClassGrade} (${formSections.map(s => s.replace('Section ', 'Sec ')).join(', ')})`
         : formClassGrade
@@ -452,8 +537,9 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
         ...(editingSetup?.config || {}),
         className: formClassGrade,
         sections: formSections,
-        subjects: defaultSubjects,
+        subjects: formSubjects,
         templateName: formTemplateName,
+        admitTemplateStyle: formAdmitTemplateStyle,
         schoolDetails: editingSetup?.config?.schoolDetails || {
           schoolName: 'COSMOPOLITAN INTER COLLEGE',
           affiliateTo: 'CBSE Affiliated, New Delhi',
@@ -682,6 +768,22 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
             <Sparkles className="w-3.5 h-3.5 text-teal-600 animate-pulse" />
             ⚡ Simultaneous Sync
           </button>
+
+          <button
+            onClick={handleOpenAdd}
+            className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black transition-all flex items-center gap-2 shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            + Quick Exam & Admit Setup
+          </button>
+
+          <Link
+            href="/institute/exam-marksheet/setup/create"
+            className="px-4 py-2.5 rounded-xl border-2 border-purple-600 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs font-black transition-all flex items-center gap-2 shadow-xs"
+          >
+            <FileText className="w-4 h-4 text-purple-600" />
+            + Create Exam Setup (Wizard)
+          </Link>
         </div>
       </div>
 
@@ -874,6 +976,22 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                   <span>Table View</span>
                 </button>
               </div>
+
+              <button
+                onClick={handleOpenAdd}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Quick Setup</span>
+              </button>
+
+              <Link
+                href="/institute/exam-marksheet/setup/create"
+                className="flex items-center gap-1.5 px-3.5 py-2 border border-purple-600 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-xl text-xs font-bold transition-all shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Create Setup (Wizard)</span>
+              </Link>
 
               <button
                 onClick={loadAllData}
@@ -1449,214 +1567,735 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
       )}
 
       {/* ============================================================== */}
-      {/* MODAL 3: QUICK ADD SETUP & ADMIT CARD (SIMULTANEOUSLY)         */}
+      {/* MODAL 3: EXAM SETUP, ADMIN TEMPLATES & ADMIT CARD BUILDER      */}
       {/* ============================================================== */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-950/70 backdrop-blur-md overflow-y-auto py-10">
-          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 my-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-md overflow-y-auto">
+          <div className="w-full max-w-5xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[92vh] overflow-hidden animate-in zoom-in-95 duration-200 my-auto">
             
-            {/* Header */}
-            <div className="px-7 py-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-850">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-850 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-600/20">
                   <Layers className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-base font-black text-slate-800 dark:text-slate-100">
-                    {editingSetup ? 'Edit Setup & Admit Card' : 'Quick Add Exam Setup & Admit Card'}
+                  <h2 className="text-base font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                    <span>{editingSetup ? 'Edit Exam Setup & Admit Card' : 'Create Exam Setup & Admit Card'}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                      All-in-One Synchronized
+                    </span>
                   </h2>
                   <p className="text-[11px] text-slate-500">
-                    Simultaneously creates both Marksheet configuration & Admit Card
+                    Choose admin-provided Marksheet & Admit Card templates, configure class, sections & subject timetable
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+
+              <div className="flex items-center gap-2">
+                {editingSetup && (
+                  <Link
+                    href={`/institute/exam-marksheet/setup/create?id=${editingSetup.id}`}
+                    className="px-3 py-1.5 rounded-xl border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 text-xs font-bold transition-all flex items-center gap-1 shadow-2xs"
+                  >
+                    <span>Open Full 4-Step Wizard</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                )}
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="p-7 flex flex-col gap-4">
+            {/* Modal Body Scroll Container */}
+            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1 flex flex-col gap-6">
               
-              {/* Group */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-black text-slate-700 dark:text-slate-300">
-                  Exam Group Scheme <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formGroup}
-                  onChange={e => setFormGroup(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                >
-                  <option value="Exam">Exam</option>
-                  <option value="Theory Exam">Theory Exam</option>
-                  <option value="Practical Exam">Practical Exam</option>
-                  <option value="Term 1 Scheme">Term 1 Scheme</option>
-                  <option value="Term 2 Scheme">Term 2 Scheme</option>
-                  {availableGroups.filter(g => !['Exam', 'Theory Exam', 'Practical Exam', 'Term 1 Scheme', 'Term 2 Scheme'].includes(g)).map(g => (
-                    <option key={g} value={g}>{g}</option>
-                  ))}
-                </select>
+              {/* SECTION 1: ADMIN TEMPLATES (MARKSHEET & ADMIT CARD) - FIRST ASK TEMPLATE DESIGN */}
+              <div className="bg-gradient-to-r from-teal-50/60 via-purple-50/40 to-blue-50/40 dark:from-teal-950/30 dark:via-purple-950/20 dark:to-blue-950/20 p-5 rounded-2xl border border-teal-200/80 dark:border-teal-800/60 flex flex-col gap-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-teal-200/60 dark:border-teal-800/60 gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-600/20 shrink-0">
+                      <LayoutTemplate className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-teal-600 text-white">
+                          First Step
+                        </span>
+                        <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                          1. Choose Template Designs (Provided by Admin)
+                        </h3>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Admin provides verified layouts. Select Marksheet & Admit Card styles before entering class & schedule details.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tempItem: ExamMarksheetSetupRecord = {
+                          id: '999999',
+                          exam: formExam || 'Examination 2025-26',
+                          group: formGroup,
+                          classGrade: formClassGrade || 'Class 10',
+                          marksGrade: 'Percentage',
+                          templateName: formTemplateName,
+                          date: new Date().toLocaleDateString('en-GB'),
+                          time: '',
+                          session: formSession,
+                          config: {
+                            className: formClassGrade || 'Class 10',
+                            sections: formSections,
+                            subjects: formSubjects,
+                            templateName: formTemplateName,
+                            admitTemplateStyle: formAdmitTemplateStyle,
+                            schoolDetails: {
+                              schoolName: 'COSMOPOLITAN INTER COLLEGE',
+                              affiliateTo: 'CBSE New Delhi',
+                              schoolAddress: 'Green Park Sector 4, New Delhi',
+                              schoolCode: '123456',
+                              phone: '011-2345678',
+                              email: 'dps@example.com',
+                              principalName: 'Mrs. Shailaja Sen',
+                              academicYear: formSession
+                            }
+                          }
+                        }
+                        setPreviewSetup(tempItem)
+                      }}
+                      className="px-3 py-1.5 rounded-xl border border-purple-300 dark:border-purple-800 bg-white dark:bg-slate-800 text-purple-700 dark:text-purple-300 hover:bg-purple-50 text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Marksheet Preview</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tempCard: AdmitCardConfig = {
+                          id: 999999,
+                          className: formClassGrade || 'Class X',
+                          examName: formExam || 'Final Term Examination',
+                          admitCardLabel: 'Admit Card',
+                          timeTableId: 999999,
+                          session: formSession,
+                          schoolName: 'COSMOPOLITAN INTER COLLEGE',
+                          schoolAddress: 'Green Park Sector 4, New Delhi',
+                          templateStyle: formAdmitTemplateStyle,
+                          displayFields: {
+                            name: true, fatherName: true, motherName: true, mobileNo: false,
+                            admissionNo: true, registrationNo: true, rollNo: true, enrollmentNo: false,
+                            dob: true, address: true, class: true, section: true, photo: true,
+                            studentSign: true, teacherSign: true, principalSign: true, parentSign: true,
+                            schoolStamp: false
+                          },
+                          status: 'Active',
+                          instructions: '1. Candidates must arrive at the examination center 30 minutes before scheduled time.\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices are strictly prohibited in the exam hall.',
+                          showExamTimeTable: true,
+                          noOfPrintPerPage: '1',
+                          headerNameFontSize: '30',
+                          headerDetailsFontSize: '30',
+                          studentDetailsFontSize: '14',
+                          timetableDetailsFontSize: '14',
+                          headingFontSize: '18',
+                          defaultFontSize: '18',
+                          spacing: '20',
+                          studentPhotoSize: '100',
+                          teacherSignLabel: "Class Teacher's Sign.",
+                          studentSignLabel: "Student's Sign.",
+                          parentSignLabel: "Parent's Sign.",
+                          principalSignLabel: "Principal's Sign.",
+                          signatureWidth: '30',
+                          schoolStampWidth: '30',
+                          dateCreated: new Date().toLocaleDateString('en-GB'),
+                          timeCreated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        }
+                        setPreviewCard(tempCard)
+                      }}
+                      className="px-3 py-1.5 rounded-xl border border-teal-300 dark:border-teal-800 bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 hover:bg-teal-50 text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-teal-600" />
+                      <span>Admit Card Preview</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Part A: Marksheet Templates */}
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
+                      <School className="w-4 h-4 text-purple-600" />
+                      <span>A. Marksheet Layout Template</span>
+                    </span>
+                    <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 bg-purple-100/70 dark:bg-purple-950/60 px-2 py-0.5 rounded-md">
+                      Selected: {formTemplateName}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                    {[
+                      {
+                        name: 'CBSE Royal Emerald',
+                        tag: 'Official CBSE',
+                        desc: 'Board Standard with Gold Crest & Dual Term matrix',
+                        color: 'border-emerald-500 bg-emerald-50/50 text-emerald-800',
+                        pill: 'bg-emerald-100 text-emerald-800'
+                      },
+                      {
+                        name: 'Scholastic Term Split',
+                        tag: 'Dual-Term Evaluation',
+                        desc: 'Maroon header with Term 1 & Term 2 split marks',
+                        color: 'border-rose-500 bg-rose-50/50 text-rose-800',
+                        pill: 'bg-rose-100 text-rose-800'
+                      },
+                      {
+                        name: 'Skills Aspect Grid',
+                        tag: 'Holistic 360°',
+                        desc: 'Competency grid & Co-scholastic performance',
+                        color: 'border-teal-500 bg-teal-50/50 text-teal-800',
+                        pill: 'bg-teal-100 text-teal-800'
+                      },
+                      {
+                        name: 'Classic Navy',
+                        tag: 'Modern Academic',
+                        desc: 'Executive Navy format with Grade & Percentage summary',
+                        color: 'border-blue-600 bg-blue-50/50 text-blue-900',
+                        pill: 'bg-blue-100 text-blue-800'
+                      },
+                      {
+                        name: 'Purple Classic',
+                        tag: 'CBSE Royal',
+                        desc: 'Traditional Royal Purple layout with QR Verification',
+                        color: 'border-purple-600 bg-purple-50/50 text-purple-900',
+                        pill: 'bg-purple-100 text-purple-800'
+                      }
+                    ].map(tmpl => {
+                      const isSelected = formTemplateName === tmpl.name
+                      return (
+                        <div
+                          key={tmpl.name}
+                          onClick={() => setFormTemplateName(tmpl.name)}
+                          className={`cursor-pointer rounded-2xl border p-3 flex flex-col justify-between gap-2 transition-all relative ${
+                            isSelected
+                              ? `${tmpl.color} ring-2 ring-teal-500/30 shadow-md`
+                              : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-400 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className={`px-2 py-0.5 rounded text-[8.5px] font-black uppercase ${tmpl.pill}`}>
+                              {tmpl.tag}
+                            </span>
+                            {isSelected && <CheckCircle2 className="w-4 h-4 text-teal-600" />}
+                          </div>
+
+                          <div>
+                            <div className="text-xs font-black text-slate-800 dark:text-slate-100 leading-tight">
+                              {tmpl.name}
+                            </div>
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">
+                              {tmpl.desc}
+                            </div>
+                          </div>
+
+                          <div className="pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[9px] font-bold">
+                            <span className={isSelected ? 'text-teal-700 dark:text-teal-300' : 'text-slate-400'}>
+                              {isSelected ? '✓ Selected' : 'Click to Pick'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const tempItem: ExamMarksheetSetupRecord = {
+                                  id: '999999',
+                                  exam: formExam || 'Examination 2025-26',
+                                  group: formGroup,
+                                  classGrade: formClassGrade || 'Class 10',
+                                  marksGrade: 'Percentage',
+                                  templateName: tmpl.name,
+                                  date: new Date().toLocaleDateString('en-GB'),
+                                  time: '',
+                                  session: formSession,
+                                  config: {
+                                    className: formClassGrade || 'Class 10',
+                                    sections: formSections,
+                                    subjects: formSubjects,
+                                    templateName: tmpl.name,
+                                    admitTemplateStyle: formAdmitTemplateStyle,
+                                    schoolDetails: {
+                                      schoolName: 'COSMOPOLITAN INTER COLLEGE',
+                                      affiliateTo: 'CBSE New Delhi',
+                                      schoolAddress: 'Green Park Sector 4, New Delhi',
+                                      schoolCode: '123456',
+                                      phone: '011-2345678',
+                                      email: 'dps@example.com',
+                                      principalName: 'Mrs. Shailaja Sen',
+                                      academicYear: formSession
+                                    }
+                                  }
+                                }
+                                setPreviewSetup(tempItem)
+                              }}
+                              className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-700 hover:bg-teal-50 text-teal-700 dark:text-teal-300 border border-slate-200 dark:border-slate-600 flex items-center gap-1 font-bold transition-all shadow-2xs hover:scale-105"
+                            >
+                              <Eye className="w-2.5 h-2.5 text-teal-600" />
+                              <span>Preview</span>
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Part B: Admit Card Templates */}
+                <div className="flex flex-col gap-2.5 pt-2 border-t border-teal-200/60 dark:border-teal-800/60">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
+                      <QrCode className="w-4 h-4 text-teal-600" />
+                      <span>B. Admit Card (Hall Ticket) Template</span>
+                    </span>
+                    <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300 bg-teal-100/70 dark:bg-teal-950/60 px-2 py-0.5 rounded-md">
+                      Selected: {formAdmitTemplateStyle}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                      {
+                        name: 'Classic Navy',
+                        desc: 'Official Navy border • Traditional Board Hall Ticket with full Timetable Matrix',
+                        badge: 'Navy Official',
+                        themeBg: 'bg-blue-50/50 border-blue-500',
+                        pill: 'bg-blue-100 text-blue-800'
+                      },
+                      {
+                        name: 'Modern Emerald',
+                        desc: 'Emerald green header • Student photo emphasis, QR code & clean compact timetable',
+                        badge: 'Emerald Modern',
+                        themeBg: 'bg-emerald-50/50 border-emerald-500',
+                        pill: 'bg-emerald-100 text-emerald-800'
+                      },
+                      {
+                        name: 'Executive Crimson',
+                        desc: 'Maroon royal crest • Dual invigilator signature strip & authorized institution stamp',
+                        badge: 'Crimson Official',
+                        themeBg: 'bg-rose-50/50 border-rose-500',
+                        pill: 'bg-rose-100 text-rose-800'
+                      },
+                      {
+                        name: 'Minimalist Slate',
+                        desc: 'High contrast clean charcoal border • Compact slip format for fast multi-student print',
+                        badge: 'Slate Minimal',
+                        themeBg: 'bg-slate-100 border-slate-600',
+                        pill: 'bg-slate-200 text-slate-800'
+                      }
+                    ].map(style => {
+                      const isSelected = formAdmitTemplateStyle === style.name
+                      return (
+                        <div
+                          key={style.name}
+                          onClick={() => setFormAdmitTemplateStyle(style.name)}
+                          className={`cursor-pointer rounded-2xl border p-3 flex flex-col justify-between gap-2 transition-all relative ${
+                            isSelected
+                              ? `${style.themeBg} ring-2 ring-teal-500/30 shadow-md`
+                              : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-400 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className={`px-2 py-0.5 rounded text-[8.5px] font-black uppercase ${style.pill}`}>
+                              {style.badge}
+                            </span>
+                            {isSelected && <CheckCircle2 className="w-4 h-4 text-teal-600" />}
+                          </div>
+
+                          <div>
+                            <div className="text-xs font-black text-slate-800 dark:text-slate-100 leading-tight">
+                              {style.name}
+                            </div>
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">
+                              {style.desc}
+                            </div>
+                          </div>
+
+                          <div className="pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[9px] font-bold">
+                            <span className={isSelected ? 'text-teal-700 dark:text-teal-300' : 'text-slate-400'}>
+                              {isSelected ? '✓ Selected' : 'Click to Pick'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const tempCard: AdmitCardConfig = {
+                                  id: 999999,
+                                  className: formClassGrade || 'Class X',
+                                  examName: formExam || 'Final Term Examination',
+                                  admitCardLabel: 'Admit Card',
+                                  timeTableId: 999999,
+                                  session: formSession,
+                                  schoolName: 'COSMOPOLITAN INTER COLLEGE',
+                                  schoolAddress: 'Green Park Sector 4, New Delhi',
+                                  templateStyle: style.name,
+                                  displayFields: {
+                                    name: true, fatherName: true, motherName: true, mobileNo: false,
+                                    admissionNo: true, registrationNo: true, rollNo: true, enrollmentNo: false,
+                                    dob: true, address: true, class: true, section: true, photo: true,
+                                    studentSign: true, teacherSign: true, principalSign: true, parentSign: true,
+                                    schoolStamp: false
+                                  },
+                                  status: 'Active',
+                                  instructions: '1. Candidates must arrive at the examination center 30 minutes before scheduled time.\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices are strictly prohibited in the exam hall.',
+                                  showExamTimeTable: true,
+                                  noOfPrintPerPage: '1',
+                                  headerNameFontSize: '30',
+                                  headerDetailsFontSize: '30',
+                                  studentDetailsFontSize: '14',
+                                  timetableDetailsFontSize: '14',
+                                  headingFontSize: '18',
+                                  defaultFontSize: '18',
+                                  spacing: '20',
+                                  studentPhotoSize: '100',
+                                  teacherSignLabel: "Class Teacher's Sign.",
+                                  studentSignLabel: "Student's Sign.",
+                                  parentSignLabel: "Parent's Sign.",
+                                  principalSignLabel: "Principal's Sign.",
+                                  signatureWidth: '30',
+                                  schoolStampWidth: '30',
+                                  dateCreated: new Date().toLocaleDateString('en-GB'),
+                                  timeCreated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                }
+                                setPreviewCard(tempCard)
+                              }}
+                              className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-700 hover:bg-teal-50 text-teal-700 dark:text-teal-300 border border-slate-200 dark:border-slate-600 flex items-center gap-1 font-bold transition-all shadow-2xs hover:scale-105"
+                            >
+                              <Eye className="w-2.5 h-2.5 text-teal-600" />
+                              <span>Preview</span>
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
 
-              {/* Exam Name */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-black text-slate-700 dark:text-slate-300">
-                  Exam Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formExam}
-                  onChange={e => setFormExam(e.target.value)}
-                  placeholder="e.g. Half Yearly Examination 2025-26"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                />
+              {/* SECTION 2: EXAM BASIC INFORMATION */}
+              <div className="bg-slate-50/70 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/60">
+                <div className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-teal-600" />
+                  <span>2. Examination Basic Information</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Group */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Exam Group <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={formGroup}
+                      onChange={e => setFormGroup(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                    >
+                      <option value="Exam">Exam</option>
+                      <option value="Theory Exam">Theory Exam</option>
+                      <option value="Practical Exam">Practical Exam</option>
+                      <option value="Term 1 Scheme">Term 1 Scheme</option>
+                      <option value="Term 2 Scheme">Term 2 Scheme</option>
+                      {availableGroups.filter(g => !['Exam', 'Theory Exam', 'Practical Exam', 'Term 1 Scheme', 'Term 2 Scheme'].includes(g)).map(g => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Exam Name */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Exam Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formExam}
+                      onChange={e => setFormExam(e.target.value)}
+                      placeholder="e.g. Half Yearly Exam 2025-26"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                    />
+                  </div>
+
+                  {/* Session */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Academic Session</label>
+                    <select
+                      value={formSession}
+                      onChange={e => setFormSession(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none"
+                    >
+                      <option value="2025-2026">2025-2026</option>
+                      <option value="2024-2025">2024-2025</option>
+                      <option value="2026-2027">2026-2027</option>
+                    </select>
+                  </div>
+
+                  {/* Primary Exam Date */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Exam Start Date</label>
+                    <input
+                      type="date"
+                      value={formExamDate}
+                      onChange={e => {
+                        setFormExamDate(e.target.value)
+                        setFormSubjects(prev => prev.map((s, idx) => idx === 0 ? { ...s, examDate: e.target.value } : s))
+                      }}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none"
+                    />
+                  </div>
+                </div>
               </div>
 
-              {/* Added Class Dropdown */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-black text-slate-700 dark:text-slate-300">
-                    Select Added Class <span className="text-red-500">*</span>
-                  </label>
+              {/* SECTION 3: CLASS & SECTIONS SELECTION */}
+              <div className="bg-slate-50/70 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 flex flex-col gap-3">
+                <div className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <School className="w-4 h-4 text-teal-600" />
+                    <span>3. Class & Sections Selection</span>
+                  </div>
                   <span className="text-[10px] text-teal-600 dark:text-teal-400 font-bold">
-                    Institute Master Classes
+                    Connected with Institute Master Classes
                   </span>
                 </div>
-                <select
-                  required
-                  value={formClassGrade}
-                  onChange={e => handleModalClassChange(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-xs"
-                >
-                  <option value="">-- Choose Added Class --</option>
-                  {masterClasses.map(m => (
-                    <option key={m.className} value={m.className}>
-                      {m.className} ({m.sections.length} Sections)
-                    </option>
-                  ))}
-                </select>
-              </div>
 
-              {/* Multi-Select Sections */}
-              <div className="flex flex-col gap-1.5">
-                {(() => {
-                  const currentClassObj = masterClasses.find(m => m.className === formClassGrade)
-                  const availableSecs = currentClassObj?.sections || ['Section A', 'Section B', 'Section C']
-                  const allSelected = formSections.length === availableSecs.length && availableSecs.length > 0
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Select Class <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={formClassGrade}
+                      onChange={e => handleModalClassChange(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-xs"
+                    >
+                      <option value="">-- Choose Class --</option>
+                      {masterClasses.map(m => (
+                        <option key={m.className} value={m.className}>
+                          {m.className} ({m.sections.length} Sections)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                  return (
-                    <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col gap-2.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                          <span>Class Sections</span>
-                          <span className="text-red-500">*</span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
-                            {formSections.length} Selected
-                          </span>
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => handleSelectAllModalSections(availableSecs)}
-                          className="text-[11px] font-bold text-teal-600 dark:text-teal-400 hover:underline"
-                        >
-                          {allSelected ? 'Deselect All' : 'Select All Sections'}
-                        </button>
-                      </div>
+                  <div className="md:col-span-2">
+                    {(() => {
+                      const currentClassObj = masterClasses.find(m => m.className === formClassGrade)
+                      const availableSecs = currentClassObj?.sections || ['Section A', 'Section B', 'Section C']
+                      const allSelected = formSections.length === availableSecs.length && availableSecs.length > 0
 
-                      <div className="flex flex-wrap items-center gap-2">
-                        {availableSecs.map(sec => {
-                          const isChecked = formSections.includes(sec)
-                          return (
+                      return (
+                        <div className="p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex flex-col gap-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                              <span>Sections Included</span>
+                              <span className="text-red-500">*</span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200">
+                                {formSections.length} Selected
+                              </span>
+                            </label>
                             <button
-                              key={sec}
                               type="button"
-                              onClick={() => handleToggleModalSection(sec)}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 shadow-xs ${
-                                isChecked
-                                  ? 'bg-teal-600 text-white border-teal-600 ring-2 ring-teal-500/20'
-                                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400'
-                              }`}
+                              onClick={() => handleSelectAllModalSections(availableSecs)}
+                              className="text-[11px] font-bold text-teal-600 dark:text-teal-400 hover:underline"
                             >
-                              <Check className={`w-3.5 h-3.5 stroke-[3] transition-all ${isChecked ? 'opacity-100' : 'opacity-20'}`} />
-                              <span>{sec}</span>
+                              {allSelected ? 'Deselect All' : 'Select All Sections'}
                             </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })()}
-              </div>
+                          </div>
 
-              {/* Marks Scheme, Session, Exam Date */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-black text-slate-700 dark:text-slate-300">Marks Scheme</label>
-                  <select
-                    value={formMarksGrade}
-                    onChange={e => setFormMarksGrade(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none"
-                  >
-                    <option value="Percentage">Percentage</option>
-                    <option value="Grading Scale">Grading Scale</option>
-                    <option value="GPA / CGPA">GPA / CGPA</option>
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-black text-slate-700 dark:text-slate-300">Session</label>
-                  <select
-                    value={formSession}
-                    onChange={e => setFormSession(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none"
-                  >
-                    <option value="2025-2026">2025-2026</option>
-                    <option value="2024-2025">2024-2025</option>
-                    <option value="2026-2027">2026-2027</option>
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-black text-slate-700 dark:text-slate-300">Exam Date</label>
-                  <input
-                    type="date"
-                    value={formExamDate}
-                    onChange={e => setFormExamDate(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none"
-                  />
+                          <div className="flex flex-wrap items-center gap-2">
+                            {availableSecs.map(sec => {
+                              const isChecked = formSections.includes(sec)
+                              return (
+                                <button
+                                  key={sec}
+                                  type="button"
+                                  onClick={() => handleToggleModalSection(sec)}
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 shadow-2xs ${
+                                    isChecked
+                                      ? 'bg-teal-600 text-white border-teal-600 ring-2 ring-teal-500/20'
+                                      : 'bg-slate-50 dark:bg-slate-750 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400'
+                                  }`}
+                                >
+                                  <Check className={`w-3.5 h-3.5 stroke-[3] transition-all ${isChecked ? 'opacity-100' : 'opacity-20'}`} />
+                                  <span>{sec}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
                 </div>
               </div>
 
-              {/* Template Name */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-black text-slate-700 dark:text-slate-300">
-                  Marksheet Layout Template
-                </label>
-                <select
-                  value={formTemplateName}
-                  onChange={e => setFormTemplateName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
-                >
-                  <option value="Purple Classic">Purple Classic (Portrait)</option>
-                  <option value="Scholastic Term Split">Scholastic Term Split (Maroon)</option>
-                  <option value="Skills Aspect Grid">Skills Aspect Grid (Indigo)</option>
-                  <option value="Classic Navy">Classic Navy (Traditional)</option>
-                </select>
+              {/* SECTION 4: CLASS SUBJECTS & TIMETABLE SCHEDULE (DATE & TIME) */}
+              <div className="bg-white dark:bg-slate-850 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col gap-3 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-700 pb-3">
+                  <div>
+                    <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-teal-600" />
+                      <span>4. Class Subjects Schedule (Dates, Times & Marks)</span>
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Configure exam dates, start and end times, maximum marks and practicals for this class
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddModalSubject}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 rounded-xl text-xs font-bold hover:bg-teal-100 transition-colors shadow-2xs w-fit"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Subject</span>
+                  </button>
+                </div>
+
+                {/* Datalist for fast subject autocomplete */}
+                <datalist id="institute-subjects-list">
+                  {availableMasterSubjects.map(sub => (
+                    <option key={sub} value={sub} />
+                  ))}
+                </datalist>
+
+                {/* Subject Schedule Table */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                  <table className="w-full text-xs text-left border-collapse">
+                    <thead className="bg-slate-50 dark:bg-slate-800 font-black text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
+                      <tr>
+                        <th className="py-2.5 px-3 w-12 text-center">#</th>
+                        <th className="py-2.5 px-3 min-w-[180px]">Subject Name *</th>
+                        <th className="py-2.5 px-3 min-w-[140px]">Exam Date</th>
+                        <th className="py-2.5 px-3 min-w-[110px]">Start Time</th>
+                        <th className="py-2.5 px-3 min-w-[110px]">End Time</th>
+                        <th className="py-2.5 px-3 w-24">Max Marks</th>
+                        <th className="py-2.5 px-3 min-w-[130px]">Practical</th>
+                        <th className="py-2.5 px-2 w-12 text-center">Del</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {formSubjects.map((sub, idx) => (
+                        <tr key={sub.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                          <td className="py-2 px-3 text-center font-bold text-slate-400">
+                            {idx + 1}.
+                          </td>
+
+                          <td className="py-2 px-3">
+                            <input
+                              type="text"
+                              required
+                              list="institute-subjects-list"
+                              placeholder="e.g. Mathematics"
+                              value={sub.subjectName}
+                              onChange={e => handleUpdateModalSubject(sub.id, 'subjectName', e.target.value)}
+                              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500"
+                            />
+                          </td>
+
+                          <td className="py-2 px-3">
+                            <input
+                              type="date"
+                              value={sub.examDate}
+                              onChange={e => handleUpdateModalSubject(sub.id, 'examDate', e.target.value)}
+                              className="w-full px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-teal-500"
+                            />
+                          </td>
+
+                          <td className="py-2 px-3">
+                            <input
+                              type="time"
+                              value={sub.startTime}
+                              onChange={e => handleUpdateModalSubject(sub.id, 'startTime', e.target.value)}
+                              className="w-full px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-teal-500"
+                            />
+                          </td>
+
+                          <td className="py-2 px-3">
+                            <input
+                              type="time"
+                              value={sub.endTime}
+                              onChange={e => handleUpdateModalSubject(sub.id, 'endTime', e.target.value)}
+                              className="w-full px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-teal-500"
+                            />
+                          </td>
+
+                          <td className="py-2 px-3">
+                            <input
+                              type="number"
+                              value={sub.maxMarks}
+                              onChange={e => handleUpdateModalSubject(sub.id, 'maxMarks', e.target.value)}
+                              className="w-full px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none text-center focus:border-teal-500"
+                            />
+                          </td>
+
+                          <td className="py-2 px-3">
+                            <div className="flex items-center gap-2">
+                              <label className="flex items-center gap-1 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={sub.practicalColumn}
+                                  onChange={e => handleUpdateModalSubject(sub.id, 'practicalColumn', e.target.checked)}
+                                  className="rounded text-teal-600 focus:ring-teal-500"
+                                />
+                                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">Yes</span>
+                              </label>
+                              {sub.practicalColumn && (
+                                <input
+                                  type="number"
+                                  placeholder="Marks"
+                                  value={sub.practicalMarks}
+                                  onChange={e => handleUpdateModalSubject(sub.id, 'practicalMarks', e.target.value)}
+                                  className="w-16 px-1.5 py-1 rounded border border-slate-200 text-xs text-center font-bold"
+                                />
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="py-2 px-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveModalSubject(sub.id)}
+                              className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                              title="Delete Subject"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               {/* SIMULTANEOUS ADMIT CARD OPTION (HIGHLIGHTED) */}
-              <div className="p-3.5 rounded-2xl bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/80 flex flex-col gap-2">
+              <div className="p-4 rounded-2xl bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/80 flex flex-col gap-2">
                 <label className="flex items-center justify-between cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <CheckSquare className={`w-4 h-4 ${autoGenerateAdmitCard ? 'text-teal-600' : 'text-slate-400'}`} />
-                    <span className="text-xs font-black text-teal-900 dark:text-teal-200">
-                      Auto-generate Admit Card & Timetable simultaneously
-                    </span>
+                  <div className="flex items-center gap-2.5">
+                    <CheckSquare className={`w-5 h-5 ${autoGenerateAdmitCard ? 'text-teal-600' : 'text-slate-400'}`} />
+                    <div>
+                      <span className="text-xs font-black text-teal-900 dark:text-teal-200 block">
+                        Auto-generate Admit Card & Timetable simultaneously
+                      </span>
+                      <span className="text-[10.5px] text-teal-700/80 dark:text-teal-300/80">
+                        Immediate synchronized creation: Generates student hall ticket with chosen style & timetable
+                      </span>
+                    </div>
                   </div>
                   <input
                     type="checkbox"
@@ -1664,19 +2303,16 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                     onChange={e => setAutoGenerateAdmitCard(e.target.checked)}
                     className="sr-only"
                   />
-                  <div className={`w-9 h-5 rounded-full transition-colors flex items-center p-0.5 ${
+                  <div className={`w-10 h-6 rounded-full transition-colors flex items-center p-0.5 ${
                     autoGenerateAdmitCard ? 'bg-teal-600 justify-end' : 'bg-slate-300 justify-start'
                   }`}>
-                    <div className="w-4 h-4 rounded-full bg-white shadow-xs"></div>
+                    <div className="w-5 h-5 rounded-full bg-white shadow-xs"></div>
                   </div>
                 </label>
-                <p className="text-[10px] text-teal-700/80 dark:text-teal-300/80">
-                  When enabled, this exam setup will immediately generate an active Admit Card & examination timetable with student fields ready for preview and printing.
-                </p>
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
@@ -1684,23 +2320,26 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-7 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-black text-xs shadow-md shadow-teal-600/20 transition-all disabled:opacity-50 flex items-center gap-2"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Saving simultaneously...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-4 h-4" />
-                      {editingSetup ? 'Update Both' : 'Save Both Simultaneously'}
-                    </>
-                  )}
-                </button>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-8 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-black text-xs shadow-md shadow-teal-600/20 transition-all disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Saving simultaneously...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        {editingSetup ? 'Update Exam & Admit Setup' : 'Save Both Simultaneously'}
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

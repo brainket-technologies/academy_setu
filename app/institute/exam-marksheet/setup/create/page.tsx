@@ -1,19 +1,19 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, X, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Save, Check, CheckCircle2, Award, Eye, FileText, LayoutTemplate, ShieldAlert, Sparkles, Printer, RefreshCw, Layers, Clock, Calendar, School } from 'lucide-react'
+import { Plus, X, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Save, Check, CheckCircle2, Award, Eye, FileText, LayoutTemplate, ShieldAlert, Sparkles, Printer, RefreshCw, Layers, Clock, Calendar, School, QrCode } from 'lucide-react'
 import { toast } from 'sonner'
-import { saveMultipleMarksheetSetups, fetchExamGroups, saveExamGroup } from '../actions'
+import { saveMultipleMarksheetSetups, saveMarksheetSetup, fetchExamGroups, saveExamGroup, fetchMarksheetSetupById } from '../actions'
 import { MarksheetPreview } from '@/components/marksheets/MarksheetPreview'
 import { getInstituteAddedClasses, MasterClassWithSections } from '@/lib/institute-classes'
 import { generateAdmitCardAndTimetableForSetup, AdmitCardConfig } from '@/lib/admit-card-sync'
 import { AdmitCardModalPreview } from '@/components/admit-card/AdmitCardModalPreview'
 
 // Step Definitions
-type StepType = 'Exams' | 'Marks & Grade Range' | 'Marksheet Design Setup' | 'Certificate Design'
-const STEPS: StepType[] = ['Exams', 'Marks & Grade Range', 'Marksheet Design Setup', 'Certificate Design']
+type StepType = 'Template Design' | 'Exams' | 'Marks & Grade Range' | 'Marksheet Design Setup' | 'Certificate Design'
+const STEPS: StepType[] = ['Template Design', 'Exams', 'Marks & Grade Range', 'Marksheet Design Setup', 'Certificate Design']
 
 // Admit Card field keys
 const ADMIT_DISPLAY_FIELDS_KEYS = [
@@ -57,13 +57,33 @@ interface ClassConfig {
   subjects: SubjectConfig[]
 }
 
-export default function AddSetupWizardPage() {
+function AddSetupWizardContent() {
   const router = useRouter()
-  const [currentStep, setCurrentStep] = useState<StepType>('Exams')
+  const searchParams = useSearchParams()
+  const editId = searchParams ? (searchParams.get('id') || searchParams.get('editId')) : null
+  const [editingId, setEditingId] = useState<string | null>(null)
+
+  // Start with 'Template Design' as step 1 - "first ask template design then all process"
+  const [currentStep, setCurrentStep] = useState<StepType>('Template Design')
+  const [selectedTemplate, setSelectedTemplate] = useState('CBSE Royal Emerald')
+  const [admitTemplateStyle, setAdmitTemplateStyle] = useState('Classic Navy')
+
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [showAdmitPreviewModal, setShowAdmitPreviewModal] = useState(false)
   const [showAdvancedAdmitStyles, setShowAdvancedAdmitStyles] = useState(false)
+  const [previewTargetTemplate, setPreviewTargetTemplate] = useState<string | null>(null)
+  const [previewTargetAdmitStyle, setPreviewTargetAdmitStyle] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handlePreviewMarksheet = (templateName: string) => {
+    setPreviewTargetTemplate(templateName)
+    setShowPreviewModal(true)
+  }
+
+  const handlePreviewAdmitCard = (styleName: string) => {
+    setPreviewTargetAdmitStyle(styleName)
+    setShowAdmitPreviewModal(true)
+  }
 
   // ==================== STEP 1: EXAMS STATE ====================
   const [groupName, setGroupName] = useState('Exam')
@@ -106,7 +126,66 @@ export default function AddSetupWizardPage() {
         }
       }
     } catch (e) {}
-  }, [])
+
+    if (editId) {
+      setEditingId(editId)
+      loadExistingSetup(editId)
+    }
+  }, [editId])
+
+  const loadExistingSetup = async (id: string) => {
+    try {
+      const res = await fetchMarksheetSetupById(id)
+      if (res.success && res.data) {
+        const s = res.data
+        if (s.exam) setExamName(s.exam)
+        if (s.group) setGroupName(s.group)
+        if (s.session) setSession(s.session)
+        if (s.examDate) setDateOfExam(s.examDate)
+        if (s.admitCardDate) setAdmitCardDate(s.admitCardDate)
+        if (s.templateName) setSelectedTemplate(s.templateName)
+        if (s.config?.admitTemplateStyle) setAdmitTemplateStyle(s.config.admitTemplateStyle)
+        if (s.config?.admitCardSettings?.templateStyle) setAdmitTemplateStyle(s.config.admitCardSettings.templateStyle)
+
+        const baseClassName = s.config?.className || (s.classGrade ? s.classGrade.split('(')[0].trim() : '')
+        const secs = Array.isArray(s.config?.sections) && s.config.sections.length > 0 ? s.config.sections : ['Section A']
+        const subs = Array.isArray(s.config?.subjects) && s.config.subjects.length > 0
+          ? s.config.subjects.map((sub: any, idx: number) => ({
+              id: sub.id || (idx + 1),
+              subjectName: sub.subjectName || '',
+              examDate: sub.examDate || s.examDate || '',
+              startTime: sub.startTime || sub.fromTime || '10:00',
+              endTime: sub.endTime || sub.toTime || '13:00',
+              fromTime: sub.startTime || sub.fromTime || '10:00',
+              toTime: sub.endTime || sub.toTime || '13:00',
+              maxMarks: sub.maxMarks ? String(sub.maxMarks) : '100',
+              practicalColumn: !!sub.practicalColumn,
+              practicalMarks: sub.practicalMarks ? String(sub.practicalMarks) : ''
+            }))
+          : [{
+              id: 1,
+              subjectName: '',
+              examDate: s.examDate || '',
+              startTime: '10:00',
+              endTime: '13:00',
+              fromTime: '10:00',
+              toTime: '13:00',
+              maxMarks: '100',
+              practicalColumn: false,
+              practicalMarks: ''
+            }]
+
+        setClasses([{
+          id: 1,
+          className: baseClassName,
+          sections: secs,
+          subjects: subs
+        }])
+      }
+    } catch (e) {
+      console.error('Error loading setup:', e)
+    }
+  }
 
   const loadGroups = async () => {
     try {
@@ -387,10 +466,6 @@ export default function AddSetupWizardPage() {
   const [showBlankSpace, setShowBlankSpace] = useState(false)
   const [showParentMobile, setShowParentMobile] = useState(false)
   const [showRoundBorderPhoto, setShowRoundBorderPhoto] = useState(false)
-
-  // Templates
-  const [selectedTemplate, setSelectedTemplate] = useState('CBSE Royal Emerald')
-
   // Columns Checkboxes
   const [columnsList, setColumnsList] = useState({
     rollNumber: true, motherName: true, fatherName: true, admissionNo: true,
@@ -446,7 +521,9 @@ export default function AddSetupWizardPage() {
   }
 
   const handleNext = () => {
-    if (currentStep === 'Exams') {
+    if (currentStep === 'Template Design') {
+      setCurrentStep('Exams')
+    } else if (currentStep === 'Exams') {
       if (validateStep1()) setCurrentStep('Marks & Grade Range')
     } else if (currentStep === 'Marks & Grade Range') {
       setCurrentStep('Marksheet Design Setup')
@@ -456,7 +533,9 @@ export default function AddSetupWizardPage() {
   }
 
   const handleBack = () => {
-    if (currentStep === 'Marks & Grade Range') {
+    if (currentStep === 'Exams') {
+      setCurrentStep('Template Design')
+    } else if (currentStep === 'Marks & Grade Range') {
       setCurrentStep('Exams')
     } else if (currentStep === 'Marksheet Design Setup') {
       setCurrentStep('Marks & Grade Range')
@@ -490,6 +569,8 @@ export default function AddSetupWizardPage() {
           className: c.className,
           sections: c.sections,
           subjects: c.subjects,
+          templateName: selectedTemplate,
+          admitTemplateStyle: admitTemplateStyle,
           percentRanges,
           gradeRanges,
           divisionRanges,
@@ -526,6 +607,7 @@ export default function AddSetupWizardPage() {
           lockClasses,
           admitCardSettings: {
             admitLabel,
+            templateStyle: admitTemplateStyle,
             displayFields: admitDisplayFields,
             status: admitCardStatus,
             showExamTimeTable: showExamTimeTableOnAdmit,
@@ -548,6 +630,29 @@ export default function AddSetupWizardPage() {
           }
         }
       }))
+
+      if (editingId) {
+        const updateRes = await saveMarksheetSetup({
+          id: editingId,
+          groupName: payload[0].groupName,
+          examName: payload[0].examName,
+          classGrade: payload[0].classGrade,
+          marksGrade: payload[0].marksGrade,
+          templateName: selectedTemplate,
+          session: payload[0].session,
+          examDate: payload[0].examDate,
+          config: payload[0].config
+        })
+        if (updateRes.success) {
+          generateAdmitCardAndTimetableForSetup({ ...payload[0], id: editingId })
+          toast.success('Exam Setup & Admit Card updated successfully!')
+          router.push('/institute/exam-marksheet/setup')
+          return
+        } else {
+          toast.error(updateRes.error || 'Failed to update setup')
+          return
+        }
+      }
 
       const res = await saveMultipleMarksheetSetups(payload)
       if (res.success) {
@@ -639,9 +744,10 @@ export default function AddSetupWizardPage() {
             className="absolute top-1/2 left-4 h-0.5 bg-teal-600 -translate-y-1/2 z-0 transition-all duration-300"
             style={{ 
               width: 
-                currentStep === 'Exams' ? '0%' :
-                currentStep === 'Marks & Grade Range' ? '33%' :
-                currentStep === 'Marksheet Design Setup' ? '66%' : '100%'
+                currentStep === 'Template Design' ? '0%' :
+                currentStep === 'Exams' ? '25%' :
+                currentStep === 'Marks & Grade Range' ? '50%' :
+                currentStep === 'Marksheet Design Setup' ? '75%' : '100%'
             }}
           ></div>
 
@@ -676,7 +782,369 @@ export default function AddSetupWizardPage() {
       {/* Main Form Box */}
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-8 shadow-sm">
         
-        {/* ================================== STEP 1: EXAMS ================================== */}
+        {/* ================================== STEP 1: TEMPLATE DESIGN ================================== */}
+        {currentStep === 'Template Design' && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            
+            {/* Header info banner */}
+            <div className="bg-gradient-to-r from-teal-50 via-emerald-50 to-blue-50 dark:from-teal-950/40 dark:via-emerald-950/30 dark:to-blue-950/30 border border-teal-200/80 dark:border-teal-800/60 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-600/25 shrink-0">
+                  <LayoutTemplate className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-teal-600 text-white">
+                      Step 1 of 5
+                    </span>
+                    <h2 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                      Choose Admin Template Designs
+                    </h2>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                    Select your official Marksheet format and Admit Card Hall Ticket style first. You can proceed with class setup and timetable next.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowPreviewModal(true)}
+                  className="px-3.5 py-2 rounded-xl border border-purple-300 dark:border-purple-800 bg-white dark:bg-slate-800 text-purple-700 dark:text-purple-300 hover:bg-purple-50 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                >
+                  <Eye className="w-4 h-4 text-purple-600" /> Marksheet Preview
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAdmitPreviewModal(true)}
+                  className="px-3.5 py-2 rounded-xl border border-teal-300 dark:border-teal-800 bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 hover:bg-teal-50 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                >
+                  <Eye className="w-4 h-4 text-teal-600" /> Admit Card Preview
+                </button>
+              </div>
+            </div>
+
+            {/* Part 1: Admin Marksheet Template Selection */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                <div>
+                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
+                    <School className="w-4 h-4 text-teal-600" />
+                    <span>1. Marksheet Template Design (Provided by Admin)</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Pick a verified marksheet design layout suited for your curriculum
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                  4 Templates Available
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* 1. CBSE Royal Emerald */}
+                <div 
+                  onClick={() => setSelectedTemplate('CBSE Royal Emerald')}
+                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
+                    selectedTemplate === 'CBSE Royal Emerald' 
+                      ? 'border-[#065f46] bg-emerald-50/40 ring-2 ring-[#065f46]/30 shadow-md' 
+                      : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300 hover:bg-slate-50 dark:hover:bg-slate-850'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      CBSE / Board
+                    </span>
+                    {selectedTemplate === 'CBSE Royal Emerald' && (
+                      <CheckCircle2 className="w-4 h-4 text-[#065f46]" />
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center text-center my-1">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-[#065f46] flex items-center justify-center shadow-xs mb-2">
+                      <School className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">CBSE Royal Emerald</span>
+                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Official Board Format • Gold Crest</span>
+                  </div>
+                  <span className="text-[9px] text-center font-bold text-[#065f46] bg-emerald-50 dark:bg-emerald-950/40 py-1 rounded-lg">
+                    Part 1 Scholastic + Part 2 Co-Scholastic
+                  </span>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handlePreviewMarksheet('CBSE Royal Emerald')
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-[#065f46] hover:text-white text-[#065f46] dark:text-emerald-400 font-bold text-[11px] border border-emerald-200 dark:border-emerald-800 hover:border-[#065f46] flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-[#065f46] dark:text-emerald-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                      <span>Preview Template</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. Minimalist Modern */}
+                <div 
+                  onClick={() => setSelectedTemplate('Minimalist Modern')}
+                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
+                    selectedTemplate === 'Minimalist Modern' 
+                      ? 'border-teal-600 bg-teal-50/40 ring-2 ring-teal-500/30 shadow-md' 
+                      : 'border-slate-200 dark:border-slate-700 hover:border-teal-300 hover:bg-slate-50 dark:hover:bg-slate-850'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-teal-100 text-teal-800 border border-teal-200">
+                      Canva / Modern
+                    </span>
+                    {selectedTemplate === 'Minimalist Modern' && (
+                      <CheckCircle2 className="w-4 h-4 text-teal-600" />
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center text-center my-1">
+                    <div className="w-12 h-12 rounded-2xl bg-teal-100 text-teal-700 flex items-center justify-center shadow-xs mb-2">
+                      <LayoutTemplate className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">Minimalist Modern</span>
+                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Teal & Slate • KPI Badges</span>
+                  </div>
+                  <span className="text-[9px] text-center font-bold text-teal-700 bg-teal-50 dark:bg-teal-950/40 py-1 rounded-lg">
+                    Attendance Meter + Progress Bars
+                  </span>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handlePreviewMarksheet('Minimalist Modern')
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-teal-600 hover:text-white text-teal-700 dark:text-teal-400 font-bold text-[11px] border border-teal-200 dark:border-teal-800 hover:border-teal-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                      <span>Preview Template</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. Dual-Term Consolidated */}
+                <div 
+                  onClick={() => setSelectedTemplate('Dual-Term Consolidated')}
+                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
+                    selectedTemplate === 'Dual-Term Consolidated' 
+                      ? 'border-[#660033] bg-pink-50/40 ring-2 ring-[#660033]/30 shadow-md' 
+                      : 'border-slate-200 dark:border-slate-700 hover:border-pink-300 hover:bg-slate-50 dark:hover:bg-slate-850'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-pink-100 text-pink-900 border border-pink-200">
+                      ICSE / State
+                    </span>
+                    {selectedTemplate === 'Dual-Term Consolidated' && (
+                      <CheckCircle2 className="w-4 h-4 text-[#660033]" />
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center text-center my-1">
+                    <div className="w-12 h-12 rounded-2xl bg-pink-100 text-[#660033] flex items-center justify-center shadow-xs mb-2">
+                      <FileText className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">Dual-Term Consolidated</span>
+                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Burgundy & Navy • Term 1 vs 2</span>
+                  </div>
+                  <span className="text-[9px] text-center font-bold text-[#660033] bg-pink-50 dark:bg-pink-950/40 py-1 rounded-lg">
+                    Class Rank #3 + 4 Signatures
+                  </span>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handlePreviewMarksheet('Dual-Term Consolidated')
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-[#660033] hover:text-white text-[#660033] dark:text-pink-400 font-bold text-[11px] border border-pink-200 dark:border-pink-800 hover:border-[#660033] flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-[#660033] dark:text-pink-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                      <span>Preview Template</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 4. Holistic Early Skills */}
+                <div 
+                  onClick={() => setSelectedTemplate('Holistic Early Skills')}
+                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
+                    selectedTemplate === 'Holistic Early Skills' 
+                      ? 'border-sky-500 bg-sky-50/40 ring-2 ring-sky-500/30 shadow-md' 
+                      : 'border-slate-200 dark:border-slate-700 hover:border-sky-300 hover:bg-slate-50 dark:hover:bg-slate-850'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-sky-100 text-sky-800 border border-sky-200">
+                      Montessori / Primary
+                    </span>
+                    {selectedTemplate === 'Holistic Early Skills' && (
+                      <CheckCircle2 className="w-4 h-4 text-sky-600" />
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center text-center my-1">
+                    <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-600 flex items-center justify-center shadow-xs mb-2">
+                      <Award className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">Holistic Early Skills</span>
+                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Kindergarten & Primary • Stars</span>
+                  </div>
+                  <span className="text-[9px] text-center font-bold text-sky-700 bg-sky-50 dark:bg-sky-950/40 py-1 rounded-lg">
+                    5 Domains + Star Ratings
+                  </span>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handlePreviewMarksheet('Holistic Early Skills')
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-sky-600 hover:text-white text-sky-700 dark:text-sky-400 font-bold text-[11px] border border-sky-200 dark:border-sky-800 hover:border-sky-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                      <span>Preview Template</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Part 2: Admin Admit Card Template Selection */}
+            <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                <div>
+                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
+                    <QrCode className="w-4 h-4 text-teal-600" />
+                    <span>2. Admit Card (Hall Ticket) Template Design (Provided by Admin)</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Pick a hall ticket style for printing and student entry verification
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                  4 Hall Ticket Styles Available
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  {
+                    name: 'Classic Navy',
+                    badge: 'Navy Official',
+                    tagline: 'Traditional Board Hall Ticket',
+                    details: 'Full Timetable Matrix, barcode, student photo & authorized signatures',
+                    color: 'border-blue-600 bg-blue-50/40 ring-blue-500/30',
+                    pill: 'bg-blue-100 text-blue-800',
+                    footer: 'Complete Subject Timetable Grid'
+                  },
+                  {
+                    name: 'Modern Emerald',
+                    badge: 'Digital Emerald',
+                    tagline: 'Clean Digital Emerald Layout',
+                    details: 'Student photo emphasis, QR code validation, compact modern schedule',
+                    color: 'border-emerald-600 bg-emerald-50/40 ring-emerald-500/30',
+                    pill: 'bg-emerald-100 text-emerald-800',
+                    footer: 'Instant QR Scan Verification'
+                  },
+                  {
+                    name: 'Executive Crimson',
+                    badge: 'Formal Crimson',
+                    tagline: 'Maroon Royal Crest Border',
+                    details: 'Dual invigilator signature strip & authorized institution stamp',
+                    color: 'border-rose-600 bg-rose-50/40 ring-rose-500/30',
+                    pill: 'bg-rose-100 text-rose-800',
+                    footer: 'Dual Invigilator Sign Strip'
+                  },
+                  {
+                    name: 'Minimalist Slate',
+                    badge: 'Slate Minimal',
+                    tagline: 'High-Contrast Charcoal Format',
+                    details: 'Clean slip layout optimized for bulk multi-student fast printing',
+                    color: 'border-slate-600 bg-slate-100 dark:bg-slate-800 ring-slate-500/30',
+                    pill: 'bg-slate-200 text-slate-800',
+                    footer: 'Compact 2-Per-Page Eco Print'
+                  }
+                ].map(style => {
+                  const isSelected = admitTemplateStyle === style.name
+                  return (
+                    <div
+                      key={style.name}
+                      onClick={() => setAdmitTemplateStyle(style.name)}
+                      className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
+                        isSelected
+                          ? `${style.color} ring-2 shadow-md`
+                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${style.pill}`}>
+                          {style.badge}
+                        </span>
+                        {isSelected && <CheckCircle2 className="w-4 h-4 text-teal-600" />}
+                      </div>
+
+                      <div className="flex flex-col items-center text-center my-1">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-xs mb-2">
+                          <QrCode className="w-6 h-6 text-teal-600" />
+                        </div>
+                        <span className="text-xs font-black text-slate-900 dark:text-slate-100">{style.name}</span>
+                        <span className="text-[10px] font-semibold text-slate-500 mt-0.5">{style.tagline}</span>
+                      </div>
+
+                      <span className="text-[9px] text-center font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 py-1 rounded-lg">
+                        {style.footer}
+                      </span>
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handlePreviewAdmitCard(style.name)
+                          }}
+                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-teal-600 hover:text-white text-slate-700 dark:text-slate-200 font-bold text-[11px] border border-slate-200 dark:border-slate-700 hover:border-teal-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-teal-600 group-hover:text-white group-hover:scale-110 transition-all" />
+                          <span>Preview Hall Ticket</span>
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Bottom Call to Action for Step 1 */}
+            <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Selected:</span>
+                <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-teal-700 dark:text-teal-300">
+                  Marksheet: {selectedTemplate}
+                </span>
+                <span className="text-slate-400">•</span>
+                <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-blue-700 dark:text-blue-300">
+                  Admit Card: {admitTemplateStyle}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setCurrentStep('Exams')}
+                className="w-full sm:w-auto px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-teal-600/20 flex items-center justify-center gap-2 group"
+              >
+                <span>Continue to Exams & Schedule</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            </div>
+
+          </div>
+        )}
+
+        {/* ================================== STEP 2: EXAMS ================================== */}
         {currentStep === 'Exams' && (
           <div className="space-y-8 animate-in fade-in duration-300">
             
@@ -1580,6 +2048,19 @@ export default function AddSetupWizardPage() {
                   <span className="text-[9px] text-center font-bold text-[#065f46] bg-emerald-50 py-1 rounded-lg">
                     Part 1 Scholastic + Part 2 Co-Scholastic
                   </span>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handlePreviewMarksheet('CBSE Royal Emerald')
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-[#065f46] hover:text-white text-[#065f46] dark:text-emerald-400 font-bold text-[11px] border border-emerald-200 dark:border-emerald-800 hover:border-[#065f46] flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-[#065f46] dark:text-emerald-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                      <span>Preview Template</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* 2. Minimalist Modern */}
@@ -1609,6 +2090,19 @@ export default function AddSetupWizardPage() {
                   <span className="text-[9px] text-center font-bold text-teal-700 bg-teal-50 py-1 rounded-lg">
                     Attendance Meter + Progress Bars
                   </span>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handlePreviewMarksheet('Minimalist Modern')
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-teal-600 hover:text-white text-teal-700 dark:text-teal-400 font-bold text-[11px] border border-teal-200 dark:border-teal-800 hover:border-teal-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                      <span>Preview Template</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* 3. Dual-Term Consolidated */}
@@ -1638,6 +2132,19 @@ export default function AddSetupWizardPage() {
                   <span className="text-[9px] text-center font-bold text-[#660033] bg-pink-50 py-1 rounded-lg">
                     Class Rank #3 + 4 Signatures
                   </span>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handlePreviewMarksheet('Dual-Term Consolidated')
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-[#660033] hover:text-white text-[#660033] dark:text-pink-400 font-bold text-[11px] border border-pink-200 dark:border-pink-800 hover:border-[#660033] flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-[#660033] dark:text-pink-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                      <span>Preview Template</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* 4. Holistic Early Skills */}
@@ -1667,6 +2174,19 @@ export default function AddSetupWizardPage() {
                   <span className="text-[9px] text-center font-bold text-sky-700 bg-sky-50 py-1 rounded-lg">
                     5 Domains + Star Ratings
                   </span>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handlePreviewMarksheet('Holistic Early Skills')
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-sky-600 hover:text-white text-sky-700 dark:text-sky-400 font-bold text-[11px] border border-sky-200 dark:border-sky-800 hover:border-sky-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                      <span>Preview Template</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1800,32 +2320,48 @@ export default function AddSetupWizardPage() {
       <div className="flex justify-between items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm">
         <Link 
           href="/institute/exam-marksheet/setup"
-          className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-50 transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-850 transition-colors"
         >
           Cancel
         </Link>
         
-        <div className="flex items-center gap-3">
-          {currentStep !== 'Exams' && (
+        <div className="flex flex-wrap items-center gap-3">
+          {currentStep !== 'Template Design' && (
             <button 
+              type="button"
               onClick={handleBack}
-              className="flex items-center gap-1.5 px-4 py-2 border border-teal-600 text-teal-600 rounded-lg text-xs font-bold hover:bg-teal-50 transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 border border-teal-600 text-teal-600 rounded-lg text-xs font-bold hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
           )}
 
+          {/* Quick Save directly from Exams step */}
+          {currentStep === 'Exams' && (
+            <button 
+              type="button"
+              onClick={handleSaveSetup}
+              disabled={isSubmitting}
+              className="flex items-center gap-1.5 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm disabled:opacity-50"
+            >
+              <Check className="w-4 h-4" /> Save Setup & Admit Card Now
+            </button>
+          )}
+
           {currentStep !== 'Certificate Design' ? (
             <button 
+              type="button"
               onClick={handleNext}
               className="flex items-center gap-1.5 px-5 py-2 bg-teal-600 text-white rounded-lg text-xs font-bold hover:bg-teal-700 transition-colors shadow-sm"
             >
-              Save & Next <ArrowRight className="w-4 h-4" />
+              {currentStep === 'Template Design' ? 'Continue to Exams & Schedule' : 'Save & Next'} <ArrowRight className="w-4 h-4" />
             </button>
           ) : (
             <button 
+              type="button"
               onClick={handleSaveSetup}
-              className="flex items-center gap-1.5 px-6 py-2 bg-teal-600 text-white rounded-lg text-xs font-bold hover:bg-teal-700 transition-colors shadow-sm"
+              disabled={isSubmitting}
+              className="flex items-center gap-1.5 px-6 py-2 bg-teal-600 text-white rounded-lg text-xs font-bold hover:bg-teal-700 transition-colors shadow-sm disabled:opacity-50"
             >
               Save Configuration <Check className="w-4 h-4" />
             </button>
@@ -1847,8 +2383,11 @@ export default function AddSetupWizardPage() {
                   <Eye className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">
-                    Interactive Marksheet Preview • {selectedTemplate}
+                  <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                    <span>Interactive Marksheet Preview</span>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 font-bold border border-purple-200 dark:border-purple-800">
+                      {previewTargetTemplate || selectedTemplate}
+                    </span>
                   </h3>
                   <div className="text-[11px] text-purple-600 font-semibold">
                     {examName || 'Upcoming Examination'} • {classes[0]?.className || 'Class 10'} ({session})
@@ -1857,6 +2396,21 @@ export default function AddSetupWizardPage() {
               </div>
 
               <div className="flex items-center gap-2">
+                {previewTargetTemplate && previewTargetTemplate !== selectedTemplate && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTemplate(previewTargetTemplate)
+                      toast.success(`Selected template: ${previewTargetTemplate}`)
+                      setShowPreviewModal(false)
+                      setPreviewTargetTemplate(null)
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Select Template</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => window.print()}
@@ -1867,7 +2421,10 @@ export default function AddSetupWizardPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowPreviewModal(false)}
+                  onClick={() => {
+                    setShowPreviewModal(false)
+                    setPreviewTargetTemplate(null)
+                  }}
                   className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
                 >
                   <X className="w-4 h-4" />
@@ -1879,7 +2436,7 @@ export default function AddSetupWizardPage() {
             <div className="p-6 md:p-8 bg-slate-100 dark:bg-slate-950 flex items-center justify-center overflow-x-auto">
               <div className="w-full max-w-[820px] shadow-2xl rounded-sm">
                 <MarksheetPreview
-                  templateName={selectedTemplate}
+                  templateName={previewTargetTemplate || selectedTemplate}
                   examName={examName || 'Annual Examination 2025-26'}
                   className={classes[0]?.className || 'Class 10'}
                   academicYear={session}
@@ -1907,14 +2464,41 @@ export default function AddSetupWizardPage() {
 
             {/* Footer */}
             <div className="px-6 py-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
-              <span>Preview updating in real time with your wizard parameters</span>
-              <button
-                type="button"
-                onClick={() => setShowPreviewModal(false)}
-                className="px-4 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs"
-              >
-                Close Preview
-              </button>
+              <div className="flex items-center gap-2">
+                <span>Template: <strong className="text-slate-800 dark:text-slate-200">{previewTargetTemplate || selectedTemplate}</strong></span>
+                {(previewTargetTemplate || selectedTemplate) === selectedTemplate && (
+                  <span className="text-[10px] font-bold text-teal-600 bg-teal-50 dark:bg-teal-950/40 px-2 py-0.5 rounded-md border border-teal-200 dark:border-teal-800">
+                    Currently Selected
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {previewTargetTemplate && previewTargetTemplate !== selectedTemplate && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTemplate(previewTargetTemplate)
+                      toast.success(`Selected template: ${previewTargetTemplate}`)
+                      setShowPreviewModal(false)
+                      setPreviewTargetTemplate(null)
+                    }}
+                    className="px-3.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-1.5"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Select & Close
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPreviewModal(false)
+                    setPreviewTargetTemplate(null)
+                  }}
+                  className="px-4 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs"
+                >
+                  Close Preview
+                </button>
+              </div>
             </div>
 
           </div>
@@ -1936,6 +2520,7 @@ export default function AddSetupWizardPage() {
             schoolName: schoolName || 'COSMOPOLITAN INTER COLLEGE',
             schoolAddress: schoolAddress || 'Green Park Sector 4, New Delhi',
             displayFields: admitDisplayFields,
+            templateStyle: previewTargetAdmitStyle || admitTemplateStyle,
             status: admitCardStatus ? 'Active' : 'Inactive',
             instructions: admitInstructions || '1. Candidates must arrive at the examination center 30 minutes before the scheduled time.\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.',
             showExamTimeTable: showExamTimeTableOnAdmit,
@@ -1963,7 +2548,10 @@ export default function AddSetupWizardPage() {
             fromTime: s.startTime || s.fromTime || '10:00',
             toTime: s.endTime || s.toTime || '13:00'
           }))}
-          onClose={() => setShowAdmitPreviewModal(false)}
+          onClose={() => {
+            setShowAdmitPreviewModal(false)
+            setPreviewTargetAdmitStyle(null)
+          }}
         />
       )}
 
@@ -2059,5 +2647,18 @@ export default function AddSetupWizardPage() {
       )}
 
     </div>
+  )
+}
+
+export default function AddSetupWizardPage() {
+  return (
+    <Suspense fallback={
+      <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
+        <div className="w-8 h-8 border-3 border-teal-600 border-t-transparent rounded-full animate-spin" />
+        <p className="text-xs font-bold text-slate-500">Loading Exam & Admit Setup Wizard...</p>
+      </div>
+    }>
+      <AddSetupWizardContent />
+    </Suspense>
   )
 }
