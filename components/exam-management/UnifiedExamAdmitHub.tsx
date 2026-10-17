@@ -769,19 +769,11 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
             ⚡ Simultaneous Sync
           </button>
 
-          <button
-            onClick={handleOpenAdd}
+          <Link
+            href="/institute/exam-marksheet/setup/create"
             className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black transition-all flex items-center gap-2 shadow-sm"
           >
             <Plus className="w-4 h-4" />
-            + Quick Exam & Admit Setup
-          </button>
-
-          <Link
-            href="/institute/exam-marksheet/setup/create"
-            className="px-4 py-2.5 rounded-xl border-2 border-purple-600 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs font-black transition-all flex items-center gap-2 shadow-xs"
-          >
-            <FileText className="w-4 h-4 text-purple-600" />
             + Create Exam Setup (Wizard)
           </Link>
         </div>
@@ -977,17 +969,9 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                 </button>
               </div>
 
-              <button
-                onClick={handleOpenAdd}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>+ Quick Setup</span>
-              </button>
-
               <Link
                 href="/institute/exam-marksheet/setup/create"
-                className="flex items-center gap-1.5 px-3.5 py-2 border border-purple-600 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-xl text-xs font-bold transition-all shadow-xs"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>+ Create Setup (Wizard)</span>
