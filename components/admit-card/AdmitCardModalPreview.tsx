@@ -10,9 +10,13 @@ interface AdmitCardModalPreviewProps {
   onClose: () => void
 }
 
-export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({ card, customSubjects, onClose }) => {
-  const printRef = useRef<HTMLDivElement>(null)
+export interface AdmitCardPaperProps {
+  card: AdmitCardConfig | null
+  customSubjects?: { subjectName: string; date: string; fromTime: string; toTime: string }[]
+  className?: string
+}
 
+export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({ card, customSubjects, className = '' }) => {
   if (!card) return null
 
   // Lookup timetable subjects
@@ -29,12 +33,6 @@ export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({ ca
         { subjectName: 'Social Science', date: '2025-03-27', fromTime: '10:00', toTime: '13:00' },
         { subjectName: 'Hindi / Regional', date: '2025-03-29', fromTime: '10:00', toTime: '13:00' }
       ]
-
-  const handlePrint = () => {
-    setTimeout(() => {
-      window.print()
-    }, 200)
-  }
 
   const fields = card.displayFields || {}
 
@@ -78,74 +76,13 @@ export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({ ca
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
-      <style jsx global>{`
-        @media print {
-          body * {
-            visibility: hidden !important;
-          }
-          #printable-admit-card-container, #printable-admit-card-container * {
-            visibility: visible !important;
-          }
-          #printable-admit-card-container {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-          }
-        }
-      `}</style>
-
-      <div className="bg-slate-100 dark:bg-slate-900 rounded-3xl w-full max-w-[880px] max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 my-auto">
-        
-        {/* Modal Top Control Bar */}
-        <div className="flex justify-between items-center bg-white dark:bg-slate-850 p-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-600 flex items-center justify-center">
-              <Sparkles className="w-4 h-4 animate-pulse" />
-            </div>
-            <div>
-              <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
-                Live Admit Card • Examination Hall Ticket
-              </h3>
-              <p className="text-[10px] text-slate-400">
-                Exam: <span className="font-bold text-slate-700 dark:text-slate-300">{card.examName}</span> • Class: <span className="font-bold text-teal-600">{card.className}</span> ({card.session})
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handlePrint}
-              className="px-4 py-2 bg-teal-600 hover:bg-teal-700 rounded-xl text-xs font-bold text-white transition-all shadow-sm flex items-center gap-1.5"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              Print Admit Card
-            </button>
-
-            <button
-              onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-full border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Template Paper Scroll Container */}
-        <div className="overflow-auto bg-slate-200/60 dark:bg-slate-950 p-4 sm:p-6 flex-1 flex justify-center items-start">
-          
-          <div
-            id="printable-admit-card-container"
-            ref={printRef}
-            className={`w-full max-w-[780px] bg-white text-slate-900 ${theme.border} p-6 sm:p-8 flex flex-col font-sans shrink-0 relative shadow-xl rounded-xl select-none`}
-          >
-            {/* School Header */}
-            <div className="flex justify-between items-center border-b-2 border-slate-300 pb-4 mb-4">
-              <div className="flex items-center gap-4">
+    <div
+      id="printable-admit-card-container"
+      className={`w-full max-w-[780px] bg-white text-slate-900 ${theme.border} p-6 sm:p-8 flex flex-col font-sans shrink-0 relative shadow-xl rounded-xl select-none ${className}`}
+    >
+      {/* School Header */}
+      <div className="flex justify-between items-center border-b-2 border-slate-300 pb-4 mb-4">
+        <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-full border-2 border-teal-600 flex flex-col items-center justify-center font-black text-xs shrink-0 bg-teal-50 text-teal-700 shadow-xs">
                   <span className="text-[9px] uppercase tracking-tighter">ESTD</span>
                   <span className="text-sm">2010</span>
@@ -364,6 +301,83 @@ export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({ ca
               </div>
             </div>
 
+          </div>
+  )
+}
+
+export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({ card, customSubjects, onClose }) => {
+  const printRef = useRef<HTMLDivElement>(null)
+
+  if (!card) return null
+
+  const handlePrint = () => {
+    setTimeout(() => {
+      window.print()
+    }, 200)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          #printable-admit-card-container, #printable-admit-card-container * {
+            visibility: visible !important;
+          }
+          #printable-admit-card-container {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+          }
+        }
+      `}</style>
+
+      <div className="bg-slate-100 dark:bg-slate-900 rounded-3xl w-full max-w-[880px] max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 my-auto">
+        
+        {/* Modal Top Control Bar */}
+        <div className="flex justify-between items-center bg-white dark:bg-slate-850 p-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-600 flex items-center justify-center">
+              <Sparkles className="w-4 h-4 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                Live Admit Card • Examination Hall Ticket
+              </h3>
+              <p className="text-[10px] text-slate-400">
+                Exam: <span className="font-bold text-slate-700 dark:text-slate-300">{card.examName}</span> • Class: <span className="font-bold text-teal-600">{card.className}</span> ({card.session})
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrint}
+              className="px-4 py-2 bg-teal-600 hover:bg-teal-700 rounded-xl text-xs font-bold text-white transition-all shadow-sm flex items-center gap-1.5"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Print Admit Card
+            </button>
+
+            <button
+              onClick={onClose}
+              className="w-8 h-8 flex items-center justify-center rounded-full border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Template Paper Scroll Container */}
+        <div className="overflow-auto bg-slate-200/60 dark:bg-slate-950 p-4 sm:p-6 flex-1 flex justify-center items-start">
+          <div ref={printRef} className="w-full flex justify-center">
+            <AdmitCardPaper card={card} customSubjects={customSubjects} />
           </div>
         </div>
 

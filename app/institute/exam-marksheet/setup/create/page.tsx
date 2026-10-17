@@ -9,7 +9,7 @@ import { saveMultipleMarksheetSetups, saveMarksheetSetup, fetchExamGroups, saveE
 import { MarksheetPreview } from '@/components/marksheets/MarksheetPreview'
 import { getInstituteAddedClasses, MasterClassWithSections } from '@/lib/institute-classes'
 import { generateAdmitCardAndTimetableForSetup, AdmitCardConfig } from '@/lib/admit-card-sync'
-import { AdmitCardModalPreview } from '@/components/admit-card/AdmitCardModalPreview'
+import { AdmitCardModalPreview, AdmitCardPaper } from '@/components/admit-card/AdmitCardModalPreview'
 import { 
   CertificateDesign1, 
   CertificateDesign2, 
@@ -1560,29 +1560,82 @@ function AddSetupWizardContent() {
                 </div>
               </div>
 
-              {/* Live Preview Banner */}
-              <div className="bg-gradient-to-r from-blue-50 via-teal-50 to-emerald-50 dark:from-blue-950/30 dark:to-emerald-950/30 border border-teal-200 dark:border-teal-800/50 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-600/20">
-                    <QrCode className="w-5 h-5" />
+              {/* Auto-Updating Live Admit Card Preview at Bottom of Template Selector */}
+              <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm mt-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-600/20 shrink-0">
+                      <QrCode className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                          Live Admit Card Preview • <span className="text-teal-600 dark:text-teal-400">{admitTemplateStyle}</span>
+                        </h4>
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300">
+                          ⚡ Auto-Updating
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Selecting any template style above automatically updates this live printable hall ticket preview in real time.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-black text-slate-800 dark:text-slate-100">
-                      Live Hall Ticket Preview • {admitTemplateStyle}
-                    </h4>
-                    <p className="text-[11px] text-slate-500">
-                      Inspect student details, timetable matrix, and instructions in real time before finalizing.
-                    </p>
+
+                  <button
+                    type="button"
+                    onClick={() => handlePreviewAdmitCard(admitTemplateStyle)}
+                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0"
+                  >
+                    <Eye className="w-4 h-4" /> Open Full Screen / Print
+                  </button>
+                </div>
+
+                {/* Live Paper Viewport */}
+                <div className="overflow-x-auto flex justify-center py-3 bg-slate-200/60 dark:bg-slate-950/80 rounded-2xl p-4 sm:p-6 border border-slate-200/80 dark:border-slate-800/80 shadow-inner">
+                  <div className="w-full flex justify-center max-w-[780px]">
+                    <AdmitCardPaper
+                      card={{
+                        id: 999999,
+                        className: classes[0]?.className || 'Class X',
+                        examName: examName || 'Final Term Examination',
+                        admitCardLabel: admitLabel || 'Admit Card',
+                        timeTableId: 999999,
+                        session: session,
+                        schoolName: schoolName || 'COSMOPOLITAN INTER COLLEGE',
+                        schoolAddress: schoolAddress || 'Green Park Sector 4, New Delhi',
+                        displayFields: admitDisplayFields,
+                        templateStyle: admitTemplateStyle,
+                        status: admitCardStatus ? 'Active' : 'Inactive',
+                        instructions: admitInstructions || '1. Candidates must arrive at the examination center 30 minutes before the scheduled time.\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.',
+                        showExamTimeTable: showExamTimeTableOnAdmit,
+                        noOfPrintPerPage: admitNoOfPrintPerPage,
+                        headerNameFontSize: admitHeaderNameFontSize,
+                        headerDetailsFontSize: admitHeaderDetailsFontSize,
+                        studentDetailsFontSize: admitStudentDetailsFontSize,
+                        timetableDetailsFontSize: admitTimetableDetailsFontSize,
+                        headingFontSize: admitHeadingFontSize,
+                        defaultFontSize: admitDefaultFontSize,
+                        spacing: admitSpacing,
+                        studentPhotoSize: admitStudentPhotoSize,
+                        teacherSignLabel: admitTeacherSignLabel,
+                        studentSignLabel: admitStudentSignLabel,
+                        parentSignLabel: admitParentSignLabel,
+                        principalSignLabel: admitPrincipalSignLabel,
+                        signatureWidth: admitSignatureWidth,
+                        schoolStampWidth: admitSchoolStampWidth,
+                        dateCreated: new Date().toLocaleDateString('en-GB'),
+                        timeCreated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      }}
+                      customSubjects={classes[0]?.subjects.map(s => ({
+                        subjectName: s.subjectName || 'Subject Name',
+                        date: s.examDate || dateOfExam || '2025-03-20',
+                        fromTime: s.startTime || s.fromTime || '10:00',
+                        toTime: s.endTime || s.toTime || '13:00'
+                      }))}
+                    />
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handlePreviewAdmitCard(admitTemplateStyle)}
-                  className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-teal-600/20 transition-all shrink-0"
-                >
-                  <Eye className="w-4 h-4" />
-                  Show Full Hall Ticket Preview
-                </button>
               </div>
             </div>
 
