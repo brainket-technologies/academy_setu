@@ -4,6 +4,7 @@ import { QrCode, Award, ShieldCheck, CheckCircle2 } from 'lucide-react'
 export interface CertificateCustomProps {
   title?: string
   subtitle?: string
+  themeColor?: string
   schoolName?: string
   schoolAddress?: string
   studentName?: string
@@ -16,6 +17,20 @@ export interface CertificateCustomProps {
   textColor?: string
   titleBgColor?: string
   hiddenFields?: string[]
+}
+
+// Helper: convert hex to rgba
+export function hexToRgba(hex: string, alpha: number): string {
+  let c = (hex || '#1e3a8a').replace('#', '')
+  if (c.length === 3) {
+    c = c.split('').map(x => x + x).join('')
+  }
+  const num = parseInt(c, 16)
+  if (isNaN(num)) return `rgba(30, 58, 138, ${alpha})`
+  const r = (num >> 16) & 255
+  const g = (num >> 8) & 255
+  const b = num & 255
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 // Common Gold Seal with Ribbons
@@ -54,6 +69,7 @@ const GoldSeal = ({ text = "ACADEMIC EXCELLENCE", className = "" }: { text?: str
 export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
   title = 'CERTIFICATE OF ACHIEVEMENT',
   subtitle = 'In Recognition of Academic Excellence',
+  themeColor,
   schoolName = 'COSMOPOLITAN INTER COLLEGE',
   schoolAddress = 'Knowledge Park, Sector 62, New Delhi',
   studentName = 'Student Name',
@@ -65,29 +81,31 @@ export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
   hiddenFields = []
 }) => {
   const isHidden = (field: string) => hiddenFields.includes(field)
+  const primary = themeColor || '#1e3a8a'
+  const borderTint = hexToRgba(primary, 0.25)
 
   return (
     <div className="w-[800px] h-[580px] bg-white relative overflow-hidden flex flex-col font-sans shrink-0 border border-slate-300 shadow-2xl select-none text-slate-800">
-      {/* Decorative Gold & Blue Corners */}
+      {/* Decorative Gold & Primary Corners */}
       <div className="absolute top-0 left-0 w-64 h-64 -translate-x-32 -translate-y-32 rotate-45 flex flex-col z-10 shadow-md pointer-events-none">
         <div className="w-full h-8 bg-amber-400"></div>
         <div className="w-full h-2 bg-white"></div>
-        <div className="w-full h-20 bg-[#1e3a8a]"></div>
+        <div className="w-full h-20" style={{ backgroundColor: primary }}></div>
       </div>
       <div className="absolute bottom-0 right-0 w-64 h-64 translate-x-32 translate-y-32 rotate-45 flex flex-col z-10 shadow-md pointer-events-none">
-        <div className="w-full h-20 bg-[#1e3a8a]"></div>
+        <div className="w-full h-20" style={{ backgroundColor: primary }}></div>
         <div className="w-full h-2 bg-white"></div>
         <div className="w-full h-8 bg-amber-400"></div>
       </div>
 
       {/* Thin Gold Frame */}
       <div className="absolute inset-5 border-2 border-amber-300/80 z-0 rounded-sm pointer-events-none"></div>
-      <div className="absolute inset-7 border border-[#1e3a8a]/20 z-0 rounded-xs pointer-events-none"></div>
+      <div className="absolute inset-7 border z-0 rounded-xs pointer-events-none" style={{ borderColor: borderTint }}></div>
 
       {/* Watermark */}
       {!isHidden('Water Mark') && (
         <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none z-0">
-          <Award className="w-96 h-96 text-[#1e3a8a]" />
+          <Award className="w-96 h-96" style={{ color: primary }} />
         </div>
       )}
 
@@ -102,7 +120,7 @@ export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
       {/* Header Info */}
       <div className="relative z-10 flex flex-col items-center pt-10 px-24 text-center">
         {!isHidden('School Name') && (
-          <h4 className="font-serif font-black text-sm tracking-widest text-[#1e3a8a] uppercase mb-0.5">
+          <h4 className="font-serif font-black text-sm tracking-widest uppercase mb-0.5" style={{ color: primary }}>
             {schoolName}
           </h4>
         )}
@@ -118,7 +136,7 @@ export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
             <h1 className="font-serif font-black text-4xl tracking-wider text-slate-900 uppercase drop-shadow-xs">
               {title}
             </h1>
-            <p className="text-[#1e3a8a] font-bold text-xs tracking-[0.25em] uppercase mt-1">
+            <p className="font-bold text-xs tracking-[0.25em] uppercase mt-1" style={{ color: primary }}>
               {subtitle}
             </p>
           </div>
@@ -133,7 +151,7 @@ export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
         {/* Student Name */}
         {!isHidden('Student Name') && (
           <div className="my-1">
-            <h3 className="text-[#1e3a8a] font-serif font-black text-4xl tracking-wide border-b-2 border-amber-400/80 px-8 pb-1 inline-block">
+            <h3 className="font-serif font-black text-4xl tracking-wide border-b-2 border-amber-400/80 px-8 pb-1 inline-block" style={{ color: primary }}>
               {studentName}
             </h3>
           </div>
@@ -169,7 +187,7 @@ export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
         <div className="flex flex-col items-center w-40">
           {!isHidden('Principal Sign') && (
             <>
-              <p className="font-serif italic font-bold text-sm text-[#1e3a8a] mb-1">Dr. S. K. Sharma</p>
+              <p className="font-serif italic font-bold text-sm mb-1" style={{ color: primary }}>Dr. S. K. Sharma</p>
               <div className="w-full h-px bg-slate-300 mb-1"></div>
               <p className="text-[9px] font-bold text-slate-400 tracking-widest uppercase">{awarder}</p>
             </>
@@ -408,6 +426,7 @@ export const CertificateDesign3: React.FC<CertificateCustomProps> = ({
 export const CertificateDesign4: React.FC<CertificateCustomProps> = ({
   title = 'CERTIFICATE OF COMPLETION',
   subtitle = 'Academic Curriculum & Co-Curricular',
+  themeColor,
   schoolName = 'COSMOPOLITAN INTER COLLEGE',
   schoolAddress = 'Knowledge Park, Sector 62, New Delhi',
   studentName = 'Student Name',
@@ -419,12 +438,14 @@ export const CertificateDesign4: React.FC<CertificateCustomProps> = ({
   hiddenFields = []
 }) => {
   const isHidden = (field: string) => hiddenFields.includes(field)
+  const primary = themeColor || '#1e293b'
+  const borderTint = hexToRgba(primary, 0.35)
 
   return (
     <div className="w-[800px] h-[580px] bg-white relative overflow-hidden flex flex-col font-sans shrink-0 border border-slate-300 shadow-2xl select-none text-slate-800">
-      {/* Sleek Blue Border Frames */}
-      <div className="absolute inset-5 border-2 border-[#1e293b] pointer-events-none"></div>
-      <div className="absolute inset-7 border border-[#3b82f6]/40 pointer-events-none"></div>
+      {/* Sleek Border Frames */}
+      <div className="absolute inset-5 border-2 pointer-events-none" style={{ borderColor: primary }}></div>
+      <div className="absolute inset-7 border pointer-events-none" style={{ borderColor: borderTint }}></div>
 
       {showQr && !isHidden('QR Code') && (
         <div className="absolute top-10 right-12 z-20 bg-slate-50 p-1 rounded border border-slate-200 shadow-2xs">
@@ -434,7 +455,7 @@ export const CertificateDesign4: React.FC<CertificateCustomProps> = ({
 
       <div className="relative z-10 flex flex-col items-center pt-10 px-24 flex-1 text-center">
         {!isHidden('School Name') && (
-          <h4 className="font-bold text-xs tracking-widest text-[#1e293b] uppercase mb-0.5">
+          <h4 className="font-bold text-xs tracking-widest uppercase mb-0.5" style={{ color: primary }}>
             {schoolName}
           </h4>
         )}
@@ -449,20 +470,20 @@ export const CertificateDesign4: React.FC<CertificateCustomProps> = ({
             <h1 className="font-serif font-black text-4xl tracking-wider text-slate-900 uppercase">
               {title}
             </h1>
-            <p className="text-[#3b82f6] font-bold text-xs tracking-[0.25em] uppercase mt-1">
+            <p className="font-bold text-xs tracking-[0.25em] uppercase mt-1" style={{ color: primary }}>
               {subtitle}
             </p>
           </div>
         )}
 
-        <div className="w-28 h-0.5 bg-[#3b82f6] my-2"></div>
+        <div className="w-28 h-0.5 my-2" style={{ backgroundColor: primary }}></div>
 
         <p className="text-[10px] tracking-widest text-slate-500 font-semibold uppercase mb-2">
           This Document Confirms That
         </p>
 
         {!isHidden('Student Name') && (
-          <h3 className="text-[#1e293b] font-serif font-black text-4xl tracking-wide border-b-2 border-[#3b82f6]/60 px-8 pb-1 inline-block my-1">
+          <h3 className="font-serif font-black text-4xl tracking-wide border-b-2 px-8 pb-1 inline-block my-1" style={{ color: primary, borderColor: borderTint }}>
             {studentName}
           </h3>
         )}
@@ -492,7 +513,7 @@ export const CertificateDesign4: React.FC<CertificateCustomProps> = ({
         <div className="flex flex-col items-center w-36">
           {!isHidden('Principal Sign') && (
             <>
-              <p className="font-serif italic font-bold text-sm text-[#1e293b] mb-1">Dean.Academics</p>
+              <p className="font-serif italic font-bold text-sm mb-1" style={{ color: primary }}>Dean.Academics</p>
               <div className="w-full h-px bg-slate-300 mb-1"></div>
               <p className="text-[8.5px] font-bold text-slate-400 tracking-widest uppercase">{awarder}</p>
             </>
@@ -502,3 +523,294 @@ export const CertificateDesign4: React.FC<CertificateCustomProps> = ({
     </div>
   )
 }
+
+// -------------------------------------------------------------
+// UNIFIED CERTIFICATE PAPER (RESPONSIVE SCALED VIEWPORT)
+// -------------------------------------------------------------
+export const CertificatePaper: React.FC<CertificateCustomProps & { template?: string; themeColor?: string }> = ({
+  template = 'Certificate Design 1',
+  themeColor,
+  ...props
+}) => {
+  const tmpl = (template || '').toLowerCase()
+  if (tmpl.includes('2')) return <CertificateDesign2 themeColor={themeColor} {...props} />
+  if (tmpl.includes('3')) return <CertificateDesign3 themeColor={themeColor} {...props} />
+  if (tmpl.includes('4')) return <CertificateDesign4 themeColor={themeColor} {...props} />
+  return <CertificateDesign1 themeColor={themeColor} {...props} />
+}
+
+// -------------------------------------------------------------
+// CERTIFICATE MINI PREVIEW FOR SELECTION CARDS
+// -------------------------------------------------------------
+export interface CertificateMiniPreviewProps {
+  template: 'Certificate Design 1' | 'Certificate Design 2' | 'Certificate Design 3' | 'Certificate Design 4' | string
+  themeColor?: string
+  schoolName?: string
+  studentName?: string
+  title?: string
+  subtitle?: string
+  date?: string
+  isSelected?: boolean
+}
+
+export const CertificateMiniPreview: React.FC<CertificateMiniPreviewProps> = ({
+  template,
+  themeColor,
+  schoolName = 'COSMOPOLITAN INTER COLLEGE',
+  studentName = 'Aarav Sharma',
+  title,
+  subtitle,
+  date = '15 Oct 2025',
+  isSelected = false
+}) => {
+  const tmpl = (template || 'Certificate Design 1').toLowerCase()
+  const isD2 = tmpl.includes('2') || tmpl.includes('merit') || tmpl.includes('corner')
+  const isD3 = tmpl.includes('3') || tmpl.includes('emerald') || tmpl.includes('sports')
+  const isD4 = tmpl.includes('4') || tmpl.includes('completion') || tmpl.includes('corporate')
+  const isD1 = !isD2 && !isD3 && !isD4
+
+  const defaultBaseColor = isD2 ? '#b45309' : isD3 ? '#047857' : isD4 ? '#1e293b' : '#1e3a8a'
+  const primary = themeColor || defaultBaseColor
+  const tintLight = hexToRgba(primary, 0.08)
+  const borderTint = hexToRgba(primary, 0.3)
+
+  return (
+    <div
+      className={`w-full h-36 rounded-xl overflow-hidden bg-white dark:bg-slate-900 border transition-all duration-300 relative flex flex-col justify-between text-slate-800 dark:text-slate-100 select-none ${
+        isSelected
+          ? 'shadow-md ring-2 ring-amber-500/50 scale-[1.01]'
+          : 'shadow-2xs hover:shadow-xs'
+      }`}
+      style={{
+        borderColor: isSelected ? primary : borderTint
+      }}
+    >
+      {/* 1. CERTIFICATE DESIGN 1 MINI (ROYAL BLUE GEOMETRIC) */}
+      {isD1 && (
+        <div className="w-full h-full p-2 flex flex-col justify-between bg-white text-slate-900 relative overflow-hidden">
+          {/* Diagonal Corner Accents */}
+          <div
+            className="absolute top-0 left-0 w-16 h-16 -translate-x-8 -translate-y-8 rotate-45 pointer-events-none shadow-xs"
+            style={{ backgroundColor: primary }}
+          />
+          <div
+            className="absolute bottom-0 right-0 w-16 h-16 translate-x-8 translate-y-8 rotate-45 pointer-events-none shadow-xs"
+            style={{ backgroundColor: primary }}
+          />
+          <div className="absolute top-0 left-0 w-10 h-10 -translate-x-5 -translate-y-5 rotate-45 bg-amber-400 pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-10 h-10 translate-x-5 translate-y-5 rotate-45 bg-amber-400 pointer-events-none" />
+
+          {/* Thin Inner Frame */}
+          <div className="absolute inset-1.5 border border-amber-300/80 rounded-xs pointer-events-none" />
+          <div className="absolute inset-2.5 border rounded-xs pointer-events-none" style={{ borderColor: borderTint }} />
+
+          {/* Header */}
+          <div className="relative z-10 text-center pt-0.5">
+            <div className="text-[6.5px] font-black uppercase tracking-wider truncate px-4" style={{ color: primary }}>
+              {schoolName}
+            </div>
+            <div className="text-[7.5px] font-serif font-black uppercase text-slate-900 tracking-wide mt-0.5">
+              {title || 'CERTIFICATE OF ACHIEVEMENT'}
+            </div>
+            <div className="text-[4.5px] font-bold uppercase tracking-widest text-slate-400">
+              {subtitle || 'IN RECOGNITION OF ACADEMIC EXCELLENCE'}
+            </div>
+          </div>
+
+          {/* Center Awardee */}
+          <div className="relative z-10 text-center my-auto">
+            <span className="text-[4px] uppercase font-bold text-slate-400 tracking-wider block">Presented Proudly To</span>
+            <div
+              className="inline-block text-[10px] font-serif font-black px-3 pb-0.5 border-b"
+              style={{ color: primary, borderColor: '#f59e0b' }}
+            >
+              {studentName}
+            </div>
+            <p className="text-[4.5px] text-slate-500 font-medium px-4 line-clamp-1 mt-0.5">
+              For exemplary dedication, outstanding performance & leadership.
+            </p>
+          </div>
+
+          {/* Footer with Seal */}
+          <div className="relative z-10 flex justify-between items-end px-2 pb-0.5 text-[4.5px] font-bold text-slate-600">
+            <div className="text-center w-12 border-t border-slate-300 pt-0.5">
+              <span>{date}</span>
+              <span className="block text-[3.5px] text-slate-400 uppercase">Date</span>
+            </div>
+
+            {/* Mini Gold Seal */}
+            <div className="w-6 h-6 rounded-full bg-gradient-to-b from-amber-300 to-amber-500 border border-amber-600/40 shadow-xs flex flex-col items-center justify-center p-0.5">
+              <Award className="w-2.5 h-2.5 text-amber-950" />
+              <span className="text-[3px] font-black text-amber-950 leading-none">SEAL</span>
+            </div>
+
+            <div className="text-center w-12 border-t border-slate-300 pt-0.5">
+              <span style={{ color: primary }} className="font-serif italic font-bold">Principal</span>
+              <span className="block text-[3.5px] text-slate-400 uppercase">Director</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. CERTIFICATE DESIGN 2 MINI (VINTAGE ORNATE GOLD) */}
+      {isD2 && (
+        <div className="w-full h-full p-2 flex flex-col justify-between bg-[#faf8f2] text-slate-900 relative overflow-hidden border-[4px] border-white shadow-2xs">
+          {/* Ornate Gold Border & Corner Marks */}
+          <div className="absolute inset-1 border-[1.5px] border-[#b08d55] pointer-events-none">
+            <span className="absolute -top-1.5 -left-1 text-[7px] text-[#b08d55]">⚜</span>
+            <span className="absolute -top-1.5 -right-1 text-[7px] text-[#b08d55]">⚜</span>
+            <span className="absolute -bottom-1.5 -left-1 text-[7px] text-[#b08d55]">⚜</span>
+            <span className="absolute -bottom-1.5 -right-1 text-[7px] text-[#b08d55]">⚜</span>
+          </div>
+
+          {/* Header */}
+          <div className="relative z-10 text-center pt-0.5 font-serif">
+            <div className="text-[6.5px] font-black uppercase tracking-wider truncate px-4" style={{ color: primary }}>
+              {schoolName}
+            </div>
+            <div className="text-[7.5px] font-black uppercase text-slate-900 tracking-wide mt-0.5">
+              {title || 'CERTIFICATE OF MERIT'}
+            </div>
+            <div className="flex items-center justify-center gap-1 text-[4px] text-amber-600 mt-0.5">
+              <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+            </div>
+          </div>
+
+          {/* Awardee */}
+          <div className="relative z-10 text-center my-auto font-serif">
+            <span className="text-[4px] uppercase font-bold text-slate-400 tracking-widest block font-sans">Honoring</span>
+            <div className="text-[11px] font-serif font-black tracking-wide leading-tight" style={{ color: primary }}>
+              {studentName}
+            </div>
+            <div className="w-16 h-px mx-auto my-0.5" style={{ backgroundColor: primary }} />
+            <p className="text-[4.5px] text-slate-600 font-sans px-4 line-clamp-1">
+              Conferred in recognition of exceptional scholarly merit & exemplary conduct.
+            </p>
+          </div>
+
+          {/* Footer */}
+          <div className="relative z-10 flex justify-between items-end px-3 pb-0.5 text-[4.5px] font-bold text-slate-600 font-sans">
+            <div className="text-center w-12 border-t border-[#b08d55] pt-0.5">
+              <span>{date}</span>
+              <span className="block text-[3.5px] text-slate-400 uppercase">Date</span>
+            </div>
+
+            <div className="w-6 h-6 rounded-full border border-dashed border-[#b08d55] flex flex-col items-center justify-center text-[3.5px] text-[#b08d55] bg-amber-50/60">
+              <span className="leading-none">MERIT</span>
+              <span className="leading-none text-[3px]">AWARD</span>
+            </div>
+
+            <div className="text-center w-12 border-t border-[#b08d55] pt-0.5">
+              <span style={{ color: primary }} className="font-serif italic font-bold">Authorized</span>
+              <span className="block text-[3.5px] text-slate-400 uppercase">Signature</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. CERTIFICATE DESIGN 3 MINI (MODERN LUXURY EMERALD) */}
+      {isD3 && (
+        <div className="w-full h-full p-2 flex flex-col justify-between bg-white text-slate-900 relative overflow-hidden border-2" style={{ borderColor: primary }}>
+          {/* Radial Glow Accents */}
+          <div className="absolute top-0 right-0 w-12 h-12 bg-gradient-to-bl from-amber-400 to-amber-200 opacity-30 rounded-bl-full pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-12 h-12 bg-gradient-to-tr from-emerald-600 to-teal-400 opacity-20 rounded-tr-full pointer-events-none" />
+
+          {/* Header */}
+          <div className="relative z-10 text-center pt-0.5">
+            <div className="flex items-center justify-center gap-1 mb-0.5">
+              <Award className="w-2.5 h-2.5" style={{ color: primary }} />
+              <span className="text-[6.5px] font-black uppercase tracking-wider truncate" style={{ color: primary }}>
+                {schoolName}
+              </span>
+            </div>
+            <div className="text-[7.5px] font-serif font-black uppercase tracking-tight text-slate-900">
+              {title || 'CERTIFICATE OF EXCELLENCE'}
+            </div>
+            <div className="w-12 h-0.5 bg-gradient-to-r from-emerald-600 to-amber-400 rounded-full mx-auto my-0.5" />
+          </div>
+
+          {/* Awardee */}
+          <div className="relative z-10 text-center my-auto">
+            <span className="text-[4px] uppercase font-bold text-slate-400 tracking-wider block">This Distinction Is Bestowed Upon</span>
+            <div className="text-[10px] font-serif font-black inline-block px-3 pb-0.5 border-b-2" style={{ color: primary, borderColor: primary }}>
+              {studentName}
+            </div>
+            <p className="text-[4.5px] text-slate-600 font-medium px-4 line-clamp-1 mt-0.5">
+              High honor for exceptional sportsmanship, energetic teamwork & dedication.
+            </p>
+          </div>
+
+          {/* Footer */}
+          <div className="relative z-10 flex justify-between items-end px-3 pb-0.5 text-[4.5px] font-bold text-slate-600">
+            <div className="text-center w-12 border-t border-slate-200 pt-0.5">
+              <span>{date}</span>
+              <span className="block text-[3.5px] text-slate-400 uppercase">Date of Issue</span>
+            </div>
+
+            <div className="flex flex-col items-center">
+              <div className="w-5 h-5 rounded-full border flex items-center justify-center shadow-xs" style={{ borderColor: primary, backgroundColor: tintLight }}>
+                <ShieldCheck className="w-3 h-3" style={{ color: primary }} />
+              </div>
+              <span className="text-[3px] font-black uppercase tracking-tighter mt-0.5" style={{ color: primary }}>Verified</span>
+            </div>
+
+            <div className="text-center w-12 border-t border-slate-200 pt-0.5">
+              <span style={{ color: primary }} className="font-serif italic font-bold">Director</span>
+              <span className="block text-[3.5px] text-slate-400 uppercase">Principal</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. CERTIFICATE DESIGN 4 MINI (CORPORATE COMPLETION) */}
+      {isD4 && (
+        <div className="w-full h-full p-2 flex flex-col justify-between bg-white text-slate-900 relative overflow-hidden border" style={{ borderColor: primary }}>
+          {/* Geometric Frames */}
+          <div className="absolute inset-1.5 border pointer-events-none" style={{ borderColor: primary }} />
+          <div className="absolute inset-2.5 border border-blue-400/40 pointer-events-none" />
+
+          {/* Header */}
+          <div className="relative z-10 text-center pt-0.5">
+            <div className="text-[6.5px] font-black uppercase tracking-wider truncate px-4" style={{ color: primary }}>
+              {schoolName}
+            </div>
+            <div className="text-[7.5px] font-serif font-black uppercase text-slate-900 tracking-wide mt-0.5">
+              {title || 'CERTIFICATE OF COMPLETION'}
+            </div>
+            <div className="w-10 h-0.5 bg-blue-500 mx-auto my-0.5" />
+          </div>
+
+          {/* Awardee */}
+          <div className="relative z-10 text-center my-auto">
+            <span className="text-[4px] uppercase font-bold text-slate-400 tracking-wider block">This Document Confirms That</span>
+            <div className="text-[10px] font-serif font-black inline-block px-3 pb-0.5 border-b" style={{ color: primary, borderColor: primary }}>
+              {studentName}
+            </div>
+            <p className="text-[4.5px] text-slate-600 font-medium px-4 line-clamp-1 mt-0.5">
+              Satisfactorily completed the prescribed academic curriculum and project goals.
+            </p>
+          </div>
+
+          {/* Footer */}
+          <div className="relative z-10 flex justify-between items-end px-3 pb-0.5 text-[4.5px] font-bold text-slate-600">
+            <div className="text-center w-12 border-t border-slate-300 pt-0.5">
+              <span>{date}</span>
+              <span className="block text-[3.5px] text-slate-400 uppercase">Issue Date</span>
+            </div>
+
+            {/* Mini Gold Seal */}
+            <div className="w-5 h-5 rounded-full bg-gradient-to-b from-amber-300 to-amber-500 border border-amber-600 shadow-2xs flex flex-col items-center justify-center p-0.5">
+              <Award className="w-2.5 h-2.5 text-amber-950" />
+            </div>
+
+            <div className="text-center w-12 border-t border-slate-300 pt-0.5">
+              <span style={{ color: primary }} className="font-serif italic font-bold">Academic Dean</span>
+              <span className="block text-[3.5px] text-slate-400 uppercase">Signature</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+

@@ -1,10 +1,25 @@
 'use client'
 
 import React from 'react'
-import { Award, CheckCircle2, ShieldCheck, QrCode, Sparkles, School, Star, BookOpen, Heart, Activity, Palette, Compass, Trophy } from 'lucide-react'
+import { Award, CheckCircle2, ShieldCheck, QrCode, Sparkles, School, Star, BookOpen, Heart, Activity, Palette, Compass, Trophy, User, Check } from 'lucide-react'
+
+// Helper: convert hex to rgba
+export function hexToRgba(hex: string, alpha: number): string {
+  let c = (hex || '#065f46').replace('#', '')
+  if (c.length === 3) {
+    c = c.split('').map(x => x + x).join('')
+  }
+  const num = parseInt(c, 16)
+  if (isNaN(num)) return `rgba(6, 95, 70, ${alpha})`
+  const r = (num >> 16) & 255
+  const g = (num >> 8) & 255
+  const b = num & 255
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
 
 export interface MarksheetPreviewProps {
   templateName?: string
+  themeColor?: string
   schoolName?: string
   affiliateTo?: string
   schoolAddress?: string
@@ -46,6 +61,7 @@ export interface MarksheetPreviewProps {
 
 export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
   templateName = 'CBSE Royal Emerald',
+  themeColor,
   schoolName = 'COSMOPOLITAN INTER COLLEGE',
   affiliateTo = 'Affiliated to CBSE, New Delhi • Affiliation No. 2130842',
   schoolAddress = 'Knowledge Park, Sector 62, New Delhi - 110092',
@@ -121,16 +137,23 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
   // Default is CBSE Royal Emerald
   const isCbseRoyal = !isMinimalModern && !isDualTerm && !isHolisticSkills
 
+  // Color derivation
+  const defaultBaseColor = isMinimalModern ? '#0f766e' : isDualTerm ? '#660033' : isHolisticSkills ? '#0284c7' : '#065f46'
+  const primary = themeColor || defaultBaseColor
+  const tintLight = hexToRgba(primary, 0.08)
+  const tintMed = hexToRgba(primary, 0.16)
+  const borderTint = hexToRgba(primary, 0.3)
+
   // =========================================================================
   // TEMPLATE 2: MINIMALIST MODERN (CANVA / PINTEREST STYLE - TEAL & SLATE)
   // =========================================================================
   if (isMinimalModern) {
     return (
-      <div className="w-full max-w-[780px] bg-white text-slate-800 rounded-3xl shadow-2xl p-7 md:p-9 font-sans border border-slate-100 select-none">
+      <div className="w-full max-w-[780px] bg-white text-slate-800 rounded-3xl shadow-2xl p-7 md:p-9 font-sans border select-none" style={{ borderColor: borderTint }}>
         {/* Header */}
         <div className="flex flex-col items-center text-center pb-6 border-b border-slate-100">
-          <div className="flex items-center gap-2.5 text-teal-700 font-black text-lg md:text-xl tracking-tight uppercase">
-            <School className="w-7 h-7 text-teal-600" />
+          <div className="flex items-center gap-2.5 font-black text-lg md:text-xl tracking-tight uppercase" style={{ color: primary }}>
+            <School className="w-7 h-7" style={{ color: primary }} />
             <span>{schoolName}</span>
           </div>
           <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
@@ -604,18 +627,18 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
   // TEMPLATE 1: CBSE ROYAL EMERALD & GOLD (OFFICIAL BOARD FORMAT) - DEFAULT
   // =========================================================================
   return (
-    <div className="w-full max-w-[800px] bg-white text-slate-900 rounded-sm shadow-2xl p-7 md:p-9 font-sans border-8 border-[#065f46] select-none">
+    <div className="w-full max-w-[800px] bg-white text-slate-900 rounded-sm shadow-2xl p-7 md:p-9 font-sans border-8 select-none" style={{ borderColor: primary }}>
       <div className="border-2 border-[#b45309]/40 p-5 md:p-7 relative bg-white">
         
         {/* Heraldic Header */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 pb-5 border-b-2 border-[#065f46]">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 pb-5 border-b-2" style={{ borderColor: primary }}>
           {/* School Emblem / Logo */}
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-[#065f46] text-amber-400 border-2 border-amber-400 flex items-center justify-center shadow-md shrink-0">
+            <div className="w-16 h-16 rounded-full text-amber-400 border-2 border-amber-400 flex items-center justify-center shadow-md shrink-0" style={{ backgroundColor: primary }}>
               <School className="w-9 h-9" />
             </div>
             <div>
-              <h1 className="text-xl md:text-2xl font-black uppercase text-[#065f46] tracking-tight">
+              <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight" style={{ color: primary }}>
                 {schoolName}
               </h1>
               <p className="text-[11px] font-bold text-amber-800 mt-0.5">
@@ -774,7 +797,7 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
         </div>
 
         {/* Official Signatures & Seal */}
-        <div className="pt-6 mt-4 border-t-2 border-[#065f46] flex flex-col sm:flex-row items-end justify-between gap-6 text-center text-xs">
+        <div className="pt-6 mt-4 border-t-2 border-[#065f46] flex flex-col sm:flex-row items-end justify-between gap-6 text-center text-xs" style={{ borderColor: primary }}>
           <div>
             <div className="w-36 border-b border-slate-400 mb-1 pb-1 text-[11px] font-cursive italic text-slate-600">
               Preeti Saxena
@@ -784,7 +807,7 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
 
           {showHeaderStamp && (
             <div className="flex flex-col items-center select-none">
-              <div className="w-16 h-16 rounded-full border-2 border-dashed border-[#065f46] text-[#065f46] flex flex-col items-center justify-center p-1 text-[7.5px] font-black uppercase text-center shadow-xs">
+              <div className="w-16 h-16 rounded-full border-2 border-dashed flex flex-col items-center justify-center p-1 text-[7.5px] font-black uppercase text-center shadow-xs" style={{ borderColor: primary, color: primary }}>
                 <Award className="w-4 h-4 mb-0.5 text-amber-600" />
                 <span>OFFICIAL</span>
                 <span>SEAL</span>
@@ -805,3 +828,320 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
     </div>
   )
 }
+
+export interface MarksheetMiniPreviewProps {
+  template: 'CBSE Royal Emerald' | 'Minimalist Modern' | 'Dual-Term Consolidated' | 'Holistic Early Skills' | string
+  themeColor?: string
+  schoolName?: string
+  studentName?: string
+  className?: string
+  rollNo?: string
+  examName?: string
+  academicYear?: string
+  isSelected?: boolean
+}
+
+export const MarksheetMiniPreview: React.FC<MarksheetMiniPreviewProps> = ({
+  template,
+  themeColor,
+  schoolName = 'COSMOPOLITAN INTER COLLEGE',
+  studentName = 'Rahul Verma',
+  className: studentClass = 'Class 10',
+  rollNo = '23',
+  examName = 'Annual Exam 2025-26',
+  academicYear = '2025-26',
+  isSelected = false
+}) => {
+  const normalized = (template || 'CBSE Royal Emerald').toLowerCase()
+  const isMinimalModern = normalized.includes('minimal') || normalized.includes('modern') || normalized.includes('canva')
+  const isDualTerm = normalized.includes('dual') || normalized.includes('term') || normalized.includes('icse') || normalized.includes('consolidated') || normalized.includes('maroon') || normalized.includes('scholastic')
+  const isHolisticSkills = normalized.includes('holistic') || normalized.includes('skills') || normalized.includes('early') || normalized.includes('kindergarten') || normalized.includes('primary') || normalized.includes('grid') || normalized.includes('indigo')
+  
+  const defaultBaseColor = isMinimalModern ? '#0f766e' : isDualTerm ? '#660033' : isHolisticSkills ? '#0284c7' : '#065f46'
+  const primary = themeColor || defaultBaseColor
+  const tintLight = hexToRgba(primary, 0.08)
+  const tintMed = hexToRgba(primary, 0.16)
+  const borderTint = hexToRgba(primary, 0.3)
+
+  return (
+    <div
+      className={`w-full h-36 rounded-xl overflow-hidden bg-white dark:bg-slate-900 border transition-all duration-300 relative flex flex-col justify-between text-slate-800 dark:text-slate-100 select-none ${
+        isSelected
+          ? 'shadow-md ring-2 ring-teal-500/50 scale-[1.01]'
+          : 'shadow-2xs hover:shadow-xs'
+      }`}
+      style={{
+        borderColor: isSelected ? primary : borderTint
+      }}
+    >
+      {/* 1. CBSE ROYAL EMERALD MINI PREVIEW */}
+      {!isMinimalModern && !isDualTerm && !isHolisticSkills && (
+        <div
+          className="w-full h-full p-2 flex flex-col justify-between bg-white text-slate-900"
+          style={{ border: `2.5px double ${primary}` }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between border-b pb-1" style={{ borderColor: borderTint }}>
+            <div className="flex items-center gap-1.5">
+              <div
+                className="w-5 h-5 rounded-full border flex items-center justify-center text-[5.5px] font-black shrink-0 text-white"
+                style={{ backgroundColor: primary, borderColor: '#b45309' }}
+              >
+                <School className="w-3 h-3 text-amber-300" />
+              </div>
+              <div>
+                <div className="text-[7.5px] font-black leading-tight uppercase truncate max-w-[120px]" style={{ color: primary }}>
+                  {schoolName}
+                </div>
+                <div className="text-[5px] text-amber-800 font-bold leading-none">Affiliated to CBSE • Code: 123456</div>
+              </div>
+            </div>
+            <span className="text-[5px] font-black uppercase px-1 py-0.5 rounded text-white" style={{ backgroundColor: primary }}>
+              CBSE BOARD
+            </span>
+          </div>
+
+          {/* Golden Ribbon Title */}
+          <div
+            className="w-full text-center py-0.5 rounded text-[5.5px] font-black uppercase text-white shadow-2xs my-0.5"
+            style={{ backgroundColor: primary }}
+          >
+            ANNUAL PROGRESS REPORT CARD • {academicYear}
+          </div>
+
+          {/* Student Info & Photo */}
+          <div className="flex gap-1.5 items-center my-0.5">
+            <div className="flex-1 grid grid-cols-2 gap-x-1 gap-y-0.5 text-[5.5px] bg-slate-50/80 p-1 rounded border" style={{ borderColor: borderTint }}>
+              <div><span className="text-slate-400 font-bold">NAME: </span><span className="font-black" style={{ color: primary }}>{studentName}</span></div>
+              <div><span className="text-slate-400 font-bold">ROLL: </span><span className="font-black text-slate-900">{rollNo}</span></div>
+              <div><span className="text-slate-400 font-bold">CLASS: </span><span className="font-bold text-slate-800">{studentClass}</span></div>
+              <div><span className="text-slate-400 font-bold">ATTN: </span><span className="font-bold text-emerald-700">96.4%</span></div>
+            </div>
+
+            <div className="w-6 h-7 rounded border flex flex-col items-center justify-center bg-slate-50 shrink-0" style={{ borderColor: primary }}>
+              <User className="w-3 h-3 text-slate-400" />
+              <span className="text-[3.5px] font-bold text-slate-400 leading-none">PHOTO</span>
+            </div>
+          </div>
+
+          {/* Mini Scholastic Table */}
+          <div className="border rounded overflow-hidden" style={{ borderColor: borderTint }}>
+            <div className="flex text-[5px] font-black text-white px-1 py-0.5 justify-between" style={{ backgroundColor: primary }}>
+              <span className="w-14">Subject</span>
+              <span className="w-8 text-center">Marks</span>
+              <span className="w-6 text-right">Grade</span>
+            </div>
+            <div className="flex text-[5px] font-semibold text-slate-700 px-1 py-0.5 justify-between border-b" style={{ borderColor: borderTint, backgroundColor: tintLight }}>
+              <span className="w-14 font-bold text-slate-900">English Comm.</span>
+              <span className="w-8 text-center font-mono font-bold">92 / 100</span>
+              <span className="w-6 text-right font-black" style={{ color: primary }}>A1</span>
+            </div>
+            <div className="flex text-[5px] font-semibold text-slate-700 px-1 py-0.5 justify-between">
+              <span className="w-14 font-bold text-slate-900">Mathematics</span>
+              <span className="w-8 text-center font-mono font-bold">95 / 100</span>
+              <span className="w-6 text-right font-black" style={{ color: primary }}>A1</span>
+            </div>
+          </div>
+
+          {/* Signatures & Seal */}
+          <div className="flex justify-between items-center pt-0.5 text-[4.5px] font-black uppercase text-slate-500 border-t" style={{ borderColor: borderTint }}>
+            <span>Class Teacher</span>
+            <span className="px-1 py-0.2 rounded border font-serif" style={{ borderColor: primary, color: primary }}>SEAL ★</span>
+            <span>Principal Sign</span>
+          </div>
+        </div>
+      )}
+
+      {/* 2. MINIMALIST MODERN MINI PREVIEW */}
+      {isMinimalModern && (
+        <div className="w-full h-full p-2 flex flex-col justify-between bg-white text-slate-900 border" style={{ borderColor: primary }}>
+          {/* Header */}
+          <div className="flex items-center justify-between border-b pb-1" style={{ borderColor: borderTint }}>
+            <div>
+              <div className="text-[7.5px] font-black uppercase leading-tight truncate max-w-[120px]" style={{ color: primary }}>
+                {schoolName}
+              </div>
+              <div className="text-[5px] text-slate-400 font-semibold">{examName}</div>
+            </div>
+            <span className="text-[4.5px] font-black uppercase px-1.5 py-0.5 rounded-full text-white shadow-2xs" style={{ backgroundColor: primary }}>
+              REPORT CARD
+            </span>
+          </div>
+
+          {/* KPI Badges & Profile Row */}
+          <div className="grid grid-cols-3 gap-1 my-0.5">
+            <div className="p-1 rounded border text-center flex flex-col justify-center" style={{ backgroundColor: tintLight, borderColor: borderTint }}>
+              <span className="text-[4px] font-bold text-slate-400 uppercase">SCORE</span>
+              <span className="text-[8px] font-black leading-none" style={{ color: primary }}>94.2%</span>
+            </div>
+            <div className="p-1 rounded border text-center flex flex-col justify-center" style={{ backgroundColor: tintLight, borderColor: borderTint }}>
+              <span className="text-[4px] font-bold text-slate-400 uppercase">GRADE</span>
+              <span className="text-[8px] font-black leading-none text-emerald-600">A+</span>
+            </div>
+            <div className="p-1 rounded border text-center flex flex-col justify-center" style={{ backgroundColor: tintLight, borderColor: borderTint }}>
+              <span className="text-[4px] font-bold text-slate-400 uppercase">ATTEND</span>
+              <span className="text-[8px] font-black leading-none text-slate-800">96%</span>
+            </div>
+          </div>
+
+          {/* Candidate Line */}
+          <div className="flex justify-between items-center text-[5.5px] px-1 py-0.5 bg-slate-50 rounded border" style={{ borderColor: borderTint }}>
+            <span><strong style={{ color: primary }}>{studentName}</strong> • {studentClass}</span>
+            <span className="text-slate-400 font-mono">Roll: #{rollNo}</span>
+          </div>
+
+          {/* Progress Bars Mini Table */}
+          <div className="space-y-1 my-0.5">
+            <div>
+              <div className="flex justify-between text-[5px] font-bold text-slate-700">
+                <span>English Language</span>
+                <span>92%</span>
+              </div>
+              <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-full rounded-full" style={{ width: '92%', backgroundColor: primary }} />
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-[5px] font-bold text-slate-700">
+                <span>Mathematics</span>
+                <span>96%</span>
+              </div>
+              <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-full rounded-full" style={{ width: '96%', backgroundColor: primary }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Modern Footer */}
+          <div className="flex justify-between items-center text-[4.5px] font-bold text-slate-500 pt-0.5 border-t" style={{ borderColor: borderTint }}>
+            <span className="italic">"Outstanding Progress"</span>
+            <span style={{ color: primary }} className="font-black">Teacher & Principal Verified ✓</span>
+          </div>
+        </div>
+      )}
+
+      {/* 3. DUAL-TERM CONSOLIDATED MINI PREVIEW */}
+      {isDualTerm && (
+        <div
+          className="w-full h-full p-1.5 flex flex-col justify-between bg-[#fffdfa] text-slate-900 border-2"
+          style={{ borderColor: primary }}
+        >
+          {/* Header */}
+          <div className="text-center border-b pb-0.5" style={{ borderColor: borderTint }}>
+            <div className="text-[7.5px] font-serif font-black uppercase tracking-wide truncate" style={{ color: primary }}>
+              {schoolName}
+            </div>
+            <div className="text-[5px] text-white font-sans font-black uppercase px-2 py-0.2 rounded-xs inline-block my-0.5" style={{ backgroundColor: primary }}>
+              CONSOLIDATED MARK SHEET • TERM I & II
+            </div>
+          </div>
+
+          {/* Student Info Bar */}
+          <div className="flex justify-between items-center text-[5px] px-1 py-0.5 border-y font-sans" style={{ borderColor: borderTint, backgroundColor: tintLight }}>
+            <span><strong>{studentName}</strong> ({studentClass})</span>
+            <span>Roll: <strong>{rollNo}</strong></span>
+            <span className="font-black" style={{ color: primary }}>RANK #3</span>
+          </div>
+
+          {/* Dual-Term Comparison Table */}
+          <div className="border rounded-xs overflow-hidden text-[4.5px] font-sans" style={{ borderColor: borderTint }}>
+            <div className="flex justify-between text-white font-black px-1 py-0.5" style={{ backgroundColor: primary }}>
+              <span className="w-16">Subject</span>
+              <span className="w-8 text-center">Term I</span>
+              <span className="w-8 text-center">Term II</span>
+              <span className="w-8 text-right">Total</span>
+            </div>
+            <div className="flex justify-between px-1 py-0.5 border-b font-medium text-slate-800" style={{ borderColor: borderTint }}>
+              <span className="w-16 font-bold truncate">English Core</span>
+              <span className="w-8 text-center font-mono">90</span>
+              <span className="w-8 text-center font-mono">94</span>
+              <span className="w-8 text-right font-black" style={{ color: primary }}>184 / 200</span>
+            </div>
+            <div className="flex justify-between px-1 py-0.5 font-medium text-slate-800 bg-slate-50/50">
+              <span className="w-16 font-bold truncate">Mathematics</span>
+              <span className="w-8 text-center font-mono">93</span>
+              <span className="w-8 text-center font-mono">95</span>
+              <span className="w-8 text-right font-black" style={{ color: primary }}>188 / 200</span>
+            </div>
+          </div>
+
+          {/* Result Banner & 4 Signatures */}
+          <div>
+            <div className="text-[5px] font-black uppercase text-center text-white py-0.5 rounded-xs mb-0.5" style={{ backgroundColor: primary }}>
+              RESULT: PASSED (1ST DIVISION WITH DISTINCTION)
+            </div>
+            <div className="flex justify-between text-[4px] font-bold text-slate-500 pt-0.5 border-t" style={{ borderColor: borderTint }}>
+              <span>Parent</span>
+              <span>Teacher</span>
+              <span>In-Charge</span>
+              <span>Principal</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. HOLISTIC EARLY SKILLS MINI PREVIEW */}
+      {isHolisticSkills && (
+        <div
+          className="w-full h-full p-1.5 flex flex-col justify-between bg-gradient-to-b from-sky-50/80 via-white to-amber-50/60 text-slate-800 rounded-lg border-2"
+          style={{ borderColor: primary }}
+        >
+          {/* Header */}
+          <div className="text-center border-b pb-0.5" style={{ borderColor: borderTint }}>
+            <div className="flex items-center justify-center gap-1">
+              <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-500" />
+              <span className="text-[7.5px] font-black uppercase tracking-tight" style={{ color: primary }}>
+                {schoolName}
+              </span>
+              <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-500" />
+            </div>
+            <div className="text-[5px] font-bold text-slate-500 uppercase">
+              HOLISTIC SKILLS & DEVELOPMENT PROGRESS
+            </div>
+          </div>
+
+          {/* Child Ribbon */}
+          <div className="flex items-center gap-1 bg-white p-1 rounded-md border border-dashed shadow-2xs" style={{ borderColor: borderTint }}>
+            <div className="w-5 h-5 rounded-full border flex items-center justify-center bg-amber-50 shrink-0" style={{ borderColor: primary }}>
+              <User className="w-3 h-3 text-slate-500" />
+            </div>
+            <div className="flex-1 text-[5.5px] leading-tight">
+              <div className="font-black" style={{ color: primary }}>{studentName}</div>
+              <div className="text-slate-500 font-semibold">{studentClass} • Kindergarten Section</div>
+            </div>
+            <span className="text-[4.5px] font-black uppercase px-1 py-0.5 rounded bg-emerald-100 text-emerald-800">
+              EXCELLING ★
+            </span>
+          </div>
+
+          {/* 4 Domains Assessment */}
+          <div className="grid grid-cols-2 gap-1 text-[5px]">
+            <div className="p-0.5 rounded bg-white border flex justify-between items-center" style={{ borderColor: borderTint }}>
+              <span className="font-bold text-slate-700 truncate">Cognitive & Logic</span>
+              <span className="text-amber-500 font-bold shrink-0">★★★★★</span>
+            </div>
+            <div className="p-0.5 rounded bg-white border flex justify-between items-center" style={{ borderColor: borderTint }}>
+              <span className="font-bold text-slate-700 truncate">Language & Literacy</span>
+              <span className="text-amber-500 font-bold shrink-0">★★★★★</span>
+            </div>
+            <div className="p-0.5 rounded bg-white border flex justify-between items-center" style={{ borderColor: borderTint }}>
+              <span className="font-bold text-slate-700 truncate">Creative Expression</span>
+              <span className="text-amber-500 font-bold shrink-0">★★★★☆</span>
+            </div>
+            <div className="p-0.5 rounded bg-white border flex justify-between items-center" style={{ borderColor: borderTint }}>
+              <span className="font-bold text-slate-700 truncate">Social & Emotional</span>
+              <span className="text-amber-500 font-bold shrink-0">★★★★★</span>
+            </div>
+          </div>
+
+          {/* Teacher Smiley Footer */}
+          <div className="flex justify-between items-center text-[4.5px] font-bold text-slate-600 pt-0.5 border-t" style={{ borderColor: borderTint }}>
+            <span className="text-amber-600">🌟 Teacher: "Inquisitive & joyful learner!"</span>
+            <span className="font-black" style={{ color: primary }}>Class Teacher & Principal</span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+

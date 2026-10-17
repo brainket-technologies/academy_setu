@@ -7,7 +7,7 @@ import {
   Search, Plus, Pencil, Trash2, X, AlertTriangle, Eye, Printer,
   Sparkles, RefreshCw, BookOpen, Layers, Check, CheckCircle2, ShieldCheck,
   FileText, LayoutTemplate, School, Calendar, ChevronRight, FileCheck,
-  QrCode, Clock, ArrowRight, ToggleLeft, ToggleRight, CheckSquare, List, Award
+  QrCode, Clock, ArrowRight, ToggleLeft, ToggleRight, CheckSquare, List, Award, Palette
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -18,8 +18,8 @@ import {
   saveExamGroup,
   ExamMarksheetSetupRecord
 } from '@/app/institute/exam-marksheet/setup/actions'
-import { MarksheetPreview } from '@/components/marksheets/MarksheetPreview'
-import { AdmitCardModalPreview } from '@/components/admit-card/AdmitCardModalPreview'
+import { MarksheetPreview, MarksheetMiniPreview } from '@/components/marksheets/MarksheetPreview'
+import { AdmitCardModalPreview, AdmitCardMiniPreview } from '@/components/admit-card/AdmitCardModalPreview'
 import { getInstituteAddedClasses, MasterClassWithSections } from '@/lib/institute-classes'
 import {
   AdmitCardConfig,
@@ -27,6 +27,7 @@ import {
   getStoredAdmitCards,
   saveStoredAdmitCards,
   getStoredTimetables,
+  saveStoredTimetables,
   generateAdmitCardAndTimetableForSetup,
   syncAllSetupsWithAdmitCards
 } from '@/lib/admit-card-sync'
@@ -99,7 +100,8 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
   }
 
   const [formSubjects, setFormSubjects] = useState<ModalSubject[]>([])
-  const [formAdmitTemplateStyle, setFormAdmitTemplateStyle] = useState('Classic Navy')
+  const [formAdmitTemplateStyle, setFormAdmitTemplateStyle] = useState('Classic Board')
+  const [formAdmitThemeColor, setFormAdmitThemeColor] = useState('#1e3a8a')
   const [availableMasterSubjects] = useState<string[]>([
     'Mathematics', 'English Core', 'General Science', 'Social Science', 'Hindi / Regional',
     'Physics', 'Chemistry', 'Biology', 'Computer Science', 'General Knowledge', 'Economics'
@@ -168,13 +170,20 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
     await loadGroups()
     const loadedSetups = await loadSetups()
 
-    // Load Admit Cards & Timetables from local storage
+    // Auto-sync or clean up orphaned admit cards if setups are empty
     const storedCards = getStoredAdmitCards()
-    setAdmitCards(storedCards)
-    setTimetables(getStoredTimetables())
+    if (!loadedSetups || loadedSetups.length === 0) {
+      setAdmitCards([])
+      saveStoredAdmitCards([])
+      setTimetables([])
+      saveStoredTimetables([])
+    } else {
+      const validSetupIds = new Set(loadedSetups.map(s => s.id))
+      const cleanedCards = storedCards.filter(c => !c.setupId || validSetupIds.has(c.setupId))
+      setAdmitCards(cleanedCards)
+      saveStoredAdmitCards(cleanedCards)
+      setTimetables(getStoredTimetables())
 
-    // Auto-sync if there are setups without admit cards
-    if (loadedSetups && loadedSetups.length > 0) {
       const { createdCount, admitCards: syncedCards } = syncAllSetupsWithAdmitCards(loadedSetups)
       if (createdCount > 0) {
         setAdmitCards(syncedCards)
@@ -249,7 +258,8 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
     setFormSections([...firstSecs])
     setFormMarksGrade('Percentage')
     setFormTemplateName('CBSE Royal Emerald')
-    setFormAdmitTemplateStyle('Classic Navy')
+    setFormAdmitTemplateStyle('Classic Board')
+    setFormAdmitThemeColor('#1e3a8a')
     setFormSession('2025-2026')
     setFormExamDate(today)
     setAutoGenerateAdmitCard(true)
@@ -283,7 +293,8 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
     setFormSections(existingSecs)
     setFormMarksGrade(setup.marksGrade || 'Percentage')
     setFormTemplateName(setup.templateName || 'CBSE Royal Emerald')
-    setFormAdmitTemplateStyle(setup.config?.admitTemplateStyle || setup.config?.admitCardSettings?.templateStyle || 'Classic Navy')
+    setFormAdmitTemplateStyle(setup.config?.admitTemplateStyle || setup.config?.admitCardSettings?.templateStyle || 'Classic Board')
+    setFormAdmitThemeColor(setup.config?.admitThemeColor || setup.config?.admitCardSettings?.themeColor || '#1e3a8a')
     setFormSession(setup.session || '2025-2026')
     setFormExamDate(setup.examDate || new Date().toISOString().split('T')[0])
     setAutoGenerateAdmitCard(true)
@@ -405,6 +416,12 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
         subjects: formSubjects,
         templateName: formTemplateName,
         admitTemplateStyle: formAdmitTemplateStyle,
+        admitThemeColor: formAdmitThemeColor,
+        admitCardSettings: {
+          admitLabel: formAdmitCardLabel,
+          templateStyle: formAdmitTemplateStyle,
+          themeColor: formAdmitThemeColor,
+        },
         schoolDetails: editingSetup?.config?.schoolDetails || {
           schoolName: 'COSMOPOLITAN INTER COLLEGE',
           affiliateTo: 'CBSE Affiliated, New Delhi',
@@ -607,116 +624,202 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
       `}</style>
 
       {/* Top Header Card */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-teal-600 dark:text-teal-400 mb-1">
-            <School className="w-3.5 h-3.5" />
-            <span>Institute Portal</span>
-            <ChevronRight className="w-3 h-3 text-slate-400" />
-            <span>Examination & Hall Tickets</span>
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-7 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-teal-500/5 via-emerald-500/5 to-transparent rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 text-xs font-bold text-teal-600 dark:text-teal-400 mb-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 dark:bg-teal-950/60 border border-teal-200/60 dark:border-teal-800/60">
+              <School className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+              <span>Institute Portal</span>
+            </span>
+            <ChevronRight className="w-3 h-3 text-slate-300 dark:text-slate-600" />
+            <span className="text-slate-500 dark:text-slate-400 font-semibold">Examination & Hall Tickets</span>
           </div>
-          <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2.5">
-            <Layers className="w-7 h-7 text-teal-600" />
-            Exam Marksheet & Admit Card Setup
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            2-in-1 real-time synchronized management for examinations, marksheets, and admit cards • Customize content according to your institute requirements
+
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-3 tracking-tight">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white flex items-center justify-center shadow-md shadow-teal-500/20 shrink-0">
+                <Layers className="w-5 h-5" />
+              </div>
+              <span>Exam Marksheet & Admit Card Setup</span>
+            </h1>
+            <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+              ⚡ Real-time Sync Active
+            </span>
+          </div>
+
+          <p className="text-xs sm:text-[13px] text-slate-500 dark:text-slate-400 mt-2 max-w-3xl leading-relaxed">
+            Unified examination management workspace. Configure class timetables, printable marksheets, QR-verified hall tickets, and student certificates in real-time synchronization.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5 relative z-10 shrink-0">
           <button
+            type="button"
             onClick={handleSyncAllAdmitCards}
-            className="px-4 py-2.5 rounded-xl border border-teal-200 dark:border-teal-800 bg-teal-50/70 dark:bg-teal-950/40 hover:bg-teal-100 text-teal-700 dark:text-teal-300 text-xs font-bold transition-all flex items-center gap-2 shadow-xs"
-            title="Ensure every Exam Setup has an Admit Card generated"
+            className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all flex items-center gap-2 shadow-2xs"
+            title="Synchronize Hall Tickets & Schedules for all active setups"
           >
-            <Sparkles className="w-3.5 h-3.5 text-teal-600 animate-pulse" />
-            ⚡ Simultaneous Sync
+            <Sparkles className="w-4 h-4 text-teal-600 animate-pulse" />
+            <span>Simultaneous Sync</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleOpenAdd}
+            className="px-3.5 py-2.5 rounded-xl border border-teal-200 dark:border-teal-800/80 bg-teal-50 hover:bg-teal-100 text-teal-800 dark:bg-teal-950/40 dark:text-teal-300 text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs"
+            title="Fast single-class exam setup modal"
+          >
+            <Plus className="w-3.5 h-3.5 text-teal-600" />
+            <span>Quick Class Setup</span>
           </button>
 
           <Link
             href="/institute/exam-marksheet/setup/create"
-            className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black transition-all flex items-center gap-2 shadow-sm"
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white text-xs font-black transition-all flex items-center gap-2 shadow-md shadow-teal-600/25 active:scale-[0.98]"
           >
             <Plus className="w-4 h-4" />
-            + Create Exam Setup (Wizard)
+            <span>Create Exam Setup (Wizard)</span>
           </Link>
         </div>
       </div>
 
       {/* Synchronized Metrics Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-2xl shadow-xs">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Exam Marksheets</span>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-black text-slate-800 dark:text-slate-100">{setups.length}</span>
-            <span className="text-[10px] text-teal-600 font-bold">in PostgreSQL</span>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Metric 1 */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 rounded-2xl shadow-2xs hover:shadow-xs transition-all relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              Exam Marksheets
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <FileText className="w-4 h-4" />
+            </div>
           </div>
+          <div className="flex items-baseline gap-2 mt-2">
+            <span className="text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tight">
+              {setups.length}
+            </span>
+            <span className="text-[11px] text-teal-600 dark:text-teal-400 font-bold">
+              Configured Exams
+            </span>
+          </div>
+          <p className="text-[10.5px] text-slate-400 mt-1">
+            Official marksheet formats & grading criteria
+          </p>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-2xl shadow-xs">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Admit Cards Ready</span>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-black text-emerald-600">{admitCards.length}</span>
-            <span className="text-[10px] text-emerald-600 font-bold">synchronized</span>
+        {/* Metric 2 */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 rounded-2xl shadow-2xs hover:shadow-xs transition-all relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              Admit Cards Ready
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <FileCheck className="w-4 h-4" />
+            </div>
           </div>
+          <div className="flex items-baseline gap-2 mt-2">
+            <span className="text-3xl font-black text-emerald-600 tracking-tight">
+              {admitCards.length}
+            </span>
+            <span className="text-[11px] text-emerald-600 font-bold">
+              Synchronized
+            </span>
+          </div>
+          <p className="text-[10.5px] text-slate-400 mt-1">
+            Printable student hall tickets with QR verification
+          </p>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-2xl shadow-xs">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Active Classes</span>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-black text-blue-600">{uniqueClasses.length}</span>
-            <span className="text-[10px] text-slate-400 font-medium">master classes</span>
+        {/* Metric 3 */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 rounded-2xl shadow-2xs hover:shadow-xs transition-all relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              Enrolled Classes
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <School className="w-4 h-4" />
+            </div>
           </div>
+          <div className="flex items-baseline gap-2 mt-2">
+            <span className="text-3xl font-black text-blue-600 tracking-tight">
+              {uniqueClasses.length}
+            </span>
+            <span className="text-[11px] text-blue-600 font-bold">
+              Master Classes
+            </span>
+          </div>
+          <p className="text-[10.5px] text-slate-400 mt-1">
+            Configured sections & subject groups
+          </p>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-2xl shadow-xs">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Exam Timetables</span>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-black text-purple-600">{timetables.length}</span>
-            <span className="text-[10px] text-purple-600 font-medium">schedules active</span>
+        {/* Metric 4 */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 rounded-2xl shadow-2xs hover:shadow-xs transition-all relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              Exam Timetables
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Calendar className="w-4 h-4" />
+            </div>
           </div>
+          <div className="flex items-baseline gap-2 mt-2">
+            <span className="text-3xl font-black text-purple-600 tracking-tight">
+              {timetables.length}
+            </span>
+            <span className="text-[11px] text-purple-600 font-bold">
+              Active Schedules
+            </span>
+          </div>
+          <p className="text-[10.5px] text-slate-400 mt-1">
+            Subject dates, shifts & duration slots
+          </p>
         </div>
       </div>
 
       {/* ============================================================== */}
       {/* UNIFIED TAB NAVIGATION (SIMULTANEOUS WORKSPACE)                 */}
       {/* ============================================================== */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-2">
-        <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-fit">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <div className="flex items-center gap-1.5 p-1.5 bg-slate-100 dark:bg-slate-800/90 rounded-2xl w-fit border border-slate-200/60 dark:border-slate-700/60 shadow-2xs">
           <button
+            type="button"
             onClick={() => setActiveTab('marksheet')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all ${
+            className={`flex items-center gap-2.5 px-5 py-2 rounded-xl text-xs font-black transition-all ${
               activeTab === 'marksheet'
                 ? 'bg-white dark:bg-slate-900 text-teal-700 dark:text-teal-400 shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
             }`}
           >
             <FileText className="w-4 h-4" />
             <span>1. Exam & Marksheet Setup</span>
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
               activeTab === 'marksheet'
-                ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200'
-                : 'bg-slate-200 dark:bg-slate-700 text-slate-600'
+                ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800'
+                : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
             }`}>
               {setups.length}
             </span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab('admit-card')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all ${
+            className={`flex items-center gap-2.5 px-5 py-2 rounded-xl text-xs font-black transition-all ${
               activeTab === 'admit-card'
                 ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
             }`}
           >
             <FileCheck className="w-4 h-4" />
             <span>2. Admit Cards & Timetables</span>
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
               activeTab === 'admit-card'
-                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200'
-                : 'bg-slate-200 dark:bg-slate-700 text-slate-600'
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
             }`}>
               {admitCards.length}
             </span>
@@ -724,9 +827,11 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
         </div>
 
         {/* Simultaneous Status Indicator */}
-        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 px-3 py-1.5 rounded-xl w-fit">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-          <span className="text-emerald-700 dark:text-emerald-300">Simultaneous Mode: Marksheets & Admit Cards work in real-time sync</span>
+        <div className="flex items-center gap-2 text-xs font-bold bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800 px-3.5 py-2 rounded-xl w-fit shadow-2xs">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-emerald-800 dark:text-emerald-300 font-bold">
+            Simultaneous Sync Mode: Marksheets & Admit Cards work in real-time
+          </span>
         </div>
       </div>
 
@@ -734,11 +839,11 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
       {/* TAB 1: EXAM & MARKSHEET SETUP TABLE (WITH ADMIT CARD ACTIONS)   */}
       {/* ============================================================== */}
       {activeTab === 'marksheet' && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-sm animate-in fade-in duration-200">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6 animate-in fade-in duration-200">
           
           {/* Filter Bar */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-            <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 pb-2">
+            <div className="flex flex-wrap items-center gap-2.5">
               {/* Search */}
               <div className="relative min-w-[240px]">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -747,7 +852,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="Search exam, class, group..."
-                  className="pl-9 pr-4 py-2 w-full border border-slate-200 dark:border-slate-700 rounded-xl text-xs bg-slate-50/70 dark:bg-slate-800/70 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
+                  className="pl-9 pr-8 py-2 w-full border border-slate-200 dark:border-slate-700 rounded-xl text-xs bg-slate-50/70 dark:bg-slate-800/70 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-medium"
                 />
                 {searchQuery && (
                   <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -760,7 +865,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
               <select
                 value={selectedGroup}
                 onChange={e => setSelectedGroup(e.target.value)}
-                className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-teal-500"
+                className="px-3 py-2 bg-slate-50/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-teal-500 transition-all cursor-pointer"
               >
                 <option value="ALL">All Groups</option>
                 {uniqueGroups.map(g => (
@@ -772,7 +877,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
               <select
                 value={selectedClass}
                 onChange={e => setSelectedClass(e.target.value)}
-                className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-teal-500"
+                className="px-3 py-2 bg-slate-50/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-teal-500 transition-all cursor-pointer"
               >
                 <option value="ALL">All Classes</option>
                 {uniqueClasses.map(c => (
@@ -784,7 +889,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
               <select
                 value={selectedTemplate}
                 onChange={e => setSelectedTemplate(e.target.value)}
-                className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-teal-500"
+                className="px-3 py-2 bg-slate-50/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-teal-500 transition-all cursor-pointer"
               >
                 <option value="ALL">All Templates</option>
                 {uniqueTemplates.map(t => (
@@ -794,79 +899,149 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
 
               {(selectedGroup !== 'ALL' || selectedClass !== 'ALL' || selectedTemplate !== 'ALL' || searchQuery) && (
                 <button
+                  type="button"
                   onClick={() => {
                     setSelectedGroup('ALL')
                     setSelectedClass('ALL')
                     setSelectedTemplate('ALL')
                     setSearchQuery('')
                   }}
-                  className="text-xs text-teal-600 hover:text-teal-700 font-bold px-2 py-1"
+                  className="text-xs text-teal-600 hover:text-teal-700 dark:text-teal-400 font-bold px-2 py-1 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors"
                 >
-                  Reset
+                  Reset Filters
                 </button>
               )}
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 shrink-0">
               <Link
                 href="/institute/exam-marksheet/setup/create"
                 className="flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ Create Setup (Wizard)</span>
+                <span>Create Setup (Wizard)</span>
               </Link>
 
               <button
+                type="button"
                 onClick={loadAllData}
                 className="p-2 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                title="Refresh All"
+                title="Refresh All Data"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-teal-600' : ''}`} />
               </button>
             </div>
           </div>
 
-          {/* ─── EXAMS LIST / TABLE VIEW (SHOWING ALREADY SET UP EXAMS) ─── */}
-          <div className="overflow-x-auto rounded-2xl border border-slate-200/80 dark:border-slate-800 animate-in fade-in duration-300">
-            <table className="w-full text-xs text-center whitespace-nowrap">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 font-black text-slate-600 dark:text-slate-300 border-b border-slate-200/80 dark:border-slate-800">
-                <tr>
-                  <th className="px-4 py-3.5 text-left">S. No.</th>
-                  <th className="px-4 py-3.5 text-left">Group</th>
-                  <th className="px-4 py-3.5 text-left">Exam Name</th>
-                  <th className="px-4 py-3.5">Class Grade</th>
-                  <th className="px-4 py-3.5">Exam Start Date</th>
-                  <th className="px-4 py-3.5">Marks Grade</th>
-                  <th className="px-4 py-3.5 text-left">Template Layout</th>
-                  <th className="px-4 py-3.5">Admit Card & Schedule</th>
-                  <th className="px-4 py-3.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                {loading ? (
+          {/* ─── EXAMS LIST / TABLE OR STRUCTURED EMPTY STATE ─── */}
+          {loading ? (
+            <div className="py-20 flex flex-col items-center justify-center text-center">
+              <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-950/60 flex items-center justify-center mb-3">
+                <RefreshCw className="w-6 h-6 animate-spin text-teal-600 dark:text-teal-400" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                Loading Examination Setups...
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                Fetching latest marksheets, synchronized admit cards, and timetables
+              </p>
+            </div>
+          ) : filteredSetups.length === 0 ? (
+            /* Structured Modern Empty State Hero Card */
+            <div className="bg-gradient-to-b from-slate-50/80 via-teal-50/20 to-transparent dark:from-slate-800/40 dark:to-transparent border border-dashed border-slate-200 dark:border-slate-700 rounded-3xl p-8 sm:p-12 flex flex-col items-center text-center">
+              <div className="relative mb-4">
+                <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-teal-500 to-emerald-500 text-white flex items-center justify-center shadow-lg shadow-teal-500/25">
+                  <Layers className="w-8 h-8" />
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-amber-400 text-amber-950 flex items-center justify-center shadow-xs">
+                  <Sparkles className="w-3.5 h-3.5" />
+                </div>
+              </div>
+
+              <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100">
+                No Examination Setups Found
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-xl leading-relaxed">
+                You haven&apos;t created any examination setups yet, or no setups match your current filters. Launch our step-by-step setup wizard to configure exam schedules, marksheets, admit cards, and certificates.
+              </p>
+
+              {/* 3 Step Highlights */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 my-6 max-w-2xl w-full text-left">
+                <div className="bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 p-3.5 rounded-2xl shadow-2xs">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-5 h-5 rounded-full bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 flex items-center justify-center text-[10px] font-black">
+                      1
+                    </span>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Exam Details</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Define exam name, dates, grading system & subject timetable
+                  </p>
+                </div>
+
+                <div className="bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 p-3.5 rounded-2xl shadow-2xs">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 flex items-center justify-center text-[10px] font-black">
+                      2
+                    </span>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Marksheet & Admit</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Pick from 4 templates with live color picker & preview
+                  </p>
+                </div>
+
+                <div className="bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 p-3.5 rounded-2xl shadow-2xs">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 flex items-center justify-center text-[10px] font-black">
+                      3
+                    </span>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Certificates</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Award certificates with crests, QR validation & seal
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <Link
+                  href="/institute/exam-marksheet/setup/create"
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-teal-600/20 active:scale-[0.98] transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Launch 5-Step Setup Wizard</span>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={handleOpenAdd}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750 font-bold text-xs flex items-center gap-1.5 transition-all shadow-2xs"
+                >
+                  <Plus className="w-3.5 h-3.5 text-teal-600" />
+                  <span>Quick Setup (Single Class)</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border border-slate-200/80 dark:border-slate-800 animate-in fade-in duration-300">
+              <table className="w-full text-xs text-center whitespace-nowrap">
+                <thead className="bg-slate-50 dark:bg-slate-800/80 font-black text-slate-600 dark:text-slate-300 border-b border-slate-200/80 dark:border-slate-800">
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-400">
-                      <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-teal-600" />
-                      Loading configured exams & admit cards...
-                    </td>
+                    <th className="px-4 py-3.5 text-left">S. No.</th>
+                    <th className="px-4 py-3.5 text-left">Group</th>
+                    <th className="px-4 py-3.5 text-left">Exam Name</th>
+                    <th className="px-4 py-3.5">Class Grade</th>
+                    <th className="px-4 py-3.5">Exam Start Date</th>
+                    <th className="px-4 py-3.5">Marks Grade</th>
+                    <th className="px-4 py-3.5 text-left">Template Layout</th>
+                    <th className="px-4 py-3.5">Admit Card & Schedule</th>
+                    <th className="px-4 py-3.5 text-right">Actions</th>
                   </tr>
-                ) : filteredSetups.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="py-16 text-center text-slate-400">
-                      <Layers className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                      <p className="text-xs font-bold text-slate-600 dark:text-slate-300">No exam setups found.</p>
-                      <p className="text-[11px] text-slate-400 mt-1 mb-3">Create and configure your first examination marksheet & admit card setup.</p>
-                      <Link
-                        href="/institute/exam-marksheet/setup/create"
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>+ Create Setup (Wizard)</span>
-                      </Link>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredSetups.map((item, i) => {
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                  {filteredSetups.map((item, i) => {
                     const badge = getTemplateBadge(item.templateName)
                     const linkedCard = getLinkedAdmitCard(item)
 
@@ -944,6 +1119,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                         <td className="px-4 py-3.5">
                           {linkedCard ? (
                             <button
+                              type="button"
                               onClick={() => setPreviewCard(linkedCard)}
                               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-extrabold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-all shadow-2xs"
                               title="Click to View & Print Admit Card"
@@ -954,6 +1130,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                             </button>
                           ) : (
                             <button
+                              type="button"
                               onClick={() => handleOpenAdmitCardForSetup(item)}
                               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 transition-all"
                             >
@@ -967,6 +1144,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                         <td className="px-4 py-3.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
+                              type="button"
                               onClick={() => setPreviewSetup(item)}
                               title="Preview Marksheet Design"
                               className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 hover:bg-purple-100 border border-purple-200/60 flex items-center justify-center transition-all"
@@ -975,6 +1153,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                             </button>
 
                             <button
+                              type="button"
                               onClick={() => handleOpenAdmitCardForSetup(item)}
                               title="Preview & Print Admit Card"
                               className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200/60 flex items-center justify-center transition-all"
@@ -992,6 +1171,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                             </Link>
 
                             <button
+                              type="button"
                               onClick={() => handleDelete(item.id, item.exam)}
                               disabled={isDeletingId === item.id}
                               title="Delete Exam Setup"
@@ -1007,14 +1187,14 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                         </td>
                       </tr>
                     )
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Footer info */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 text-xs text-slate-500">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500">
             <span>Showing {filteredSetups.length} of {setups.length} Marksheet Setups</span>
             <div className="flex items-center gap-1.5 text-[11px] text-teal-600 font-bold">
               <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
@@ -1087,96 +1267,123 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
 
           {/* Admit Cards Table Card */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
-              <table className="w-full text-xs text-center border-collapse">
-                <thead className="bg-slate-50 dark:bg-slate-800/80 font-black text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
-                  <tr>
-                    <th className="px-4 py-4 w-16 text-left">S. No.</th>
-                    <th className="px-4 py-4 text-left">Exam Title & Class</th>
-                    <th className="px-4 py-4">Session</th>
-                    <th className="px-4 py-4 text-left">Label</th>
-                    <th className="px-4 py-4">Live Preview</th>
-                    <th className="px-4 py-4">Status</th>
-                    <th className="px-4 py-4">Created At</th>
-                    <th className="px-4 py-4 w-28 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {filteredAdmitCards.map((item, idx) => (
-                    <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="px-4 py-3.5 text-left text-slate-400 font-bold">{idx + 1}.</td>
-                      
-                      <td className="px-4 py-3.5 text-left font-bold text-slate-800 dark:text-slate-200">
-                        <div>{item.examName}</div>
-                        <span className="text-[10.5px] font-bold text-teal-600 bg-teal-50 dark:bg-teal-950/40 px-2 py-0.5 rounded border border-teal-200 dark:border-teal-800">
-                          {item.className}
-                        </span>
-                      </td>
+            {filteredAdmitCards.length === 0 ? (
+              <div className="bg-gradient-to-b from-slate-50/80 via-emerald-50/20 to-transparent dark:from-slate-800/40 dark:to-transparent border border-dashed border-slate-200 dark:border-slate-700 rounded-3xl p-8 sm:p-12 flex flex-col items-center text-center">
+                <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-emerald-500 to-teal-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/25 mb-4">
+                  <FileCheck className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-slate-100">
+                  No Admit Cards Available Yet
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-lg leading-relaxed">
+                  Admit cards are automatically generated in real-time whenever you create an examination marksheet setup. You can also create custom hall tickets manually.
+                </p>
 
-                      <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-300">{item.session}</td>
-                      
-                      <td className="px-4 py-3.5 text-left text-slate-600 dark:text-slate-400 font-semibold">
-                        {item.admitCardLabel}
-                      </td>
+                <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={handleSyncAllAdmitCards}
+                    className="px-5 py-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 font-bold text-xs flex items-center gap-2 transition-all shadow-2xs"
+                  >
+                    <Sparkles className="w-4 h-4 text-emerald-600 animate-pulse" />
+                    <span>Sync from Exam Setups</span>
+                  </button>
 
-                      <td className="px-4 py-3.5">
-                        <button
-                          onClick={() => setPreviewCard(item)}
-                          className="px-3 py-1.5 rounded-lg bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 hover:bg-teal-100 flex items-center justify-center gap-1.5 transition-colors border border-teal-200 dark:border-teal-800 mx-auto font-bold"
-                        >
-                          <Eye className="w-3.5 h-3.5 text-teal-600" />
-                          <span>View Card</span>
-                        </button>
-                      </td>
-
-                      <td className="px-4 py-3.5">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase ${
-                          item.status === 'Active'
-                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
-                            : 'bg-red-50 text-red-500'
-                        }`}>
-                          {item.status}
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-3.5">
-                        <div className="flex flex-col text-[10px] text-slate-500">
-                          <span className="font-semibold text-slate-700 dark:text-slate-400">{item.dateCreated}</span>
-                          <span>{item.timeCreated}</span>
-                        </div>
-                      </td>
-
-                      <td className="px-4 py-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Link
-                            href={`/institute/admit-card/create?editId=${item.id}`}
-                            className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 border border-emerald-200/60 transition-colors"
-                            title="Edit Admit Card"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </Link>
-                          <button
-                            onClick={() => handleDeleteAdmitCard(item.id)}
-                            className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-950/50 text-red-500 flex items-center justify-center hover:bg-red-100 border border-red-200/60 transition-colors"
-                            title="Delete Admit Card"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-
-                  {filteredAdmitCards.length === 0 && (
+                  <Link
+                    href="/institute/exam-marksheet/setup/create"
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-600/20 transition-all active:scale-[0.98]"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Create Exam Setup (Wizard)</span>
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                <table className="w-full text-xs text-center border-collapse">
+                  <thead className="bg-slate-50 dark:bg-slate-800/80 font-black text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
                     <tr>
-                      <td colSpan={8} className="py-12 text-center text-slate-400 font-bold">
-                        No Admit Cards found. Create an exam setup or click &quot;Simultaneous Sync&quot; above to auto-generate.
-                      </td>
+                      <th className="px-4 py-4 w-16 text-left">S. No.</th>
+                      <th className="px-4 py-4 text-left">Exam Title & Class</th>
+                      <th className="px-4 py-4">Session</th>
+                      <th className="px-4 py-4 text-left">Label</th>
+                      <th className="px-4 py-4">Live Preview</th>
+                      <th className="px-4 py-4">Status</th>
+                      <th className="px-4 py-4">Created At</th>
+                      <th className="px-4 py-4 w-28 text-right">Action</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                    {filteredAdmitCards.map((item, idx) => (
+                      <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="px-4 py-3.5 text-left text-slate-400 font-bold">{idx + 1}.</td>
+                        
+                        <td className="px-4 py-3.5 text-left font-bold text-slate-800 dark:text-slate-200">
+                          <div>{item.examName}</div>
+                          <span className="text-[10.5px] font-bold text-teal-600 bg-teal-50 dark:bg-teal-950/40 px-2 py-0.5 rounded border border-teal-200 dark:border-teal-800">
+                            {item.className}
+                          </span>
+                        </td>
+
+                        <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-300">{item.session}</td>
+                        
+                        <td className="px-4 py-3.5 text-left text-slate-600 dark:text-slate-400 font-semibold">
+                          {item.admitCardLabel}
+                        </td>
+
+                        <td className="px-4 py-3.5">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewCard(item)}
+                            className="px-3 py-1.5 rounded-lg bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 hover:bg-teal-100 flex items-center justify-center gap-1.5 transition-colors border border-teal-200 dark:border-teal-800 mx-auto font-bold"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-teal-600" />
+                            <span>View Card</span>
+                          </button>
+                        </td>
+
+                        <td className="px-4 py-3.5">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase ${
+                            item.status === 'Active'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
+                              : 'bg-red-50 text-red-500'
+                          }`}>
+                            {item.status}
+                          </span>
+                        </td>
+
+                        <td className="px-4 py-3.5">
+                          <div className="flex flex-col text-[10px] text-slate-500">
+                            <span className="font-semibold text-slate-700 dark:text-slate-400">{item.dateCreated}</span>
+                            <span>{item.timeCreated}</span>
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-3.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Link
+                              href={`/institute/admit-card/create?editId=${item.id}`}
+                              className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 border border-emerald-200/60 transition-colors"
+                              title="Edit Admit Card"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteAdmitCard(item.id)}
+                              className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-950/50 text-red-500 flex items-center justify-center hover:bg-red-100 border border-red-200/60 transition-colors"
+                              title="Delete Admit Card"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* Footer */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 text-xs font-medium text-slate-500">
@@ -1428,6 +1635,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                           schoolName: 'COSMOPOLITAN INTER COLLEGE',
                           schoolAddress: 'Green Park Sector 4, New Delhi',
                           templateStyle: formAdmitTemplateStyle,
+                          themeColor: formAdmitThemeColor,
                           displayFields: {
                             name: true, fatherName: true, motherName: true, mobileNo: false,
                             admissionNo: true, registrationNo: true, rollNo: true, enrollmentNo: false,
@@ -1534,6 +1742,15 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                             {isSelected && <CheckCircle2 className="w-4 h-4 text-teal-600" />}
                           </div>
 
+                          {/* Mini Preview */}
+                          <MarksheetMiniPreview
+                            template={tmpl.name}
+                            schoolName="COSMOPOLITAN INTER COLLEGE"
+                            examName={formExam || 'Annual Examination 2025-26'}
+                            academicYear={formSession}
+                            isSelected={isSelected}
+                          />
+
                           <div>
                             <div className="text-xs font-black text-slate-800 dark:text-slate-100 leading-tight">
                               {tmpl.name}
@@ -1593,57 +1810,134 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                   </div>
                 </div>
 
-                {/* Part B: Admit Card Templates */}
-                <div className="flex flex-col gap-2.5 pt-2 border-t border-teal-200/60 dark:border-teal-800/60">
-                  <div className="flex items-center justify-between">
+                {/* Part B: Admit Card Templates & Color Customizer */}
+                <div className="flex flex-col gap-3 pt-3 border-t border-teal-200/60 dark:border-teal-800/60">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <span className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
                       <QrCode className="w-4 h-4 text-teal-600" />
-                      <span>B. Admit Card (Hall Ticket) Template</span>
+                      <span>B. Admit Card (Hall Ticket) Template & Theme Color</span>
                     </span>
-                    <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300 bg-teal-100/70 dark:bg-teal-950/60 px-2 py-0.5 rounded-md">
-                      Selected: {formAdmitTemplateStyle}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300 bg-teal-100/70 dark:bg-teal-950/60 px-2 py-0.5 rounded-md">
+                        Selected: {formAdmitTemplateStyle}
+                      </span>
+                      <span
+                        className="px-2 py-0.5 rounded text-[9px] font-black uppercase text-white shadow-2xs font-mono"
+                        style={{ backgroundColor: formAdmitThemeColor }}
+                      >
+                        {formAdmitThemeColor}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Theme Color Customizer Inline */}
+                  <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0 shadow-xs"
+                        style={{ backgroundColor: formAdmitThemeColor }}
+                      >
+                        <Palette className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-black text-slate-800 dark:text-slate-200">
+                          Theme Accent Color
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          Customize the primary color for borders, headers & badges
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-700/60 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600">
+                        <label className="flex items-center gap-1 cursor-pointer text-[10px] font-bold text-slate-700 dark:text-slate-200">
+                          <input
+                            type="color"
+                            value={formAdmitThemeColor}
+                            onChange={(e) => setFormAdmitThemeColor(e.target.value)}
+                            className="w-5 h-5 rounded border-0 cursor-pointer p-0 bg-transparent"
+                          />
+                          <span>Color Picker</span>
+                        </label>
+                        <span className="text-slate-300">|</span>
+                        <input
+                          type="text"
+                          value={formAdmitThemeColor}
+                          onChange={(e) => setFormAdmitThemeColor(e.target.value)}
+                          placeholder="#1e3a8a"
+                          maxLength={7}
+                          className="w-16 text-[10px] font-mono font-bold uppercase bg-transparent outline-none text-slate-800 dark:text-slate-100"
+                        />
+                      </div>
+
+                      {/* Quick Presets */}
+                      {[
+                        { name: 'Navy', hex: '#1E3A8A' },
+                        { name: 'Emerald', hex: '#047857' },
+                        { name: 'Crimson', hex: '#991B1B' },
+                        { name: 'Slate', hex: '#334155' },
+                        { name: 'Indigo', hex: '#4338CA' },
+                        { name: 'Teal', hex: '#0F766E' }
+                      ].map(preset => {
+                        const isCur = formAdmitThemeColor.toLowerCase() === preset.hex.toLowerCase()
+                        return (
+                          <button
+                            key={preset.hex}
+                            type="button"
+                            onClick={() => setFormAdmitThemeColor(preset.hex)}
+                            title={preset.name}
+                            className={`w-6 h-6 rounded-md border flex items-center justify-center transition-all ${
+                              isCur ? 'ring-2 ring-teal-500 scale-110' : 'hover:scale-105'
+                            }`}
+                            style={{ backgroundColor: preset.hex }}
+                          >
+                            {isCur && <Check className="w-3 h-3 text-white" />}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {[
                       {
-                        name: 'Classic Navy',
-                        desc: 'Official Navy border • Traditional Board Hall Ticket with full Timetable Matrix',
-                        badge: 'Navy Official',
-                        themeBg: 'bg-blue-50/50 border-blue-500',
+                        name: 'Classic Board',
+                        legacyName: 'Classic Navy',
+                        desc: 'Traditional Board Hall Ticket with full Timetable Matrix & Specimen Signature Box',
+                        badge: 'Board Style',
                         pill: 'bg-blue-100 text-blue-800'
                       },
                       {
-                        name: 'Modern Emerald',
-                        desc: 'Emerald green header • Student photo emphasis, QR code & clean compact timetable',
-                        badge: 'Emerald Modern',
-                        themeBg: 'bg-emerald-50/50 border-emerald-500',
+                        name: 'Modern Split Pass',
+                        legacyName: 'Modern Emerald',
+                        desc: 'Dynamic Dual-Column Layout with Student Profile Sidebar & Verification QR Code',
+                        badge: 'Academy Pass',
                         pill: 'bg-emerald-100 text-emerald-800'
                       },
                       {
-                        name: 'Executive Crimson',
-                        desc: 'Maroon royal crest • Dual invigilator signature strip & authorized institution stamp',
-                        badge: 'Crimson Official',
-                        themeBg: 'bg-rose-50/50 border-rose-500',
+                        name: 'Executive Heritage',
+                        legacyName: 'Executive Crimson',
+                        desc: 'Prestigious Certificate Format with Ornate Filigree & Official Department Seal',
+                        badge: 'Heritage Crest',
                         pill: 'bg-rose-100 text-rose-800'
                       },
                       {
-                        name: 'Minimalist Slate',
-                        desc: 'High contrast clean charcoal border • Compact slip format for fast multi-student print',
-                        badge: 'Slate Minimal',
-                        themeBg: 'bg-slate-100 border-slate-600',
+                        name: 'Compact Minimalist',
+                        legacyName: 'Minimalist Slate',
+                        desc: 'High-Density Slip with Top Barcode Header & Detachable Invigilator Attendance Stub',
+                        badge: 'Detachable Stub',
                         pill: 'bg-slate-200 text-slate-800'
                       }
                     ].map(style => {
-                      const isSelected = formAdmitTemplateStyle === style.name
+                      const isSelected = formAdmitTemplateStyle === style.name || formAdmitTemplateStyle === style.legacyName
                       return (
                         <div
                           key={style.name}
                           onClick={() => setFormAdmitTemplateStyle(style.name)}
                           className={`cursor-pointer rounded-2xl border p-3 flex flex-col justify-between gap-2 transition-all relative ${
                             isSelected
-                              ? `${style.themeBg} ring-2 ring-teal-500/30 shadow-md`
+                              ? 'border-teal-500 bg-teal-50/40 ring-2 ring-teal-500/30 shadow-md'
                               : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-400 hover:bg-slate-50'
                           }`}
                         >
@@ -1653,6 +1947,16 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                             </span>
                             {isSelected && <CheckCircle2 className="w-4 h-4 text-teal-600" />}
                           </div>
+
+                          {/* Small Live Preview */}
+                          <AdmitCardMiniPreview
+                            template={style.name}
+                            themeColor={formAdmitThemeColor}
+                            schoolName="COSMOPOLITAN INTER COLLEGE"
+                            examName={formExam || 'Final Term Examination'}
+                            session={formSession}
+                            isSelected={isSelected}
+                          />
 
                           <div>
                             <div className="text-xs font-black text-slate-800 dark:text-slate-100 leading-tight">
@@ -1675,12 +1979,13 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                                   id: 999999,
                                   className: formClassGrade || 'Class X',
                                   examName: formExam || 'Final Term Examination',
-                                  admitCardLabel: 'Admit Card',
+                                  admitCardLabel: formAdmitCardLabel || 'Admit Card',
                                   timeTableId: 999999,
                                   session: formSession,
                                   schoolName: 'COSMOPOLITAN INTER COLLEGE',
                                   schoolAddress: 'Green Park Sector 4, New Delhi',
                                   templateStyle: style.name,
+                                  themeColor: formAdmitThemeColor,
                                   displayFields: {
                                     name: true, fatherName: true, motherName: true, mobileNo: false,
                                     admissionNo: true, registrationNo: true, rollNo: true, enrollmentNo: false,
