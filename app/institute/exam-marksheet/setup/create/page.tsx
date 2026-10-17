@@ -160,6 +160,24 @@ function AddSetupWizardContent() {
         if (s.config?.admitTemplateStyle) setAdmitTemplateStyle(s.config.admitTemplateStyle)
         if (s.config?.admitCardSettings?.templateStyle) setAdmitTemplateStyle(s.config.admitCardSettings.templateStyle)
 
+        if (s.config?.certTemplate) setCertTemplate(s.config.certTemplate)
+        if (s.lastDateToEnter) setLastDateToEnter(s.lastDateToEnter)
+        if (typeof s.lockExam === 'boolean') setLockExam(s.lockExam)
+        if (s.config?.admitCardSettings?.admitLabel) setAdmitLabel(s.config.admitCardSettings.admitLabel)
+        if (s.config?.admitCardSettings?.instructions) setAdmitInstructions(s.config.admitCardSettings.instructions)
+        if (s.config?.admitCardSettings?.displayFields) setAdmitDisplayFields(s.config.admitCardSettings.displayFields)
+        if (typeof s.config?.admitCardSettings?.showExamTimeTable === 'boolean') setShowExamTimeTableOnAdmit(s.config.admitCardSettings.showExamTimeTable)
+        if (s.config?.minPassingPct) setMinPassingPct(String(s.config.minPassingPct))
+        if (s.config?.minPassingMarks) setMinPassingMarks(String(s.config.minPassingMarks))
+        if (s.config?.gradeToDisplay) setGradeToDisplay(s.config.gradeToDisplay)
+        if (s.config?.heading1) setHeading1(s.config.heading1)
+        if (s.config?.heading2) setHeading2(s.config.heading2)
+        if (s.config?.headingHeader) setHeadingHeader(s.config.headingHeader)
+        if (s.config?.schoolDetails?.schoolName) setSchoolName(s.config.schoolDetails.schoolName)
+        if (s.config?.schoolDetails?.affiliateTo) setAffiliateTo(s.config.schoolDetails.affiliateTo)
+        if (s.config?.schoolDetails?.schoolAddress) setSchoolAddress(s.config.schoolDetails.schoolAddress)
+        if (s.config?.schoolDetails?.principalName) setPrincipalName(s.config.schoolDetails.principalName)
+
         const baseClassName = s.config?.className || (s.classGrade ? s.classGrade.split('(')[0].trim() : '')
         const secs = Array.isArray(s.config?.sections) && s.config.sections.length > 0 ? s.config.sections : ['Section A']
         const subs = Array.isArray(s.config?.subjects) && s.config.subjects.length > 0
@@ -699,8 +717,12 @@ function AddSetupWizardContent() {
       {/* Header bar */}
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-black text-slate-800 dark:text-slate-100">Add Marksheet Setup</h1>
-          <p className="text-xs text-slate-400">Configure exams, grading, admit cards, and marksheet layouts in 5 steps</p>
+          <h1 className="text-xl font-black text-slate-800 dark:text-slate-100">
+            {editingId ? 'Edit Examination Setup (Wizard)' : 'Add Marksheet Setup'}
+          </h1>
+          <p className="text-xs text-slate-400">
+            {editingId ? 'Update exam parameters, grading, admit cards, and marksheet layouts across all steps' : 'Configure exams, grading, admit cards, and marksheet layouts in 5 steps'}
+          </p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
@@ -735,11 +757,11 @@ function AddSetupWizardContent() {
           >
             {isSubmitting ? (
               <>
-                <RefreshCw className="w-4 h-4 animate-spin" /> Saving Setup & Admit Card...
+                <RefreshCw className="w-4 h-4 animate-spin" /> {editingId ? 'Updating Setup...' : 'Saving Setup & Admit Card...'}
               </>
             ) : (
               <>
-                <Save className="w-4 h-4" /> Save Setup & Admit Card
+                <Save className="w-4 h-4" /> {editingId ? 'Update Setup & Admit Card' : 'Save Setup & Admit Card'}
               </>
             )}
           </button>

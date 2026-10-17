@@ -835,6 +835,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                   <th className="px-4 py-3.5 text-left">Group</th>
                   <th className="px-4 py-3.5 text-left">Exam Name</th>
                   <th className="px-4 py-3.5">Class Grade</th>
+                  <th className="px-4 py-3.5">Exam Start Date</th>
                   <th className="px-4 py-3.5">Marks Grade</th>
                   <th className="px-4 py-3.5 text-left">Template Layout</th>
                   <th className="px-4 py-3.5">Admit Card & Schedule</th>
@@ -844,14 +845,14 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-400">
+                    <td colSpan={9} className="py-12 text-center text-slate-400">
                       <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-teal-600" />
                       Loading configured exams & admit cards...
                     </td>
                   </tr>
                 ) : filteredSetups.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-16 text-center text-slate-400">
+                    <td colSpan={9} className="py-16 text-center text-slate-400">
                       <Layers className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                       <p className="text-xs font-bold text-slate-600 dark:text-slate-300">No exam setups found.</p>
                       <p className="text-[11px] text-slate-400 mt-1 mb-3">Create and configure your first examination marksheet & admit card setup.</p>
@@ -883,13 +884,46 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                         {/* Exam Name */}
                         <td className="px-4 py-3.5 text-left font-bold text-slate-800 dark:text-slate-100">
                           <div>{item.exam}</div>
-                          <div className="text-[10px] text-slate-400 font-normal">Session: {item.session || '2025-2026'}</div>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-400 font-normal mt-0.5">
+                            <span>Session: {item.session || '2025-2026'}</span>
+                            {(item.examDate || item.config?.examDate) && (
+                              <>
+                                <span>•</span>
+                                <span className="text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  Starts: {item.examDate || item.config?.examDate}
+                                </span>
+                              </>
+                            )}
+                          </div>
                         </td>
 
                         {/* Class Grade */}
                         <td className="px-4 py-3.5">
                           <span className="px-2.5 py-1 rounded-md text-[10.5px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
                             {item.classGrade}
+                          </span>
+                        </td>
+
+                        {/* Exam Start Date */}
+                        <td className="px-4 py-3.5">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50/70 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/60 shadow-2xs">
+                            <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                            <span>
+                              {(() => {
+                                const raw = item.examDate || item.config?.examDate || item.config?.subjects?.[0]?.examDate || item.date
+                                if (!raw) return 'Not Set'
+                                try {
+                                  if (raw.includes('-')) {
+                                    const d = new Date(raw)
+                                    if (!isNaN(d.getTime())) {
+                                      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                                    }
+                                  }
+                                } catch (e) {}
+                                return raw
+                              })()}
+                            </span>
                           </span>
                         </td>
 
@@ -929,7 +963,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                           )}
                         </td>
 
-                        {/* Actions: Preview Marksheet, Preview Admit Card, Edit Content, Delete */}
+                        {/* Actions: Preview Marksheet, Preview Admit Card, Edit in Full Wizard, Delete */}
                         <td className="px-4 py-3.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
@@ -948,14 +982,14 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                               <FileCheck className="w-3.5 h-3.5" />
                             </button>
 
-                            <button
-                              onClick={() => handleOpenEdit(item)}
-                              title="Edit Setup Content"
+                            <Link
+                              href={`/institute/exam-marksheet/setup/create?id=${item.id}`}
+                              title="Edit Setup in Full Wizard"
                               className="px-2.5 py-1 rounded bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 hover:bg-teal-100 border border-teal-200/60 flex items-center gap-1 font-bold text-[11px] transition-all"
                             >
                               <Pencil className="w-3 h-3 text-teal-600" />
-                              <span>Edit Content</span>
-                            </button>
+                              <span>Edit</span>
+                            </Link>
 
                             <button
                               onClick={() => handleDelete(item.id, item.exam)}
