@@ -4,42 +4,31 @@ import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import {
-  Phone, Mail, MapPin, Globe, ChevronRight, ChevronLeft,
+  Phone, Mail, MapPin, ChevronRight, ChevronLeft,
   Calendar, Clock, CheckCircle2, Star, ArrowRight,
   BookOpen, Users, Award, Shield, Sparkles, Send,
-  Menu, X, ExternalLink, HelpCircle, AlertCircle, Eye
+  Menu, X, ExternalLink, Eye, GraduationCap, UserCheck,
+  FileText, Info, Building2
 } from 'lucide-react'
 import { submitAdmissionEnquiry } from '@/app/institute/website/actions'
 import { toast } from 'sonner'
 
-// Social SVG Icons
-const FacebookIcon = ({ className = "w-3.5 h-3.5" }: { className?: string }) => (
+// Social SVG Icons with authentic brand colors matching lcabithan
+const FacebookIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
     <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
   </svg>
 )
 
-const InstagramIcon = ({ className = "w-3.5 h-3.5" }: { className?: string }) => (
+const InstagramIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
     <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
   </svg>
 )
 
-const TwitterIcon = ({ className = "w-3.5 h-3.5" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-  </svg>
-)
-
-const YoutubeIcon = ({ className = "w-3.5 h-3.5" }: { className?: string }) => (
+const YoutubeIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
     <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-  </svg>
-)
-
-const LinkedinIcon = ({ className = "w-3.5 h-3.5" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
   </svg>
 )
 
@@ -139,32 +128,35 @@ interface WebsiteData {
     caption?: string
     category?: string
   }>
+  teachers?: Array<{
+    id: string | number
+    name: string
+    username?: string
+    contact?: string
+    email?: string
+    assigned_classes?: string[]
+    avatar?: string
+    details?: any
+  }>
 }
 
 export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug: string }) {
-  const { settings, sliders, stats, courses, faqs, testimonials, blogs, gallery } = data
+  const { settings, sliders, stats, courses, faqs, testimonials, blogs, gallery, teachers = [] } = data
 
-  const primaryColor = settings.primary_color || '#1e40af'
-  const secondaryColor = settings.secondary_color || '#059669'
-  const topbarBg = settings.topbar_bg_color || '#0f172a'
-  const topbarText = settings.topbar_text_color || '#cbd5e1'
-  const navbarBg = settings.navbar_bg_color || '#ffffff'
-  const navbarText = settings.navbar_text_color || '#334155'
-  const footerBg = settings.footer_bg_color || '#020617'
-  const footerText = settings.footer_text_color || '#94a3b8'
-  const headingColor = settings.heading_color || '#0f172a'
-  const bodyTextColor = settings.body_text_color || '#475569'
-  const buttonTextColor = settings.button_text_color || '#ffffff'
-  const linkColor = settings.link_color || primaryColor
-  const sectionAltBg = settings.section_alt_bg || '#f8fafc'
-  const cardBg = settings.card_bg_color || '#ffffff'
-  const cardBorder = settings.card_border_color || '#e2e8f0'
-  const fontFamily = settings.font_family || 'Plus Jakarta Sans'
-  const headingFont = settings.heading_font_family || 'Plus Jakarta Sans'
-  const websiteTitle = settings.website_title || 'Academy Institute'
+  // lcabithan style defaults
+  const primaryColor = settings.primary_color || '#0d6efd'
+  const secondaryColor = settings.secondary_color || '#ffc107'
+  const topbarBg = settings.topbar_bg_color || '#0dcaf0'
+  const topbarText = settings.topbar_text_color || '#0f172a'
+  const navbarBg = settings.navbar_bg_color || '#132742'
+  const navbarText = settings.navbar_text_color || '#ffffff'
+  const footerBg = settings.footer_bg_color || '#0f172a'
+  const footerText = settings.footer_text_color || '#cbd5e1'
+  const websiteTitle = settings.website_title || 'Cosmopolitan Inter College'
 
   // Mobile menu
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false)
 
   // Slider State
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -174,27 +166,12 @@ export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug:
     if (!hasSliders || sliders.length <= 1) return
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % sliders.length)
-    }, 6000)
+    }, 4500)
     return () => clearInterval(interval)
   }, [hasSliders, sliders?.length])
 
-  // Course Category Filter
-  const [selectedCourseCategory, setSelectedCourseCategory] = useState<string>('All')
-  const courseCategories = ['All', ...Array.from(new Set(courses.map(c => c.category).filter(Boolean) as string[]))]
-  const filteredCourses = selectedCourseCategory === 'All'
-    ? courses
-    : courses.filter(c => c.category === selectedCourseCategory)
-
-  // Gallery Filter & Lightbox
-  const [selectedGalleryCategory, setSelectedGalleryCategory] = useState<string>('All')
-  const galleryCategories = ['All', ...Array.from(new Set(gallery.map(g => g.category).filter(Boolean) as string[]))]
-  const filteredGallery = selectedGalleryCategory === 'All'
-    ? gallery
-    : gallery.filter(g => g.category === selectedGalleryCategory)
+  // Gallery Lightbox
   const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null)
-
-  // FAQ Accordion
-  const [openFaq, setOpenFaq] = useState<number | null>(faqs[0]?.id || null)
 
   // Enquiry Modal & Form
   const [enquiryModalOpen, setEnquiryModalOpen] = useState(false)
@@ -212,7 +189,7 @@ export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug:
   const handleEnquirySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!enquiryForm.name || !enquiryForm.phone) {
-      toast.error('Please enter your Name and Phone Number')
+      toast.error('Please enter your Name and Mobile Number')
       return
     }
     setSubmittingEnquiry(true)
@@ -226,7 +203,7 @@ export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug:
     })
     setSubmittingEnquiry(false)
     if (res.success) {
-      toast.success('Your enquiry has been received! Our admission counselor will contact you shortly.')
+      toast.success('Your message has been sent successfully!')
       setEnquirySubmitted(true)
       setEnquiryForm({ name: '', email: '', phone: '', course_name: '', message: '' })
       setTimeout(() => {
@@ -244,290 +221,303 @@ export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug:
     setEnquiryModalOpen(true)
   }
 
+  // Fallback demo teachers if not enough registered
+  const displayTeachers = teachers && teachers.length > 0 ? teachers : [
+    {
+      id: 'demo-1',
+      name: 'Mr. Ganesh Kumar',
+      assigned_classes: ['Math Specialist'],
+      details: { exp: '12 Yrs Exp', bio: 'Expert in mathematical reasoning and logical problem solving.' },
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400&auto=format&fit=crop'
+    },
+    {
+      id: 'demo-2',
+      name: 'Mr. Kumar Verma',
+      assigned_classes: ['Biology Specialist'],
+      details: { exp: '10 Yrs Exp', bio: 'Interactive botanical and human anatomy coaching specialist.' },
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=400&auto=format&fit=crop'
+    },
+    {
+      id: 'demo-3',
+      name: 'Dr. Imtiyaj Hasan',
+      assigned_classes: ['Physics & Chemistry'],
+      details: { exp: '14 Yrs Exp', bio: 'Simplifying conceptual mechanics and organic synthesis.' },
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=400&auto=format&fit=crop'
+    },
+    {
+      id: 'demo-4',
+      name: 'Mrs. S. Sharma',
+      assigned_classes: ['English & Humanities'],
+      details: { exp: '9 Yrs Exp', bio: 'Focus on communication, creative writing, and personality grooming.' },
+      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=400&auto=format&fit=crop'
+    }
+  ]
+
   return (
-    <div
-      className="min-h-screen antialiased selection:bg-indigo-500 selection:text-white transition-colors"
-      style={{
-        backgroundColor: '#ffffff',
-        color: bodyTextColor,
-        fontFamily: `"${fontFamily}", system-ui, -apple-system, sans-serif`,
-        ['--font-heading' as any]: `"${headingFont}", sans-serif`,
-      }}
-    >
-      <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontFamily).replace(/%20/g, '+')}:wght@300;400;500;600;700;800&family=${encodeURIComponent(headingFont).replace(/%20/g, '+')}:wght@400;600;700;800;900&display=swap');
-        h1, h2, h3, h4, h5, h6 {
-          font-family: var(--font-heading) !important;
-          color: ${headingColor};
-        }
-        #home h1, #home h2, #home h3, #home h4, #home p, #home span, .hero-title, .hero-text {
-          color: #ffffff !important;
-        }
-      `}} />
+    <div className="min-h-screen bg-white text-slate-700 antialiased font-sans selection:bg-blue-600 selection:text-white">
 
       {/* Unpublished Draft Warning Notice for Admin Preview */}
       {!settings.is_published && (
-        <div className="bg-amber-500 text-white px-4 py-2.5 text-center text-xs font-semibold flex items-center justify-center gap-2 shadow-sm sticky top-0 z-50">
+        <div className="bg-amber-500 text-white px-4 py-2 text-center text-xs font-semibold flex items-center justify-center gap-2 shadow-sm sticky top-0 z-50">
           <Eye className="w-4 h-4 animate-pulse" />
-          <span>This website is currently in <strong>DRAFT MODE</strong>. Go to <strong>Website Management</strong> in your Institute Admin panel to publish it.</span>
+          <span>This website is currently in <strong>DRAFT MODE</strong>. Go to <strong>Website Management</strong> to publish it.</span>
         </div>
       )}
 
-      {/* ─── TOP BAR ────────────────────────────────────────── */}
-      <div
-        className="text-xs py-2 px-4 sm:px-8 border-b border-black/10 transition-colors"
-        style={{ backgroundColor: topbarBg, color: topbarText }}
-      >
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-5 flex-wrap">
-            {settings.contact_phone && (
-              <a href={`tel:${settings.contact_phone}`} className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
-                <Phone className="w-3.5 h-3.5" style={{ color: primaryColor }} />
-                <span>{settings.contact_phone}</span>
-              </a>
-            )}
-            {settings.contact_email && (
-              <a href={`mailto:${settings.contact_email}`} className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
-                <Mail className="w-3.5 h-3.5" style={{ color: primaryColor }} />
-                <span>{settings.contact_email}</span>
-              </a>
-            )}
-            {settings.contact_address && (
-              <span className="hidden md:flex items-center gap-1.5 opacity-80">
-                <MapPin className="w-3.5 h-3.5" style={{ color: primaryColor }} />
-                <span className="truncate max-w-xs">{settings.contact_address}</span>
-              </span>
-            )}
-          </div>
+      {/* ─── TOP HEADER (CYAN / SKY BLUE BAR LIKE LCABITHAN) ─── */}
+      <header className="sticky top-0 z-40 shadow-sm">
+        <div
+          className="py-2 px-4 sm:px-8 text-xs font-medium border-b border-black/5"
+          style={{ backgroundColor: topbarBg, color: topbarText }}
+        >
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-2">
+            {/* Contact details */}
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3 text-center md:text-left">
+              {settings.contact_address && (
+                <span className="flex items-center gap-1">
+                  <span>📍</span>
+                  <span className="truncate max-w-xs sm:max-w-md">{settings.contact_address}</span>
+                </span>
+              )}
 
-          {/* Social icons */}
-          <div className="flex items-center gap-3 ml-auto">
-            {settings.social_facebook && (
-              <a href={settings.social_facebook} target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
-                <FacebookIcon className="w-3.5 h-3.5" />
-              </a>
-            )}
-            {settings.social_instagram && (
-              <a href={settings.social_instagram} target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
-                <InstagramIcon className="w-3.5 h-3.5" />
-              </a>
-            )}
-            {settings.social_twitter && (
-              <a href={settings.social_twitter} target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
-                <TwitterIcon className="w-3.5 h-3.5" />
-              </a>
-            )}
-            {settings.social_youtube && (
-              <a href={settings.social_youtube} target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
-                <YoutubeIcon className="w-3.5 h-3.5" />
-              </a>
-            )}
-            {settings.social_linkedin && (
-              <a href={settings.social_linkedin} target="_blank" rel="noopener noreferrer" className="hover:opacity-80 transition-opacity">
-                <LinkedinIcon className="w-3.5 h-3.5" />
-              </a>
-            )}
-            <Link
-              href="/institute/login"
-              className="ml-2 px-2.5 py-0.5 rounded text-[11px] font-medium border transition-colors"
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                color: topbarText,
-                borderColor: 'rgba(255,255,255,0.15)',
-              }}
-            >
-              Institute Login
-            </Link>
-          </div>
-        </div>
-      </div>
+              {settings.contact_phone && (
+                <>
+                  <span className="hidden sm:inline opacity-40">|</span>
+                  <a href={`tel:${settings.contact_phone}`} className="flex items-center gap-1 hover:underline">
+                    <span>📞</span>
+                    <span>{settings.contact_phone}</span>
+                  </a>
+                </>
+              )}
 
-      {/* ─── MAIN STICKY NAVIGATION ─────────────────────────── */}
-      <header
-        className="sticky top-0 z-40 backdrop-blur-md border-b border-black/5 shadow-xs transition-all"
-        style={{ backgroundColor: navbarBg }}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
-          {/* Brand / Logo */}
-          <Link href={`/${slug}`} className="flex items-center gap-3 group">
-            {settings.logo_url ? (
-              <img
-                src={settings.logo_url}
-                alt={websiteTitle}
-                className="w-11 h-11 object-contain rounded-xl shadow-xs border border-slate-100"
-              />
-            ) : (
-              <div
-                className="w-11 h-11 rounded-xl flex items-center justify-center font-black text-white text-lg shadow-md"
-                style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
-              >
-                {websiteTitle.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <div>
-              <h1
-                className="font-extrabold text-lg sm:text-xl transition-colors leading-tight"
-                style={{ color: headingColor }}
-              >
-                {websiteTitle}
-              </h1>
-              {settings.hero_tagline && (
-                <p className="text-[11px] font-medium truncate max-w-xs sm:max-w-sm hidden sm:block opacity-70" style={{ color: navbarText }}>
-                  {settings.hero_tagline}
-                </p>
+              {settings.contact_email && (
+                <>
+                  <span className="hidden sm:inline opacity-40">|</span>
+                  <a href={`mailto:${settings.contact_email}`} className="flex items-center gap-1 hover:underline">
+                    <span>✉️</span>
+                    <span>{settings.contact_email}</span>
+                  </a>
+                </>
               )}
             </div>
-          </Link>
 
-          {/* Desktop Nav Links */}
-          <nav className="hidden lg:flex items-center gap-6 text-sm font-semibold" style={{ color: navbarText }}>
-            <a href="#home" className="hover:opacity-80 transition-opacity">Home</a>
-            {settings.about_text && <a href="#about" className="hover:opacity-80 transition-opacity">About Us</a>}
-            {courses.length > 0 && <a href="#courses" className="hover:opacity-80 transition-opacity">Courses</a>}
-            {gallery.length > 0 && <a href="#gallery" className="hover:opacity-80 transition-opacity">Gallery</a>}
-            {testimonials.length > 0 && <a href="#testimonials" className="hover:opacity-80 transition-opacity">Reviews</a>}
-            {faqs.length > 0 && <a href="#faqs" className="hover:opacity-80 transition-opacity">FAQs</a>}
-            {blogs.length > 0 && <a href="#blogs" className="hover:opacity-80 transition-opacity">News</a>}
-            <a href="#contact" className="hover:opacity-80 transition-opacity">Contact</a>
-          </nav>
-
-          {/* Action Button */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => { setEnquiryCourse(''); setEnquiryModalOpen(true) }}
-              className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
-              style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`, color: buttonTextColor }}
-            >
-              Admissions Open
-            </button>
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-lg hover:bg-slate-100"
-              style={{ color: navbarText }}
-              aria-label="Toggle Menu"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+            {/* Login & Apply Buttons (exact lcabithan style: blue Login, yellow Apply) */}
+            <div className="flex items-center gap-2 shrink-0">
+              <Link
+                href="/institute/login"
+                className="bg-[#0d6efd] hover:bg-blue-700 text-white font-semibold text-xs px-3.5 py-1 rounded transition-colors shadow-xs"
+              >
+                Login
+              </Link>
+              <Link
+                href={`/${slug}/apply`}
+                className="bg-[#ffc107] hover:bg-amber-400 text-slate-900 font-semibold text-xs px-3.5 py-1 rounded transition-colors shadow-xs"
+              >
+                Apply
+              </Link>
+            </div>
           </div>
         </div>
 
-        {/* Mobile Dropdown Nav */}
-        {mobileMenuOpen && (
-          <div
-            className="lg:hidden border-b border-black/10 px-6 py-4 space-y-3 font-semibold text-sm animate-in slide-in-from-top-2"
-            style={{ backgroundColor: navbarBg, color: navbarText }}
-          >
-            <a href="#home" onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:opacity-80">Home</a>
-            {settings.about_text && <a href="#about" onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:opacity-80">About Us</a>}
-            {courses.length > 0 && <a href="#courses" onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:opacity-80">Courses</a>}
-            {gallery.length > 0 && <a href="#gallery" onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:opacity-80">Gallery</a>}
-            {testimonials.length > 0 && <a href="#testimonials" onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:opacity-80">Reviews</a>}
-            {faqs.length > 0 && <a href="#faqs" onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:opacity-80">FAQs</a>}
-            {blogs.length > 0 && <a href="#blogs" onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:opacity-80">News</a>}
-            <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:opacity-80">Contact</a>
+        {/* ─── MAIN NAVBAR (DEEP NAVY BLUE LIKE LCABITHAN) ─── */}
+        <nav
+          className="px-4 sm:px-8 py-3 transition-colors"
+          style={{ backgroundColor: navbarBg, color: navbarText }}
+        >
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            
+            {/* Brand / Logo */}
+            <Link href={`/${slug}`} className="flex items-center gap-3 shrink-0 group">
+              {settings.logo_url ? (
+                <img
+                  src={settings.logo_url}
+                  alt={websiteTitle}
+                  className="w-11 h-11 object-contain rounded-full bg-white p-0.5 border-2 border-red-500 shadow-sm"
+                />
+              ) : (
+                <div className="w-11 h-11 rounded-full bg-white border-2 border-red-600 flex items-center justify-center shadow-md shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-red-600 flex items-center justify-center text-white font-extrabold text-sm">
+                    {websiteTitle.charAt(0)}
+                  </div>
+                </div>
+              )}
+              <span className="text-white font-extrabold text-lg sm:text-xl tracking-tight leading-tight">
+                {websiteTitle}
+              </span>
+            </Link>
+
+            {/* Desktop Navigation Menu */}
+            <div className="hidden lg:flex items-center gap-7 text-sm font-semibold text-slate-100">
+              <Link href={`/${slug}`} className="text-blue-400 font-bold hover:text-blue-300 transition-colors">Home</Link>
+              <Link href={`/${slug}/about`} className="hover:text-blue-300 transition-colors">About</Link>
+              
+              {/* Services / Courses Dropdown */}
+              <div
+                className="relative group py-1"
+                onMouseEnter={() => setServicesDropdownOpen(true)}
+                onMouseLeave={() => setServicesDropdownOpen(false)}
+              >
+                <button
+                  type="button"
+                  className="flex items-center gap-1 hover:text-blue-300 transition-colors cursor-pointer"
+                >
+                  <span>Services</span>
+                  <span className="text-xs">▼</span>
+                </button>
+                <div
+                  className={`absolute top-full left-0 mt-1 w-48 bg-white text-slate-800 rounded-lg shadow-xl border border-slate-100 py-2 transition-all duration-200 z-50 ${servicesDropdownOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'}`}
+                >
+                  <Link
+                    href={`/${slug}/courses`}
+                    onClick={() => setServicesDropdownOpen(false)}
+                    className="block px-4 py-2 text-xs font-semibold hover:bg-blue-50 hover:text-blue-600"
+                  >
+                    Courses / Classes
+                  </Link>
+                  <Link
+                    href={`/${slug}/hostel`}
+                    onClick={() => setServicesDropdownOpen(false)}
+                    className="block px-4 py-2 text-xs font-semibold hover:bg-blue-50 hover:text-blue-600"
+                  >
+                    Hostel Service
+                  </Link>
+                  <Link
+                    href={`/${slug}/transport`}
+                    onClick={() => setServicesDropdownOpen(false)}
+                    className="block px-4 py-2 text-xs font-semibold hover:bg-blue-50 hover:text-blue-600"
+                  >
+                    Van / Transport Route
+                  </Link>
+                </div>
+              </div>
+
+              <Link href={`/${slug}/teachers`} className="hover:text-blue-300 transition-colors">Teachers</Link>
+              <Link href={`/${slug}/gallery`} className="hover:text-blue-300 transition-colors">Gallery</Link>
+              <Link href={`/${slug}/contact`} className="hover:text-blue-300 transition-colors">Contact</Link>
+              <Link href={`/${slug}/news`} className="hover:text-blue-300 transition-colors">Notice / News</Link>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <div className="lg:hidden flex items-center">
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-1.5 text-white hover:text-blue-300 rounded-lg"
+                aria-label="Toggle navigation"
+              >
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            </div>
           </div>
-        )}
+
+          {/* Mobile Drawer Menu */}
+          {mobileMenuOpen && (
+            <div className="lg:hidden mt-3 pt-3 border-t border-white/10 space-y-2 text-sm font-semibold text-slate-100">
+              <Link href={`/${slug}`} onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:text-blue-300">Home</Link>
+              <Link href={`/${slug}/about`} onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:text-blue-300">About</Link>
+              <Link href={`/${slug}/courses`} onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:text-blue-300">Courses / Classes</Link>
+              <Link href={`/${slug}/hostel`} onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:text-blue-300">Hostel Service</Link>
+              <Link href={`/${slug}/transport`} onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:text-blue-300">Van Route</Link>
+              <Link href={`/${slug}/teachers`} onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:text-blue-300">Teachers</Link>
+              <Link href={`/${slug}/gallery`} onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:text-blue-300">Gallery</Link>
+              <Link href={`/${slug}/contact`} onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:text-blue-300">Contact</Link>
+              <Link href={`/${slug}/news`} onClick={() => setMobileMenuOpen(false)} className="block py-1 hover:text-blue-300">Notice / News</Link>
+              <div className="pt-2 flex gap-2">
+                <Link
+                  href="/institute/login"
+                  className="flex-1 text-center bg-[#0d6efd] text-white py-1.5 rounded font-semibold text-xs"
+                >
+                  Login
+                </Link>
+                <Link
+                  href={`/${slug}/apply`}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex-1 text-center bg-[#ffc107] text-slate-900 py-1.5 rounded font-semibold text-xs"
+                >
+                  Apply
+                </Link>
+              </div>
+            </div>
+          )}
+        </nav>
       </header>
 
-      {/* ─── HERO SECTION (SLIDERS OR FALLBACK BANNER) ────── */}
-      <section id="home" className="relative overflow-hidden bg-slate-950 text-white">
+      {/* ─── HERO CAROUSEL / SLIDER (FULL WIDTH BANNER LIKE LCABITHAN) ─── */}
+      <section id="home" className="relative overflow-hidden bg-slate-900">
         {hasSliders ? (
-          <div className="relative min-h-[640px] sm:min-h-[720px] md:min-h-[760px] pb-32 sm:pb-40 md:pb-48 flex items-center">
+          <div className="relative w-full h-[320px] sm:h-[450px] md:h-[520px] lg:h-[600px] overflow-hidden">
             {sliders.map((slider, index) => {
               const isActive = index === currentSlide
               return (
                 <div
                   key={slider.id}
-                  className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${isActive ? 'opacity-100 z-10 visible' : 'opacity-0 z-0 pointer-events-none invisible'}`}
+                  className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                    isActive ? 'opacity-100 z-10 visible' : 'opacity-0 z-0 pointer-events-none invisible'
+                  }`}
                 >
-                  {/* Background Image / Overlay */}
                   {slider.image_url ? (
-                    <div className="absolute inset-0">
-                      <img
-                        src={slider.image_url}
-                        alt={slider.title || 'Hero Banner'}
-                        className="w-full h-full object-cover scale-105 transition-transform duration-10000"
-                      />
-                      {/* Dual Layer Contrast Gradient */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-950/80 to-slate-950/45" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
-                    </div>
+                    <img
+                      src={slider.image_url}
+                      alt={slider.title || 'Banner'}
+                      className="w-full h-full object-cover object-center"
+                    />
                   ) : (
                     <div
-                      className="absolute inset-0 opacity-90"
-                      style={{
-                        background: `radial-gradient(circle at 25% 35%, ${primaryColor}cc 0%, ${secondaryColor}88 45%, #020617 100%)`
-                      }}
-                    />
-                  )}
-
-                  {/* Content Container */}
-                  <div className="relative max-w-7xl mx-auto px-4 sm:px-8 pt-12 pb-36 sm:pb-44 md:pb-52 h-full flex flex-col justify-center">
-                    <div className="max-w-3xl space-y-6">
-                      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-xs font-bold text-amber-300 shadow-md">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-                        <span>Admissions Open 2025–2026</span>
-                      </div>
-                      <h2
-                        className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.12] drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)]"
-                        style={{ color: '#ffffff' }}
-                      >
-                        {slider.title || websiteTitle}
-                      </h2>
-                      {slider.sub_title && (
-                        <p
-                          className="text-sm sm:text-lg md:text-xl font-normal leading-relaxed max-w-2xl drop-shadow-md opacity-90"
-                          style={{ color: '#e2e8f0' }}
-                        >
-                          {slider.sub_title}
-                        </p>
-                      )}
-                      <div className="pt-3 flex flex-wrap items-center gap-4">
-                        <button
-                          onClick={() => { setEnquiryCourse(''); setEnquiryModalOpen(true) }}
-                          className="px-7 py-3.5 rounded-2xl font-bold text-sm text-white shadow-xl hover:shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center gap-2.5 cursor-pointer"
-                          style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
-                        >
-                          <span>{slider.cta_text && slider.cta_text.toLowerCase().trim() !== 'explore courses' ? slider.cta_text : 'Admission Enquiry'}</span>
-                          <ArrowRight className="w-4 h-4" />
-                        </button>
-                        <a
-                          href="#courses"
-                          className="px-7 py-3.5 rounded-2xl font-bold text-sm bg-white/15 hover:bg-white/25 border border-white/30 backdrop-blur-md text-white transition-all hover:scale-105 active:scale-95 shadow-md flex items-center gap-2 cursor-pointer"
-                        >
-                          <span>Explore Courses</span>
-                        </a>
+                      className="w-full h-full flex items-center justify-center text-white"
+                      style={{ background: 'linear-gradient(135deg, #0d6efd 0%, #132742 100%)' }}
+                    >
+                      <div className="text-center p-6 max-w-2xl">
+                        <h2 className="text-3xl sm:text-5xl font-black mb-3">{websiteTitle}</h2>
+                        <p className="text-sm sm:text-lg opacity-90">{settings.hero_tagline}</p>
                       </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Clean banner caption if slide has specific custom title */}
+                  {slider.title && slider.title.trim() !== '' && (
+                    <div className="absolute bottom-6 left-6 md:bottom-12 md:left-12 max-w-lg bg-black/60 backdrop-blur-md p-4 sm:p-6 rounded-2xl text-white shadow-xl border border-white/10 hidden sm:block">
+                      <h3 className="font-extrabold text-lg sm:text-2xl mb-1">{slider.title}</h3>
+                      {slider.sub_title && <p className="text-xs sm:text-sm text-slate-200 mb-3">{slider.sub_title}</p>}
+                      <button
+                        onClick={() => { setEnquiryCourse(''); setEnquiryModalOpen(true) }}
+                        className="bg-[#0d6efd] hover:bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-md inline-flex items-center gap-1.5"
+                      >
+                        <span>{slider.cta_text || 'Admission Enquiry'}</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               )
             })}
 
-            {/* Slider Controls */}
+            {/* Slider Navigation Arrows */}
             {sliders.length > 1 && (
               <>
                 <button
                   onClick={() => setCurrentSlide(prev => (prev - 1 + sliders.length) % sliders.length)}
-                  className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-black/40 hover:bg-black/75 border border-white/20 text-white flex items-center justify-center backdrop-blur-md transition-all shadow-xl hover:scale-110 active:scale-95 cursor-pointer"
-                  aria-label="Previous slide"
+                  className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center transition-all shadow-md"
+                  aria-label="Previous"
                 >
                   <ChevronLeft className="w-6 h-6" />
                 </button>
                 <button
                   onClick={() => setCurrentSlide(prev => (prev + 1) % sliders.length)}
-                  className="absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-black/40 hover:bg-black/75 border border-white/20 text-white flex items-center justify-center backdrop-blur-md transition-all shadow-xl hover:scale-110 active:scale-95 cursor-pointer"
-                  aria-label="Next slide"
+                  className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center transition-all shadow-md"
+                  aria-label="Next"
                 >
                   <ChevronRight className="w-6 h-6" />
                 </button>
-                <div className="absolute bottom-32 sm:bottom-40 md:bottom-44 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
+
+                {/* Carousel Indicators / Dots */}
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
                   {sliders.map((_, i) => (
                     <button
                       key={i}
                       onClick={() => setCurrentSlide(i)}
-                      className={`h-2.5 rounded-full transition-all duration-300 cursor-pointer ${i === currentSlide ? 'w-9 bg-white shadow-md' : 'w-2.5 bg-white/40 hover:bg-white/70'}`}
-                      aria-label={`Go to slide ${i + 1}`}
+                      className={`h-2.5 rounded-full transition-all duration-300 ${
+                        i === currentSlide ? 'w-8 bg-[#0d6efd]' : 'w-2.5 bg-white/60 hover:bg-white'
+                      }`}
+                      aria-label={`Slide ${i + 1}`}
                     />
                   ))}
                 </div>
@@ -535,461 +525,398 @@ export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug:
             )}
           </div>
         ) : (
-          /* Fallback Hero Banner */
-          <div className="relative py-24 sm:py-36 pb-36 sm:pb-48 px-4 sm:px-8">
-            <div
-              className="absolute inset-0 opacity-80"
-              style={{
-                background: `radial-gradient(circle at 30% 40%, ${primaryColor}cc 0%, ${secondaryColor}77 50%, #020617 100%)`
-              }}
-            />
-            <div className="relative max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12">
-              <div className="max-w-2xl space-y-6">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-xs font-bold text-amber-300 shadow-md">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Welcome to our official campus portal</span>
-                </div>
-                <h2
-                  className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.12] drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)]"
-                  style={{ color: '#ffffff' }}
+          /* Default Banner */
+          <div className="relative py-20 px-4 sm:px-8 text-white bg-gradient-to-r from-[#132742] to-[#0d6efd] text-center">
+            <div className="max-w-4xl mx-auto space-y-4">
+              <span className="inline-block bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">
+                Admissions Open 2025–2026
+              </span>
+              <h2 className="text-3xl sm:text-5xl font-black">{websiteTitle}</h2>
+              <p className="text-sm sm:text-lg text-slate-100 max-w-2xl mx-auto">
+                {settings.hero_sub_text || 'Providing exceptional academic excellence, modern infrastructure, and holistic mentorship.'}
+              </p>
+              <div className="pt-2">
+                <button
+                  onClick={() => { setEnquiryCourse(''); setEnquiryModalOpen(true) }}
+                  className="bg-[#ffc107] hover:bg-amber-400 text-slate-900 font-bold px-6 py-2.5 rounded-lg text-sm shadow-md transition-all"
                 >
-                  {settings.hero_tagline || `Empowering Future Leaders at ${websiteTitle}`}
-                </h2>
-                <p
-                  className="text-sm sm:text-lg md:text-xl font-normal leading-relaxed opacity-90 max-w-xl"
-                  style={{ color: '#e2e8f0' }}
-                >
-                  {settings.hero_sub_text || 'Providing exceptional academic excellence, modern infrastructure, and holistic development to nurture tomorrow’s achievers.'}
-                </p>
-                <div className="pt-3 flex flex-wrap items-center gap-4">
-                  <button
-                    onClick={() => { setEnquiryCourse(''); setEnquiryModalOpen(true) }}
-                    className="px-7 py-3.5 rounded-2xl font-bold text-sm text-white shadow-xl transition-all hover:scale-105 active:scale-95 flex items-center gap-2.5"
-                    style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
-                  >
-                    <span>Apply for Admission</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                  <a
-                    href="#about"
-                    className="px-7 py-3.5 rounded-2xl font-bold text-sm bg-white/15 hover:bg-white/25 border border-white/30 backdrop-blur-md text-white transition-all hover:scale-105 active:scale-95 shadow-md"
-                  >
-                    Learn More
-                  </a>
-                </div>
-              </div>
-
-              {/* Decorative Card */}
-              <div className="w-full md:w-auto max-w-md bg-white/10 backdrop-blur-xl border border-white/20 p-6 sm:p-8 rounded-3xl shadow-2xl text-left space-y-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center text-indigo-300 border border-indigo-400/30">
-                    <Award className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="font-extrabold text-white text-base">Accredited Excellence</h4>
-                    <p className="text-xs text-slate-300">Recognized Institution</p>
-                  </div>
-                </div>
-                <p className="text-xs text-slate-200 leading-relaxed">
-                  We blend high standards of academic learning with moral values, cutting-edge technology, and co-curricular programs.
-                </p>
-                <div className="pt-3 border-t border-white/10 flex items-center justify-between text-xs font-semibold text-indigo-300">
-                  <span>Admissions Open for 2025</span>
-                  <a href="#contact" className="hover:text-white flex items-center gap-1">Contact Us →</a>
-                </div>
+                  Apply For Admission
+                </button>
               </div>
             </div>
           </div>
         )}
       </section>
 
-      {/* ─── KEY STATS / ACHIEVEMENTS ───────────────────────── */}
-      {stats.length > 0 && (
-        <section className="relative z-30 -mt-20 sm:-mt-24 md:-mt-28 max-w-7xl mx-auto px-4 sm:px-8">
-          <div
-            className="rounded-3xl p-6 sm:p-8 shadow-2xl border transition-all backdrop-blur-xl"
-            style={{ backgroundColor: cardBg, borderColor: cardBorder }}
-          >
-            <div className={`grid gap-4 sm:gap-6 ${
-              stats.length <= 4 
-                ? 'grid-cols-2 sm:grid-cols-4' 
-                : stats.length === 5 
-                ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5' 
-                : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'
-            }`}>
-              {stats.map((st) => (
-                <div
-                  key={st.id}
-                  className="text-center p-4 rounded-2xl transition-all hover:scale-[1.02] hover:bg-slate-50/80 dark:hover:bg-slate-800/80"
-                >
-                  <div
-                    className="w-12 h-12 mx-auto rounded-2xl flex items-center justify-center text-white mb-3 shadow-md"
-                    style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
-                  >
-                    <Users className="w-6 h-6" />
-                  </div>
-                  <div
-                    className="text-2xl sm:text-3xl font-black tracking-tight"
-                    style={{ color: headingColor }}
-                  >
-                    {st.value}
-                  </div>
-                  <div
-                    className="text-xs sm:text-sm font-semibold mt-1"
-                    style={{ color: bodyTextColor }}
-                  >
-                    {st.label}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ─── ABOUT US SECTION ───────────────────────────────── */}
-      {(settings.about_text || settings.about_vision || settings.about_mission) && (
-        <section id="about" className="py-20 px-4 sm:px-8 max-w-7xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-14 space-y-3">
-            <span
-              className="text-xs font-black tracking-widest uppercase px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200"
-              style={{ color: primaryColor }}
-            >
-              Who We Are
-            </span>
-            <h3 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-              About Our Institution
-            </h3>
-            <div className="w-16 h-1 bg-indigo-600 mx-auto rounded-full" style={{ backgroundColor: primaryColor }} />
+      {/* ─── ABOUT OUR SCHOOL (EXACT LCABITHAN SECTION WITH BLUE UNDERLINE BAR) ─── */}
+      <section id="about" className="py-16 sm:py-20 px-4 sm:px-8 bg-white">
+        <div className="max-w-7xl mx-auto">
+          {/* Centered Heading with Blue Underline */}
+          <div className="text-center mb-12">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900">
+              About Our School
+            </h2>
+            <div className="mx-auto bg-[#0d6efd] mt-2.5 mb-2 h-[3.5px] w-[180px] rounded-full" />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-            <div className="lg:col-span-7 space-y-6">
-              {settings.about_text && (
-                <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
-                  {settings.about_text}
-                </p>
+            {/* Image Column with 10+ Years Floating Badge */}
+            <div className="lg:col-span-6">
+              <div className="relative rounded-2xl overflow-hidden shadow-lg border border-slate-100">
+                <img
+                  src={
+                    settings.about_image_url ||
+                    'https://images.unsplash.com/photo-1580582932707-520aed937b7b?q=80&w=1000&auto=format&fit=crop'
+                  }
+                  alt="About Campus"
+                  className="w-full h-[320px] sm:h-[400px] object-cover"
+                />
+                
+                {/* 10+ Years of Excellence floating badge */}
+                <div className="absolute bottom-5 right-5 bg-white text-center rounded-2xl shadow-xl p-4 border border-slate-100 min-w-[130px]">
+                  <h5 className="text-2xl sm:text-3xl font-black text-[#0d6efd]">10+</h5>
+                  <small className="text-xs font-bold text-slate-700 block leading-tight">
+                    Years of<br />Excellence
+                  </small>
+                </div>
+              </div>
+            </div>
+
+            {/* Content Column */}
+            <div className="lg:col-span-6 space-y-5 lg:ps-6">
+              <h3 className="text-2xl sm:text-3xl font-bold text-slate-900 leading-tight">
+                {settings.hero_tagline || 'Shaping Bright Futures'}
+              </h3>
+
+              <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
+                {settings.about_text ||
+                  `At ${websiteTitle}, we are committed to providing a safe, inspiring, and student-centered learning environment where every child is encouraged to discover their unique talents and reach their highest potential. Our dedicated educators combine academic excellence with strong moral values, creativity, and life skills to prepare students for the challenges of tomorrow.`}
+              </p>
+
+              {settings.about_vision && (
+                <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-100 text-xs sm:text-sm text-slate-700">
+                  <strong className="text-[#0d6efd] block mb-1">Our Vision:</strong>
+                  {settings.about_vision}
+                </div>
               )}
 
-              {/* Vision and Mission Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-                {settings.about_vision && (
-                  <div className="p-5 rounded-2xl bg-indigo-50/50 border border-indigo-100 space-y-2">
-                    <div className="flex items-center gap-2 font-bold text-indigo-900 text-sm">
-                      <Sparkles className="w-4 h-4 text-indigo-600" />
-                      <span>Our Vision</span>
-                    </div>
-                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                      {settings.about_vision}
-                    </p>
-                  </div>
-                )}
-                {settings.about_mission && (
-                  <div className="p-5 rounded-2xl bg-purple-50/50 border border-purple-100 space-y-2">
-                    <div className="flex items-center gap-2 font-bold text-purple-900 text-sm">
-                      <Shield className="w-4 h-4 text-purple-600" />
-                      <span>Our Mission</span>
-                    </div>
-                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                      {settings.about_mission}
-                    </p>
-                  </div>
-                )}
+              {/* Highlights List */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 text-xs sm:text-sm font-semibold text-slate-700">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Experienced Teaching Staff</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Modern Smart Classrooms</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Safe Transport with GPS</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Holistic Sports & Activity</span>
+                </div>
               </div>
 
-              {/* Highlights Checklist */}
-              <div className="grid grid-cols-2 gap-3 pt-2 text-xs sm:text-sm font-semibold text-slate-700">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>State of the art Laboratories</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Experienced & Dedicated Faculty</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Comprehensive Sports & Arts</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Safe & Connected Transport</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Visual side card */}
-            <div className="lg:col-span-5">
-              <div
-                className="relative rounded-3xl overflow-hidden shadow-2xl border min-h-[380px] flex flex-col justify-end p-8 sm:p-10 text-white space-y-4"
-                style={{ borderColor: cardBorder }}
-              >
-                {settings.about_image_url ? (
-                  <div className="absolute inset-0">
-                    <img
-                      src={settings.about_image_url}
-                      alt="Campus Life"
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/70 to-transparent" />
-                  </div>
-                ) : (
-                  <div
-                    className="absolute inset-0"
-                    style={{ background: `linear-gradient(135deg, ${primaryColor}dd, ${secondaryColor}cc, #020617)` }}
-                  />
-                )}
-                <div className="relative z-10 space-y-4">
-                  <div className="inline-block px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-semibold text-white">
-                    Campus Life
-                  </div>
-                  <h4 className="text-2xl font-bold leading-snug text-white">
-                    Nurturing talent, inspiring innovation, shaping leadership.
-                  </h4>
-                  <p className="text-xs text-slate-200 leading-relaxed">
-                    Our curriculum is designed to stimulate critical thinking and creativity, preparing learners for a rapidly evolving global landscape.
-                  </p>
-                  <div className="pt-3 border-t border-white/10 flex items-center justify-between">
-                    <div>
-                      <div className="text-2xl font-black text-amber-400">100%</div>
-                      <div className="text-xs text-slate-300">Committed Guidance</div>
-                    </div>
-                    <button
-                      onClick={() => { setEnquiryCourse(''); setEnquiryModalOpen(true) }}
-                      className="px-4 py-2 rounded-xl bg-white text-slate-900 hover:bg-slate-100 text-xs font-bold transition-all shadow-md"
-                    >
-                      Enquire Today
-                    </button>
-                  </div>
-                </div>
+              {/* Contact Us Outline Button */}
+              <div className="pt-4">
+                <Link
+                  href={`/${slug}/contact`}
+                  className="inline-block border-2 border-[#0d6efd] text-[#0d6efd] hover:bg-[#0d6efd] hover:text-white font-bold text-sm px-7 py-2.5 rounded-lg transition-all shadow-xs"
+                >
+                  Contact Us
+                </Link>
               </div>
             </div>
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
-      {/* ─── COURSES / PROGRAMS SECTION ─────────────────────── */}
-      {courses.length > 0 && (
-        <section
-          id="courses"
-          className="py-20 px-4 sm:px-8 border-y transition-colors"
-          style={{ backgroundColor: sectionAltBg, borderColor: cardBorder }}
-        >
-          <div className="max-w-7xl mx-auto space-y-12">
-            <div className="text-center max-w-2xl mx-auto space-y-3">
-              <span
-                className="text-xs font-black tracking-widest uppercase px-3 py-1 rounded-full border"
-                style={{
-                  backgroundColor: `${primaryColor}15`,
-                  color: primaryColor,
-                  borderColor: `${primaryColor}30`,
-                }}
-              >
-                Academics
-              </span>
-              <h3 className="text-3xl sm:text-4xl font-extrabold tracking-tight" style={{ color: headingColor }}>
-                Featured Programs & Courses
-              </h3>
-              <p className="text-sm font-medium" style={{ color: bodyTextColor }}>
-                Choose from our comprehensively structured academic curriculums and courses.
-              </p>
-            </div>
-
-            {/* Filter pills */}
-            {courseCategories.length > 2 && (
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                {courseCategories.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCourseCategory(cat)}
-                    className="px-4 py-1.5 rounded-full text-xs font-bold transition-all"
-                    style={{
-                      background: selectedCourseCategory === cat ? `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` : cardBg,
-                      color: selectedCourseCategory === cat ? buttonTextColor : bodyTextColor,
-                      border: `1px solid ${selectedCourseCategory === cat ? 'transparent' : cardBorder}`,
-                    }}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Course Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredCourses.map((crs) => (
+      {/* ─── COUNTER / STATS SECTION (SOLID BLUE BG LIKE LCABITHAN) ─── */}
+      <section className="py-14 text-white bg-[#0d6efd]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 text-center">
+            {stats && stats.length > 0 ? (
+              stats.slice(0, 4).map((st) => (
                 <div
-                  key={crs.id}
-                  className="rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border flex flex-col group"
-                  style={{ backgroundColor: cardBg, borderColor: cardBorder }}
+                  key={st.id}
+                  className="p-5 sm:p-6 border border-white/20 rounded-2xl shadow-sm bg-white/10 backdrop-blur-xs transition-transform hover:-translate-y-1"
                 >
-                  {crs.image_url ? (
-                    <div className="h-48 overflow-hidden relative">
-                      <img
-                        src={crs.image_url}
-                        alt={crs.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      {crs.category && (
-                        <span className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white text-[11px] font-bold">
-                          {crs.category}
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <div
-                      className="h-32 flex items-center justify-center p-6 text-white relative"
-                      style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
-                    >
-                      <BookOpen className="w-10 h-10 opacity-30 absolute right-4 bottom-4" />
-                      {crs.category && (
-                        <span className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-white/20 backdrop-blur-md text-white text-[11px] font-bold">
-                          {crs.category}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
-                    <div className="space-y-2">
-                      <h4 className="text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                        {crs.title}
-                      </h4>
-                      {crs.description && (
-                        <p className="text-xs sm:text-sm text-slate-500 line-clamp-3 leading-relaxed">
-                          {crs.description}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
-                      {crs.duration && (
-                        <div className="flex items-center gap-1.5 text-slate-500 font-semibold">
-                          <Clock className="w-3.5 h-3.5 text-indigo-500" />
-                          <span>{crs.duration}</span>
-                        </div>
-                      )}
-                      {crs.fees && (
-                        <div className="font-extrabold text-slate-900 text-sm">
-                          {crs.fees}
-                        </div>
-                      )}
-                    </div>
-
-                    <button
-                      onClick={() => openCourseEnquiry(crs.title)}
-                      className="w-full py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1.5"
-                      style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
-                    >
-                      <span>Enquire for Course</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  <GraduationCap className="w-10 h-10 mx-auto mb-2 text-[#ffc107]" />
+                  <h3 className="text-2xl sm:text-3xl md:text-4xl font-extrabold mb-1">{st.value}</h3>
+                  <p className="text-xs uppercase font-bold text-blue-100 tracking-wider mb-0">{st.label}</p>
                 </div>
-              ))}
-            </div>
+              ))
+            ) : (
+              <>
+                <div className="p-5 sm:p-6 border border-white/20 rounded-2xl shadow-sm bg-white/10 backdrop-blur-xs">
+                  <GraduationCap className="w-10 h-10 mx-auto mb-2 text-[#ffc107]" />
+                  <h3 className="text-2xl sm:text-4xl font-extrabold mb-1">1000+</h3>
+                  <p className="text-xs uppercase font-bold text-blue-100 tracking-wider">Students</p>
+                </div>
+                <div className="p-5 sm:p-6 border border-white/20 rounded-2xl shadow-sm bg-white/10 backdrop-blur-xs">
+                  <Users className="w-10 h-10 mx-auto mb-2 text-[#ffc107]" />
+                  <h3 className="text-2xl sm:text-4xl font-extrabold mb-1">25+</h3>
+                  <p className="text-xs uppercase font-bold text-blue-100 tracking-wider">Teachers</p>
+                </div>
+                <div className="p-5 sm:p-6 border border-white/20 rounded-2xl shadow-sm bg-white/10 backdrop-blur-xs">
+                  <Award className="w-10 h-10 mx-auto mb-2 text-[#ffc107]" />
+                  <h3 className="text-2xl sm:text-4xl font-extrabold mb-1">100%</h3>
+                  <p className="text-xs uppercase font-bold text-blue-100 tracking-wider">Result</p>
+                </div>
+                <div className="p-5 sm:p-6 border border-white/20 rounded-2xl shadow-sm bg-white/10 backdrop-blur-xs">
+                  <Building2 className="w-10 h-10 mx-auto mb-2 text-[#ffc107]" />
+                  <h3 className="text-2xl sm:text-4xl font-extrabold mb-1">20+</h3>
+                  <p className="text-xs uppercase font-bold text-blue-100 tracking-wider">Class Rooms</p>
+                </div>
+              </>
+            )}
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
-      {/* ─── GALLERY SECTION ────────────────────────────────── */}
-      {gallery.length > 0 && (
-        <section id="gallery" className="py-20 px-4 sm:px-8 max-w-7xl mx-auto space-y-12">
-          <div className="text-center max-w-2xl mx-auto space-y-3">
-            <span
-              className="text-xs font-black tracking-widest uppercase px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200"
-              style={{ color: primaryColor }}
-            >
-              Life on Campus
-            </span>
-            <h3 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-              Photo & Campus Gallery
-            </h3>
-            <p className="text-sm text-slate-500 font-medium">
-              Glimpses of activities, celebrations, laboratories, and memories made at our institution.
-            </p>
+      {/* ─── OUR ACADEMIC PROGRAMS / COURSES (CARD GRID WITH CIRCLE ICONS) ─── */}
+      <section id="courses" className="py-16 sm:py-20 px-4 sm:px-8 bg-white">
+        <div className="max-w-7xl mx-auto">
+          {/* Centered Heading */}
+          <div className="text-center mb-12">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900">
+              Our Academic Programs
+            </h2>
+            <div className="mx-auto bg-[#0d6efd] mt-2.5 mb-2 h-[3.5px] w-[140px] rounded-full" />
           </div>
 
-          {/* Gallery Category Filter */}
-          {galleryCategories.length > 2 && (
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {galleryCategories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedGalleryCategory(cat)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${selectedGalleryCategory === cat ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'}`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Grid of Images */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {filteredGallery.map((item) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {courses.map((crs) => (
               <div
-                key={item.id}
-                onClick={() => setActiveLightboxImg(item.image_url)}
-                className="group relative h-48 sm:h-60 rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-all border border-slate-200"
+                key={crs.id}
+                className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all p-6 text-center flex flex-col justify-between"
               >
-                <img
-                  src={item.image_url}
-                  alt={item.caption || 'Campus photo'}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-4 flex flex-col justify-end text-white">
-                  <span className="text-xs font-bold">{item.caption || item.category || 'View Photo'}</span>
-                  <span className="text-[10px] text-indigo-300 font-medium">Click to expand</span>
+                <div>
+                  {/* Pastel icon container */}
+                  <div className="w-16 h-16 mx-auto mb-4 bg-rose-50 text-emerald-600 rounded-full flex items-center justify-center border border-rose-100 shadow-xs">
+                    <GraduationCap className="w-8 h-8" />
+                  </div>
+                  <h4 className="font-bold text-slate-900 text-base mb-1">{crs.title}</h4>
+                  <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mb-4">
+                    {crs.description || 'Structured academic preparation with personalized guidance.'}
+                  </p>
+                </div>
+
+                <div>
+                  <hr className="my-3 border-slate-100" />
+                  <div className="flex items-center justify-between text-xs mb-3">
+                    {crs.duration && <span className="text-slate-500 font-medium">⏱ {crs.duration}</span>}
+                    {crs.fees && <span className="font-bold text-slate-900">{crs.fees}</span>}
+                  </div>
+                  <Link
+                    href={`/${slug}/courses/${crs.id}`}
+                    className="block w-full border border-[#0d6efd] text-[#0d6efd] hover:bg-[#0d6efd] hover:text-white rounded-full py-1.5 text-xs font-semibold transition-colors"
+                  >
+                    View Details
+                  </Link>
                 </div>
               </div>
             ))}
           </div>
+        </div>
+      </section>
 
-          {/* Lightbox Modal */}
-          {activeLightboxImg && (
-            <div
-              className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in"
-              onClick={() => setActiveLightboxImg(null)}
-            >
-              <button
-                className="absolute top-6 right-6 text-white hover:text-slate-300 p-2"
+      {/* ─── MEET OUR EXPERT TEACHERS (EXACT LCABITHAN STYLE) ─── */}
+      <section id="teachers" className="py-16 sm:py-20 px-4 sm:px-8 bg-[#f8f9fa]">
+        <div className="max-w-7xl mx-auto">
+          {/* Centered Heading */}
+          <div className="text-center mb-12">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900">
+              Meet Our Expert Teacher's
+            </h2>
+            <div className="mx-auto bg-[#0d6efd] mt-2.5 mb-2 h-[3.5px] w-[240px] rounded-full" />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {displayTeachers.map((t, idx) => {
+              const exp = t.details?.exp || `${10 + idx} Yrs Exp`
+              const spec = Array.isArray(t.assigned_classes) && t.assigned_classes.length > 0
+                ? t.assigned_classes[0]
+                : 'Faculty Specialist'
+
+              return (
+                <div
+                  key={t.id || idx}
+                  className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all p-6 text-center flex flex-col justify-between"
+                >
+                  <div>
+                    {/* Circular photo with experience badge */}
+                    <div className="relative inline-block mx-auto mb-4">
+                      {t.avatar ? (
+                        <img
+                          src={t.avatar}
+                          alt={t.name}
+                          className="w-28 h-28 rounded-full object-cover shadow border-2 border-white"
+                        />
+                      ) : (
+                        <div className="w-28 h-28 rounded-full bg-slate-100 text-slate-500 font-black text-2xl flex items-center justify-center shadow border-2 border-white">
+                          {t.name.charAt(0)}
+                        </div>
+                      )}
+                      <span className="absolute bottom-0 right-0 bg-[#0d6efd] text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-xs whitespace-nowrap">
+                        {exp}
+                      </span>
+                    </div>
+
+                    <h4 className="font-bold text-slate-900 text-base mb-1">{t.name}</h4>
+                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-2">
+                      {spec}
+                    </p>
+                    <p className="text-slate-600 text-xs leading-relaxed">
+                      {t.details?.bio || 'Dedicated to student conceptual growth and academic achievement.'}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── OUR SCHOOL GALLERY (WITH EYE HOVER LIKE LCABITHAN) ─── */}
+      {gallery.length > 0 && (
+        <section id="gallery" className="py-16 sm:py-20 px-4 sm:px-8 bg-white">
+          <div className="max-w-7xl mx-auto">
+            {/* Centered Heading */}
+            <div className="text-center mb-12">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900">
+                Our School Gallery
+              </h2>
+              <div className="mx-auto bg-[#0d6efd] mt-2.5 mb-2 h-[3.5px] w-[150px] rounded-full" />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {gallery.map((item) => (
+                <div key={item.id} className="group">
+                  <div
+                    onClick={() => setActiveLightboxImg(item.image_url)}
+                    className="relative h-56 rounded-2xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer border border-slate-100 transition-all"
+                  >
+                    <img
+                      src={item.image_url}
+                      alt={item.caption || 'Campus photo'}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    {/* Hover eye overlay */}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="w-11 h-11 rounded-full bg-white text-[#0d6efd] flex items-center justify-center shadow-lg">
+                        <Eye className="w-5 h-5" />
+                      </div>
+                    </div>
+                  </div>
+                  {item.caption && (
+                    <p className="text-center text-slate-600 text-xs font-semibold mt-2.5 line-clamp-1">
+                      {item.caption}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Lightbox Modal */}
+            {activeLightboxImg && (
+              <div
+                className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4"
                 onClick={() => setActiveLightboxImg(null)}
               >
-                <X className="w-8 h-8" />
-              </button>
-              <img
-                src={activeLightboxImg}
-                alt="Enlarged view"
-                className="max-h-[85vh] max-w-[90vw] object-contain rounded-2xl shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-          )}
+                <button
+                  onClick={() => setActiveLightboxImg(null)}
+                  className="absolute top-5 right-5 text-white hover:text-slate-300 p-2"
+                >
+                  <X className="w-8 h-8" />
+                </button>
+                <img
+                  src={activeLightboxImg}
+                  alt="Expanded"
+                  className="max-h-[85vh] max-w-[90vw] object-contain rounded-xl shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            )}
+          </div>
         </section>
       )}
 
-      {/* ─── TESTIMONIALS SECTION ───────────────────────────── */}
-      {testimonials.length > 0 && (
-        <section id="testimonials" className="py-20 px-4 sm:px-8 bg-slate-900 text-white">
-          <div className="max-w-7xl mx-auto space-y-12">
-            <div className="text-center max-w-2xl mx-auto space-y-3">
-              <span className="text-xs font-black tracking-widest uppercase px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
-                Success Stories
-              </span>
-              <h3 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-                What Students & Parents Say
-              </h3>
-              <p className="text-sm text-slate-400 font-medium">
-                Hear authentic feedback and inspiring stories from our student community and families.
-              </p>
+      {/* ─── LATEST NOTICES & NEWS (WITH TOP FLOATING BADGE) ─── */}
+      {blogs.length > 0 && (
+        <section id="blogs" className="py-16 sm:py-20 px-4 sm:px-8 bg-[#f8f9fa]">
+          <div className="max-w-7xl mx-auto">
+            {/* Centered Heading */}
+            <div className="text-center mb-12">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900">
+                Latest Notices & News
+              </h2>
+              <div className="mx-auto bg-[#0d6efd] mt-2.5 mb-2 h-[3.5px] w-[180px] rounded-full" />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {blogs.map((b, idx) => (
+                <div
+                  key={b.id}
+                  className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 pt-7 relative flex flex-col justify-between"
+                >
+                  {/* Floating badge at top-left */}
+                  <span className="absolute -top-3 left-6 bg-emerald-600 text-white px-3 py-0.5 rounded-full text-xs font-bold shadow-xs">
+                    ● {idx % 2 === 0 ? 'Exam' : 'Event'}
+                  </span>
+
+                  <div>
+                    <div className="text-slate-400 text-xs flex items-center gap-1.5 mb-2">
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>{b.published_at ? new Date(b.published_at).toLocaleDateString() : 'Active'}</span>
+                    </div>
+
+                    <h4 className="font-bold text-slate-900 text-base mb-2 line-clamp-2">
+                      {b.title}
+                    </h4>
+
+                    {b.excerpt && (
+                      <p className="text-xs text-slate-500 leading-relaxed line-clamp-3 mb-4">
+                        {b.excerpt}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Link
+                      href={`/${slug}/news/${b.id}`}
+                      className="text-xs font-bold text-slate-900 hover:text-blue-600 inline-flex items-center gap-1"
+                    >
+                      <span>Read More</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ─── WHAT OUR PARENT & STUDENT SAY (TESTIMONIALS) ─── */}
+      {testimonials.length > 0 && (
+        <section className="py-16 sm:py-20 px-4 sm:px-8 bg-white">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900">
+                What Our Parent & Student Say
+              </h2>
+              <div className="mx-auto bg-[#0d6efd] mt-2.5 mb-2 h-[3.5px] w-[180px] rounded-full" />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {testimonials.map((t) => (
                 <div
                   key={t.id}
-                  className="bg-slate-800/80 backdrop-blur-md p-6 sm:p-8 rounded-3xl border border-slate-700/80 flex flex-col justify-between space-y-4 hover:border-indigo-500/50 transition-all shadow-xl"
+                  className="p-6 rounded-2xl border border-slate-100 shadow-sm bg-slate-50/60 flex flex-col justify-between"
                 >
                   <div className="space-y-3">
                     <div className="flex items-center gap-1 text-amber-400">
@@ -997,26 +924,26 @@ export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug:
                         <Star key={i} className="w-4 h-4 fill-amber-400" />
                       ))}
                     </div>
-                    <p className="text-xs sm:text-sm text-slate-300 leading-relaxed italic">
+                    <p className="text-xs sm:text-sm text-slate-600 italic leading-relaxed">
                       "{t.message}"
                     </p>
                   </div>
 
-                  <div className="pt-4 border-t border-slate-700 flex items-center gap-3">
+                  <div className="pt-4 border-t border-slate-200 mt-4 flex items-center gap-3">
                     {t.photo_url ? (
                       <img
                         src={t.photo_url}
                         alt={t.student_name}
-                        className="w-10 h-10 rounded-full object-cover border border-indigo-400"
+                        className="w-10 h-10 rounded-full object-cover border border-blue-400"
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-indigo-600/30 text-indigo-300 flex items-center justify-center font-bold text-sm">
+                      <div className="w-10 h-10 rounded-full bg-[#0d6efd] text-white flex items-center justify-center font-bold text-sm">
                         {t.student_name.charAt(0)}
                       </div>
                     )}
                     <div>
-                      <div className="font-bold text-sm text-white">{t.student_name}</div>
-                      {t.designation && <div className="text-[11px] text-slate-400">{t.designation}</div>}
+                      <div className="font-bold text-slate-900 text-sm">{t.student_name}</div>
+                      {t.designation && <div className="text-xs text-slate-500">{t.designation}</div>}
                     </div>
                   </div>
                 </div>
@@ -1026,468 +953,389 @@ export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug:
         </section>
       )}
 
-      {/* ─── FAQS SECTION ───────────────────────────────────── */}
-      {faqs.length > 0 && (
-        <section id="faqs" className="py-20 px-4 sm:px-8 max-w-4xl mx-auto space-y-10">
-          <div className="text-center space-y-3">
-            <span
-              className="text-xs font-black tracking-widest uppercase px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200"
-              style={{ color: primaryColor }}
-            >
-              Have Questions?
-            </span>
-            <h3 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-              Frequently Asked Questions
-            </h3>
-            <p className="text-sm text-slate-500 font-medium">
-              Quick answers to common questions about admissions, fees, and campus life.
-            </p>
+      {/* ─── CONTACT US SECTION (EXACT LCABITHAN 2-COLUMN LAYOUT) ─── */}
+      <section id="contact" className="py-16 sm:py-20 px-4 sm:px-8 bg-[#f8f9fa]">
+        <div className="max-w-7xl mx-auto">
+          {/* Centered Heading */}
+          <div className="text-center mb-12">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900">
+              Contact Us
+            </h2>
+            <div className="mx-auto bg-[#0d6efd] mt-2.5 mb-2 h-[3.5px] w-[100px] rounded-full" />
           </div>
 
-          <div className="space-y-3">
-            {faqs.map((f) => {
-              const isOpen = openFaq === f.id
-              return (
-                <div
-                  key={f.id}
-                  className="rounded-2xl border overflow-hidden shadow-xs transition-all"
-                  style={{ backgroundColor: cardBg, borderColor: cardBorder }}
-                >
-                  <button
-                    onClick={() => setOpenFaq(isOpen ? null : f.id)}
-                    className="w-full p-5 text-left flex items-center justify-between gap-4 font-bold text-sm hover:opacity-80 transition-opacity"
-                    style={{ color: headingColor }}
-                  >
-                    <span>{f.question}</span>
-                    <ChevronRight className={`w-4 h-4 shrink-0 opacity-50 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} />
-                  </button>
-                  {isOpen && (
-                    <div className="px-5 pb-5 pt-1 text-xs sm:text-sm leading-relaxed border-t border-black/5" style={{ color: bodyTextColor }}>
-                      {f.answer}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            {/* Left Column: School Address, Contact Info, Map */}
+            <div className="lg:col-span-6 space-y-6">
+              
+              {/* Dual Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                
+                {/* School Address Card */}
+                <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-slate-100">
+                  <MapPin className="w-8 h-8 text-[#0d6efd] mx-auto mb-2" />
+                  <h4 className="font-bold text-slate-900 text-sm mb-1">School Address</h4>
+                  <p className="text-xs text-slate-500 leading-relaxed mb-0">
+                    {settings.contact_address || 'Main Campus Road, Samastipur, Bihar'}
+                  </p>
+                </div>
+
+                {/* Contact Info Card */}
+                <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-slate-100">
+                  <Phone className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
+                  <h4 className="font-bold text-slate-900 text-sm mb-1">Contact Info</h4>
+                  {settings.contact_phone && (
+                    <div className="text-xs text-slate-600 mb-1">
+                      📞 <a href={`tel:${settings.contact_phone}`} className="hover:underline font-medium">{settings.contact_phone}</a>
+                    </div>
+                  )}
+                  {settings.contact_email && (
+                    <div className="text-xs text-slate-600 truncate">
+                      ✉️ <a href={`mailto:${settings.contact_email}`} className="hover:underline">{settings.contact_email}</a>
                     </div>
                   )}
                 </div>
-              )
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* ─── LATEST NEWS & BLOGS ────────────────────────────── */}
-      {blogs.length > 0 && (
-        <section
-          id="blogs"
-          className="py-20 px-4 sm:px-8 border-t transition-colors"
-          style={{ backgroundColor: sectionAltBg, borderColor: cardBorder }}
-        >
-          <div className="max-w-7xl mx-auto space-y-12">
-            <div className="text-center max-w-2xl mx-auto space-y-3">
-              <span
-                className="text-xs font-black tracking-widest uppercase px-3 py-1 rounded-full border"
-                style={{
-                  backgroundColor: `${primaryColor}15`,
-                  color: primaryColor,
-                  borderColor: `${primaryColor}30`,
-                }}
-              >
-                Updates & News
-              </span>
-              <h3 className="text-3xl sm:text-4xl font-extrabold tracking-tight" style={{ color: headingColor }}>
-                Latest Announcements & Articles
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {blogs.map((b) => (
-                <div
-                  key={b.id}
-                  className="rounded-3xl overflow-hidden shadow-sm hover:shadow-lg transition-all border flex flex-col"
-                  style={{ backgroundColor: cardBg, borderColor: cardBorder }}
-                >
-                  {b.cover_image_url && (
-                    <img src={b.cover_image_url} alt={b.title} className="h-44 w-full object-cover" />
-                  )}
-                  <div className="p-6 flex-1 flex flex-col justify-between space-y-3">
-                    <div className="space-y-2">
-                      {b.published_at && (
-                        <div className="text-[11px] font-semibold flex items-center gap-1" style={{ color: primaryColor }}>
-                          <Calendar className="w-3 h-3" />
-                          <span>{new Date(b.published_at).toLocaleDateString()}</span>
-                        </div>
-                      )}
-                      <h4 className="font-bold text-base line-clamp-2" style={{ color: headingColor }}>
-                        {b.title}
-                      </h4>
-                      {b.excerpt && (
-                        <p className="text-xs line-clamp-3 leading-relaxed" style={{ color: bodyTextColor }}>
-                          {b.excerpt}
-                        </p>
-                      )}
-                    </div>
-                    {b.author && (
-                      <div className="pt-3 border-t border-black/5 text-[11px] font-medium opacity-60" style={{ color: bodyTextColor }}>
-                        By {b.author}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ─── CONTACT & ADMISSION ENQUIRY SECTION ───────────── */}
-      <section id="contact" className="py-20 px-4 sm:px-8 max-w-7xl mx-auto">
-        <div className="text-center max-w-2xl mx-auto mb-14 space-y-3">
-          <span
-            className="text-xs font-black tracking-widest uppercase px-3 py-1 rounded-full border"
-            style={{
-              backgroundColor: `${primaryColor}15`,
-              color: primaryColor,
-              borderColor: `${primaryColor}30`,
-            }}
-          >
-            Get In Touch
-          </span>
-          <h3 className="text-3xl sm:text-4xl font-extrabold tracking-tight" style={{ color: headingColor }}>
-            Contact & Admission Enquiry
-          </h3>
-          <p className="text-sm font-medium" style={{ color: bodyTextColor }}>
-            Have any questions or looking to enroll? Connect with our team or fill the enquiry form.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Contact Details Card */}
-          <div
-            className="lg:col-span-5 p-6 sm:p-8 rounded-3xl border shadow-sm space-y-6"
-            style={{ backgroundColor: cardBg, borderColor: cardBorder }}
-          >
-            <h4 className="font-extrabold text-xl" style={{ color: headingColor }}>Campus Information</h4>
-
-            <div className="space-y-4 text-sm text-slate-600">
-              {settings.contact_address && (
-                <div className="flex items-start gap-3">
-                  <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
-                    <MapPin className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-900 text-xs">Campus Address</div>
-                    <div className="text-xs sm:text-sm mt-0.5 leading-relaxed">{settings.contact_address}</div>
-                  </div>
-                </div>
-              )}
-
-              {settings.contact_phone && (
-                <div className="flex items-start gap-3">
-                  <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
-                    <Phone className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-900 text-xs">Call Us</div>
-                    <a href={`tel:${settings.contact_phone}`} className="text-xs sm:text-sm text-indigo-600 hover:underline mt-0.5 block">
-                      {settings.contact_phone}
-                    </a>
-                  </div>
-                </div>
-              )}
-
-              {settings.contact_email && (
-                <div className="flex items-start gap-3">
-                  <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
-                    <Mail className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-900 text-xs">Email Address</div>
-                    <a href={`mailto:${settings.contact_email}`} className="text-xs sm:text-sm text-indigo-600 hover:underline mt-0.5 block">
-                      {settings.contact_email}
-                    </a>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Google Map Link / Embed */}
-            {settings.google_map_link && (
-              <div className="pt-4 border-t border-slate-100">
-                <a
-                  href={settings.google_map_link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-2.5 px-4 rounded-xl border border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
-                >
-                  <MapPin className="w-4 h-4" />
-                  <span>View on Google Maps</span>
-                  <ExternalLink className="w-3.5 h-3.5 ml-auto" />
-                </a>
               </div>
-            )}
-          </div>
 
-          {/* Admission Enquiry Form */}
-          <div
-            className="lg:col-span-7 p-6 sm:p-8 rounded-3xl border shadow-sm space-y-6"
-            style={{ backgroundColor: cardBg, borderColor: cardBorder }}
-          >
-            <div>
-              <h4 className="font-extrabold text-xl" style={{ color: headingColor }}>Admission & General Enquiry</h4>
-              <p className="text-xs mt-1" style={{ color: bodyTextColor }}>Leave your details and our admission counselor will call you.</p>
+              {/* Google Maps Card */}
+              <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 h-64">
+                <iframe
+                  title="Campus Map"
+                  src={
+                    settings.google_map_link && settings.google_map_link.includes('embed')
+                      ? settings.google_map_link
+                      : 'https://maps.google.com/maps?q=Lucknow,Uttar%20Pradesh&t=&z=13&ie=UTF8&iwloc=&output=embed'
+                  }
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  allowFullScreen
+                  loading="lazy"
+                />
+              </div>
             </div>
 
-            {enquirySubmitted ? (
-              <div className="p-8 text-center bg-emerald-50 rounded-2xl border border-emerald-200 space-y-2">
-                <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
-                <h5 className="font-extrabold text-emerald-900 text-base">Enquiry Submitted Successfully!</h5>
-                <p className="text-xs text-emerald-700">Thank you! We have received your request and will reach out shortly.</p>
-              </div>
-            ) : (
-              <form onSubmit={handleEnquirySubmit} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-700">Student / Parent Name *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. John Doe"
-                      value={enquiryForm.name}
-                      onChange={(e) => setEnquiryForm({ ...enquiryForm, name: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-500 focus:bg-white"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-700">Phone Number *</label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="e.g. +91 98765 43210"
-                      value={enquiryForm.phone}
-                      onChange={(e) => setEnquiryForm({ ...enquiryForm, phone: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-500 focus:bg-white"
-                    />
-                  </div>
-                </div>
+            {/* Right Column: Send Us a Message Card */}
+            <div className="lg:col-span-6">
+              <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-100">
+                <h3 className="text-xl font-bold text-[#0d6efd] mb-4">
+                  Send Us a Message
+                </h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-700">Email Address</label>
-                    <input
-                      type="email"
-                      placeholder="e.g. parent@example.com"
-                      value={enquiryForm.email}
-                      onChange={(e) => setEnquiryForm({ ...enquiryForm, email: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-500 focus:bg-white"
-                    />
+                {enquirySubmitted ? (
+                  <div className="p-8 text-center bg-emerald-50 rounded-xl border border-emerald-200 space-y-2">
+                    <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
+                    <h5 className="font-bold text-emerald-900 text-base">Message Sent Successfully!</h5>
+                    <p className="text-xs text-emerald-700">Thank you! Our admission team will get in touch with you shortly.</p>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-700">Course / Grade Interested</label>
-                    {courses.length > 0 ? (
-                      <select
-                        value={enquiryForm.course_name}
-                        onChange={(e) => setEnquiryForm({ ...enquiryForm, course_name: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-500 focus:bg-white"
-                      >
-                        <option value="">Select a Course / Class</option>
-                        {courses.map(c => (
-                          <option key={c.id} value={c.title}>{c.title}</option>
-                        ))}
-                      </select>
-                    ) : (
+                ) : (
+                  <form onSubmit={handleEnquirySubmit} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Your Name <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="text"
-                        placeholder="e.g. Class 10th or Science Stream"
-                        value={enquiryForm.course_name}
-                        onChange={(e) => setEnquiryForm({ ...enquiryForm, course_name: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-500 focus:bg-white"
+                        required
+                        placeholder="Enter your full name"
+                        value={enquiryForm.name}
+                        onChange={(e) => setEnquiryForm({ ...enquiryForm, name: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-500 focus:bg-white"
                       />
-                    )}
-                  </div>
-                </div>
+                    </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">Message / Any Questions</label>
-                  <textarea
-                    rows={3}
-                    placeholder="Tell us about previous school, queries on fee structure, transport, etc."
-                    value={enquiryForm.message}
-                    onChange={(e) => setEnquiryForm({ ...enquiryForm, message: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-500 focus:bg-white resize-y"
-                  />
-                </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Your Email <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="name@example.com"
+                        value={enquiryForm.email}
+                        onChange={(e) => setEnquiryForm({ ...enquiryForm, email: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-500 focus:bg-white"
+                      />
+                    </div>
 
-                <button
-                  type="submit"
-                  disabled={submittingEnquiry}
-                  className="w-full py-3 rounded-xl font-bold text-sm text-white shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
-                  style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
-                >
-                  <Send className="w-4 h-4" />
-                  <span>{submittingEnquiry ? 'Submitting Enquiry...' : 'Submit Admission Enquiry'}</span>
-                </button>
-              </form>
-            )}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Mobile Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="+91 XXXXXXXXXX"
+                        value={enquiryForm.phone}
+                        onChange={(e) => setEnquiryForm({ ...enquiryForm, phone: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-500 focus:bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Your Message <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        rows={4}
+                        required
+                        placeholder="Write your query or question here..."
+                        value={enquiryForm.message}
+                        onChange={(e) => setEnquiryForm({ ...enquiryForm, message: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-500 focus:bg-white resize-y"
+                      />
+                    </div>
+
+                    <div>
+                      <button
+                        type="submit"
+                        disabled={submittingEnquiry}
+                        className="w-full bg-[#0d6efd] hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-all flex items-center justify-center gap-2 text-sm"
+                      >
+                        <span>{submittingEnquiry ? 'Sending...' : 'Send Message'}</span>
+                        <Send className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ─── ENQUIRY MODAL (TRIGGERED BY BUTTONS) ───────────── */}
+      {/* ─── MODAL ENQUIRY DIALOG ─── */}
       {enquiryModalOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
+          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
           onClick={() => setEnquiryModalOpen(false)}
         >
           <div
-            className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-5 relative"
+            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => setEnquiryModalOpen(false)}
-              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <div>
-              <h4 className="font-extrabold text-xl text-slate-900">
-                {enquiryCourse ? `Enquire for: ${enquiryCourse}` : 'Admission Enquiry'}
-              </h4>
-              <p className="text-xs text-slate-500 mt-1">
-                Please fill in your contact information and our counselor will assist you.
-              </p>
-            </div>
+            <h3 className="font-bold text-lg text-slate-900 mb-1">
+              {enquiryCourse ? `Apply for: ${enquiryCourse}` : 'Admission Application'}
+            </h3>
+            <p className="text-xs text-slate-500 mb-4">
+              Please enter your contact details and our office will get in touch with you.
+            </p>
 
-            {enquirySubmitted ? (
-              <div className="p-6 text-center bg-emerald-50 rounded-2xl border border-emerald-200 space-y-2">
-                <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
-                <h5 className="font-extrabold text-emerald-900 text-sm">Enquiry Received!</h5>
-                <p className="text-xs text-emerald-700">We will get in touch with you shortly.</p>
+            <form onSubmit={handleEnquirySubmit} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Your full name"
+                  value={enquiryForm.name}
+                  onChange={(e) => setEnquiryForm({ ...enquiryForm, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-500"
+                />
               </div>
-            ) : (
-              <form onSubmit={handleEnquirySubmit} className="space-y-3.5">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Your Name"
-                    value={enquiryForm.name}
-                    onChange={(e) => setEnquiryForm({ ...enquiryForm, name: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-500"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">Phone Number *</label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="Mobile Number"
-                    value={enquiryForm.phone}
-                    onChange={(e) => setEnquiryForm({ ...enquiryForm, phone: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-500"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">Email Address</label>
-                  <input
-                    type="email"
-                    placeholder="Email Address"
-                    value={enquiryForm.email}
-                    onChange={(e) => setEnquiryForm({ ...enquiryForm, email: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-500"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">Message</label>
-                  <textarea
-                    rows={2}
-                    placeholder="Queries or notes..."
-                    value={enquiryForm.message}
-                    onChange={(e) => setEnquiryForm({ ...enquiryForm, message: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-indigo-500 resize-y"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={submittingEnquiry}
-                  className="w-full py-3 rounded-xl font-bold text-sm text-white shadow-md hover:shadow-lg transition-all"
-                  style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
-                >
-                  {submittingEnquiry ? 'Submitting...' : 'Submit Enquiry'}
-                </button>
-              </form>
-            )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Mobile Number *</label>
+                <input
+                  type="tel"
+                  required
+                  placeholder="+91 XXXXXXXXXX"
+                  value={enquiryForm.phone}
+                  onChange={(e) => setEnquiryForm({ ...enquiryForm, phone: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
+                <input
+                  type="email"
+                  placeholder="name@example.com"
+                  value={enquiryForm.email}
+                  onChange={(e) => setEnquiryForm({ ...enquiryForm, email: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Message / Notes</label>
+                <textarea
+                  rows={2}
+                  placeholder="Class interested, previous marks, etc."
+                  value={enquiryForm.message}
+                  onChange={(e) => setEnquiryForm({ ...enquiryForm, message: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-500 resize-y"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={submittingEnquiry}
+                className="w-full bg-[#0d6efd] hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-xs shadow-md transition-all"
+              >
+                {submittingEnquiry ? 'Submitting...' : 'Submit Application'}
+              </button>
+            </form>
           </div>
         </div>
       )}
 
-      {/* ─── FOOTER ─────────────────────────────────────────── */}
+      {/* ─── FOOTER (EXACT LCABITHAN DARK FOOTER WITH YELLOW HEADINGS) ─── */}
       <footer
-        className="border-t text-xs transition-colors"
-        style={{ backgroundColor: footerBg, color: footerText, borderColor: 'rgba(255,255,255,0.08)' }}
+        className="text-white pt-14 pb-8 transition-colors border-t border-black/10"
+        style={{ backgroundColor: footerBg, color: footerText }}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              {settings.logo_url ? (
-                <img src={settings.logo_url} alt={websiteTitle} className="w-9 h-9 object-contain rounded-lg" />
-              ) : (
-                <div
-                  className="w-9 h-9 rounded-lg flex items-center justify-center font-bold text-white text-sm"
-                  style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
-                >
-                  {websiteTitle.charAt(0)}
-                </div>
-              )}
-              <div className="font-extrabold text-base" style={{ color: '#ffffff' }}>{websiteTitle}</div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
+            
+            {/* Col 1: Logo & About */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                {settings.logo_url ? (
+                  <img src={settings.logo_url} alt="Logo" className="w-10 h-10 object-contain rounded-full bg-white p-0.5" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-[#ffc107] text-slate-950 font-black flex items-center justify-center text-sm shadow">
+                    {websiteTitle.charAt(0)}
+                  </div>
+                )}
+                <span className="font-bold text-lg text-[#ffc107]">
+                  {websiteTitle}
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Humara maqsad har bache ko behtareen taleem aur achi tarbiyat dena hai taaki wo ek kamyab mustaqbil bana sakein.
+              </p>
             </div>
-            <p className="opacity-80 text-xs leading-relaxed">
-              {settings.hero_tagline || 'Committed to academic excellence, leadership development, and fostering an environment where every student excels.'}
-            </p>
+
+            {/* Col 2: Quick Links with icons */}
+            <div className="space-y-3">
+              <h4 className="uppercase font-bold text-sm text-[#ffc107]">Quick Links</h4>
+              <ul className="space-y-2 text-xs text-slate-300">
+                <li>
+                  <Link href={`/${slug}/about`} className="hover:text-white flex items-center gap-2">
+                    <Info className="w-3.5 h-3.5 text-[#ffc107]" />
+                    <span>About Us</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link href={`/${slug}/apply`} className="hover:text-white flex items-center gap-2 text-left">
+                    <FileText className="w-3.5 h-3.5 text-[#ffc107]" />
+                    <span>Admissions</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link href={`/${slug}/courses`} className="hover:text-white flex items-center gap-2">
+                    <BookOpen className="w-3.5 h-3.5 text-[#ffc107]" />
+                    <span>Courses</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link href={`/${slug}/contact`} className="hover:text-white flex items-center gap-2">
+                    <Mail className="w-3.5 h-3.5 text-[#ffc107]" />
+                    <span>Contact Us</span>
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Col 3: Contact */}
+            <div className="space-y-3">
+              <h4 className="uppercase font-bold text-sm text-[#ffc107]">Contact</h4>
+              <div className="space-y-2.5 text-xs text-slate-300">
+                {settings.contact_address && (
+                  <div className="flex items-start gap-2.5">
+                    <MapPin className="w-4 h-4 text-[#ffc107] shrink-0 mt-0.5" />
+                    <span>{settings.contact_address}</span>
+                  </div>
+                )}
+                {settings.contact_email && (
+                  <div className="flex items-center gap-2.5">
+                    <Mail className="w-4 h-4 text-[#ffc107] shrink-0" />
+                    <a href={`mailto:${settings.contact_email}`} className="hover:text-white">
+                      {settings.contact_email}
+                    </a>
+                  </div>
+                )}
+                {settings.contact_phone && (
+                  <div className="flex items-center gap-2.5">
+                    <Phone className="w-4 h-4 text-[#ffc107] shrink-0" />
+                    <a href={`tel:${settings.contact_phone}`} className="hover:text-white">
+                      {settings.contact_phone}
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Col 4: Follow Us */}
+            <div className="space-y-3">
+              <h4 className="uppercase font-bold text-sm text-[#ffc107]">Follow Us</h4>
+              <div className="flex flex-col gap-2.5 text-xs">
+                {settings.social_facebook && (
+                  <a
+                    href={settings.social_facebook}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-slate-300 hover:text-white"
+                  >
+                    <span className="text-[#1877f2]"><FacebookIcon /></span>
+                    <span>Facebook</span>
+                  </a>
+                )}
+                {settings.social_instagram && (
+                  <a
+                    href={settings.social_instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-slate-300 hover:text-white"
+                  >
+                    <span className="text-[#e4405f]"><InstagramIcon /></span>
+                    <span>Instagram</span>
+                  </a>
+                )}
+                {settings.social_youtube && (
+                  <a
+                    href={settings.social_youtube}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-slate-300 hover:text-white"
+                  >
+                    <span className="text-[#ff0000]"><YoutubeIcon /></span>
+                    <span>YouTube</span>
+                  </a>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-3">
-            <h5 className="font-bold text-sm" style={{ color: '#ffffff' }}>Quick Links</h5>
-            <ul className="space-y-2 text-xs opacity-80">
-              <li><a href="#home" className="hover:opacity-100 transition-opacity">Home</a></li>
-              {settings.about_text && <li><a href="#about" className="hover:opacity-100 transition-opacity">About Us</a></li>}
-              {courses.length > 0 && <li><a href="#courses" className="hover:opacity-100 transition-opacity">Courses & Programs</a></li>}
-              {gallery.length > 0 && <li><a href="#gallery" className="hover:opacity-100 transition-opacity">Campus Gallery</a></li>}
-              {faqs.length > 0 && <li><a href="#faqs" className="hover:opacity-100 transition-opacity">FAQs</a></li>}
-              <li><a href="#contact" className="hover:opacity-100 transition-opacity">Contact Us</a></li>
-            </ul>
-          </div>
+          <hr className="border-white/10 my-6" />
 
-          <div className="space-y-3">
-            <h5 className="font-bold text-sm" style={{ color: '#ffffff' }}>Campus Contacts</h5>
-            <ul className="space-y-2 text-xs opacity-80">
-              {settings.contact_phone && <li>Phone: {settings.contact_phone}</li>}
-              {settings.contact_email && <li>Email: {settings.contact_email}</li>}
-              {settings.contact_address && <li>Address: {settings.contact_address}</li>}
-            </ul>
-          </div>
-
-          <div className="space-y-3">
-            <h5 className="font-bold text-sm" style={{ color: '#ffffff' }}>Portals</h5>
-            <p className="opacity-80 text-xs">
-              Official faculty and administrative portal:
-            </p>
-            <Link
-              href="/institute/login"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white font-semibold text-xs transition-colors"
-            >
-              <span>Institute Portal Login</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </div>
-
-        <div className="border-t border-white/10 py-6 px-4 sm:px-8 text-center opacity-70 text-[11px] flex flex-col sm:flex-row items-center justify-between max-w-7xl mx-auto gap-3">
-          <div>
-            © {new Date().getFullYear()} {websiteTitle}. All Rights Reserved.
-          </div>
-          <div className="flex items-center gap-1 font-medium">
-            <span>Powered by</span>
-            <span className="font-bold text-indigo-400">Academy Setu</span>
+          {/* Bottom Copyright and Made by Academy Setu */}
+          <div className="flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-3">
+            <div>
+              Copyright © {new Date().getFullYear()} All rights reserved by:{' '}
+              <a href={`/${slug}`} className="text-[#ffc107] font-bold hover:underline">
+                {websiteTitle}
+              </a>
+            </div>
+            <div>
+              <a
+                href="https://drishticomputer.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-white hover:text-blue-300 transition-colors font-medium"
+              >
+                Made by Academy Setu
+              </a>
+            </div>
           </div>
         </div>
       </footer>
