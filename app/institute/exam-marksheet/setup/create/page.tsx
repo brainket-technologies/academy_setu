@@ -10,10 +10,16 @@ import { MarksheetPreview } from '@/components/marksheets/MarksheetPreview'
 import { getInstituteAddedClasses, MasterClassWithSections } from '@/lib/institute-classes'
 import { generateAdmitCardAndTimetableForSetup, AdmitCardConfig } from '@/lib/admit-card-sync'
 import { AdmitCardModalPreview } from '@/components/admit-card/AdmitCardModalPreview'
+import { 
+  CertificateDesign1, 
+  CertificateDesign2, 
+  CertificateDesign3, 
+  CertificateDesign4 
+} from '@/components/certificates/CertificateTemplates'
 
 // Step Definitions
-type StepType = 'Template Design' | 'Exams' | 'Marks & Grade Range' | 'Marksheet Design Setup' | 'Certificate Design'
-const STEPS: StepType[] = ['Template Design', 'Exams', 'Marks & Grade Range', 'Marksheet Design Setup', 'Certificate Design']
+type StepType = 'Exams' | 'Marks & Grade Range' | 'Admit Card Setup' | 'Marksheet Design Setup' | 'Certificate Design'
+const STEPS: StepType[] = ['Exams', 'Marks & Grade Range', 'Admit Card Setup', 'Marksheet Design Setup', 'Certificate Design']
 
 // Admit Card field keys
 const ADMIT_DISPLAY_FIELDS_KEYS = [
@@ -63,16 +69,18 @@ function AddSetupWizardContent() {
   const editId = searchParams ? (searchParams.get('id') || searchParams.get('editId')) : null
   const [editingId, setEditingId] = useState<string | null>(null)
 
-  // Start with 'Template Design' as step 1 - "first ask template design then all process"
-  const [currentStep, setCurrentStep] = useState<StepType>('Template Design')
+  // 5 Step Wizard: Exams -> Marks & Grade -> Admit Card Setup -> Marksheet Design -> Certificate Design
+  const [currentStep, setCurrentStep] = useState<StepType>('Exams')
   const [selectedTemplate, setSelectedTemplate] = useState('CBSE Royal Emerald')
   const [admitTemplateStyle, setAdmitTemplateStyle] = useState('Classic Navy')
 
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [showAdmitPreviewModal, setShowAdmitPreviewModal] = useState(false)
+  const [showCertPreviewModal, setShowCertPreviewModal] = useState(false)
   const [showAdvancedAdmitStyles, setShowAdvancedAdmitStyles] = useState(false)
   const [previewTargetTemplate, setPreviewTargetTemplate] = useState<string | null>(null)
   const [previewTargetAdmitStyle, setPreviewTargetAdmitStyle] = useState<string | null>(null)
+  const [previewTargetCertTemplate, setPreviewTargetCertTemplate] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handlePreviewMarksheet = (templateName: string) => {
@@ -83,6 +91,11 @@ function AddSetupWizardContent() {
   const handlePreviewAdmitCard = (styleName: string) => {
     setPreviewTargetAdmitStyle(styleName)
     setShowAdmitPreviewModal(true)
+  }
+
+  const handlePreviewCertificate = (templateName: string) => {
+    setPreviewTargetCertTemplate(templateName)
+    setShowCertPreviewModal(true)
   }
 
   // ==================== STEP 1: EXAMS STATE ====================
@@ -521,11 +534,11 @@ function AddSetupWizardContent() {
   }
 
   const handleNext = () => {
-    if (currentStep === 'Template Design') {
-      setCurrentStep('Exams')
-    } else if (currentStep === 'Exams') {
+    if (currentStep === 'Exams') {
       if (validateStep1()) setCurrentStep('Marks & Grade Range')
     } else if (currentStep === 'Marks & Grade Range') {
+      setCurrentStep('Admit Card Setup')
+    } else if (currentStep === 'Admit Card Setup') {
       setCurrentStep('Marksheet Design Setup')
     } else if (currentStep === 'Marksheet Design Setup') {
       setCurrentStep('Certificate Design')
@@ -533,14 +546,14 @@ function AddSetupWizardContent() {
   }
 
   const handleBack = () => {
-    if (currentStep === 'Exams') {
-      setCurrentStep('Template Design')
+    if (currentStep === 'Certificate Design') {
+      setCurrentStep('Marksheet Design Setup')
+    } else if (currentStep === 'Marksheet Design Setup') {
+      setCurrentStep('Admit Card Setup')
+    } else if (currentStep === 'Admit Card Setup') {
+      setCurrentStep('Marks & Grade Range')
     } else if (currentStep === 'Marks & Grade Range') {
       setCurrentStep('Exams')
-    } else if (currentStep === 'Marksheet Design Setup') {
-      setCurrentStep('Marks & Grade Range')
-    } else if (currentStep === 'Certificate Design') {
-      setCurrentStep('Marksheet Design Setup')
     }
   }
 
@@ -687,7 +700,7 @@ function AddSetupWizardContent() {
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-black text-slate-800 dark:text-slate-100">Add Marksheet Setup</h1>
-          <p className="text-xs text-slate-400">Configure exams, ranges, layouts, and designs in 4 steps</p>
+          <p className="text-xs text-slate-400">Configure exams, grading, admit cards, and marksheet layouts in 5 steps</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
@@ -743,11 +756,7 @@ function AddSetupWizardContent() {
           <div 
             className="absolute top-1/2 left-4 h-0.5 bg-teal-600 -translate-y-1/2 z-0 transition-all duration-300"
             style={{ 
-              width: 
-                currentStep === 'Template Design' ? '0%' :
-                currentStep === 'Exams' ? '25%' :
-                currentStep === 'Marks & Grade Range' ? '50%' :
-                currentStep === 'Marksheet Design Setup' ? '75%' : '100%'
+              width: `${(STEPS.indexOf(currentStep) / (STEPS.length - 1)) * 100}%`
             }}
           ></div>
 
@@ -782,369 +791,7 @@ function AddSetupWizardContent() {
       {/* Main Form Box */}
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-8 shadow-sm">
         
-        {/* ================================== STEP 1: TEMPLATE DESIGN ================================== */}
-        {currentStep === 'Template Design' && (
-          <div className="space-y-8 animate-in fade-in duration-300">
-            
-            {/* Header info banner */}
-            <div className="bg-gradient-to-r from-teal-50 via-emerald-50 to-blue-50 dark:from-teal-950/40 dark:via-emerald-950/30 dark:to-blue-950/30 border border-teal-200/80 dark:border-teal-800/60 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-600/25 shrink-0">
-                  <LayoutTemplate className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-teal-600 text-white">
-                      Step 1 of 5
-                    </span>
-                    <h2 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
-                      Choose Admin Template Designs
-                    </h2>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                    Select your official Marksheet format and Admit Card Hall Ticket style first. You can proceed with class setup and timetable next.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowPreviewModal(true)}
-                  className="px-3.5 py-2 rounded-xl border border-purple-300 dark:border-purple-800 bg-white dark:bg-slate-800 text-purple-700 dark:text-purple-300 hover:bg-purple-50 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
-                >
-                  <Eye className="w-4 h-4 text-purple-600" /> Marksheet Preview
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAdmitPreviewModal(true)}
-                  className="px-3.5 py-2 rounded-xl border border-teal-300 dark:border-teal-800 bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 hover:bg-teal-50 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
-                >
-                  <Eye className="w-4 h-4 text-teal-600" /> Admit Card Preview
-                </button>
-              </div>
-            </div>
-
-            {/* Part 1: Admin Marksheet Template Selection */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                <div>
-                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
-                    <School className="w-4 h-4 text-teal-600" />
-                    <span>1. Marksheet Template Design (Provided by Admin)</span>
-                  </h3>
-                  <p className="text-[11px] text-slate-400">
-                    Pick a verified marksheet design layout suited for your curriculum
-                  </p>
-                </div>
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
-                  4 Templates Available
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* 1. CBSE Royal Emerald */}
-                <div 
-                  onClick={() => setSelectedTemplate('CBSE Royal Emerald')}
-                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
-                    selectedTemplate === 'CBSE Royal Emerald' 
-                      ? 'border-[#065f46] bg-emerald-50/40 ring-2 ring-[#065f46]/30 shadow-md' 
-                      : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300 hover:bg-slate-50 dark:hover:bg-slate-850'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
-                      CBSE / Board
-                    </span>
-                    {selectedTemplate === 'CBSE Royal Emerald' && (
-                      <CheckCircle2 className="w-4 h-4 text-[#065f46]" />
-                    )}
-                  </div>
-                  <div className="flex flex-col items-center text-center my-1">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-[#065f46] flex items-center justify-center shadow-xs mb-2">
-                      <School className="w-6 h-6" />
-                    </div>
-                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">CBSE Royal Emerald</span>
-                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Official Board Format • Gold Crest</span>
-                  </div>
-                  <span className="text-[9px] text-center font-bold text-[#065f46] bg-emerald-50 dark:bg-emerald-950/40 py-1 rounded-lg">
-                    Part 1 Scholastic + Part 2 Co-Scholastic
-                  </span>
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handlePreviewMarksheet('CBSE Royal Emerald')
-                      }}
-                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-[#065f46] hover:text-white text-[#065f46] dark:text-emerald-400 font-bold text-[11px] border border-emerald-200 dark:border-emerald-800 hover:border-[#065f46] flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
-                    >
-                      <Eye className="w-3.5 h-3.5 text-[#065f46] dark:text-emerald-400 group-hover:text-white group-hover:scale-110 transition-all" />
-                      <span>Preview Template</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* 2. Minimalist Modern */}
-                <div 
-                  onClick={() => setSelectedTemplate('Minimalist Modern')}
-                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
-                    selectedTemplate === 'Minimalist Modern' 
-                      ? 'border-teal-600 bg-teal-50/40 ring-2 ring-teal-500/30 shadow-md' 
-                      : 'border-slate-200 dark:border-slate-700 hover:border-teal-300 hover:bg-slate-50 dark:hover:bg-slate-850'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-teal-100 text-teal-800 border border-teal-200">
-                      Canva / Modern
-                    </span>
-                    {selectedTemplate === 'Minimalist Modern' && (
-                      <CheckCircle2 className="w-4 h-4 text-teal-600" />
-                    )}
-                  </div>
-                  <div className="flex flex-col items-center text-center my-1">
-                    <div className="w-12 h-12 rounded-2xl bg-teal-100 text-teal-700 flex items-center justify-center shadow-xs mb-2">
-                      <LayoutTemplate className="w-6 h-6" />
-                    </div>
-                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">Minimalist Modern</span>
-                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Teal & Slate • KPI Badges</span>
-                  </div>
-                  <span className="text-[9px] text-center font-bold text-teal-700 bg-teal-50 dark:bg-teal-950/40 py-1 rounded-lg">
-                    Attendance Meter + Progress Bars
-                  </span>
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handlePreviewMarksheet('Minimalist Modern')
-                      }}
-                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-teal-600 hover:text-white text-teal-700 dark:text-teal-400 font-bold text-[11px] border border-teal-200 dark:border-teal-800 hover:border-teal-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
-                    >
-                      <Eye className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 group-hover:text-white group-hover:scale-110 transition-all" />
-                      <span>Preview Template</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* 3. Dual-Term Consolidated */}
-                <div 
-                  onClick={() => setSelectedTemplate('Dual-Term Consolidated')}
-                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
-                    selectedTemplate === 'Dual-Term Consolidated' 
-                      ? 'border-[#660033] bg-pink-50/40 ring-2 ring-[#660033]/30 shadow-md' 
-                      : 'border-slate-200 dark:border-slate-700 hover:border-pink-300 hover:bg-slate-50 dark:hover:bg-slate-850'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-pink-100 text-pink-900 border border-pink-200">
-                      ICSE / State
-                    </span>
-                    {selectedTemplate === 'Dual-Term Consolidated' && (
-                      <CheckCircle2 className="w-4 h-4 text-[#660033]" />
-                    )}
-                  </div>
-                  <div className="flex flex-col items-center text-center my-1">
-                    <div className="w-12 h-12 rounded-2xl bg-pink-100 text-[#660033] flex items-center justify-center shadow-xs mb-2">
-                      <FileText className="w-6 h-6" />
-                    </div>
-                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">Dual-Term Consolidated</span>
-                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Burgundy & Navy • Term 1 vs 2</span>
-                  </div>
-                  <span className="text-[9px] text-center font-bold text-[#660033] bg-pink-50 dark:bg-pink-950/40 py-1 rounded-lg">
-                    Class Rank #3 + 4 Signatures
-                  </span>
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handlePreviewMarksheet('Dual-Term Consolidated')
-                      }}
-                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-[#660033] hover:text-white text-[#660033] dark:text-pink-400 font-bold text-[11px] border border-pink-200 dark:border-pink-800 hover:border-[#660033] flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
-                    >
-                      <Eye className="w-3.5 h-3.5 text-[#660033] dark:text-pink-400 group-hover:text-white group-hover:scale-110 transition-all" />
-                      <span>Preview Template</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* 4. Holistic Early Skills */}
-                <div 
-                  onClick={() => setSelectedTemplate('Holistic Early Skills')}
-                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
-                    selectedTemplate === 'Holistic Early Skills' 
-                      ? 'border-sky-500 bg-sky-50/40 ring-2 ring-sky-500/30 shadow-md' 
-                      : 'border-slate-200 dark:border-slate-700 hover:border-sky-300 hover:bg-slate-50 dark:hover:bg-slate-850'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-sky-100 text-sky-800 border border-sky-200">
-                      Montessori / Primary
-                    </span>
-                    {selectedTemplate === 'Holistic Early Skills' && (
-                      <CheckCircle2 className="w-4 h-4 text-sky-600" />
-                    )}
-                  </div>
-                  <div className="flex flex-col items-center text-center my-1">
-                    <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-600 flex items-center justify-center shadow-xs mb-2">
-                      <Award className="w-6 h-6" />
-                    </div>
-                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">Holistic Early Skills</span>
-                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Kindergarten & Primary • Stars</span>
-                  </div>
-                  <span className="text-[9px] text-center font-bold text-sky-700 bg-sky-50 dark:bg-sky-950/40 py-1 rounded-lg">
-                    5 Domains + Star Ratings
-                  </span>
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handlePreviewMarksheet('Holistic Early Skills')
-                      }}
-                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-sky-600 hover:text-white text-sky-700 dark:text-sky-400 font-bold text-[11px] border border-sky-200 dark:border-sky-800 hover:border-sky-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
-                    >
-                      <Eye className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 group-hover:text-white group-hover:scale-110 transition-all" />
-                      <span>Preview Template</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Part 2: Admin Admit Card Template Selection */}
-            <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                <div>
-                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
-                    <QrCode className="w-4 h-4 text-teal-600" />
-                    <span>2. Admit Card (Hall Ticket) Template Design (Provided by Admin)</span>
-                  </h3>
-                  <p className="text-[11px] text-slate-400">
-                    Pick a hall ticket style for printing and student entry verification
-                  </p>
-                </div>
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
-                  4 Hall Ticket Styles Available
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  {
-                    name: 'Classic Navy',
-                    badge: 'Navy Official',
-                    tagline: 'Traditional Board Hall Ticket',
-                    details: 'Full Timetable Matrix, barcode, student photo & authorized signatures',
-                    color: 'border-blue-600 bg-blue-50/40 ring-blue-500/30',
-                    pill: 'bg-blue-100 text-blue-800',
-                    footer: 'Complete Subject Timetable Grid'
-                  },
-                  {
-                    name: 'Modern Emerald',
-                    badge: 'Digital Emerald',
-                    tagline: 'Clean Digital Emerald Layout',
-                    details: 'Student photo emphasis, QR code validation, compact modern schedule',
-                    color: 'border-emerald-600 bg-emerald-50/40 ring-emerald-500/30',
-                    pill: 'bg-emerald-100 text-emerald-800',
-                    footer: 'Instant QR Scan Verification'
-                  },
-                  {
-                    name: 'Executive Crimson',
-                    badge: 'Formal Crimson',
-                    tagline: 'Maroon Royal Crest Border',
-                    details: 'Dual invigilator signature strip & authorized institution stamp',
-                    color: 'border-rose-600 bg-rose-50/40 ring-rose-500/30',
-                    pill: 'bg-rose-100 text-rose-800',
-                    footer: 'Dual Invigilator Sign Strip'
-                  },
-                  {
-                    name: 'Minimalist Slate',
-                    badge: 'Slate Minimal',
-                    tagline: 'High-Contrast Charcoal Format',
-                    details: 'Clean slip layout optimized for bulk multi-student fast printing',
-                    color: 'border-slate-600 bg-slate-100 dark:bg-slate-800 ring-slate-500/30',
-                    pill: 'bg-slate-200 text-slate-800',
-                    footer: 'Compact 2-Per-Page Eco Print'
-                  }
-                ].map(style => {
-                  const isSelected = admitTemplateStyle === style.name
-                  return (
-                    <div
-                      key={style.name}
-                      onClick={() => setAdmitTemplateStyle(style.name)}
-                      className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
-                        isSelected
-                          ? `${style.color} ring-2 shadow-md`
-                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${style.pill}`}>
-                          {style.badge}
-                        </span>
-                        {isSelected && <CheckCircle2 className="w-4 h-4 text-teal-600" />}
-                      </div>
-
-                      <div className="flex flex-col items-center text-center my-1">
-                        <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center shadow-xs mb-2">
-                          <QrCode className="w-6 h-6 text-teal-600" />
-                        </div>
-                        <span className="text-xs font-black text-slate-900 dark:text-slate-100">{style.name}</span>
-                        <span className="text-[10px] font-semibold text-slate-500 mt-0.5">{style.tagline}</span>
-                      </div>
-
-                      <span className="text-[9px] text-center font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 py-1 rounded-lg">
-                        {style.footer}
-                      </span>
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handlePreviewAdmitCard(style.name)
-                          }}
-                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-teal-600 hover:text-white text-slate-700 dark:text-slate-200 font-bold text-[11px] border border-slate-200 dark:border-slate-700 hover:border-teal-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
-                        >
-                          <Eye className="w-3.5 h-3.5 text-teal-600 group-hover:text-white group-hover:scale-110 transition-all" />
-                          <span>Preview Hall Ticket</span>
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Bottom Call to Action for Step 1 */}
-            <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Selected:</span>
-                <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-teal-700 dark:text-teal-300">
-                  Marksheet: {selectedTemplate}
-                </span>
-                <span className="text-slate-400">•</span>
-                <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-blue-700 dark:text-blue-300">
-                  Admit Card: {admitTemplateStyle}
-                </span>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setCurrentStep('Exams')}
-                className="w-full sm:w-auto px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-teal-600/20 flex items-center justify-center gap-2 group"
-              >
-                <span>Continue to Exams & Schedule</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-              </button>
-            </div>
-
-          </div>
-        )}
-
-        {/* ================================== STEP 2: EXAMS ================================== */}
+        {/* ================================== STEP 1: EXAMS ================================== */}
         {currentStep === 'Exams' && (
           <div className="space-y-8 animate-in fade-in duration-300">
             
@@ -1555,182 +1202,6 @@ function AddSetupWizardContent() {
               </div>
             </div>
           </div>
-
-          {/* ==================== 4. UNIFIED ADMIT CARD & HALL TICKET CONFIGURATION ==================== */}
-          <div className="bg-white dark:bg-slate-850 border-2 border-teal-500/30 rounded-2xl p-6 space-y-6 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
-                  4
-                </div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
-                      Admit Card & Hall Ticket Configuration
-                    </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-teal-600 to-emerald-600 text-white uppercase tracking-wider shadow-2xs">
-                      ⚡ Single Event Sync
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                    Official Student Admit Cards & Timetables will be simultaneously generated and linked with this exam setup.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowAdmitPreviewModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/50 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 rounded-xl text-xs font-bold transition-all shadow-xs shrink-0"
-              >
-                <Eye className="w-4 h-4 text-teal-600 dark:text-teal-400" /> Preview Hall Ticket
-              </button>
-            </div>
-
-            {/* Title & Core Toggles */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Admit Card Document Title</label>
-                <input
-                  type="text"
-                  value={admitLabel}
-                  onChange={e => setAdmitLabel(e.target.value)}
-                  placeholder="Admit Card"
-                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-bold text-slate-800 dark:text-slate-100 shadow-xs"
-                />
-                <span className="text-[10px] text-slate-400">Heading printed on hall ticket</span>
-              </div>
-
-              <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800">
-                <div>
-                  <span className="text-xs font-black text-slate-800 dark:text-slate-100 block">Admit Card Status</span>
-                  <span className="text-[10px] text-slate-400">Available to students online</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAdmitCardStatus(!admitCardStatus)}
-                  className={`w-10 h-5.5 rounded-full relative transition-colors ${admitCardStatus ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
-                >
-                  <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${admitCardStatus ? 'left-5' : 'left-0.5'}`}></div>
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800">
-                <div>
-                  <span className="text-xs font-black text-slate-800 dark:text-slate-100 block">Exam Timetable</span>
-                  <span className="text-[10px] text-slate-400">Show schedule on admit card</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowExamTimeTableOnAdmit(!showExamTimeTableOnAdmit)}
-                  className={`w-10 h-5.5 rounded-full relative transition-colors ${showExamTimeTableOnAdmit ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
-                >
-                  <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showExamTimeTableOnAdmit ? 'left-5' : 'left-0.5'}`}></div>
-                </button>
-              </div>
-            </div>
-
-            {/* Display Fields Checkboxes */}
-            <div className="space-y-3 pt-2">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                <span className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                  Select Fields to Display on Student Admit Card
-                </span>
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-teal-600 hover:text-teal-700 select-none">
-                  <input
-                    type="checkbox"
-                    checked={isAdmitAllSelected}
-                    onChange={e => handleAdmitSelectAllChange(e.target.checked)}
-                    className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500 rounded"
-                  />
-                  <span>Select All Fields</span>
-                </label>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs font-bold text-slate-700 dark:text-slate-300">
-                {ADMIT_DISPLAY_FIELDS_KEYS.map(f => (
-                  <label key={f.key} className={`flex items-center gap-2.5 p-2 rounded-lg border transition-all cursor-pointer ${
-                    admitDisplayFields[f.key] 
-                      ? 'bg-teal-50/50 dark:bg-teal-950/20 border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-200' 
-                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                  }`}>
-                    <input
-                      type="checkbox"
-                      checked={!!admitDisplayFields[f.key]}
-                      onChange={() => handleAdmitCheckboxChange(f.key)}
-                      className="w-3.5 h-3.5 text-teal-600 border-slate-300 focus:ring-teal-500 rounded"
-                    />
-                    <span className="truncate">{f.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Instructions */}
-            <div className="flex flex-col gap-1.5 pt-2">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Candidate Examination Instructions</label>
-              <textarea
-                rows={4}
-                placeholder="Write official examination instructions for students..."
-                value={admitInstructions}
-                onChange={e => setAdmitInstructions(e.target.value)}
-                className="w-full p-4 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-xs leading-relaxed"
-              />
-            </div>
-
-            {/* Collapsible Advanced Print & Layout Settings */}
-            <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
-              <button
-                type="button"
-                onClick={() => setShowAdvancedAdmitStyles(!showAdvancedAdmitStyles)}
-                className="w-full flex items-center justify-between px-5 py-3 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors"
-              >
-                <span className="flex items-center gap-2">
-                  <span>Advanced Typography, Signatures & Print Dimensions</span>
-                  <span className="text-[10px] text-slate-400 font-normal">(Font sizes, stamp widths, signature titles)</span>
-                </span>
-                {showAdvancedAdmitStyles ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-
-              {showAdvancedAdmitStyles && (
-                <div className="p-5 space-y-5 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 animate-in fade-in duration-200">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {[
-                      { label: 'No. of Print Per Page', val: admitNoOfPrintPerPage, set: setAdmitNoOfPrintPerPage },
-                      { label: 'Header Name Font Size (px)', val: admitHeaderNameFontSize, set: setAdmitHeaderNameFontSize },
-                      { label: 'Header Details Font Size (px)', val: admitHeaderDetailsFontSize, set: setAdmitHeaderDetailsFontSize },
-                      { label: 'Student Details Font Size (px)', val: admitStudentDetailsFontSize, set: setAdmitStudentDetailsFontSize },
-                      { label: 'Timetable Details Font Size (px)', val: admitTimetableDetailsFontSize, set: setAdmitTimetableDetailsFontSize },
-                      { label: 'Heading Font Size (px)', val: admitHeadingFontSize, set: setAdmitHeadingFontSize },
-                      { label: 'Default Font Size (px)', val: admitDefaultFontSize, set: setAdmitDefaultFontSize },
-                      { label: 'Spacing (px)', val: admitSpacing, set: setAdmitSpacing },
-                      { label: 'Student Photo Size (px)', val: admitStudentPhotoSize, set: setAdmitStudentPhotoSize },
-                    ].map(({ label, val, set }) => (
-                      <div key={label} className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{label}</label>
-                        <input type="text" value={val} onChange={e => set(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none text-center bg-white dark:bg-slate-800 font-semibold" />
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    {[
-                      { label: 'Teacher Sign Label', val: admitTeacherSignLabel, set: setAdmitTeacherSignLabel },
-                      { label: 'Student Sign Label', val: admitStudentSignLabel, set: setAdmitStudentSignLabel },
-                      { label: 'Parent Sign Label', val: admitParentSignLabel, set: setAdmitParentSignLabel },
-                      { label: 'Principal Sign Label', val: admitPrincipalSignLabel, set: setAdmitPrincipalSignLabel },
-                      { label: 'Signature Width (px)', val: admitSignatureWidth, set: setAdmitSignatureWidth },
-                      { label: 'School Stamp Width (px)', val: admitSchoolStampWidth, set: setAdmitSchoolStampWidth },
-                    ].map(({ label, val, set }) => (
-                      <div key={label} className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{label}</label>
-                        <input type="text" value={val} onChange={e => set(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       )}
 
@@ -1875,147 +1346,439 @@ function AddSetupWizardContent() {
           </div>
         )}
 
-        {/* ================================== STEP 3: MARKSHEET DESIGN SETUP ================================== */}
-        {currentStep === 'Marksheet Design Setup' && (
+        {/* ================================== STEP 3: ADMIT CARD SETUP ================================== */}
+        {currentStep === 'Admit Card Setup' && (
           <div className="space-y-6 animate-in fade-in duration-300">
-            <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-4">
-              Configure Marksheet Layouts & Details
-            </h2>
-
-            {/* Sub-section: Pass/Fail criteria */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700 font-semibold">Min Passing Percentage (W/T) *</label>
-                <input 
-                  type="text"
-                  value={minPassingPct}
-                  onChange={e => setMinPassingPct(e.target.value)}
-                  className="px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
-                />
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 uppercase tracking-wider">
+                    Step 3 of 5
+                  </span>
+                  <h2 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                    Admit Card & Hall Ticket Setup
+                  </h2>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Select official hall ticket template style, student display fields, timetable rules, and print layout.
+                </p>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700 font-semibold">Min passing marks in each subject (W/T) *</label>
-                <input 
-                  type="text"
-                  value={minPassingMarks}
-                  onChange={e => setMinPassingMarks(e.target.value)}
-                  className="px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700 font-semibold">Select grade to show in marksheet *</label>
-                <select 
-                  value={gradeToDisplay}
-                  onChange={e => setGradeToDisplay(e.target.value)}
-                  className="px-4 py-2 border border-slate-200 rounded-lg text-xs bg-white outline-none focus:border-teal-500 text-slate-600 font-semibold"
-                >
-                  <option value="All">All Grades</option>
-                  <option value="Scholastic">Scholastic Only</option>
-                  <option value="CoScholastic">Co-Scholastic Only</option>
-                </select>
-              </div>
+              <button
+                type="button"
+                onClick={() => handlePreviewAdmitCard(admitTemplateStyle)}
+                className="flex items-center gap-2 px-4 py-2 bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/50 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 rounded-xl text-xs font-bold transition-all shadow-xs shrink-0"
+              >
+                <Eye className="w-4 h-4 text-teal-600 dark:text-teal-400" /> Live Hall Ticket Preview
+              </button>
             </div>
 
-            {/* Sub-section: Headings */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700 font-semibold">First Term Heading</label>
-                <input 
-                  type="text"
-                  value={heading1}
-                  onChange={e => setHeading1(e.target.value)}
-                  className="px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700 font-semibold">Second Term Heading</label>
-                <input 
-                  type="text"
-                  value={heading2}
-                  onChange={e => setHeading2(e.target.value)}
-                  className="px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700 font-semibold">Header Main Title</label>
-                <input 
-                  type="text"
-                  placeholder="e.g. Term Evaluation Report"
-                  value={headingHeader}
-                  onChange={e => setHeadingHeader(e.target.value)}
-                  className="px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
-                />
-              </div>
-            </div>
-
-            {/* Layout parameters */}
-            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-6">
-              <h3 className="text-xs font-bold text-slate-800 mb-4 uppercase tracking-wider">Image / Brand Dimensions</h3>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Header Logo Width (px)</label>
-                  <input type="text" value={logoWidth} onChange={e => setLogoWidth(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none font-mono text-center" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Header Affiliate word (px)</label>
-                  <input type="text" value={affWordWidth} onChange={e => setAffWordWidth(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none font-mono text-center" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Student Photo Width (px)</label>
-                  <input type="text" value={photoWidth} onChange={e => setPhotoWidth(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none font-mono text-center" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase">Student Photo Height (px)</label>
-                  <input type="text" value={photoHeight} onChange={e => setPhotoHeight(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none font-mono text-center" />
-                </div>
-              </div>
-
-              {/* Toggles grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-6 pt-6 border-t border-slate-100">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-600">Show student profile photo</span>
-                  <button type="button" onClick={() => setShowStudentPhoto(!showStudentPhoto)} className={`w-9 h-5 rounded-full relative transition-colors ${showStudentPhoto ? 'bg-teal-600' : 'bg-slate-200'}`}><div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showStudentPhoto ? 'left-4.5' : 'left-0.5'}`}></div></button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-600">Show test marks also</span>
-                  <button type="button" onClick={() => setShowTestMarks(!showTestMarks)} className={`w-9 h-5 rounded-full relative transition-colors ${showTestMarks ? 'bg-teal-600' : 'bg-slate-200'}`}><div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showTestMarks ? 'left-4.5' : 'left-0.5'}`}></div></button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-600">Header Signature visibility</span>
-                  <button type="button" onClick={() => setShowHeaderSign(!showHeaderSign)} className={`w-9 h-5 rounded-full relative transition-colors ${showHeaderSign ? 'bg-teal-600' : 'bg-slate-200'}`}><div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showHeaderSign ? 'left-4.5' : 'left-0.5'}`}></div></button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-600">Header Stamp visibility</span>
-                  <button type="button" onClick={() => setShowHeaderStamp(!showHeaderStamp)} className={`w-9 h-5 rounded-full relative transition-colors ${showHeaderStamp ? 'bg-teal-600' : 'bg-slate-200'}`}><div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showHeaderStamp ? 'left-4.5' : 'left-0.5'}`}></div></button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-600">Show parent mobile number</span>
-                  <button type="button" onClick={() => setShowParentMobile(!showParentMobile)} className={`w-9 h-5 rounded-full relative transition-colors ${showParentMobile ? 'bg-teal-600' : 'bg-slate-200'}`}><div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showParentMobile ? 'left-4.5' : 'left-0.5'}`}></div></button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-600">Show round photo border</span>
-                  <button type="button" onClick={() => setShowRoundBorderPhoto(!showRoundBorderPhoto)} className={`w-9 h-5 rounded-full relative transition-colors ${showRoundBorderPhoto ? 'bg-teal-600' : 'bg-slate-200'}`}><div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showRoundBorderPhoto ? 'left-4.5' : 'left-0.5'}`}></div></button>
-                </div>
-              </div>
-            </div>
-
-            {/* Templates Selector */}
+            {/* Template Selector Grid: 4 Admit Card Templates */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-                    Select Marksheet Template Design
+                    Select Hall Ticket Template Style
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Choose from 4 official academic admit card designs with barcode, timetable, and signature provisions
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                  4 Styles Available
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* 1. Classic Navy */}
+                <div 
+                  onClick={() => setAdmitTemplateStyle('Classic Navy')}
+                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
+                    admitTemplateStyle === 'Classic Navy' 
+                      ? 'border-blue-600 bg-blue-50/40 ring-2 ring-blue-500/20 shadow-md' 
+                      : 'border-slate-200 dark:border-slate-700 hover:border-blue-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-100 text-blue-800 border border-blue-200">
+                      Navy Official
+                    </span>
+                    {admitTemplateStyle === 'Classic Navy' && (
+                      <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center text-center my-2">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center shadow-xs mb-2">
+                      <School className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">Classic Navy</span>
+                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Traditional Board Layout • Official Crest</span>
+                  </div>
+                  <span className="text-[9px] text-center font-bold text-blue-700 bg-blue-50 py-1 rounded-lg">
+                    Full Timetable Matrix + Rules
+                  </span>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handlePreviewAdmitCard('Classic Navy')
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-700 dark:text-blue-400 font-bold text-[11px] border border-blue-200 dark:border-blue-800 hover:border-blue-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                      <span>Preview Template</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. Modern Emerald */}
+                <div 
+                  onClick={() => setAdmitTemplateStyle('Modern Emerald')}
+                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
+                    admitTemplateStyle === 'Modern Emerald' 
+                      ? 'border-[#065f46] bg-emerald-50/40 ring-2 ring-[#065f46]/20 shadow-md' 
+                      : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      Emerald Modern
+                    </span>
+                    {admitTemplateStyle === 'Modern Emerald' && (
+                      <CheckCircle2 className="w-4 h-4 text-[#065f46]" />
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center text-center my-2">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-[#065f46] flex items-center justify-center shadow-xs mb-2">
+                      <Sparkles className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">Modern Emerald</span>
+                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Emerald Green Header • Student Photo Focus</span>
+                  </div>
+                  <span className="text-[9px] text-center font-bold text-[#065f46] bg-emerald-50 py-1 rounded-lg">
+                    Photo Focus + Compact Slip
+                  </span>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handlePreviewAdmitCard('Modern Emerald')
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-[#065f46] hover:text-white text-[#065f46] dark:text-emerald-400 font-bold text-[11px] border border-emerald-200 dark:border-emerald-800 hover:border-[#065f46] flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-[#065f46] dark:text-emerald-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                      <span>Preview Template</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. Executive Crimson */}
+                <div 
+                  onClick={() => setAdmitTemplateStyle('Executive Crimson')}
+                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
+                    admitTemplateStyle === 'Executive Crimson' 
+                      ? 'border-rose-600 bg-rose-50/40 ring-2 ring-rose-500/20 shadow-md' 
+                      : 'border-slate-200 dark:border-slate-700 hover:border-rose-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-rose-100 text-rose-800 border border-rose-200">
+                      Crimson Official
+                    </span>
+                    {admitTemplateStyle === 'Executive Crimson' && (
+                      <CheckCircle2 className="w-4 h-4 text-rose-600" />
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center text-center my-2">
+                    <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center shadow-xs mb-2">
+                      <Award className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">Executive Crimson</span>
+                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Maroon Royal Crest • Verified Institution Seal</span>
+                  </div>
+                  <span className="text-[9px] text-center font-bold text-rose-700 bg-rose-50 py-1 rounded-lg">
+                    Dual Invigilator Strips + Stamp
+                  </span>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handlePreviewAdmitCard('Executive Crimson')
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-rose-600 hover:text-white text-rose-700 dark:text-rose-400 font-bold text-[11px] border border-rose-200 dark:border-rose-800 hover:border-rose-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                      <span>Preview Template</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 4. Minimalist Slate */}
+                <div 
+                  onClick={() => setAdmitTemplateStyle('Minimalist Slate')}
+                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
+                    admitTemplateStyle === 'Minimalist Slate' 
+                      ? 'border-slate-700 bg-slate-100/60 ring-2 ring-slate-600/20 shadow-md' 
+                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-slate-200 text-slate-800 border border-slate-300">
+                      Slate Minimal
+                    </span>
+                    {admitTemplateStyle === 'Minimalist Slate' && (
+                      <CheckCircle2 className="w-4 h-4 text-slate-700" />
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center text-center my-2">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-200 text-slate-700 flex items-center justify-center shadow-xs mb-2">
+                      <LayoutTemplate className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">Minimalist Slate</span>
+                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">High Contrast Border • Fast Bulk Printing</span>
+                  </div>
+                  <span className="text-[9px] text-center font-bold text-slate-700 bg-slate-200 py-1 rounded-lg">
+                    Compact Slip + High Contrast
+                  </span>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handlePreviewAdmitCard('Minimalist Slate')
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-700 hover:text-white text-slate-700 dark:text-slate-300 font-bold text-[11px] border border-slate-300 dark:border-slate-700 hover:border-slate-700 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-slate-700 dark:text-slate-300 group-hover:text-white group-hover:scale-110 transition-all" />
+                      <span>Preview Template</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Preview Banner */}
+              <div className="bg-gradient-to-r from-blue-50 via-teal-50 to-emerald-50 dark:from-blue-950/30 dark:to-emerald-950/30 border border-teal-200 dark:border-teal-800/50 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-600/20">
+                    <QrCode className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-slate-800 dark:text-slate-100">
+                      Live Hall Ticket Preview • {admitTemplateStyle}
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Inspect student details, timetable matrix, and instructions in real time before finalizing.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handlePreviewAdmitCard(admitTemplateStyle)}
+                  className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-teal-600/20 transition-all shrink-0"
+                >
+                  <Eye className="w-4 h-4" />
+                  Show Full Hall Ticket Preview
+                </button>
+              </div>
+            </div>
+
+            {/* Admit Card Configuration Form */}
+            <div className="bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-6 shadow-xs">
+              <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider pb-3 border-b border-slate-100 dark:border-slate-800">
+                Hall Ticket Print & Document Configuration
+              </h3>
+
+              {/* Title & Core Toggles */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Admit Card Document Title</label>
+                  <input
+                    type="text"
+                    value={admitLabel}
+                    onChange={e => setAdmitLabel(e.target.value)}
+                    placeholder="Admit Card"
+                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-bold text-slate-800 dark:text-slate-100 shadow-xs"
+                  />
+                  <span className="text-[10px] text-slate-400">Heading printed on hall ticket</span>
+                </div>
+
+                <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800">
+                  <div>
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-100 block">Admit Card Status</span>
+                    <span className="text-[10px] text-slate-400">Available to students online</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAdmitCardStatus(!admitCardStatus)}
+                    className={`w-10 h-5.5 rounded-full relative transition-colors ${admitCardStatus ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                  >
+                    <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${admitCardStatus ? 'left-5' : 'left-0.5'}`}></div>
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800">
+                  <div>
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-100 block">Exam Timetable</span>
+                    <span className="text-[10px] text-slate-400">Show schedule on admit card</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowExamTimeTableOnAdmit(!showExamTimeTableOnAdmit)}
+                    className={`w-10 h-5.5 rounded-full relative transition-colors ${showExamTimeTableOnAdmit ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                  >
+                    <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showExamTimeTableOnAdmit ? 'left-5' : 'left-0.5'}`}></div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Display Fields Checkboxes */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <span className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                    Select Fields to Display on Student Admit Card
+                  </span>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-teal-600 hover:text-teal-700 select-none">
+                    <input
+                      type="checkbox"
+                      checked={isAdmitAllSelected}
+                      onChange={e => handleAdmitSelectAllChange(e.target.checked)}
+                      className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500 rounded"
+                    />
+                    <span>Select All Fields</span>
+                  </label>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs font-bold text-slate-700 dark:text-slate-300">
+                  {ADMIT_DISPLAY_FIELDS_KEYS.map(f => (
+                    <label key={f.key} className={`flex items-center gap-2.5 p-2 rounded-lg border transition-all cursor-pointer ${
+                      admitDisplayFields[f.key] 
+                        ? 'bg-teal-50/50 dark:bg-teal-950/20 border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-200' 
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                    }`}>
+                      <input
+                        type="checkbox"
+                        checked={!!admitDisplayFields[f.key]}
+                        onChange={() => handleAdmitCheckboxChange(f.key)}
+                        className="w-3.5 h-3.5 text-teal-600 border-slate-300 focus:ring-teal-500 rounded"
+                      />
+                      <span className="truncate">{f.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Instructions */}
+              <div className="flex flex-col gap-1.5 pt-2">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Candidate Examination Instructions</label>
+                <textarea
+                  rows={4}
+                  placeholder="Write official examination instructions for students..."
+                  value={admitInstructions}
+                  onChange={e => setAdmitInstructions(e.target.value)}
+                  className="w-full p-4 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-xs leading-relaxed"
+                />
+              </div>
+
+              {/* Collapsible Advanced Print & Layout Settings */}
+              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedAdmitStyles(!showAdvancedAdmitStyles)}
+                  className="w-full flex items-center justify-between px-5 py-3 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <span>Advanced Typography, Signatures & Print Dimensions</span>
+                    <span className="text-[10px] text-slate-400 font-normal">(Font sizes, stamp widths, signature titles)</span>
+                  </span>
+                  {showAdvancedAdmitStyles ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+
+                {showAdvancedAdmitStyles && (
+                  <div className="p-5 space-y-5 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 animate-in fade-in duration-200">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {[
+                        { label: 'No. of Print Per Page', val: admitNoOfPrintPerPage, set: setAdmitNoOfPrintPerPage },
+                        { label: 'Header Name Font Size (px)', val: admitHeaderNameFontSize, set: setAdmitHeaderNameFontSize },
+                        { label: 'Header Details Font Size (px)', val: admitHeaderDetailsFontSize, set: setAdmitHeaderDetailsFontSize },
+                        { label: 'Student Details Font Size (px)', val: admitStudentDetailsFontSize, set: setAdmitStudentDetailsFontSize },
+                        { label: 'Timetable Details Font Size (px)', val: admitTimetableDetailsFontSize, set: setAdmitTimetableDetailsFontSize },
+                        { label: 'Heading Font Size (px)', val: admitHeadingFontSize, set: setAdmitHeadingFontSize },
+                        { label: 'Default Font Size (px)', val: admitDefaultFontSize, set: setAdmitDefaultFontSize },
+                        { label: 'Spacing (px)', val: admitSpacing, set: setAdmitSpacing },
+                        { label: 'Student Photo Size (px)', val: admitStudentPhotoSize, set: setAdmitStudentPhotoSize },
+                      ].map(({ label, val, set }) => (
+                        <div key={label} className="flex flex-col gap-1.5">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{label}</label>
+                          <input type="text" value={val} onChange={e => set(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none text-center bg-white dark:bg-slate-800 font-semibold" />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      {[
+                        { label: 'Teacher Sign Label', val: admitTeacherSignLabel, set: setAdmitTeacherSignLabel },
+                        { label: 'Student Sign Label', val: admitStudentSignLabel, set: setAdmitStudentSignLabel },
+                        { label: 'Parent Sign Label', val: admitParentSignLabel, set: setAdmitParentSignLabel },
+                        { label: 'Principal Sign Label', val: admitPrincipalSignLabel, set: setAdmitPrincipalSignLabel },
+                        { label: 'Signature Width (px)', val: admitSignatureWidth, set: setAdmitSignatureWidth },
+                        { label: 'School Stamp Width (px)', val: admitSchoolStampWidth, set: setAdmitSchoolStampWidth },
+                      ].map(({ label, val, set }) => (
+                        <div key={label} className="flex flex-col gap-1.5">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{label}</label>
+                          <input type="text" value={val} onChange={e => set(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================================== STEP 4: MARKSHEET DESIGN SETUP ================================== */}
+        {currentStep === 'Marksheet Design Setup' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 uppercase tracking-wider">
+                    Step 4 of 5
+                  </span>
+                  <h2 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                    Marksheet Template & Design Setup
+                  </h2>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Select examination marksheet template and configure grading rules, titles, and layout dimensions.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handlePreviewMarksheet(selectedTemplate)}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/50 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-xl text-xs font-bold transition-all shadow-xs shrink-0"
+              >
+                <Eye className="w-4 h-4 text-purple-600 dark:text-purple-400" /> Live Marksheet Preview
+              </button>
+            </div>
+
+            {/* Template Selector Grid: 4 Marksheet Templates at the TOP */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                    Select Examination Marksheet Template
                   </h3>
                   <p className="text-[11px] text-slate-400">
                     Choose from 4 professionally crafted web & Pinterest-inspired academic designs
                   </p>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
                   4 Templates Available
                 </span>
               </div>
@@ -2190,7 +1953,7 @@ function AddSetupWizardContent() {
                 </div>
               </div>
 
-              {/* Live Preview Banner in Step 3 */}
+              {/* Live Preview Banner in Step 4 */}
               <div className="bg-gradient-to-r from-purple-50 via-teal-50 to-emerald-50 dark:from-purple-950/30 dark:to-emerald-950/30 border border-purple-200 dark:border-purple-800/50 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
                 <div className="flex items-center gap-3.5">
                   <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-600/20">
@@ -2213,6 +1976,128 @@ function AddSetupWizardContent() {
                   <Eye className="w-4 h-4" />
                   Show Full Marksheet Preview
                 </button>
+              </div>
+            </div>
+
+            {/* Sub-section: Pass/Fail criteria */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 font-semibold">Min Passing Percentage (W/T) *</label>
+                <input 
+                  type="text"
+                  value={minPassingPct}
+                  onChange={e => setMinPassingPct(e.target.value)}
+                  className="px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 font-semibold">Min passing marks in each subject (W/T) *</label>
+                <input 
+                  type="text"
+                  value={minPassingMarks}
+                  onChange={e => setMinPassingMarks(e.target.value)}
+                  className="px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 font-semibold">Select grade to show in marksheet *</label>
+                <select 
+                  value={gradeToDisplay}
+                  onChange={e => setGradeToDisplay(e.target.value)}
+                  className="px-4 py-2 border border-slate-200 rounded-lg text-xs bg-white outline-none focus:border-teal-500 text-slate-600 font-semibold"
+                >
+                  <option value="All">All Grades</option>
+                  <option value="Scholastic">Scholastic Only</option>
+                  <option value="CoScholastic">Co-Scholastic Only</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Sub-section: Headings */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 font-semibold">First Term Heading</label>
+                <input 
+                  type="text"
+                  value={heading1}
+                  onChange={e => setHeading1(e.target.value)}
+                  className="px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 font-semibold">Second Term Heading</label>
+                <input 
+                  type="text"
+                  value={heading2}
+                  onChange={e => setHeading2(e.target.value)}
+                  className="px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 font-semibold">Header Main Title</label>
+                <input 
+                  type="text"
+                  placeholder="e.g. Term Evaluation Report"
+                  value={headingHeader}
+                  onChange={e => setHeadingHeader(e.target.value)}
+                  className="px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
+                />
+              </div>
+            </div>
+
+            {/* Layout parameters */}
+            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-6">
+              <h3 className="text-xs font-bold text-slate-800 mb-4 uppercase tracking-wider">Image / Brand Dimensions</h3>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Header Logo Width (px)</label>
+                  <input type="text" value={logoWidth} onChange={e => setLogoWidth(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none font-mono text-center" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Header Affiliate word (px)</label>
+                  <input type="text" value={affWordWidth} onChange={e => setAffWordWidth(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none font-mono text-center" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Student Photo Width (px)</label>
+                  <input type="text" value={photoWidth} onChange={e => setPhotoWidth(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none font-mono text-center" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Student Photo Height (px)</label>
+                  <input type="text" value={photoHeight} onChange={e => setPhotoHeight(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none font-mono text-center" />
+                </div>
+              </div>
+
+              {/* Toggles grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-6 pt-6 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-600">Show student profile photo</span>
+                  <button type="button" onClick={() => setShowStudentPhoto(!showStudentPhoto)} className={`w-9 h-5 rounded-full relative transition-colors ${showStudentPhoto ? 'bg-teal-600' : 'bg-slate-200'}`}><div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showStudentPhoto ? 'left-4.5' : 'left-0.5'}`}></div></button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-600">Show test marks also</span>
+                  <button type="button" onClick={() => setShowTestMarks(!showTestMarks)} className={`w-9 h-5 rounded-full relative transition-colors ${showTestMarks ? 'bg-teal-600' : 'bg-slate-200'}`}><div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showTestMarks ? 'left-4.5' : 'left-0.5'}`}></div></button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-600">Header Signature visibility</span>
+                  <button type="button" onClick={() => setShowHeaderSign(!showHeaderSign)} className={`w-9 h-5 rounded-full relative transition-colors ${showHeaderSign ? 'bg-teal-600' : 'bg-slate-200'}`}><div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showHeaderSign ? 'left-4.5' : 'left-0.5'}`}></div></button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-600">Header Stamp visibility</span>
+                  <button type="button" onClick={() => setShowHeaderStamp(!showHeaderStamp)} className={`w-9 h-5 rounded-full relative transition-colors ${showHeaderStamp ? 'bg-teal-600' : 'bg-slate-200'}`}><div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showHeaderStamp ? 'left-4.5' : 'left-0.5'}`}></div></button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-600">Show parent mobile number</span>
+                  <button type="button" onClick={() => setShowParentMobile(!showParentMobile)} className={`w-9 h-5 rounded-full relative transition-colors ${showParentMobile ? 'bg-teal-600' : 'bg-slate-200'}`}><div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showParentMobile ? 'left-4.5' : 'left-0.5'}`}></div></button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-600">Show round photo border</span>
+                  <button type="button" onClick={() => setShowRoundBorderPhoto(!showRoundBorderPhoto)} className={`w-9 h-5 rounded-full relative transition-colors ${showRoundBorderPhoto ? 'bg-teal-600' : 'bg-slate-200'}`}><div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showRoundBorderPhoto ? 'left-4.5' : 'left-0.5'}`}></div></button>
+                </div>
               </div>
             </div>
 
@@ -2258,57 +2143,243 @@ function AddSetupWizardContent() {
           </div>
         )}
 
-        {/* ================================== STEP 4: CERTIFICATE DESIGN ================================== */}
+        {/* ================================== STEP 5: CERTIFICATE DESIGN ================================== */}
         {currentStep === 'Certificate Design' && (
           <div className="space-y-6 animate-in fade-in duration-300">
-            <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-4">
-              Configure Certificate Layout Settings
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div 
-                onClick={() => setCertTemplate('Certificate Design 1')}
-                className={`cursor-pointer rounded-3xl border-2 p-6 flex flex-col gap-4 transition-all ${
-                  certTemplate === 'Certificate Design 1' ? 'border-teal-600 bg-teal-50/20 shadow-md' : 'border-slate-100 hover:bg-slate-50'
-                }`}
-              >
-                <div className="w-full h-44 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400">
-                  <Award className="w-16 h-16 text-blue-650" />
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                    Step 5 of 5
+                  </span>
+                  <h2 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                    Certificate Template & Design Setup
+                  </h2>
                 </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Select official student award certificate template style and inspect printable preview in real time.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handlePreviewCertificate(certTemplate)}
+                className="flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded-xl text-xs font-bold transition-all shadow-xs shrink-0"
+              >
+                <Eye className="w-4 h-4 text-amber-600 dark:text-amber-400" /> Live Certificate Preview
+              </button>
+            </div>
+
+            {/* Template Selector Grid: 4 Certificate Templates */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-black text-slate-800">Minimal Plain Blue</h3>
-                  <p className="text-xs text-slate-400">Clean thin border outline with centered seal, matching Screenshot 1 layout.</p>
+                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                    Select Certificate Template Style
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Choose from 4 official high-definition landscape academic award certificates with crests & QR validation
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                  4 Templates Available
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* 1. Certificate Design 1 */}
+                <div 
+                  onClick={() => setCertTemplate('Certificate Design 1')}
+                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
+                    certTemplate === 'Certificate Design 1' 
+                      ? 'border-blue-600 bg-blue-50/40 ring-2 ring-blue-500/20 shadow-md' 
+                      : 'border-slate-200 dark:border-slate-700 hover:border-blue-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-100 text-blue-800 border border-blue-200">
+                      Blue Royal
+                    </span>
+                    {certTemplate === 'Certificate Design 1' && (
+                      <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center text-center my-2">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center shadow-xs mb-2">
+                      <Award className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">Royal Blue Geometric</span>
+                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Clean thin border outline with centered seal</span>
+                  </div>
+                  <span className="text-[9px] text-center font-bold text-blue-700 bg-blue-50 py-1 rounded-lg">
+                    Official Seal + Geometric Border
+                  </span>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handlePreviewCertificate('Certificate Design 1')
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-700 dark:text-blue-400 font-bold text-[11px] border border-blue-200 dark:border-blue-800 hover:border-blue-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                      <span>Preview Template</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. Certificate Design 2 */}
+                <div 
+                  onClick={() => setCertTemplate('Certificate Design 2')}
+                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
+                    certTemplate === 'Certificate Design 2' 
+                      ? 'border-amber-500 bg-amber-50/40 ring-2 ring-amber-500/20 shadow-md' 
+                      : 'border-slate-200 dark:border-slate-700 hover:border-amber-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-200">
+                      Merit Corner
+                    </span>
+                    {certTemplate === 'Certificate Design 2' && (
+                      <CheckCircle2 className="w-4 h-4 text-amber-600" />
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center text-center my-2">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shadow-xs mb-2">
+                      <Award className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">Navy & Gold Corners</span>
+                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Professional corner accents with wreath seal</span>
+                  </div>
+                  <span className="text-[9px] text-center font-bold text-amber-700 bg-amber-50 py-1 rounded-lg">
+                    Corner Accents + Dual Wreath
+                  </span>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handlePreviewCertificate('Certificate Design 2')
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-600 hover:text-white text-amber-700 dark:text-amber-400 font-bold text-[11px] border border-amber-200 dark:border-amber-800 hover:border-amber-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                      <span>Preview Template</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. Certificate Design 3 */}
+                <div 
+                  onClick={() => setCertTemplate('Certificate Design 3')}
+                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
+                    certTemplate === 'Certificate Design 3' 
+                      ? 'border-yellow-600 bg-yellow-50/40 ring-2 ring-yellow-500/20 shadow-md' 
+                      : 'border-slate-200 dark:border-slate-700 hover:border-yellow-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-yellow-100 text-yellow-800 border border-yellow-200">
+                      Golden Floral
+                    </span>
+                    {certTemplate === 'Certificate Design 3' && (
+                      <CheckCircle2 className="w-4 h-4 text-yellow-600" />
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center text-center my-2">
+                    <div className="w-12 h-12 rounded-2xl bg-yellow-100 text-yellow-700 flex items-center justify-center shadow-xs mb-2">
+                      <Sparkles className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">Ornate Golden Frame</span>
+                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Luxurious golden floral patterns with script typography</span>
+                  </div>
+                  <span className="text-[9px] text-center font-bold text-yellow-700 bg-yellow-50 py-1 rounded-lg">
+                    Ornate Crest + Floral Pattern
+                  </span>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handlePreviewCertificate('Certificate Design 3')
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-yellow-600 hover:text-white text-yellow-700 dark:text-yellow-400 font-bold text-[11px] border border-yellow-200 dark:border-yellow-800 hover:border-yellow-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-yellow-600 dark:text-yellow-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                      <span>Preview Template</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 4. Certificate Design 4 */}
+                <div 
+                  onClick={() => setCertTemplate('Certificate Design 4')}
+                  className={`cursor-pointer rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all relative ${
+                    certTemplate === 'Certificate Design 4' 
+                      ? 'border-[#065f46] bg-emerald-50/40 ring-2 ring-[#065f46]/20 shadow-md' 
+                      : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      Modern Emerald
+                    </span>
+                    {certTemplate === 'Certificate Design 4' && (
+                      <CheckCircle2 className="w-4 h-4 text-[#065f46]" />
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center text-center my-2">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-[#065f46] flex items-center justify-center shadow-xs mb-2">
+                      <School className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-slate-100">Modern Academic Emerald</span>
+                    <span className="text-[10px] font-semibold text-slate-500 mt-0.5">Contemporary academic award with QR verification</span>
+                  </div>
+                  <span className="text-[9px] text-center font-bold text-[#065f46] bg-emerald-50 py-1 rounded-lg">
+                    QR Code + Minimalist Header
+                  </span>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handlePreviewCertificate('Certificate Design 4')
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-[#065f46] hover:text-white text-[#065f46] dark:text-emerald-400 font-bold text-[11px] border border-emerald-200 dark:border-emerald-800 hover:border-[#065f46] flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-[#065f46] dark:text-emerald-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                      <span>Preview Template</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div 
-                onClick={() => setCertTemplate('Certificate Design 2')}
-                className={`cursor-pointer rounded-3xl border-2 p-6 flex flex-col gap-4 transition-all ${
-                  certTemplate === 'Certificate Design 2' ? 'border-teal-600 bg-teal-50/20 shadow-md' : 'border-slate-100 hover:bg-slate-50'
-                }`}
-              >
-                <div className="w-full h-44 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400">
-                  <Award className="w-16 h-16 text-amber-500" />
+              {/* Live Preview Banner in Step 5 */}
+              <div className="bg-gradient-to-r from-amber-50 via-teal-50 to-blue-50 dark:from-amber-950/30 dark:to-blue-950/30 border border-amber-200 dark:border-amber-800/50 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
+                    <Award className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-slate-800 dark:text-slate-100">
+                      Live Certificate Preview • {certTemplate}
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Inspect high-definition certificate graphics, recipient typography, and institution seal in real time.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-800">Navy/Gold Corners</h3>
-                  <p className="text-xs text-slate-400">Professional corner accents with wreath seal placement, matching Screenshot 2.</p>
-                </div>
-              </div>
-
-              <div 
-                onClick={() => setCertTemplate('Certificate Design 3')}
-                className={`cursor-pointer rounded-3xl border-2 p-6 flex flex-col gap-4 transition-all ${
-                  certTemplate === 'Certificate Design 3' ? 'border-teal-600 bg-teal-50/20 shadow-md' : 'border-slate-100 hover:bg-slate-50'
-                }`}
-              >
-                <div className="w-full h-44 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400">
-                  <Award className="w-16 h-16 text-yellow-600" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-800">Ornate Golden Frame</h3>
-                  <p className="text-xs text-slate-400">Luxurious golden floral patterns with script typography details, matching Screenshot 3.</p>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => handlePreviewCertificate(certTemplate)}
+                  className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-amber-600/20 transition-all shrink-0"
+                >
+                  <Eye className="w-4 h-4" />
+                  Show Full Certificate Preview
+                </button>
               </div>
             </div>
           </div>
@@ -2326,7 +2397,7 @@ function AddSetupWizardContent() {
         </Link>
         
         <div className="flex flex-wrap items-center gap-3">
-          {currentStep !== 'Template Design' && (
+          {currentStep !== 'Exams' && (
             <button 
               type="button"
               onClick={handleBack}
@@ -2354,7 +2425,7 @@ function AddSetupWizardContent() {
               onClick={handleNext}
               className="flex items-center gap-1.5 px-5 py-2 bg-teal-600 text-white rounded-lg text-xs font-bold hover:bg-teal-700 transition-colors shadow-sm"
             >
-              {currentStep === 'Template Design' ? 'Continue to Exams & Schedule' : 'Save & Next'} <ArrowRight className="w-4 h-4" />
+              Save & Next <ArrowRight className="w-4 h-4" />
             </button>
           ) : (
             <button 
@@ -2553,6 +2624,127 @@ function AddSetupWizardContent() {
             setPreviewTargetAdmitStyle(null)
           }}
         />
+      )}
+
+      {/* ============================================================== */}
+      {/* LIVE CERTIFICATE PREVIEW MODAL                                 */}
+      {/* ============================================================== */}
+      {showCertPreviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto py-8">
+          <div className="w-full max-w-5xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 my-auto max-h-[94vh]">
+            
+            {/* Header */}
+            <div className="px-7 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-850">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
+                  <Award className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                    <span>Certificate Live Preview</span>
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                      {previewTargetCertTemplate || certTemplate}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    High-definition 300 DPI vector printable certificate with authorized institution credentials
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCertPreviewModal(false)
+                  setPreviewTargetCertTemplate(null)
+                }}
+                className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Viewport */}
+            <div className="p-6 overflow-auto flex items-center justify-center bg-slate-100 dark:bg-slate-950/60 min-h-[460px]">
+              <div 
+                className="transition-transform duration-200 flex items-center justify-center"
+                style={{ transform: 'scale(0.80)', transformOrigin: 'center' }}
+              >
+                {((previewTargetCertTemplate || certTemplate) === 'Certificate Design 1') && (
+                  <CertificateDesign1 
+                    schoolName={schoolName || 'COSMOPOLITAN INTER COLLEGE'}
+                    schoolAddress={schoolAddress || 'Green Park Sector 4, New Delhi'}
+                    studentName="Aarav Sharma"
+                    className={classes[0]?.className || 'Class X'}
+                    date={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  />
+                )}
+                {((previewTargetCertTemplate || certTemplate) === 'Certificate Design 2') && (
+                  <CertificateDesign2 
+                    schoolName={schoolName || 'COSMOPOLITAN INTER COLLEGE'}
+                    schoolAddress={schoolAddress || 'Green Park Sector 4, New Delhi'}
+                    studentName="Aarav Sharma"
+                    className={classes[0]?.className || 'Class X'}
+                    date={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  />
+                )}
+                {((previewTargetCertTemplate || certTemplate) === 'Certificate Design 3') && (
+                  <CertificateDesign3 
+                    schoolName={schoolName || 'COSMOPOLITAN INTER COLLEGE'}
+                    schoolAddress={schoolAddress || 'Green Park Sector 4, New Delhi'}
+                    studentName="Aarav Sharma"
+                    className={classes[0]?.className || 'Class X'}
+                    date={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  />
+                )}
+                {((previewTargetCertTemplate || certTemplate) === 'Certificate Design 4') && (
+                  <CertificateDesign4 
+                    schoolName={schoolName || 'COSMOPOLITAN INTER COLLEGE'}
+                    schoolAddress={schoolAddress || 'Green Park Sector 4, New Delhi'}
+                    studentName="Aarav Sharma"
+                    className={classes[0]?.className || 'Class X'}
+                    date={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500 font-semibold">
+                Landscape A4 / Letter Print Ready • 300 DPI Vector Crest
+              </span>
+              <div className="flex items-center gap-2">
+                {previewTargetCertTemplate && previewTargetCertTemplate !== certTemplate && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCertTemplate(previewTargetCertTemplate)
+                      setShowCertPreviewModal(false)
+                      setPreviewTargetCertTemplate(null)
+                      toast.success(`Selected ${previewTargetCertTemplate} as active Certificate template`)
+                    }}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Select & Close
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCertPreviewModal(false)
+                    setPreviewTargetCertTemplate(null)
+                  }}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Close Preview
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
       )}
 
       {/* ============================================================== */}
