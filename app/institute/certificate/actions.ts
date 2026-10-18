@@ -16,6 +16,50 @@ export interface CertificateTypeData {
   textColor?: string
   fontSize?: string
   hiddenFields?: string[]
+  themeColor?: string
+  principalName?: string
+  principalLabel?: string
+  schoolName?: string
+  schoolAddress?: string
+  customLabels?: Record<string, string>
+}
+
+let certTableEnsured = false
+async function ensureCertificateTypeColumns() {
+  if (certTableEnsured) return
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS institute_certificate_types (
+        id SERIAL PRIMARY KEY,
+        institution_id VARCHAR(255) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        subtitle VARCHAR(255),
+        prefix VARCHAR(50),
+        start_no VARCHAR(50),
+        classes TEXT[],
+        design_id INT DEFAULT 1,
+        content TEXT,
+        title_bg_color VARCHAR(50),
+        text_color VARCHAR(50),
+        font_size VARCHAR(50),
+        hidden_fields TEXT[],
+        theme_color VARCHAR(50),
+        principal_name VARCHAR(255),
+        school_name VARCHAR(255),
+        school_address VARCHAR(255),
+        custom_labels JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      ALTER TABLE institute_certificate_types ADD COLUMN IF NOT EXISTS theme_color VARCHAR(50);
+      ALTER TABLE institute_certificate_types ADD COLUMN IF NOT EXISTS principal_name VARCHAR(255);
+      ALTER TABLE institute_certificate_types ADD COLUMN IF NOT EXISTS school_name VARCHAR(255);
+      ALTER TABLE institute_certificate_types ADD COLUMN IF NOT EXISTS school_address VARCHAR(255);
+      ALTER TABLE institute_certificate_types ADD COLUMN IF NOT EXISTS custom_labels JSONB;
+    `)
+    certTableEnsured = true
+  } catch (e) {
+    // Ignore migration catch
+  }
 }
 
 // -------------------------------------------------------------
@@ -24,6 +68,8 @@ export interface CertificateTypeData {
 export async function fetchCertificateTypes() {
   const session = await getSession('institute_session')
   const institutionId = session?.userId || 'default_institution'
+
+  await ensureCertificateTypeColumns()
 
   try {
     const res = await pool.query(`
@@ -40,6 +86,11 @@ export async function fetchCertificateTypes() {
         text_color as "textColor", 
         font_size as "fontSize", 
         hidden_fields as "hiddenFields", 
+        theme_color as "themeColor",
+        principal_name as "principalName",
+        school_name as "schoolName",
+        school_address as "schoolAddress",
+        custom_labels as "customLabels",
         TO_CHAR(created_at, 'DD/MM/YYYY') as "date",
         TO_CHAR(created_at, 'HH12:MI AM') as "time"
       FROM institute_certificate_types
@@ -57,29 +108,82 @@ export async function saveCertificateType(data: CertificateTypeData) {
   const session = await getSession('institute_session')
   const institutionId = session?.userId || 'default_institution'
 
-  try {
-    const res = await pool.query(`
-      INSERT INTO institute_certificate_types (
-        institution_id, title, subtitle, prefix, start_no, classes,
-        design_id, content, title_bg_color, text_color, font_size, hidden_fields
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-      RETURNING id, title, subtitle, prefix, start_no as "startNo", classes, design_id as "designId"
-    `, [
-      institutionId,
-      data.title || 'Certificate of Achievement',
-      data.subtitle || 'Official Institutional Recognition',
-      data.prefix || 'CER/2025/',
-      data.startNo || '101',
-      data.classes || ['All Classes'],
-      data.designId || 1,
-      data.content || '',
-      data.titleBgColor || '#1e3a8a',
-      data.textColor || '#0f172a',
-      data.fontSize || '14',
-      data.hiddenFields || []
-    ])
+  await ensureCertificateTypeColumns()
 
-    return { success: true, data: res.rows[0] }
+  const chosenTheme = data.themeColor || data.titleBgColor || '#1E3A8A'
+
+  try {
+    if (data.id) {
+      const res = await pool.query(`
+        UPDATE institute_certificate_types SET
+          title = $1,
+          subtitle = $2,
+          prefix = $3,
+          start_no = $4,
+          classes = $5,
+          design_id = $6,
+          content = $7,
+          title_bg_color = $8,
+          text_color = $9,
+          font_size = $10,
+          hidden_fields = $11,
+          theme_color = $12,
+          principal_name = $13,
+          school_name = $14,
+          school_address = $15,
+          custom_labels = $16
+        WHERE id = $17 AND (institution_id = $18 OR institution_id = 'default_institution')
+        RETURNING id, title, subtitle, prefix, start_no as "startNo", classes, design_id as "designId", theme_color as "themeColor"
+      `, [
+        data.title || 'Certificate of Achievement',
+        data.subtitle || 'Official Institutional Recognition',
+        data.prefix || 'CER/2025/',
+        data.startNo || '101',
+        data.classes || ['All Classes'],
+        data.designId || 1,
+        data.content || '',
+        chosenTheme,
+        data.textColor || '#0f172a',
+        data.fontSize || '14',
+        data.hiddenFields || [],
+        chosenTheme,
+        data.principalName || 'Dr. S. K. Sharma',
+        data.schoolName || 'COSMOPOLITAN INTER COLLEGE',
+        data.schoolAddress || 'Knowledge Park, Sector 62, New Delhi',
+        data.customLabels ? JSON.stringify(data.customLabels) : null,
+        data.id,
+        institutionId
+      ])
+      return { success: true, data: res.rows[0] }
+    } else {
+      const res = await pool.query(`
+        INSERT INTO institute_certificate_types (
+          institution_id, title, subtitle, prefix, start_no, classes,
+          design_id, content, title_bg_color, text_color, font_size, hidden_fields,
+          theme_color, principal_name, school_name, school_address, custom_labels
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        RETURNING id, title, subtitle, prefix, start_no as "startNo", classes, design_id as "designId", theme_color as "themeColor"
+      `, [
+        institutionId,
+        data.title || 'Certificate of Achievement',
+        data.subtitle || 'Official Institutional Recognition',
+        data.prefix || 'CER/2025/',
+        data.startNo || '101',
+        data.classes || ['All Classes'],
+        data.designId || 1,
+        data.content || '',
+        chosenTheme,
+        data.textColor || '#0f172a',
+        data.fontSize || '14',
+        data.hiddenFields || [],
+        chosenTheme,
+        data.principalName || 'Dr. S. K. Sharma',
+        data.schoolName || 'COSMOPOLITAN INTER COLLEGE',
+        data.schoolAddress || 'Knowledge Park, Sector 62, New Delhi',
+        data.customLabels ? JSON.stringify(data.customLabels) : null
+      ])
+      return { success: true, data: res.rows[0] }
+    }
   } catch (err: any) {
     return { success: false, error: err.message }
   }
@@ -155,6 +259,7 @@ export async function fetchIssuedCertificates() {
       return {
         ...row,
         designId: details.designId || 1,
+        themeColor: details.themeColor || '#1E3A8A',
         fatherName: details.fatherName || '',
         rollNo: details.rollNo || '',
         schoolName: details.schoolName || 'COSMOPOLITAN INTER COLLEGE',
@@ -178,6 +283,7 @@ export async function saveIssuedCertificate(data: IssuedCertificateData) {
     const details = {
       ...(data.details || {}),
       designId: Number(data.designId) || 1,
+      themeColor: data.details?.themeColor || '#1E3A8A',
       fatherName: data.fatherName || '',
       rollNo: data.rollNo || '',
       schoolName: data.schoolName || 'COSMOPOLITAN INTER COLLEGE',
@@ -245,42 +351,69 @@ export async function fetchStudentsForCertificate() {
   const institutionId = session?.userId || 'default_institution'
 
   try {
+    // Detect which columns actually exist in institute_students
+    const colsRes = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'institute_students'
+    `)
+    const colSet = new Set(colsRes.rows.map((r: any) => String(r.column_name).toLowerCase()))
+
+    if (colSet.size === 0) {
+      return { success: true, data: [] }
+    }
+
+    const hasCol = (col: string) => colSet.has(col.toLowerCase())
+
+    const nameExpr = hasCol('name') && hasCol('first_name')
+      ? "COALESCE(NULLIF(name, ''), TRIM(CONCAT(first_name, ' ', COALESCE(last_name, ''))))"
+      : hasCol('name')
+      ? "name"
+      : hasCol('first_name')
+      ? "TRIM(CONCAT(first_name, ' ', COALESCE(last_name, '')))"
+      : "''"
+
+    const admExpr = hasCol('admission_no') ? "admission_no" : "''"
+    const rollExpr = hasCol('roll_no') ? "roll_no" : "''"
+    const classExpr = hasCol('class_name') ? "class_name" : hasCol('class') ? "class" : "''"
+    const secExpr = hasCol('section_name') ? "section_name" : hasCol('section') ? "section" : "''"
+    const fatherExpr = hasCol('father_name') ? "father_name" : hasCol('guardian_name') ? "guardian_name" : "''"
+
+    const whereClause = hasCol('institution_id')
+      ? "(institution_id::text = $1::text OR $1 = 'default_institution')"
+      : "1=1"
+
     const res = await pool.query(`
       SELECT 
         id,
-        name,
-        admission_no as "admissionNo",
-        roll_no as "rollNo"
+        ${nameExpr} as name,
+        ${admExpr} as "admissionNo",
+        ${rollExpr} as "rollNo",
+        ${classExpr} as "className",
+        ${secExpr} as "sectionName",
+        ${fatherExpr} as "fatherName"
       FROM institute_students
-      WHERE (institution_id = $1 OR $1 = 'default_institution')
-      ORDER BY name ASC
-    `, [institutionId])
+      WHERE ${whereClause}
+      ORDER BY id DESC
+    `, hasCol('institution_id') ? [institutionId] : [])
 
-    const defaultStudents = [
-      { id: 'std-1', name: 'Aarav Sharma', admissionNo: 'AS-2024-1048', rollNo: '1001', className: 'Class 10', section: 'Section A', fatherName: 'Rajesh Sharma' },
-      { id: 'std-2', name: 'Ananya Verma', admissionNo: 'GHA-2024-8842', rollNo: '8024', className: 'Class 8', section: 'Section B', fatherName: 'Vikram Verma' },
-      { id: 'std-3', name: 'Rohan Mehra', admissionNo: 'AS-2024-1102', rollNo: '1012', className: 'Class 10', section: 'Section A', fatherName: 'Sanjay Mehra' },
-      { id: 'std-4', name: 'Priyanshu Das', admissionNo: 'PR-2024-3320', rollNo: '1205', className: 'Class 12 - Science', section: 'Section C', fatherName: 'Manoj Das' },
-      { id: 'std-5', name: 'Sara Khan', admissionNo: 'SK-2024-5510', rollNo: '9018', className: 'Class 9', section: 'Section A', fatherName: 'Tariq Khan' },
-      { id: 'std-6', name: 'Devendra Patel', admissionNo: 'DP-2024-7721', rollNo: '1109', className: 'Class 11 - Science', section: 'Section B', fatherName: 'Ramesh Patel' },
-    ]
+    const formatted = res.rows.map((r: any) => {
+      const fullName = (r.name || '').trim()
+      return {
+        id: String(r.id),
+        name: fullName,
+        admissionNo: r.admissionNo || '',
+        rollNo: r.rollNo || r.admissionNo || '',
+        className: r.className || '',
+        section: r.sectionName || '',
+        fatherName: r.fatherName || ''
+      }
+    }).filter((s: any) => s.name && s.name.toLowerCase() !== 'student')
 
-    if (res.rows.length === 0) {
-      return { success: true, data: defaultStudents }
-    }
-
-    const merged = res.rows.map((r: any, idx: number) => ({
-      id: r.id,
-      name: r.name || 'Student',
-      admissionNo: r.admissionNo || `ADM-${1000 + idx}`,
-      rollNo: r.rollNo || `${100 + idx}`,
-      className: 'Class 10',
-      section: 'Section A',
-      fatherName: 'Guardian Name'
-    }))
-
-    return { success: true, data: merged }
+    return { success: true, data: formatted }
   } catch (err: any) {
-    return { success: false, error: err.message, data: [] }
+    console.error('Safe fetch students for certificate:', err.message)
+    return { success: true, data: [] }
   }
 }
+

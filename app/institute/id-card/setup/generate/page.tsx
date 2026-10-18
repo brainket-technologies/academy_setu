@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, Suspense } from 'react'
-import { X, Check, Eye, RotateCw, Sparkles } from 'lucide-react'
+import { X, Check, Eye, RotateCw, Sparkles, Palette } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { 
@@ -11,13 +11,8 @@ import {
   TeacherDesignHorizontal, 
   EmployeeDesignVertical, 
   EmployeeDesignHorizontal,
-  StudentDesignPinterestVertical,
-  StudentDesignPinterestHorizontal,
-  TeacherDesignPinterestVertical,
-  TeacherDesignPinterestHorizontal,
-  EmployeeDesignPinterestVertical,
-  EmployeeDesignPinterestHorizontal,
-  IdCardBackDesign
+  IdCardBackDesign,
+  ID_CARD_COLOR_PRESETS
 } from '@/components/id-cards/IdCardTemplates'
 import { saveIdCardSetup } from '../../actions'
 
@@ -34,6 +29,11 @@ function GenerateIdCardContent() {
   )
   const [selectedDesign, setSelectedDesign] = useState<number>(initialDesign)
   const [activeSide, setActiveSide] = useState<'front' | 'back'>('front')
+
+  const initialColor = searchParams.get('color') || '#0284c7'
+  const [themeColor, setThemeColor] = useState<string>(initialColor)
+  const [principalName, setPrincipalName] = useState('K.Singhal')
+  const [customLabels, setCustomLabels] = useState<Record<string, string>>({})
 
   // Form Fields
   const [title, setTitle] = useState(
@@ -59,6 +59,18 @@ function GenerateIdCardContent() {
   const [bottomNotes, setBottomNotes] = useState(
     'This card belongs to the school/institute. If found, please hand it over to the school/institute authorities.'
   )
+
+  const handleUpdateLiveField = (field: string, val: any) => {
+    if (field === 'schoolName') setSchoolName(val)
+    else if (field === 'tagline') setTagline(val)
+    else if (field === 'schoolAddress') setSchoolAddress(val)
+    else if (field === 'schoolPhone') setSchoolPhone(val)
+    else if (field === 'schoolEmail') setSchoolEmail(val)
+    else if (field === 'session') setSession(val)
+    else if (field === 'title') setTitle(val)
+    else if (field === 'principalName') setPrincipalName(val)
+    else if (field === 'bottomNotes') setBottomNotes(val)
+  }
 
   // When role changes, update default title
   const handleRoleChange = (newRole: 'Student' | 'Teacher' | 'Employee') => {
@@ -130,7 +142,10 @@ function GenerateIdCardContent() {
         showTopHeaderTagline,
         printQr,
         showBloodGroup,
-        bottomNotes
+        bottomNotes,
+        themeColor,
+        principalName,
+        customLabels
       })
     } catch (e) {
       console.error(e)
@@ -219,12 +234,86 @@ function GenerateIdCardContent() {
           </div>
         </section>
 
+        {/* Theme Color Selection (Exact Match to Admit Card / Marksheet) */}
+        <section>
+          <div className="flex items-center gap-4 mb-4">
+            <h2 className="text-sm font-black text-slate-800 dark:text-slate-200 whitespace-nowrap uppercase tracking-wider flex items-center gap-2">
+              <Palette className="w-4 h-4 text-teal-600" />
+              2. ID Card Theme Color & Styling
+            </h2>
+            <div className="h-px bg-slate-200 dark:bg-slate-700 w-full"></div>
+          </div>
+
+          <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                  Select Theme Color
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  Pick a curated preset or custom hex code. The entire ID card headers, borders, QR codes, and badges update automatically.
+                </p>
+              </div>
+
+              {/* Color input */}
+              <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl shadow-2xs">
+                <input
+                  type="color"
+                  value={themeColor}
+                  onChange={(e) => setThemeColor(e.target.value)}
+                  className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0"
+                />
+                <span className="text-slate-300">|</span>
+                <input
+                  type="text"
+                  value={themeColor}
+                  onChange={(e) => setThemeColor(e.target.value)}
+                  placeholder="#0284c7"
+                  maxLength={7}
+                  className="w-18 text-xs font-mono font-bold uppercase bg-transparent outline-none text-slate-800 dark:text-slate-100"
+                />
+              </div>
+            </div>
+
+            {/* Presets */}
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">
+                Presets:
+              </span>
+              {ID_CARD_COLOR_PRESETS.map(preset => {
+                const isSelected = themeColor.toLowerCase() === preset.hex.toLowerCase()
+                return (
+                  <button
+                    key={preset.hex}
+                    type="button"
+                    onClick={() => setThemeColor(preset.hex)}
+                    title={preset.name}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                      isSelected
+                        ? 'ring-2 ring-teal-500 border-transparent text-white shadow-xs'
+                        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-400'
+                    }`}
+                    style={isSelected ? { backgroundColor: preset.hex } : {}}
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full border border-black/15 shrink-0"
+                      style={{ backgroundColor: preset.hex }}
+                    />
+                    <span>{preset.name}</span>
+                    {isSelected && <Check className="w-3 h-3 text-white" />}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+
         {/* Id Card Design Selection (Strictly 2 designs per role: 1 Vertical & 1 Horizontal) */}
         <section>
           <div className="flex items-center justify-between gap-4 mb-4">
             <div className="flex items-center gap-4 w-full">
               <h2 className="text-sm font-black text-slate-800 dark:text-slate-200 whitespace-nowrap uppercase tracking-wider">
-                2. {role} ID Card Design Frame (2 System Designs: 1 Vertical & 1 Horizontal)
+                3. {role} ID Card Design Frame (1 Vertical & 1 Horizontal)
               </h2>
               <div className="h-px bg-slate-200 dark:bg-slate-700 w-full"></div>
             </div>
@@ -555,6 +644,9 @@ function GenerateIdCardContent() {
                       schoolPhone={schoolPhone}
                       schoolEmail={schoolEmail}
                       bottomNotes={bottomNotes}
+                      themeColor={themeColor}
+                      editable={true}
+                      onUpdateField={handleUpdateLiveField}
                     />
                   ) : (
                     <>
@@ -573,6 +665,12 @@ function GenerateIdCardContent() {
                           showTopHeaderTagline={showTopHeaderTagline}
                           showQr={printQr}
                           showBloodGroup={showBloodGroup}
+                          themeColor={themeColor}
+                          principalName={principalName}
+                          editable={true}
+                          customLabels={customLabels}
+                          onUpdateField={handleUpdateLiveField}
+                          onUpdateLabel={(k, v) => setCustomLabels(p => ({ ...p, [k]: v }))}
                         />
                       )}
                       {role === 'Student' && selectedDesign === 2 && (
@@ -588,6 +686,12 @@ function GenerateIdCardContent() {
                           showPrincipalSign={!hidePrincipalSign}
                           showQr={printQr}
                           showBloodGroup={showBloodGroup}
+                          themeColor={themeColor}
+                          principalName={principalName}
+                          editable={true}
+                          customLabels={customLabels}
+                          onUpdateField={handleUpdateLiveField}
+                          onUpdateLabel={(k, v) => setCustomLabels(p => ({ ...p, [k]: v }))}
                         />
                       )}
 
@@ -606,6 +710,12 @@ function GenerateIdCardContent() {
                           showTopHeaderTagline={showTopHeaderTagline}
                           showQr={printQr}
                           showBloodGroup={showBloodGroup}
+                          themeColor={themeColor}
+                          principalName={principalName}
+                          editable={true}
+                          customLabels={customLabels}
+                          onUpdateField={handleUpdateLiveField}
+                          onUpdateLabel={(k, v) => setCustomLabels(p => ({ ...p, [k]: v }))}
                         />
                       )}
                       {role === 'Teacher' && selectedDesign === 2 && (
@@ -620,6 +730,12 @@ function GenerateIdCardContent() {
                           showPrincipalSign={!hidePrincipalSign}
                           showQr={printQr}
                           showBloodGroup={showBloodGroup}
+                          themeColor={themeColor}
+                          principalName={principalName}
+                          editable={true}
+                          customLabels={customLabels}
+                          onUpdateField={handleUpdateLiveField}
+                          onUpdateLabel={(k, v) => setCustomLabels(p => ({ ...p, [k]: v }))}
                         />
                       )}
 
@@ -638,6 +754,12 @@ function GenerateIdCardContent() {
                           showTopHeaderTagline={showTopHeaderTagline}
                           showQr={printQr}
                           showBloodGroup={showBloodGroup}
+                          themeColor={themeColor}
+                          principalName={principalName}
+                          editable={true}
+                          customLabels={customLabels}
+                          onUpdateField={handleUpdateLiveField}
+                          onUpdateLabel={(k, v) => setCustomLabels(p => ({ ...p, [k]: v }))}
                         />
                       )}
                       {role === 'Employee' && selectedDesign === 2 && (
@@ -652,6 +774,12 @@ function GenerateIdCardContent() {
                           showPrincipalSign={!hidePrincipalSign}
                           showQr={printQr}
                           showBloodGroup={showBloodGroup}
+                          themeColor={themeColor}
+                          principalName={principalName}
+                          editable={true}
+                          customLabels={customLabels}
+                          onUpdateField={handleUpdateLiveField}
+                          onUpdateLabel={(k, v) => setCustomLabels(p => ({ ...p, [k]: v }))}
                         />
                       )}
                     </>

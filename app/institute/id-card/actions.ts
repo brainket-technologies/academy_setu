@@ -47,6 +47,51 @@ export interface IdCardSetupData {
   printQr?: boolean
   showBloodGroup?: boolean
   bottomNotes?: string
+  themeColor?: string
+  principalName?: string
+  customLabels?: Record<string, string>
+}
+
+let tableEnsured = false
+async function ensureIdCardSetupColumns() {
+  if (tableEnsured) return
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS institute_id_card_setups (
+        id SERIAL PRIMARY KEY,
+        institution_id VARCHAR(255) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        card_for VARCHAR(50) NOT NULL,
+        session VARCHAR(50) NOT NULL,
+        design_id INT DEFAULT 1,
+        tagline VARCHAR(255),
+        school_name VARCHAR(255),
+        school_address VARCHAR(255),
+        school_phone VARCHAR(50),
+        school_email VARCHAR(100),
+        udise_code VARCHAR(50),
+        school_code VARCHAR(50),
+        affiliated_to VARCHAR(100),
+        affiliation_code VARCHAR(100),
+        show_watermark BOOLEAN DEFAULT TRUE,
+        show_principal_sign BOOLEAN DEFAULT TRUE,
+        show_top_header_tagline BOOLEAN DEFAULT TRUE,
+        print_qr BOOLEAN DEFAULT TRUE,
+        show_blood_group BOOLEAN DEFAULT TRUE,
+        bottom_notes TEXT,
+        theme_color VARCHAR(50),
+        principal_name VARCHAR(255),
+        custom_labels JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      ALTER TABLE institute_id_card_setups ADD COLUMN IF NOT EXISTS theme_color VARCHAR(50);
+      ALTER TABLE institute_id_card_setups ADD COLUMN IF NOT EXISTS principal_name VARCHAR(255);
+      ALTER TABLE institute_id_card_setups ADD COLUMN IF NOT EXISTS custom_labels JSONB;
+    `)
+    tableEnsured = true
+  } catch (e) {
+    // Ignore if already migrated
+  }
 }
 
 // -------------------------------------------------------------
@@ -55,6 +100,8 @@ export interface IdCardSetupData {
 export async function fetchIdCardSetups() {
   const session = await getSession('institute_session')
   const institutionId = session?.userId || 'default_institution'
+
+  await ensureIdCardSetupColumns()
 
   try {
     const res = await pool.query(`
@@ -79,6 +126,9 @@ export async function fetchIdCardSetups() {
         print_qr as "printQr", 
         show_blood_group as "showBloodGroup", 
         bottom_notes as "bottomNotes", 
+        theme_color as "themeColor",
+        principal_name as "principalName",
+        custom_labels as "customLabels",
         TO_CHAR(created_at, 'DD/MM/YYYY') as "date",
         TO_CHAR(created_at, 'HH12:MI AM') as "time"
       FROM institute_id_card_setups
@@ -96,15 +146,18 @@ export async function saveIdCardSetup(data: IdCardSetupData) {
   const session = await getSession('institute_session')
   const institutionId = session?.userId || 'default_institution'
 
+  await ensureIdCardSetupColumns()
+
   try {
     const res = await pool.query(`
       INSERT INTO institute_id_card_setups (
         institution_id, title, card_for, session, design_id, tagline,
         school_name, school_address, school_phone, school_email, udise_code,
         school_code, affiliated_to, affiliation_code, show_watermark,
-        show_principal_sign, show_top_header_tagline, print_qr, show_blood_group, bottom_notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
-      RETURNING id, title, card_for as "for", session, design_id as "designId"
+        show_principal_sign, show_top_header_tagline, print_qr, show_blood_group, bottom_notes,
+        theme_color, principal_name, custom_labels
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+      RETURNING id, title, card_for as "for", session, design_id as "designId", theme_color as "themeColor"
     `, [
       institutionId,
       data.title || 'ID Card Design',
@@ -125,7 +178,10 @@ export async function saveIdCardSetup(data: IdCardSetupData) {
       data.showTopHeaderTagline ?? true,
       data.printQr ?? true,
       data.showBloodGroup ?? true,
-      data.bottomNotes || ''
+      data.bottomNotes || '',
+      data.themeColor || '#0284c7',
+      data.principalName || 'K.Singhal',
+      JSON.stringify(data.customLabels || {})
     ])
 
     return { success: true, data: res.rows[0] }

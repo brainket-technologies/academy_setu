@@ -1,5 +1,30 @@
 import React from 'react'
 import { QrCode, ShieldCheck, Award, Building2, Phone, Mail, MapPin, Calendar, User, HeartPulse, CheckCircle2, Sparkles, Cpu } from 'lucide-react'
+import { LiveEditableText, ProperQrCode, hexToRgba } from '@/components/admit-card/AdmitCardModalPreview'
+
+export function adjustHex(hex?: string, amount: number = 0): string {
+  let c = (hex || '#0284c7').trim().replace('#', '')
+  if (c.length === 3) c = c.split('').map(x => x + x).join('')
+  const num = parseInt(c, 16)
+  if (isNaN(num)) return amount < 0 ? '#0f2b5c' : '#38bdf8'
+  const r = Math.max(0, Math.min(255, ((num >> 16) & 255) + amount))
+  const g = Math.max(0, Math.min(255, ((num >> 8) & 255) + amount))
+  const b = Math.max(0, Math.min(255, (num & 255) + amount))
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`
+}
+
+export const ID_CARD_COLOR_PRESETS = [
+  { name: 'Sky Blue', hex: '#0284C7' },
+  { name: 'Ocean Teal', hex: '#0F766E' },
+  { name: 'Royal Emerald', hex: '#065F46' },
+  { name: 'Navy Blue', hex: '#1E3A8A' },
+  { name: 'Burgundy', hex: '#660033' },
+  { name: 'Crimson', hex: '#991B1B' },
+  { name: 'Amber Gold', hex: '#B45309' },
+  { name: 'Indigo', hex: '#4338CA' },
+  { name: 'Plum Purple', hex: '#701A75' },
+  { name: 'Midnight Slate', hex: '#0F172A' }
+]
 
 export interface IdCardCustomProps {
   schoolName?: string
@@ -11,6 +36,12 @@ export interface IdCardCustomProps {
   title?: string
   tagline?: string
   session?: string
+  principalName?: string
+  themeColor?: string
+  editable?: boolean
+  customLabels?: Record<string, string>
+  onUpdateField?: (field: string, value: string) => void
+  onUpdateLabel?: (key: string, value: string) => void
   showQr?: boolean
   showWatermark?: boolean
   showPrincipalSign?: boolean
@@ -32,6 +63,12 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
   title = 'STUDENT IDENTITY CARD',
   tagline = 'Affiliated to CBSE, New Delhi',
   affiliationCode = 'CBSE-213089',
+  principalName = 'M.Sharma',
+  themeColor,
+  editable = false,
+  customLabels = {},
+  onUpdateField,
+  onUpdateLabel,
   showQr = true,
   showWatermark = true,
   showPrincipalSign = true,
@@ -39,6 +76,16 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
   showTopHeaderTagline = true,
   data
 }) => {
+  const labels = customLabels || {}
+  const updateLabel = (k: string, v: string) => onUpdateLabel?.(k, v)
+
+  // Dynamic Theme Palette
+  const primary = themeColor || '#0284c7'
+  const darkTone = adjustHex(primary, -50)
+  const lightTone = adjustHex(primary, 35)
+  const tintLight = hexToRgba(primary, 0.08)
+  const borderTint = hexToRgba(primary, 0.3)
+
   const student = {
     name: data?.name || 'AARAV SHARMA',
     class: data?.class || 'Class 10 - A',
@@ -52,31 +99,77 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
   }
 
   return (
-    <div className="w-[280px] h-[450px] bg-white rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border border-slate-200 shrink-0 text-slate-800 select-none">
+    <div className="w-[280px] h-[450px] bg-white rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border shrink-0 text-slate-800 select-none" style={{ borderColor: borderTint }}>
       {/* Decorative Top Wave Header */}
-      <div className="relative bg-gradient-to-br from-[#0f2b5c] via-[#1b4382] to-[#0284c7] text-white pt-3 pb-7 px-3 text-center shadow-md">
+      <div 
+        className="relative text-white pt-3 pb-7 px-3 text-center shadow-md transition-colors"
+        style={{ background: `linear-gradient(135deg, ${darkTone}, ${primary}, ${lightTone})` }}
+      >
         {/* Lanyard Hole Graphic Simulation */}
         <div className="w-12 h-2.5 bg-black/25 rounded-full mx-auto mb-1 border border-white/20"></div>
 
         <div className="flex items-center justify-center gap-1.5 mb-0.5">
-          <div className="w-5 h-5 rounded-full bg-amber-400/90 text-[#0f2b5c] flex items-center justify-center font-black text-[10px] shadow-sm">
+          <div className="w-5 h-5 rounded-full bg-amber-400 text-slate-900 flex items-center justify-center font-black text-[10px] shadow-sm shrink-0">
             <Award className="w-3.5 h-3.5" />
           </div>
           <h2 className="font-black text-[13px] tracking-tight uppercase leading-tight line-clamp-1 drop-shadow-sm">
-            {schoolName}
+            <LiveEditableText
+              tag="span"
+              value={schoolName}
+              editable={editable}
+              onSave={val => onUpdateField?.('schoolName', val)}
+              className="inline-block"
+            />
           </h2>
         </div>
 
         {showTopHeaderTagline && (
-          <p className="text-[8px] text-sky-100 font-medium tracking-wide">
-            {tagline} {affiliationCode && `• Affil: ${affiliationCode}`}
+          <p className="text-[8px] text-white/90 font-medium tracking-wide">
+            <LiveEditableText
+              value={tagline}
+              editable={editable}
+              onSave={val => onUpdateField?.('tagline', val)}
+              className="inline-block mr-1"
+            />
+            {affiliationCode && (
+              <>
+                • Affil:{' '}
+                <LiveEditableText
+                  value={affiliationCode}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('affiliationCode', val)}
+                  className="inline-block"
+                />
+              </>
+            )}
           </p>
         )}
-        <p className="text-[7.5px] text-sky-200/90 truncate">{schoolAddress}</p>
+        <p className="text-[7.5px] text-white/80 truncate">
+          <LiveEditableText
+            value={schoolAddress}
+            editable={editable}
+            onSave={val => onUpdateField?.('schoolAddress', val)}
+            className="inline-block"
+          />
+        </p>
 
         {/* Role Pill */}
-        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-400 text-slate-900 font-black text-[9px] px-3 py-0.5 rounded-full shadow-md tracking-wider uppercase border border-white/50">
-          {title} • {session}
+        <div 
+          className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-white font-black text-[9px] px-3.5 py-0.5 rounded-full shadow-md tracking-wider uppercase border border-white/60 whitespace-nowrap"
+          style={{ backgroundColor: primary }}
+        >
+          <LiveEditableText
+            value={title}
+            editable={editable}
+            onSave={val => onUpdateField?.('title', val)}
+            className="inline-block mr-1"
+          /> •{' '}
+          <LiveEditableText
+            value={session}
+            editable={editable}
+            onSave={val => onUpdateField?.('session', val)}
+            className="inline-block"
+          />
         </div>
       </div>
 
@@ -91,13 +184,15 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
 
         {/* Student Photo */}
         <div className="relative mb-2 mt-1">
-          <div className="w-24 h-24 rounded-xl border-[2.5px] border-[#0284c7] bg-slate-100 overflow-hidden shadow-md relative">
+          <div 
+            className="w-24 h-24 rounded-xl border-[2.5px] bg-slate-100 overflow-hidden shadow-md relative"
+            style={{ borderColor: primary }}
+          >
             <img 
               src={student.photo} 
               alt={student.name}
               className="w-full h-full object-cover"
               onError={(e) => {
-                // Fallback avatar if image fails to load
                 (e.target as HTMLElement).style.display = 'none'
               }}
             />
@@ -111,37 +206,83 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
         </div>
 
         {/* Student Name & Class */}
-        <h3 className="font-black text-sm text-[#0f2b5c] tracking-wide text-center uppercase leading-snug">
+        <h3 className="font-black text-sm tracking-wide text-center uppercase leading-snug" style={{ color: primary }}>
           {student.name}
         </h3>
-        <div className="inline-flex items-center gap-1 bg-sky-50 border border-sky-200 text-[#0284c7] font-bold text-[9px] px-2.5 py-0.5 rounded-md mt-0.5 mb-2">
+        <div 
+          className="inline-flex items-center gap-1 border font-bold text-[9px] px-2.5 py-0.5 rounded-md mt-0.5 mb-2"
+          style={{ backgroundColor: tintLight, borderColor: borderTint, color: primary }}
+        >
           <span>{student.class}</span>
           <span>•</span>
-          <span>Roll No: {student.rollNo}</span>
+          <span>
+            <LiveEditableText
+              value={labels.rollNoLabel || 'Roll No:'}
+              editable={editable}
+              onSave={val => updateLabel('rollNoLabel', val)}
+              className="inline-block mr-0.5"
+            />
+            {student.rollNo}
+          </span>
         </div>
 
         {/* Details Grid */}
         <div className="w-full text-[10px] space-y-1 bg-slate-50/80 p-2 rounded-lg border border-slate-200/70 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
           <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">Adm No:</span>
+            <span className="text-slate-500 font-semibold">
+              <LiveEditableText
+                value={labels.admNoLabel || 'Adm No:'}
+                editable={editable}
+                onSave={val => updateLabel('admNoLabel', val)}
+                className="inline-block"
+              />
+            </span>
             <span className="font-bold text-slate-800 font-mono">{student.admNo}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">Father's Name:</span>
+            <span className="text-slate-500 font-semibold">
+              <LiveEditableText
+                value={labels.fatherNameLabel || "Father's Name:"}
+                editable={editable}
+                onSave={val => updateLabel('fatherNameLabel', val)}
+                className="inline-block"
+              />
+            </span>
             <span className="font-bold text-slate-800 truncate max-w-[120px]">{student.fatherName}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">D.O.B:</span>
+            <span className="text-slate-500 font-semibold">
+              <LiveEditableText
+                value={labels.dobLabel || 'D.O.B:'}
+                editable={editable}
+                onSave={val => updateLabel('dobLabel', val)}
+                className="inline-block"
+              />
+            </span>
             <span className="font-bold text-slate-800">{student.dob}</span>
           </div>
           {showBloodGroup && (
             <div className="flex items-center justify-between">
-              <span className="text-slate-500 font-semibold">Blood Group:</span>
+              <span className="text-slate-500 font-semibold">
+                <LiveEditableText
+                  value={labels.bloodGroupLabel || 'Blood Group:'}
+                  editable={editable}
+                  onSave={val => updateLabel('bloodGroupLabel', val)}
+                  className="inline-block"
+                />
+              </span>
               <span className="font-bold text-red-600 bg-red-50 px-1 rounded text-[9px]">{student.bloodGroup}</span>
             </div>
           )}
           <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">Emergency No:</span>
+            <span className="text-slate-500 font-semibold">
+              <LiveEditableText
+                value={labels.emergencyNoLabel || 'Emergency No:'}
+                editable={editable}
+                onSave={val => updateLabel('emergencyNoLabel', val)}
+                className="inline-block"
+              />
+            </span>
             <span className="font-bold text-slate-800">{student.phone}</span>
           </div>
         </div>
@@ -151,7 +292,7 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
       <div className="bg-slate-100/90 border-t border-slate-200 px-3 py-2 flex items-center justify-between mt-auto relative z-10">
         {showQr ? (
           <div className="bg-white p-1 rounded-md border border-slate-200 shadow-xs flex items-center gap-1">
-            <QrCode className="w-8 h-8 text-slate-800" />
+            <ProperQrCode className="w-8 h-8" color={primary} />
             <div className="text-[6.5px] text-slate-400 font-mono leading-none">
               <p>VERIFIED</p>
               <p>ID #{student.admNo.slice(-4)}</p>
@@ -163,21 +304,49 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
           <div className="text-right flex flex-col items-end">
             {/* Stamp simulation */}
             <div className="h-6 w-16 relative flex items-center justify-center">
-              <span className="font-serif italic font-black text-blue-900 text-[11px] rotate-[-5deg] tracking-tight">
-                M.Sharma
+              <span className="font-serif italic font-black text-[11px] rotate-[-5deg] tracking-tight" style={{ color: primary }}>
+                <LiveEditableText
+                  value={principalName || 'M.Sharma'}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('principalName', val)}
+                  className="inline-block"
+                />
               </span>
-              <div className="absolute inset-0 border border-blue-600/30 rounded-full rotate-[-12deg] pointer-events-none"></div>
+              <div className="absolute inset-0 border rounded-full rotate-[-12deg] pointer-events-none" style={{ borderColor: borderTint }}></div>
             </div>
             <p className="text-[7.5px] font-black text-slate-600 uppercase tracking-tighter">
-              Principal Signature
+              <LiveEditableText
+                value={labels.principalSignLabel || 'Principal Signature'}
+                editable={editable}
+                onSave={val => updateLabel('principalSignLabel', val)}
+                className="inline-block"
+              />
             </p>
           </div>
         )}
       </div>
 
       {/* Contact line */}
-      <div className="bg-[#0f2b5c] text-white text-[7px] py-1 px-2 text-center truncate">
-        Helpline: {schoolPhone} • Valid for {session}
+      <div className="text-white text-[7px] py-1 px-2 text-center truncate" style={{ backgroundColor: darkTone }}>
+        <LiveEditableText
+          value={labels.helplineLabel || 'Helpline:'}
+          editable={editable}
+          onSave={val => updateLabel('helplineLabel', val)}
+          className="inline-block mr-1"
+        />
+        <LiveEditableText
+          value={schoolPhone}
+          editable={editable}
+          onSave={val => onUpdateField?.('schoolPhone', val)}
+          className="inline-block mr-1"
+        />
+        • {labels.validForLabel || 'Valid for'}{' '}
+        <LiveEditableText
+          value={session}
+          editable={editable}
+          onSave={val => onUpdateField?.('session', val)}
+          className="inline-block"
+        />
       </div>
     </div>
   )
@@ -194,12 +363,28 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
   title = 'STUDENT IDENTITY CARD',
   tagline = 'Excellence in Education',
   affiliationCode = 'CBSE AFFIL NO. 1730452',
+  principalName = 'K.Singhal',
+  themeColor,
+  editable = false,
+  customLabels = {},
+  onUpdateField,
+  onUpdateLabel,
   showQr = true,
   showWatermark = true,
   showPrincipalSign = true,
   showBloodGroup = true,
   data
 }) => {
+  const labels = customLabels || {}
+  const updateLabel = (k: string, v: string) => onUpdateLabel?.(k, v)
+
+  // Dynamic Theme Palette
+  const primary = themeColor || '#047857'
+  const darkTone = adjustHex(primary, -50)
+  const lightTone = adjustHex(primary, 35)
+  const tintLight = hexToRgba(primary, 0.08)
+  const borderTint = hexToRgba(primary, 0.3)
+
   const student = {
     name: data?.name || 'ANANYA VERMA',
     class: data?.class || 'Class VIII - Sec B',
@@ -214,27 +399,63 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
   }
 
   return (
-    <div className="w-[450px] h-[280px] bg-white rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border border-slate-200 shrink-0 select-none">
+    <div className="w-[450px] h-[280px] bg-white rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border shrink-0 select-none" style={{ borderColor: borderTint }}>
       {/* Top Banner */}
-      <div className="bg-gradient-to-r from-[#064e3b] via-[#0f766e] to-[#047857] text-white px-4 py-2 flex items-center justify-between border-b-2 border-amber-400">
+      <div 
+        className="text-white px-4 py-2 flex items-center justify-between border-b-2"
+        style={{ 
+          background: `linear-gradient(135deg, ${darkTone}, ${primary}, ${lightTone})`,
+          borderColor: borderTint
+        }}
+      >
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-amber-400 text-[#064e3b] flex items-center justify-center font-black shadow-sm">
+          <div className="w-7 h-7 rounded-lg bg-amber-400 text-slate-900 flex items-center justify-center font-black shadow-sm shrink-0">
             <Award className="w-4 h-4" />
           </div>
           <div>
             <h2 className="font-black text-sm uppercase tracking-wide leading-tight drop-shadow-sm">
-              {schoolName}
+              <LiveEditableText
+                tag="span"
+                value={schoolName}
+                editable={editable}
+                onSave={val => onUpdateField?.('schoolName', val)}
+                className="inline-block"
+              />
             </h2>
-            <p className="text-[8px] text-emerald-100 font-medium">
-              {tagline} • {affiliationCode}
+            <p className="text-[8px] text-white/90 font-medium">
+              <LiveEditableText
+                value={tagline}
+                editable={editable}
+                onSave={val => onUpdateField?.('tagline', val)}
+                className="inline-block mr-1"
+              />
+              •{' '}
+              <LiveEditableText
+                value={affiliationCode}
+                editable={editable}
+                onSave={val => onUpdateField?.('affiliationCode', val)}
+                className="inline-block"
+              />
             </p>
           </div>
         </div>
         <div className="text-right">
-          <span className="bg-amber-400 text-emerald-950 font-black text-[9px] px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
-            {session}
+          <span className="bg-amber-400 text-slate-900 font-black text-[9px] px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+            <LiveEditableText
+              value={session}
+              editable={editable}
+              onSave={val => onUpdateField?.('session', val)}
+              className="inline-block"
+            />
           </span>
-          <p className="text-[7.5px] text-emerald-200 mt-0.5 truncate max-w-[130px]">{schoolAddress}</p>
+          <p className="text-[7.5px] text-white/80 mt-0.5 truncate max-w-[130px]">
+            <LiveEditableText
+              value={schoolAddress}
+              editable={editable}
+              onSave={val => onUpdateField?.('schoolAddress', val)}
+              className="inline-block"
+            />
+          </p>
         </div>
       </div>
 
@@ -243,13 +464,16 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
         {/* Subtle Watermark */}
         {showWatermark && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.035]">
-            <Building2 className="w-56 h-56 text-emerald-900" />
+            <Building2 className="w-56 h-56 text-slate-900" />
           </div>
         )}
 
         {/* Left: Photo & Identification */}
         <div className="w-28 flex flex-col items-center justify-between shrink-0">
-          <div className="w-24 h-28 rounded-xl border-2 border-emerald-600 p-0.5 bg-white shadow-md relative">
+          <div 
+            className="w-24 h-28 rounded-xl border-2 p-0.5 bg-white shadow-md relative"
+            style={{ borderColor: primary }}
+          >
             <img 
               src={student.photo} 
               alt={student.name}
@@ -261,17 +485,20 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
             <div className="absolute inset-0 flex items-center justify-center text-slate-400 -z-10">
               <User className="w-8 h-8" />
             </div>
-            <div className="absolute -bottom-2 -left-2 bg-amber-400 text-emerald-950 text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm">
+            <div 
+              className="absolute -bottom-2 -left-2 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-wider"
+              style={{ backgroundColor: primary }}
+            >
               STUDENT
             </div>
           </div>
 
           {showQr && (
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 p-1 rounded-md mt-2 w-full justify-center">
-              <QrCode className="w-6 h-6 text-slate-800" />
-              <div className="text-[6.5px] font-mono text-slate-500 leading-tight">
+            <div className="flex items-center gap-1.5 bg-slate-50 border p-1 rounded-md mt-2 w-full justify-center shadow-2xs" style={{ borderColor: borderTint }}>
+              <ProperQrCode className="w-6 h-6" color={primary} />
+              <div className="text-[6.5px] font-mono leading-tight" style={{ color: primary }}>
                 <div>SCAN TO</div>
-                <div className="font-bold text-slate-800">VERIFY</div>
+                <div className="font-bold">VERIFY</div>
               </div>
             </div>
           )}
@@ -280,42 +507,87 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
         {/* Right: Data Columns */}
         <div className="flex-1 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between border-b border-emerald-100 pb-1 mb-2">
+            <div className="flex items-center justify-between border-b pb-1 mb-2" style={{ borderColor: borderTint }}>
               <div>
-                <h3 className="font-black text-base text-emerald-950 uppercase tracking-tight">
+                <h3 className="font-black text-base uppercase tracking-tight" style={{ color: primary }}>
                   {student.name}
                 </h3>
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                <span 
+                  className="text-[10px] font-bold px-2 py-0.5 rounded border inline-block"
+                  style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}
+                >
                   {student.class}
                 </span>
               </div>
               <div className="text-right">
-                <span className="text-[9px] text-slate-500 font-semibold">Roll No:</span>
-                <span className="font-black text-sm text-emerald-900 ml-1">{student.rollNo}</span>
+                <span className="text-[9px] text-slate-500 font-semibold mr-1">
+                  <LiveEditableText
+                    value={labels.rollNoLabel || 'Roll No:'}
+                    editable={editable}
+                    onSave={val => updateLabel('rollNoLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
+                <span className="font-black text-sm" style={{ color: primary }}>{student.rollNo}</span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9.5px]">
               <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">ADMISSION NO</span>
+                <span className="text-slate-400 font-semibold block text-[8px]">
+                  <LiveEditableText
+                    value={labels.admNoLabel || 'ADMISSION NO'}
+                    editable={editable}
+                    onSave={val => updateLabel('admNoLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
                 <span className="font-bold text-slate-800 font-mono">{student.admNo}</span>
               </div>
               <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">FATHER'S NAME</span>
+                <span className="text-slate-400 font-semibold block text-[8px]">
+                  <LiveEditableText
+                    value={labels.fatherNameLabel || "FATHER'S NAME"}
+                    editable={editable}
+                    onSave={val => updateLabel('fatherNameLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
                 <span className="font-bold text-slate-800 truncate block">{student.fatherName}</span>
               </div>
               <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">DATE OF BIRTH</span>
+                <span className="text-slate-400 font-semibold block text-[8px]">
+                  <LiveEditableText
+                    value={labels.dobLabel || 'DATE OF BIRTH'}
+                    editable={editable}
+                    onSave={val => updateLabel('dobLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
                 <span className="font-bold text-slate-800">{student.dob}</span>
               </div>
               {showBloodGroup && (
                 <div>
-                  <span className="text-slate-400 font-semibold block text-[8px]">BLOOD GROUP</span>
+                  <span className="text-slate-400 font-semibold block text-[8px]">
+                    <LiveEditableText
+                      value={labels.bloodGroupLabel || 'BLOOD GROUP'}
+                      editable={editable}
+                      onSave={val => updateLabel('bloodGroupLabel', val)}
+                      className="inline-block"
+                    />
+                  </span>
                   <span className="font-black text-red-600 bg-red-50 px-1.5 py-0.2 rounded text-[9px]">{student.bloodGroup}</span>
                 </div>
               )}
               <div className="col-span-2">
-                <span className="text-slate-400 font-semibold block text-[8px]">EMERGENCY CONTACT</span>
+                <span className="text-slate-400 font-semibold block text-[8px]">
+                  <LiveEditableText
+                    value={labels.emergencyNoLabel || 'EMERGENCY CONTACT'}
+                    editable={editable}
+                    onSave={val => updateLabel('emergencyNoLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
                 <span className="font-bold text-slate-800">{student.phone}</span>
               </div>
             </div>
@@ -327,7 +599,7 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
               {/* Simulated Barcode */}
               <div className="h-6 flex items-end gap-[1.5px] px-1 bg-white border border-slate-200 rounded">
                 {[1,2,1,3,1,2,1,1,3,2,1,2,3,1,2,1,3,1].map((w, idx) => (
-                  <div key={idx} className="bg-slate-800 h-full" style={{ width: `${w * 1.2}px` }}></div>
+                  <div key={idx} className="h-full" style={{ width: `${w * 1.2}px`, backgroundColor: primary }}></div>
                 ))}
               </div>
               <span className="text-[7.5px] font-mono text-slate-400">{student.admNo}</span>
@@ -336,12 +608,22 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
             {showPrincipalSign && (
               <div className="text-right">
                 <div className="h-5 flex items-center justify-end">
-                  <span className="font-serif italic font-black text-emerald-900 text-xs rotate-[-4deg]">
-                    K.Singhal
+                  <span className="font-serif italic font-black text-xs rotate-[-4deg]" style={{ color: primary }}>
+                    <LiveEditableText
+                      value={principalName || 'K.Singhal'}
+                      editable={editable}
+                      onSave={val => onUpdateField?.('principalName', val)}
+                      className="inline-block"
+                    />
                   </span>
                 </div>
                 <p className="text-[7px] font-black text-slate-500 uppercase tracking-tighter">
-                  Principal Signature
+                  <LiveEditableText
+                    value={labels.principalSignLabel || 'Principal Signature'}
+                    editable={editable}
+                    onSave={val => updateLabel('principalSignLabel', val)}
+                    className="inline-block"
+                  />
                 </p>
               </div>
             )}
@@ -350,9 +632,24 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
       </div>
 
       {/* Footer Strip */}
-      <div className="bg-[#064e3b] text-white text-[7.5px] py-1 px-4 flex items-center justify-between">
-        <span>If found, return to school office • Tel: {schoolPhone}</span>
-        <span className="font-semibold text-amber-300">{title}</span>
+      <div className="text-white text-[7.5px] py-1 px-4 flex items-center justify-between" style={{ backgroundColor: darkTone }}>
+        <span>
+          If found, return to school office • Tel:{' '}
+          <LiveEditableText
+            value={schoolPhone}
+            editable={editable}
+            onSave={val => onUpdateField?.('schoolPhone', val)}
+            className="inline-block"
+          />
+        </span>
+        <span className="font-semibold text-amber-300">
+          <LiveEditableText
+            value={title}
+            editable={editable}
+            onSave={val => onUpdateField?.('title', val)}
+            className="inline-block"
+          />
+        </span>
       </div>
     </div>
   )
@@ -374,8 +671,25 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
   showPrincipalSign = true,
   showBloodGroup = true,
   showTopHeaderTagline = true,
+  themeColor,
+  principalName,
+  editable = false,
+  customLabels = {},
+  onUpdateField,
+  onUpdateLabel,
   data
 }) => {
+  const primary = themeColor || '#701a75'
+  const darkTone = adjustHex(primary, -45)
+  const lightTone = adjustHex(primary, 35)
+  const tintLight = hexToRgba(primary, 0.08)
+  const borderTint = hexToRgba(primary, 0.25)
+  const labels = customLabels || {}
+
+  const updateLabel = (key: string, val: string) => {
+    onUpdateLabel?.(key, val)
+  }
+
   const teacher = {
     name: data?.name || 'DR. MEENAKSHI SUNDARAM',
     designation: data?.designation || 'Senior PGT Mathematics & HOD',
@@ -391,30 +705,63 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
 
   return (
     <div className="w-[280px] h-[450px] bg-white rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border border-slate-200 shrink-0 text-slate-800 select-none">
-      {/* Luxury Royal Burgundy Header */}
-      <div className="relative bg-gradient-to-br from-[#581c87] via-[#701a75] to-[#831843] text-white pt-3 pb-8 px-3 text-center shadow-md">
+      {/* Luxury Royal Header */}
+      <div 
+        className="relative text-white pt-3 pb-8 px-3 text-center shadow-md"
+        style={{
+          background: `linear-gradient(135deg, ${darkTone} 0%, ${primary} 55%, ${lightTone} 100%)`
+        }}
+      >
         {/* Lanyard Hole Clip */}
         <div className="w-12 h-2.5 bg-black/25 rounded-full mx-auto mb-1 border border-white/20"></div>
 
         <div className="flex items-center justify-center gap-1.5 mb-0.5">
-          <div className="w-5 h-5 rounded-full bg-amber-400 text-purple-950 flex items-center justify-center font-black text-[10px] shadow-sm">
+          <div 
+            className="w-5 h-5 rounded-full bg-white flex items-center justify-center font-black text-[10px] shadow-sm"
+            style={{ color: primary }}
+          >
             <Building2 className="w-3.5 h-3.5" />
           </div>
           <h2 className="font-black text-[13px] tracking-tight uppercase leading-tight line-clamp-1 drop-shadow-sm">
-            {schoolName}
+            <LiveEditableText
+              value={schoolName}
+              editable={editable}
+              onSave={val => onUpdateField?.('schoolName', val)}
+              className="inline-block"
+            />
           </h2>
         </div>
 
         {showTopHeaderTagline && (
-          <p className="text-[8px] text-rose-200 font-semibold tracking-wider uppercase">
-            {tagline}
+          <p className="text-[8px] text-white/90 font-semibold tracking-wider uppercase">
+            <LiveEditableText
+              value={tagline}
+              editable={editable}
+              onSave={val => onUpdateField?.('tagline', val)}
+              className="inline-block"
+            />
           </p>
         )}
-        <p className="text-[7.5px] text-rose-100/80 truncate">{schoolAddress}</p>
+        <p className="text-[7.5px] text-white/80 truncate">
+          <LiveEditableText
+            value={schoolAddress}
+            editable={editable}
+            onSave={val => onUpdateField?.('schoolAddress', val)}
+            className="inline-block"
+          />
+        </p>
 
         {/* Badge Pill */}
-        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-purple-950 font-black text-[9px] px-3.5 py-0.5 rounded-full shadow-md tracking-wider uppercase border border-white">
-          {title}
+        <div 
+          className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-white font-black text-[9px] px-3.5 py-0.5 rounded-full shadow-md tracking-wider uppercase border border-white"
+          style={{ backgroundColor: primary }}
+        >
+          <LiveEditableText
+            value={title}
+            editable={editable}
+            onSave={val => onUpdateField?.('title', val)}
+            className="inline-block"
+          />
         </div>
       </div>
 
@@ -422,13 +769,16 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
       <div className="flex-1 flex flex-col items-center pt-5 px-4 relative">
         {showWatermark && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.035]">
-            <Award className="w-48 h-48 text-purple-950" />
+            <Award className="w-48 h-48 text-slate-900" />
           </div>
         )}
 
         {/* Faculty Photo */}
         <div className="relative mb-2 mt-1">
-          <div className="w-24 h-24 rounded-full border-[3px] border-[#831843] bg-purple-50 p-0.5 shadow-md relative overflow-hidden">
+          <div 
+            className="w-24 h-24 rounded-full border-[3px] bg-slate-50 p-0.5 shadow-md relative overflow-hidden"
+            style={{ borderColor: primary }}
+          >
             <img 
               src={teacher.photo} 
               alt={teacher.name}
@@ -441,13 +791,16 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
               <User className="w-10 h-10" />
             </div>
           </div>
-          <div className="absolute bottom-0 right-0 bg-amber-400 text-purple-950 text-[7px] font-black px-1.5 py-0.5 rounded-full border border-white shadow-sm">
+          <div 
+            className="absolute bottom-0 right-0 text-white text-[7px] font-black px-1.5 py-0.5 rounded-full border border-white shadow-sm uppercase tracking-wider"
+            style={{ backgroundColor: primary }}
+          >
             FACULTY
           </div>
         </div>
 
         {/* Teacher Name & Designation */}
-        <h3 className="font-black text-sm text-[#701a75] tracking-wide text-center uppercase leading-snug">
+        <h3 className="font-black text-sm tracking-wide text-center uppercase leading-snug" style={{ color: primary }}>
           {teacher.name}
         </h3>
         <p className="text-[9.5px] font-bold text-slate-700 text-center line-clamp-1 mt-0.5 mb-2">
@@ -455,31 +808,76 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
         </p>
 
         {/* Teacher Credentials Table */}
-        <div className="w-full text-[9.5px] space-y-1 bg-rose-50/50 p-2.5 rounded-xl border border-rose-100 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
+        <div 
+          className="w-full text-[9.5px] space-y-1 p-2.5 rounded-xl border shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
+          style={{ backgroundColor: tintLight, borderColor: borderTint }}
+        >
           <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">Faculty ID:</span>
-            <span className="font-bold text-[#831843] font-mono">{teacher.empId}</span>
+            <span className="text-slate-500 font-semibold">
+              <LiveEditableText
+                value={labels.facultyIdLabel || 'Faculty ID:'}
+                editable={editable}
+                onSave={val => updateLabel('facultyIdLabel', val)}
+                className="inline-block"
+              />
+            </span>
+            <span className="font-bold font-mono" style={{ color: primary }}>{teacher.empId}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">Department:</span>
+            <span className="text-slate-500 font-semibold">
+              <LiveEditableText
+                value={labels.departmentLabel || 'Department:'}
+                editable={editable}
+                onSave={val => updateLabel('departmentLabel', val)}
+                className="inline-block"
+              />
+            </span>
             <span className="font-bold text-slate-800 truncate max-w-[125px]">{teacher.department}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">Qualification:</span>
+            <span className="text-slate-500 font-semibold">
+              <LiveEditableText
+                value={labels.qualificationLabel || 'Qualification:'}
+                editable={editable}
+                onSave={val => updateLabel('qualificationLabel', val)}
+                className="inline-block"
+              />
+            </span>
             <span className="font-bold text-slate-800 text-[8.5px] truncate max-w-[125px]">{teacher.qualification}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">Date of Joining:</span>
+            <span className="text-slate-500 font-semibold">
+              <LiveEditableText
+                value={labels.dojLabel || 'Date of Joining:'}
+                editable={editable}
+                onSave={val => updateLabel('dojLabel', val)}
+                className="inline-block"
+              />
+            </span>
             <span className="font-bold text-slate-800">{teacher.doj}</span>
           </div>
           {showBloodGroup && (
             <div className="flex items-center justify-between">
-              <span className="text-slate-500 font-semibold">Blood Group:</span>
+              <span className="text-slate-500 font-semibold">
+                <LiveEditableText
+                  value={labels.bloodGroupLabel || 'Blood Group:'}
+                  editable={editable}
+                  onSave={val => updateLabel('bloodGroupLabel', val)}
+                  className="inline-block"
+                />
+              </span>
               <span className="font-bold text-red-600 bg-red-50 px-1 rounded text-[9px]">{teacher.bloodGroup}</span>
             </div>
           )}
           <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">Official Phone:</span>
+            <span className="text-slate-500 font-semibold">
+              <LiveEditableText
+                value={labels.phoneLabel || 'Official Phone:'}
+                editable={editable}
+                onSave={val => updateLabel('phoneLabel', val)}
+                className="inline-block"
+              />
+            </span>
             <span className="font-bold text-slate-800">{teacher.phone}</span>
           </div>
         </div>
@@ -488,33 +886,57 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
       {/* Footer */}
       <div className="bg-slate-50 border-t border-slate-200 px-3 py-2 flex items-center justify-between mt-auto relative z-10">
         {showQr ? (
-          <div className="bg-white p-1 rounded-md border border-slate-200 shadow-xs flex items-center gap-1">
-            <QrCode className="w-8 h-8 text-slate-800" />
-            <div className="text-[6.5px] text-slate-400 font-mono leading-none">
+          <div className="bg-white p-1 rounded-md border border-slate-200 shadow-xs flex items-center gap-1.5">
+            <ProperQrCode className="w-8 h-8" color={primary} />
+            <div className="text-[6.5px] font-mono leading-none" style={{ color: primary }}>
               <p>BIOMETRIC</p>
-              <p className="font-bold text-purple-900">VERIFIED</p>
+              <p className="font-bold">VERIFIED</p>
             </div>
           </div>
         ) : <div />}
 
         {showPrincipalSign && (
           <div className="text-right flex flex-col items-end">
-            <div className="h-6 w-16 relative flex items-center justify-center">
-              <span className="font-serif italic font-black text-purple-950 text-[11px] rotate-[-5deg]">
-                Director.A
+            <div className="h-6 w-20 relative flex items-center justify-center">
+              <span className="font-serif italic font-black text-[12px] rotate-[-4deg]" style={{ color: primary }}>
+                <LiveEditableText
+                  value={principalName || 'Director.A'}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('principalName', val)}
+                  className="inline-block"
+                />
               </span>
-              <div className="absolute inset-0 border border-purple-600/30 rounded-full rotate-[8deg] pointer-events-none"></div>
+              <div 
+                className="absolute inset-0 border rounded-full rotate-[6deg] pointer-events-none opacity-40"
+                style={{ borderColor: primary }}
+              ></div>
             </div>
             <p className="text-[7px] font-black text-slate-600 uppercase tracking-tighter">
-              Authorized Signatory
+              <LiveEditableText
+                value={labels.principalSignLabel || 'Authorized Signatory'}
+                editable={editable}
+                onSave={val => updateLabel('principalSignLabel', val)}
+                className="inline-block"
+              />
             </p>
           </div>
         )}
       </div>
 
       {/* Security strip */}
-      <div className="bg-gradient-to-r from-[#581c87] to-[#831843] text-white text-[7px] py-1 px-3 flex items-center justify-between">
-        <span>Academic Year: {session}</span>
+      <div 
+        className="text-white text-[7px] py-1 px-3 flex items-center justify-between"
+        style={{ background: `linear-gradient(90deg, ${darkTone}, ${primary})` }}
+      >
+        <span>
+          Academic Year:{' '}
+          <LiveEditableText
+            value={session}
+            editable={editable}
+            onSave={val => onUpdateField?.('session', val)}
+            className="inline-block font-semibold"
+          />
+        </span>
         <span className="text-amber-300 font-mono font-bold">STATUS: REGULAR FACULTY</span>
       </div>
     </div>
@@ -535,8 +957,25 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
   showWatermark = true,
   showPrincipalSign = true,
   showBloodGroup = true,
+  themeColor,
+  principalName,
+  editable = false,
+  customLabels = {},
+  onUpdateField,
+  onUpdateLabel,
   data
 }) => {
+  const primary = themeColor || '#0d9488'
+  const darkTone = adjustHex(primary, -50)
+  const lightTone = adjustHex(primary, 35)
+  const tintLight = hexToRgba(primary, 0.08)
+  const borderTint = hexToRgba(primary, 0.25)
+  const labels = customLabels || {}
+
+  const updateLabel = (key: string, val: string) => {
+    onUpdateLabel?.(key, val)
+  }
+
   const teacher = {
     name: data?.name || 'PROF. RAJESH MALHOTRA',
     designation: data?.designation || 'HOD English & Linguistics',
@@ -553,25 +992,55 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
   return (
     <div className="w-[450px] h-[280px] bg-white rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border border-slate-200 shrink-0 select-none">
       {/* Top Banner */}
-      <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0d9488] text-white px-4 py-2 flex items-center justify-between border-b-2 border-teal-400">
+      <div 
+        className="text-white px-4 py-2 flex items-center justify-between border-b-2"
+        style={{
+          background: `linear-gradient(90deg, ${darkTone} 0%, ${adjustHex(primary, -20)} 45%, ${primary} 100%)`,
+          borderBottomColor: lightTone
+        }}
+      >
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-teal-500 text-white flex items-center justify-center font-black shadow-sm">
+          <div 
+            className="w-7 h-7 rounded-lg bg-white flex items-center justify-center font-black shadow-sm"
+            style={{ color: primary }}
+          >
             <Building2 className="w-4 h-4" />
           </div>
           <div>
             <h2 className="font-black text-sm uppercase tracking-wide leading-tight drop-shadow-sm">
-              {schoolName}
+              <LiveEditableText
+                value={schoolName}
+                editable={editable}
+                onSave={val => onUpdateField?.('schoolName', val)}
+                className="inline-block"
+              />
             </h2>
-            <p className="text-[8px] text-teal-200 font-medium">
-              {tagline} • CAMPUS ID
+            <p className="text-[8px] text-white/90 font-medium">
+              <LiveEditableText
+                value={tagline}
+                editable={editable}
+                onSave={val => onUpdateField?.('tagline', val)}
+                className="inline-block"
+              />
+              {' '}• CAMPUS ID
             </p>
           </div>
         </div>
         <div className="text-right">
-          <span className="bg-teal-400 text-slate-950 font-black text-[9px] px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+          <span 
+            className="font-black text-[9px] px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs text-white"
+            style={{ backgroundColor: primary }}
+          >
             FACULTY • {session}
           </span>
-          <p className="text-[7.5px] text-slate-300 mt-0.5 truncate max-w-[140px]">{schoolAddress}</p>
+          <p className="text-[7.5px] text-white/80 mt-0.5 truncate max-w-[140px]">
+            <LiveEditableText
+              value={schoolAddress}
+              editable={editable}
+              onSave={val => onUpdateField?.('schoolAddress', val)}
+              className="inline-block"
+            />
+          </p>
         </div>
       </div>
 
@@ -585,7 +1054,10 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
 
         {/* Left Column: Photo & Badges */}
         <div className="w-28 flex flex-col items-center justify-between shrink-0">
-          <div className="w-24 h-28 rounded-xl border-2 border-teal-600 p-0.5 bg-white shadow-md relative">
+          <div 
+            className="w-24 h-28 rounded-xl border-2 p-0.5 bg-white shadow-md relative"
+            style={{ borderColor: primary }}
+          >
             <img 
               src={teacher.photo} 
               alt={teacher.name}
@@ -597,17 +1069,23 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
             <div className="absolute inset-0 flex items-center justify-center text-slate-400 -z-10">
               <User className="w-8 h-8" />
             </div>
-            <div className="absolute -bottom-2 -left-2 bg-teal-600 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm">
+            <div 
+              className="absolute -bottom-2 -left-2 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm"
+              style={{ backgroundColor: primary }}
+            >
               TEACHER
             </div>
           </div>
 
           {showQr && (
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 p-1 rounded-md mt-2 w-full justify-center">
-              <QrCode className="w-6 h-6 text-slate-800" />
-              <div className="text-[6.5px] font-mono text-slate-500 leading-tight">
+            <div 
+              className="flex items-center gap-1.5 bg-slate-50 border p-1 rounded-md mt-2 w-full justify-center"
+              style={{ borderColor: borderTint }}
+            >
+              <ProperQrCode className="w-6 h-6" color={primary} />
+              <div className="text-[6.5px] font-mono leading-tight" style={{ color: primary }}>
                 <div>STAFF PORTAL</div>
-                <div className="font-bold text-teal-700">AUTH ID</div>
+                <div className="font-bold">AUTH ID</div>
               </div>
             </div>
           )}
@@ -616,46 +1094,98 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
         {/* Right Column: Faculty Information */}
         <div className="flex-1 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between border-b border-teal-100 pb-1 mb-2">
+            <div className="flex items-center justify-between border-b pb-1 mb-2" style={{ borderColor: borderTint }}>
               <div>
-                <h3 className="font-black text-base text-slate-900 uppercase tracking-tight">
+                <h3 className="font-black text-base uppercase tracking-tight" style={{ color: primary }}>
                   {teacher.name}
                 </h3>
-                <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                <span 
+                  className="text-[10px] font-bold px-2 py-0.5 rounded border inline-block"
+                  style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}
+                >
                   {teacher.designation}
                 </span>
               </div>
               <div className="text-right">
-                <span className="text-[8px] text-slate-400 font-semibold block">FACULTY ID</span>
-                <span className="font-black text-sm text-teal-900 font-mono">{teacher.empId}</span>
+                <span className="text-[8px] text-slate-400 font-semibold block">
+                  <LiveEditableText
+                    value={labels.facultyIdLabel || 'FACULTY ID'}
+                    editable={editable}
+                    onSave={val => updateLabel('facultyIdLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
+                <span className="font-black text-sm font-mono" style={{ color: primary }}>{teacher.empId}</span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9.5px]">
               <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">DEPARTMENT</span>
+                <span className="text-slate-400 font-semibold block text-[8px]">
+                  <LiveEditableText
+                    value={labels.departmentLabel || 'DEPARTMENT'}
+                    editable={editable}
+                    onSave={val => updateLabel('departmentLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
                 <span className="font-bold text-slate-800 truncate block">{teacher.department}</span>
               </div>
               <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">QUALIFICATION</span>
+                <span className="text-slate-400 font-semibold block text-[8px]">
+                  <LiveEditableText
+                    value={labels.qualificationLabel || 'QUALIFICATION'}
+                    editable={editable}
+                    onSave={val => updateLabel('qualificationLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
                 <span className="font-bold text-slate-800 truncate block">{teacher.qualification}</span>
               </div>
               <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">EXPERIENCE</span>
+                <span className="text-slate-400 font-semibold block text-[8px]">
+                  <LiveEditableText
+                    value={labels.experienceLabel || 'EXPERIENCE'}
+                    editable={editable}
+                    onSave={val => updateLabel('experienceLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
                 <span className="font-bold text-slate-800">{teacher.experience}</span>
               </div>
               {showBloodGroup && (
                 <div>
-                  <span className="text-slate-400 font-semibold block text-[8px]">BLOOD GROUP</span>
+                  <span className="text-slate-400 font-semibold block text-[8px]">
+                    <LiveEditableText
+                      value={labels.bloodGroupLabel || 'BLOOD GROUP'}
+                      editable={editable}
+                      onSave={val => updateLabel('bloodGroupLabel', val)}
+                      className="inline-block"
+                    />
+                  </span>
                   <span className="font-black text-red-600 bg-red-50 px-1.5 py-0.2 rounded text-[9px]">{teacher.bloodGroup}</span>
                 </div>
               )}
               <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">CONTACT</span>
+                <span className="text-slate-400 font-semibold block text-[8px]">
+                  <LiveEditableText
+                    value={labels.phoneLabel || 'CONTACT'}
+                    editable={editable}
+                    onSave={val => updateLabel('phoneLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
                 <span className="font-bold text-slate-800">{teacher.phone}</span>
               </div>
               <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">EMAIL</span>
+                <span className="text-slate-400 font-semibold block text-[8px]">
+                  <LiveEditableText
+                    value={labels.emailLabel || 'EMAIL'}
+                    editable={editable}
+                    onSave={val => updateLabel('emailLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
                 <span className="font-bold text-slate-800 truncate block">{teacher.email}</span>
               </div>
             </div>
@@ -666,7 +1196,7 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
             <div className="flex items-center gap-2">
               <div className="h-6 flex items-end gap-[1.5px] px-1 bg-white border border-slate-200 rounded">
                 {[2,1,2,3,1,1,2,3,1,2,1,3,2,1,1,2].map((w, idx) => (
-                  <div key={idx} className="bg-slate-800 h-full" style={{ width: `${w * 1.3}px` }}></div>
+                  <div key={idx} className="h-full" style={{ width: `${w * 1.3}px`, backgroundColor: primary }}></div>
                 ))}
               </div>
               <span className="text-[7.5px] font-mono text-slate-400">{teacher.empId}</span>
@@ -675,12 +1205,22 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
             {showPrincipalSign && (
               <div className="text-right">
                 <div className="h-5 flex items-center justify-end">
-                  <span className="font-serif italic font-black text-teal-900 text-xs rotate-[-4deg]">
-                    Prof.R.Gupta
+                  <span className="font-serif italic font-black text-xs rotate-[-4deg]" style={{ color: primary }}>
+                    <LiveEditableText
+                      value={principalName || 'Prof.R.Gupta'}
+                      editable={editable}
+                      onSave={val => onUpdateField?.('principalName', val)}
+                      className="inline-block"
+                    />
                   </span>
                 </div>
                 <p className="text-[7px] font-black text-slate-500 uppercase tracking-tighter">
-                  Authorized Signatory
+                  <LiveEditableText
+                    value={labels.principalSignLabel || 'Authorized Signatory'}
+                    editable={editable}
+                    onSave={val => updateLabel('principalSignLabel', val)}
+                    className="inline-block"
+                  />
                 </p>
               </div>
             )}
@@ -689,9 +1229,9 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
       </div>
 
       {/* Footer Strip */}
-      <div className="bg-[#0f172a] text-white text-[7.5px] py-1 px-4 flex items-center justify-between">
+      <div className="text-white text-[7.5px] py-1 px-4 flex items-center justify-between" style={{ backgroundColor: darkTone }}>
         <span>Campus Faculty Card • Return if found to {schoolAddress}</span>
-        <span className="font-bold text-teal-300">VALID SESSION: {session}</span>
+        <span className="font-bold text-amber-300">VALID SESSION: {session}</span>
       </div>
     </div>
   )
@@ -713,8 +1253,25 @@ export const EmployeeDesignVertical: React.FC<IdCardCustomProps> = ({
   showPrincipalSign = true,
   showBloodGroup = true,
   showTopHeaderTagline = true,
+  themeColor,
+  principalName,
+  editable = false,
+  customLabels = {},
+  onUpdateField,
+  onUpdateLabel,
   data
 }) => {
+  const primary = themeColor || '#2563eb'
+  const darkTone = adjustHex(primary, -50)
+  const lightTone = adjustHex(primary, 35)
+  const tintLight = hexToRgba(primary, 0.08)
+  const borderTint = hexToRgba(primary, 0.25)
+  const labels = customLabels || {}
+
+  const updateLabel = (key: string, val: string) => {
+    onUpdateLabel?.(key, val)
+  }
+
   const staff = {
     name: data?.name || 'VIKRAM SINGH RATHORE',
     designation: data?.designation || 'Administrative Officer',
@@ -730,30 +1287,63 @@ export const EmployeeDesignVertical: React.FC<IdCardCustomProps> = ({
 
   return (
     <div className="w-[280px] h-[450px] bg-white rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border border-slate-200 shrink-0 text-slate-800 select-none">
-      {/* High-Tech Slate & Indigo Header */}
-      <div className="relative bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#2563eb] text-white pt-3 pb-8 px-3 text-center shadow-md">
+      {/* High-Tech Modern Header */}
+      <div 
+        className="relative text-white pt-3 pb-8 px-3 text-center shadow-md"
+        style={{
+          background: `linear-gradient(135deg, ${darkTone} 0%, ${primary} 60%, ${lightTone} 100%)`
+        }}
+      >
         {/* Realistic Lanyard Hole */}
         <div className="w-12 h-2.5 bg-black/30 rounded-full mx-auto mb-1 border border-white/20"></div>
 
         <div className="flex items-center justify-center gap-1.5 mb-0.5">
-          <div className="w-5 h-5 rounded-full bg-emerald-400 text-slate-950 flex items-center justify-center font-black text-[10px] shadow-sm">
+          <div 
+            className="w-5 h-5 rounded-full bg-white flex items-center justify-center font-black text-[10px] shadow-sm"
+            style={{ color: primary }}
+          >
             <ShieldCheck className="w-3.5 h-3.5" />
           </div>
           <h2 className="font-black text-[13px] tracking-tight uppercase leading-tight line-clamp-1 drop-shadow-sm">
-            {schoolName}
+            <LiveEditableText
+              value={schoolName}
+              editable={editable}
+              onSave={val => onUpdateField?.('schoolName', val)}
+              className="inline-block"
+            />
           </h2>
         </div>
 
         {showTopHeaderTagline && (
-          <p className="text-[8px] text-blue-200 font-semibold tracking-wider uppercase">
-            {tagline}
+          <p className="text-[8px] text-white/90 font-semibold tracking-wider uppercase">
+            <LiveEditableText
+              value={tagline}
+              editable={editable}
+              onSave={val => onUpdateField?.('tagline', val)}
+              className="inline-block"
+            />
           </p>
         )}
-        <p className="text-[7.5px] text-slate-300 truncate">{schoolAddress}</p>
+        <p className="text-[7.5px] text-white/80 truncate">
+          <LiveEditableText
+            value={schoolAddress}
+            editable={editable}
+            onSave={val => onUpdateField?.('schoolAddress', val)}
+            className="inline-block"
+          />
+        </p>
 
         {/* Badge Pill */}
-        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-black text-[9px] px-3.5 py-0.5 rounded-full shadow-md tracking-wider uppercase border border-white">
-          {title}
+        <div 
+          className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-white font-black text-[9px] px-3.5 py-0.5 rounded-full shadow-md tracking-wider uppercase border border-white"
+          style={{ backgroundColor: primary }}
+        >
+          <LiveEditableText
+            value={title}
+            editable={editable}
+            onSave={val => onUpdateField?.('title', val)}
+            className="inline-block"
+          />
         </div>
       </div>
 
@@ -767,7 +1357,10 @@ export const EmployeeDesignVertical: React.FC<IdCardCustomProps> = ({
 
         {/* Staff Photo */}
         <div className="relative mb-2 mt-1">
-          <div className="w-24 h-24 rounded-2xl border-[3px] border-[#2563eb] bg-slate-100 p-0.5 shadow-md relative overflow-hidden">
+          <div 
+            className="w-24 h-24 rounded-2xl border-[3px] bg-slate-100 p-0.5 shadow-md relative overflow-hidden"
+            style={{ borderColor: primary }}
+          >
             <img 
               src={staff.photo} 
               alt={staff.name}
@@ -780,8 +1373,11 @@ export const EmployeeDesignVertical: React.FC<IdCardCustomProps> = ({
               <User className="w-10 h-10" />
             </div>
           </div>
-          <div className="absolute -bottom-2 -right-2 bg-emerald-600 text-white text-[7px] font-black px-1.5 py-0.5 rounded-full border-2 border-white shadow-sm flex items-center gap-0.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"></span>
+          <div 
+            className="absolute -bottom-2 -right-2 text-white text-[7px] font-black px-1.5 py-0.5 rounded-full border-2 border-white shadow-sm flex items-center gap-0.5"
+            style={{ backgroundColor: primary }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
             ACTIVE
           </div>
         </div>
@@ -790,36 +1386,81 @@ export const EmployeeDesignVertical: React.FC<IdCardCustomProps> = ({
         <h3 className="font-black text-sm text-slate-900 tracking-wide text-center uppercase leading-snug">
           {staff.name}
         </h3>
-        <p className="text-[9.5px] font-bold text-blue-700 text-center line-clamp-1 mt-0.5 mb-2">
+        <p className="text-[9.5px] font-bold text-center line-clamp-1 mt-0.5 mb-2" style={{ color: primary }}>
           {staff.designation}
         </p>
 
         {/* Staff Details Card */}
-        <div className="w-full text-[9.5px] space-y-1 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
+        <div 
+          className="w-full text-[9.5px] space-y-1 p-2.5 rounded-xl border shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
+          style={{ backgroundColor: tintLight, borderColor: borderTint }}
+        >
           <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">Staff ID:</span>
-            <span className="font-bold text-[#2563eb] font-mono">{staff.empId}</span>
+            <span className="text-slate-500 font-semibold">
+              <LiveEditableText
+                value={labels.staffIdLabel || 'Staff ID:'}
+                editable={editable}
+                onSave={val => updateLabel('staffIdLabel', val)}
+                className="inline-block"
+              />
+            </span>
+            <span className="font-bold font-mono" style={{ color: primary }}>{staff.empId}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">Department:</span>
+            <span className="text-slate-500 font-semibold">
+              <LiveEditableText
+                value={labels.departmentLabel || 'Department:'}
+                editable={editable}
+                onSave={val => updateLabel('departmentLabel', val)}
+                className="inline-block"
+              />
+            </span>
             <span className="font-bold text-slate-800 truncate max-w-[125px]">{staff.department}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">Campus Shift:</span>
+            <span className="text-slate-500 font-semibold">
+              <LiveEditableText
+                value={labels.shiftLabel || 'Campus Shift:'}
+                editable={editable}
+                onSave={val => updateLabel('shiftLabel', val)}
+                className="inline-block"
+              />
+            </span>
             <span className="font-bold text-slate-800 text-[8.5px] truncate max-w-[125px]">{staff.shift}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">Date of Joining:</span>
+            <span className="text-slate-500 font-semibold">
+              <LiveEditableText
+                value={labels.dojLabel || 'Date of Joining:'}
+                editable={editable}
+                onSave={val => updateLabel('dojLabel', val)}
+                className="inline-block"
+              />
+            </span>
             <span className="font-bold text-slate-800">{staff.doj}</span>
           </div>
           {showBloodGroup && (
             <div className="flex items-center justify-between">
-              <span className="text-slate-500 font-semibold">Blood Group:</span>
+              <span className="text-slate-500 font-semibold">
+                <LiveEditableText
+                  value={labels.bloodGroupLabel || 'Blood Group:'}
+                  editable={editable}
+                  onSave={val => updateLabel('bloodGroupLabel', val)}
+                  className="inline-block"
+                />
+              </span>
               <span className="font-bold text-red-600 bg-red-50 px-1 rounded text-[9px]">{staff.bloodGroup}</span>
             </div>
           )}
           <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">Emergency No:</span>
+            <span className="text-slate-500 font-semibold">
+              <LiveEditableText
+                value={labels.emergencyNoLabel || 'Emergency No:'}
+                editable={editable}
+                onSave={val => updateLabel('emergencyNoLabel', val)}
+                className="inline-block"
+              />
+            </span>
             <span className="font-bold text-slate-800">{staff.emergencyContact}</span>
           </div>
         </div>
@@ -828,33 +1469,54 @@ export const EmployeeDesignVertical: React.FC<IdCardCustomProps> = ({
       {/* Footer */}
       <div className="bg-slate-100/90 border-t border-slate-200 px-3 py-2 flex items-center justify-between mt-auto relative z-10">
         {showQr ? (
-          <div className="bg-white p-1 rounded-md border border-slate-200 shadow-xs flex items-center gap-1">
-            <QrCode className="w-8 h-8 text-slate-800" />
-            <div className="text-[6.5px] text-slate-500 font-mono leading-none">
+          <div className="bg-white p-1 rounded-md border border-slate-200 shadow-xs flex items-center gap-1.5">
+            <ProperQrCode className="w-8 h-8" color={primary} />
+            <div className="text-[6.5px] font-mono leading-none" style={{ color: primary }}>
               <p>ACCESS GATE</p>
-              <p className="font-bold text-blue-700">AUTHORIZED</p>
+              <p className="font-bold">AUTHORIZED</p>
             </div>
           </div>
         ) : <div />}
 
         {showPrincipalSign && (
           <div className="text-right flex flex-col items-end">
-            <div className="h-6 w-16 relative flex items-center justify-center">
-              <span className="font-serif italic font-black text-slate-900 text-[11px] rotate-[-5deg]">
-                Admin.Dir
+            <div className="h-6 w-20 relative flex items-center justify-center">
+              <span className="font-serif italic font-black text-slate-900 text-[11px] rotate-[-5deg]" style={{ color: primary }}>
+                <LiveEditableText
+                  value={principalName || 'Admin.Dir'}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('principalName', val)}
+                  className="inline-block"
+                />
               </span>
-              <div className="absolute inset-0 border border-blue-600/30 rounded-full rotate-[-5deg] pointer-events-none"></div>
+              <div 
+                className="absolute inset-0 border rounded-full rotate-[-5deg] pointer-events-none opacity-40"
+                style={{ borderColor: primary }}
+              ></div>
             </div>
             <p className="text-[7px] font-black text-slate-600 uppercase tracking-tighter">
-              Admin Signature
+              <LiveEditableText
+                value={labels.principalSignLabel || 'Admin Signature'}
+                editable={editable}
+                onSave={val => updateLabel('principalSignLabel', val)}
+                className="inline-block"
+              />
             </p>
           </div>
         )}
       </div>
 
       {/* Security strip */}
-      <div className="bg-[#0f172a] text-white text-[7px] py-1 px-3 flex items-center justify-between">
-        <span>Card Validity: {session}</span>
+      <div className="text-white text-[7px] py-1 px-3 flex items-center justify-between" style={{ backgroundColor: darkTone }}>
+        <span>
+          Card Validity:{' '}
+          <LiveEditableText
+            value={session}
+            editable={editable}
+            onSave={val => onUpdateField?.('session', val)}
+            className="inline-block font-semibold"
+          />
+        </span>
         <span className="text-emerald-400 font-mono font-bold">PERMANENT STAFF</span>
       </div>
     </div>
@@ -875,8 +1537,25 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
   showWatermark = true,
   showPrincipalSign = true,
   showBloodGroup = true,
+  themeColor,
+  principalName,
+  editable = false,
+  customLabels = {},
+  onUpdateField,
+  onUpdateLabel,
   data
 }) => {
+  const primary = themeColor || '#4338ca'
+  const darkTone = adjustHex(primary, -50)
+  const lightTone = adjustHex(primary, 35)
+  const tintLight = hexToRgba(primary, 0.08)
+  const borderTint = hexToRgba(primary, 0.25)
+  const labels = customLabels || {}
+
+  const updateLabel = (key: string, val: string) => {
+    onUpdateLabel?.(key, val)
+  }
+
   const staff = {
     name: data?.name || 'SURESH KUMAR YADAV',
     designation: data?.designation || 'Senior Lab & Systems Incharge',
@@ -892,25 +1571,55 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
   return (
     <div className="w-[450px] h-[280px] bg-white rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border border-slate-200 shrink-0 select-none">
       {/* Top Banner */}
-      <div className="bg-gradient-to-r from-[#1e1b4b] via-[#312e81] to-[#4338ca] text-white px-4 py-2 flex items-center justify-between border-b-2 border-indigo-400">
+      <div 
+        className="text-white px-4 py-2 flex items-center justify-between border-b-2"
+        style={{
+          background: `linear-gradient(90deg, ${darkTone} 0%, ${adjustHex(primary, -20)} 40%, ${primary} 100%)`,
+          borderBottomColor: lightTone
+        }}
+      >
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-indigo-500 text-white flex items-center justify-center font-black shadow-sm">
+          <div 
+            className="w-7 h-7 rounded-lg bg-white flex items-center justify-center font-black shadow-sm"
+            style={{ color: primary }}
+          >
             <ShieldCheck className="w-4 h-4" />
           </div>
           <div>
             <h2 className="font-black text-sm uppercase tracking-wide leading-tight drop-shadow-sm">
-              {schoolName}
+              <LiveEditableText
+                value={schoolName}
+                editable={editable}
+                onSave={val => onUpdateField?.('schoolName', val)}
+                className="inline-block"
+              />
             </h2>
-            <p className="text-[8px] text-indigo-200 font-medium">
-              {tagline} • STAFF CREDENTIAL
+            <p className="text-[8px] text-white/90 font-medium">
+              <LiveEditableText
+                value={tagline}
+                editable={editable}
+                onSave={val => onUpdateField?.('tagline', val)}
+                className="inline-block"
+              />
+              {' '}• STAFF CREDENTIAL
             </p>
           </div>
         </div>
         <div className="text-right">
-          <span className="bg-indigo-300 text-indigo-950 font-black text-[9px] px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+          <span 
+            className="font-black text-[9px] px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs text-white"
+            style={{ backgroundColor: primary }}
+          >
             STAFF PASS • {session}
           </span>
-          <p className="text-[7.5px] text-indigo-200 mt-0.5 truncate max-w-[140px]">{schoolAddress}</p>
+          <p className="text-[7.5px] text-white/80 mt-0.5 truncate max-w-[140px]">
+            <LiveEditableText
+              value={schoolAddress}
+              editable={editable}
+              onSave={val => onUpdateField?.('schoolAddress', val)}
+              className="inline-block"
+            />
+          </p>
         </div>
       </div>
 
@@ -924,7 +1633,10 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
 
         {/* Left Column: Photo & Security QR */}
         <div className="w-28 flex flex-col items-center justify-between shrink-0">
-          <div className="w-24 h-28 rounded-xl border-2 border-indigo-600 p-0.5 bg-white shadow-md relative">
+          <div 
+            className="w-24 h-28 rounded-xl border-2 p-0.5 bg-white shadow-md relative"
+            style={{ borderColor: primary }}
+          >
             <img 
               src={staff.photo} 
               alt={staff.name}
@@ -936,17 +1648,23 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
             <div className="absolute inset-0 flex items-center justify-center text-slate-400 -z-10">
               <User className="w-8 h-8" />
             </div>
-            <div className="absolute -bottom-2 -left-2 bg-indigo-700 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm">
+            <div 
+              className="absolute -bottom-2 -left-2 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm"
+              style={{ backgroundColor: primary }}
+            >
               EMPLOYEE
             </div>
           </div>
 
           {showQr && (
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 p-1 rounded-md mt-2 w-full justify-center">
-              <QrCode className="w-6 h-6 text-slate-800" />
-              <div className="text-[6.5px] font-mono text-slate-500 leading-tight">
+            <div 
+              className="flex items-center gap-1.5 bg-slate-50 border p-1 rounded-md mt-2 w-full justify-center"
+              style={{ borderColor: borderTint }}
+            >
+              <ProperQrCode className="w-6 h-6" color={primary} />
+              <div className="text-[6.5px] font-mono leading-tight" style={{ color: primary }}>
                 <div>SECURITY PASS</div>
-                <div className="font-bold text-indigo-700">GATE 01-04</div>
+                <div className="font-bold">GATE 01-04</div>
               </div>
             </div>
           )}
@@ -955,42 +1673,87 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
         {/* Right Column: Staff Information */}
         <div className="flex-1 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between border-b border-indigo-100 pb-1 mb-2">
+            <div className="flex items-center justify-between border-b pb-1 mb-2" style={{ borderColor: borderTint }}>
               <div>
                 <h3 className="font-black text-base text-slate-900 uppercase tracking-tight">
                   {staff.name}
                 </h3>
-                <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                <span 
+                  className="text-[10px] font-bold px-2 py-0.5 rounded border inline-block"
+                  style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}
+                >
                   {staff.designation}
                 </span>
               </div>
               <div className="text-right">
-                <span className="text-[8px] text-slate-400 font-semibold block">STAFF ID</span>
-                <span className="font-black text-sm text-indigo-950 font-mono">{staff.empId}</span>
+                <span className="text-[8px] text-slate-400 font-semibold block">
+                  <LiveEditableText
+                    value={labels.staffIdLabel || 'STAFF ID'}
+                    editable={editable}
+                    onSave={val => updateLabel('staffIdLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
+                <span className="font-black text-sm font-mono" style={{ color: primary }}>{staff.empId}</span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9.5px]">
               <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">DEPARTMENT</span>
+                <span className="text-slate-400 font-semibold block text-[8px]">
+                  <LiveEditableText
+                    value={labels.departmentLabel || 'DEPARTMENT'}
+                    editable={editable}
+                    onSave={val => updateLabel('departmentLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
                 <span className="font-bold text-slate-800 truncate block">{staff.department}</span>
               </div>
               <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">WORK STATION</span>
+                <span className="text-slate-400 font-semibold block text-[8px]">
+                  <LiveEditableText
+                    value={labels.workStationLabel || 'WORK STATION'}
+                    editable={editable}
+                    onSave={val => updateLabel('workStationLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
                 <span className="font-bold text-slate-800 truncate block">{staff.workStation}</span>
               </div>
               {showBloodGroup && (
                 <div>
-                  <span className="text-slate-400 font-semibold block text-[8px]">BLOOD GROUP</span>
+                  <span className="text-slate-400 font-semibold block text-[8px]">
+                    <LiveEditableText
+                      value={labels.bloodGroupLabel || 'BLOOD GROUP'}
+                      editable={editable}
+                      onSave={val => updateLabel('bloodGroupLabel', val)}
+                      className="inline-block"
+                    />
+                  </span>
                   <span className="font-black text-red-600 bg-red-50 px-1.5 py-0.2 rounded text-[9px]">{staff.bloodGroup}</span>
                 </div>
               )}
               <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">OFFICIAL CONTACT</span>
+                <span className="text-slate-400 font-semibold block text-[8px]">
+                  <LiveEditableText
+                    value={labels.phoneLabel || 'OFFICIAL CONTACT'}
+                    editable={editable}
+                    onSave={val => updateLabel('phoneLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
                 <span className="font-bold text-slate-800">{staff.phone}</span>
               </div>
               <div className="col-span-2">
-                <span className="text-slate-400 font-semibold block text-[8px]">EMERGENCY CONTACT</span>
+                <span className="text-slate-400 font-semibold block text-[8px]">
+                  <LiveEditableText
+                    value={labels.emergencyNoLabel || 'EMERGENCY CONTACT'}
+                    editable={editable}
+                    onSave={val => updateLabel('emergencyNoLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
                 <span className="font-bold text-slate-800">{staff.emergencyContact}</span>
               </div>
             </div>
@@ -1001,7 +1764,7 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
             <div className="flex items-center gap-2">
               <div className="h-6 flex items-end gap-[1.5px] px-1 bg-white border border-slate-200 rounded">
                 {[1,3,1,2,2,1,3,1,2,1,1,3,2,1].map((w, idx) => (
-                  <div key={idx} className="bg-slate-800 h-full" style={{ width: `${w * 1.3}px` }}></div>
+                  <div key={idx} className="h-full" style={{ width: `${w * 1.3}px`, backgroundColor: primary }}></div>
                 ))}
               </div>
               <span className="text-[7.5px] font-mono text-slate-400">{staff.empId}</span>
@@ -1010,12 +1773,22 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
             {showPrincipalSign && (
               <div className="text-right">
                 <div className="h-5 flex items-center justify-end">
-                  <span className="font-serif italic font-black text-indigo-900 text-xs rotate-[-4deg]">
-                    Registrar.S
+                  <span className="font-serif italic font-black text-xs rotate-[-4deg]" style={{ color: primary }}>
+                    <LiveEditableText
+                      value={principalName || 'Registrar.S'}
+                      editable={editable}
+                      onSave={val => onUpdateField?.('principalName', val)}
+                      className="inline-block"
+                    />
                   </span>
                 </div>
                 <p className="text-[7px] font-black text-slate-500 uppercase tracking-tighter">
-                  Registrar / Principal
+                  <LiveEditableText
+                    value={labels.principalSignLabel || 'Registrar / Principal'}
+                    editable={editable}
+                    onSave={val => updateLabel('principalSignLabel', val)}
+                    className="inline-block"
+                  />
                 </p>
               </div>
             )}
@@ -1024,9 +1797,9 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
       </div>
 
       {/* Footer Strip */}
-      <div className="bg-[#1e1b4b] text-white text-[7.5px] py-1 px-4 flex items-center justify-between">
+      <div className="text-white text-[7.5px] py-1 px-4 flex items-center justify-between" style={{ backgroundColor: darkTone }}>
         <span>Campus Non-Teaching Staff Pass • Valid at all institutional gates</span>
-        <span className="font-bold text-indigo-300">ACCESS: ALL BLOCKS</span>
+        <span className="font-bold text-amber-300">ACCESS: ALL BLOCKS</span>
       </div>
     </div>
   )
@@ -1042,20 +1815,38 @@ export const IdCardBackDesign: React.FC<{
   schoolPhone?: string
   schoolEmail?: string
   bottomNotes?: string
+  themeColor?: string
+  editable?: boolean
+  onUpdateField?: (field: string, value: any) => void
 }> = ({
   orientation = 'portrait',
   schoolName = 'COSMOPOLITAN INTER COLLEGE',
   schoolAddress = 'Knowledge Park, Sector 62, New Delhi - 110001',
   schoolPhone = '+91 11 2345 6789',
   schoolEmail = 'info@academy.edu',
-  bottomNotes = 'This card is the property of the institute. If found, please return to the school administration office immediately.'
+  bottomNotes = 'This card is the property of the institute. If found, please return to the school administration office immediately.',
+  themeColor,
+  editable = false,
+  onUpdateField
 }) => {
+  const primary = themeColor || '#1e3a8a'
+  const borderTint = hexToRgba(primary, 0.25)
+  const tintLight = hexToRgba(primary, 0.05)
+
   if (orientation === 'landscape') {
     return (
-      <div className="w-[450px] h-[280px] bg-slate-50 rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border border-slate-300 shrink-0 p-5 select-none text-slate-700">
-        <h4 className="font-black text-xs uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1 mb-2 flex items-center justify-between">
+      <div 
+        className="w-[450px] h-[280px] rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border shrink-0 p-5 select-none text-slate-700"
+        style={{ backgroundColor: tintLight, borderColor: borderTint }}
+      >
+        <h4 
+          className="font-black text-xs uppercase tracking-wider border-b pb-1 mb-2 flex items-center justify-between"
+          style={{ color: primary, borderColor: borderTint }}
+        >
           <span>Terms & Campus Guidelines</span>
-          <span className="text-[8px] font-normal text-slate-500">BACK SIDE</span>
+          <span className="text-[8px] font-bold px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: primary }}>
+            BACK SIDE
+          </span>
         </h4>
 
         <div className="grid grid-cols-2 gap-4 text-[9px] flex-1">
@@ -1066,23 +1857,59 @@ export const IdCardBackDesign: React.FC<{
             <li>Replacement charges applicable for re-issuance.</li>
           </ul>
 
-          <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex flex-col justify-between">
+          <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-2xs">
             <div>
-              <p className="font-bold text-slate-800 text-[9.5px]">Campus Return Address:</p>
-              <p className="text-[8.5px] text-slate-500 leading-relaxed mt-0.5">{schoolName}, {schoolAddress}</p>
+              <p className="font-bold text-[9.5px]" style={{ color: primary }}>Campus Return Address:</p>
+              <p className="text-[8.5px] text-slate-600 leading-relaxed mt-0.5">
+                <LiveEditableText
+                  value={schoolName}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('schoolName', val)}
+                  className="font-bold block"
+                />
+                <LiveEditableText
+                  value={schoolAddress}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('schoolAddress', val)}
+                  className="inline-block"
+                />
+              </p>
             </div>
             <div className="text-[8px] text-slate-600 space-y-0.5 mt-2">
-              <p>📞 Helpline: {schoolPhone}</p>
-              <p>✉️ Email: {schoolEmail}</p>
+              <p>
+                📞 Helpline:{' '}
+                <LiveEditableText
+                  value={schoolPhone}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('schoolPhone', val)}
+                  className="inline-block"
+                />
+              </p>
+              <p>
+                ✉️ Email:{' '}
+                <LiveEditableText
+                  value={schoolEmail}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('schoolEmail', val)}
+                  className="inline-block"
+                />
+              </p>
             </div>
           </div>
         </div>
 
         <div className="border-t border-slate-200 pt-2 flex items-center justify-between text-[8px] text-slate-500">
-          <p className="italic max-w-[320px]">{bottomNotes}</p>
+          <p className="italic max-w-[320px]">
+            <LiveEditableText
+              value={bottomNotes}
+              editable={editable}
+              onSave={val => onUpdateField?.('bottomNotes', val)}
+              className="inline-block"
+            />
+          </p>
           <div className="h-5 flex items-end gap-[1.5px] px-1 bg-white border border-slate-200 rounded">
             {[2,1,3,1,2,1,2,3,1,2,1].map((w, idx) => (
-              <div key={idx} className="bg-slate-800 h-full" style={{ width: `${w}px` }}></div>
+              <div key={idx} className="h-full" style={{ width: `${w}px`, backgroundColor: primary }}></div>
             ))}
           </div>
         </div>
@@ -1091,10 +1918,16 @@ export const IdCardBackDesign: React.FC<{
   }
 
   return (
-    <div className="w-[280px] h-[450px] bg-slate-50 rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border border-slate-300 shrink-0 p-4 select-none text-slate-700">
-      <div className="w-12 h-2.5 bg-slate-200 rounded-full mx-auto mb-2 border border-slate-300"></div>
+    <div 
+      className="w-[280px] h-[450px] rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border shrink-0 p-4 select-none text-slate-700"
+      style={{ backgroundColor: tintLight, borderColor: borderTint }}
+    >
+      <div className="w-12 h-2.5 bg-black/10 rounded-full mx-auto mb-2 border border-slate-300"></div>
 
-      <h4 className="font-black text-xs uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1 mb-3 text-center">
+      <h4 
+        className="font-black text-xs uppercase tracking-wider border-b pb-1 mb-3 text-center"
+        style={{ color: primary, borderColor: borderTint }}
+      >
         Terms & Campus Guidelines
       </h4>
 
@@ -1106,23 +1939,60 @@ export const IdCardBackDesign: React.FC<{
         <li>Valid only for authorized campus access and library services.</li>
       </ul>
 
-      <div className="bg-white p-3 rounded-xl border border-slate-200 mb-3 space-y-1">
-        <p className="font-bold text-[9px] text-slate-800 uppercase tracking-wide">Campus Return Address</p>
-        <p className="text-[8.5px] text-slate-600 font-medium">{schoolName}</p>
-        <p className="text-[8px] text-slate-500 leading-tight">{schoolAddress}</p>
+      <div className="bg-white p-3 rounded-xl border border-slate-200 mb-3 space-y-1 shadow-2xs">
+        <p className="font-bold text-[9px] uppercase tracking-wide" style={{ color: primary }}>
+          Campus Return Address
+        </p>
+        <p className="text-[8.5px] text-slate-700 font-bold">
+          <LiveEditableText
+            value={schoolName}
+            editable={editable}
+            onSave={val => onUpdateField?.('schoolName', val)}
+            className="inline-block"
+          />
+        </p>
+        <p className="text-[8px] text-slate-500 leading-tight">
+          <LiveEditableText
+            value={schoolAddress}
+            editable={editable}
+            onSave={val => onUpdateField?.('schoolAddress', val)}
+            className="inline-block"
+          />
+        </p>
         <div className="text-[8px] text-slate-600 pt-1 space-y-0.5">
-          <p>📞 Phone: {schoolPhone}</p>
-          <p>✉️ Email: {schoolEmail}</p>
+          <p>
+            📞 Phone:{' '}
+            <LiveEditableText
+              value={schoolPhone}
+              editable={editable}
+              onSave={val => onUpdateField?.('schoolPhone', val)}
+              className="inline-block"
+            />
+          </p>
+          <p>
+            ✉️ Email:{' '}
+            <LiveEditableText
+              value={schoolEmail}
+              editable={editable}
+              onSave={val => onUpdateField?.('schoolEmail', val)}
+              className="inline-block"
+            />
+          </p>
         </div>
       </div>
 
       <div className="border-t border-slate-200 pt-2 text-center">
         <p className="text-[7.5px] text-slate-500 italic mb-1.5 leading-snug">
-          {bottomNotes}
+          <LiveEditableText
+            value={bottomNotes}
+            editable={editable}
+            onSave={val => onUpdateField?.('bottomNotes', val)}
+            className="inline-block"
+          />
         </p>
         <div className="h-6 flex items-end justify-center gap-[1.5px] px-2 py-0.5 bg-white border border-slate-200 rounded mx-auto w-fit">
           {[2,1,3,1,2,1,2,3,1,2,1,3,2,1,2].map((w, idx) => (
-            <div key={idx} className="bg-slate-800 h-full" style={{ width: `${w * 1.2}px` }}></div>
+            <div key={idx} className="h-full" style={{ width: `${w * 1.2}px`, backgroundColor: primary }}></div>
           ))}
         </div>
       </div>

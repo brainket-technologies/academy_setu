@@ -20,75 +20,16 @@ interface CertificateTypeItem {
   classes: string[]
   designId: 1 | 2 | 3 | 4
   designName: string
+  themeColor?: string
+  schoolName?: string
+  principalName?: string
   date: string
   time: string
 }
 
-const INITIAL_CERTIFICATE_TYPES: CertificateTypeItem[] = [
-  { 
-    id: 1, 
-    title: 'Certificate of Achievement', 
-    subtitle: 'Academic Excellence & Distinction',
-    prefix: 'CER/ACH/', 
-    startNo: '101',
-    classes: ['Class 8', 'Class 9', 'Class 10'], 
-    designId: 1,
-    designName: 'Design 1 (Royal Blue & Gold)',
-    date: '15/09/2025', 
-    time: '11:00 AM' 
-  },
-  { 
-    id: 2, 
-    title: 'Certificate of Merit & Excellence', 
-    subtitle: 'Scholarly Dedication & Conduct',
-    prefix: 'CER/MRT/', 
-    startNo: '201',
-    classes: ['Class 11 - Science', 'Class 12 - Science', 'Class 12 - Commerce'], 
-    designId: 2,
-    designName: 'Design 2 (Ornate Vintage Gold)',
-    date: '15/09/2025', 
-    time: '11:00 AM' 
-  },
-  { 
-    id: 3, 
-    title: 'Sports & Athletics Award', 
-    subtitle: 'Extracurricular & Team Sports',
-    prefix: 'CER/SPT/', 
-    startNo: '301',
-    classes: ['All Classes'], 
-    designId: 3,
-    designName: 'Design 3 (Modern Emerald & Gold)',
-    date: '15/09/2025', 
-    time: '11:00 AM' 
-  },
-  { 
-    id: 4, 
-    title: 'Curriculum Completion Certificate', 
-    subtitle: 'Official Academic Course Completion',
-    prefix: 'CER/CMP/', 
-    startNo: '401',
-    classes: ['Class 5', 'Class 6', 'Class 7', 'Class 8'], 
-    designId: 4,
-    designName: 'Design 4 (Academic Blue Frame)',
-    date: '16/09/2025', 
-    time: '10:30 AM' 
-  },
-  { 
-    id: 5, 
-    title: 'Character & Conduct Certificate', 
-    subtitle: 'Exemplary Discipline & Integrity',
-    prefix: 'CER/CHR/', 
-    startNo: '501',
-    classes: ['Class 10', 'Class 12 - Science'], 
-    designId: 1,
-    designName: 'Design 1 (Royal Blue & Gold)',
-    date: '16/09/2025', 
-    time: '02:00 PM' 
-  },
-]
-
 export default function CertificateTypePage() {
-  const [types, setTypes] = useState<CertificateTypeItem[]>(INITIAL_CERTIFICATE_TYPES)
+  const [types, setTypes] = useState<CertificateTypeItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [previewItem, setPreviewItem] = useState<CertificateTypeItem | null>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
@@ -99,9 +40,10 @@ export default function CertificateTypePage() {
   }, [])
 
   const loadTypes = async () => {
+    setLoading(true)
     try {
       const res = await fetchCertificateTypes()
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res.success && Array.isArray(res.data)) {
         const formatted: CertificateTypeItem[] = res.data.map((item: any) => ({
           id: item.id,
           title: item.title,
@@ -111,14 +53,21 @@ export default function CertificateTypePage() {
           classes: Array.isArray(item.classes) && item.classes.length > 0 ? item.classes : ['All Classes'],
           designId: (Number(item.designId) || 1) as 1 | 2 | 3 | 4,
           designName: `Design ${item.designId || 1}`,
+          themeColor: item.themeColor || item.titleBgColor || '#1E3A8A',
+          schoolName: item.schoolName,
+          principalName: item.principalName,
           date: item.date || new Date().toLocaleDateString('en-GB'),
           time: item.time || '11:00 AM'
         }))
         setTypes(formatted)
-        return
+      } else {
+        setTypes([])
       }
     } catch (e) {
       console.error(e)
+      setTypes([])
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -244,7 +193,7 @@ export default function CertificateTypePage() {
                       </div>
                     </td>
 
-                    {/* Certificate Design Thumbnail Badge */}
+                    {/* Certificate Design & Theme Palette Swatch */}
                     <td className="px-4 py-4">
                       <div className="flex justify-center">
                         <button
@@ -252,14 +201,10 @@ export default function CertificateTypePage() {
                           className="group flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:border-teal-500 hover:bg-teal-50/50 transition-all shadow-xs"
                           title="Click to view full certificate design preview"
                         >
-                          <div className={`w-8 h-5.5 rounded-xs border flex items-center justify-center shrink-0 shadow-2xs ${
-                            item.designId === 1 ? 'border-blue-400 bg-blue-50' :
-                            item.designId === 2 ? 'border-amber-400 bg-amber-50' :
-                            item.designId === 3 ? 'border-emerald-400 bg-emerald-50' :
-                            'border-slate-400 bg-slate-50'
-                          }`}>
-                            <div className="w-5 h-3 border border-current opacity-40"></div>
-                          </div>
+                          <span 
+                            className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0 shadow-2xs"
+                            style={{ backgroundColor: item.themeColor || '#1E3A8A' }}
+                          />
 
                           <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-teal-600 flex items-center gap-1">
                             <span>Design {item.designId}</span>
@@ -288,7 +233,7 @@ export default function CertificateTypePage() {
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                         <Link 
-                          href="/institute/certificate/type/create"
+                          href={`/institute/certificate/type/create?id=${item.id}`}
                           title="Edit Certificate Type"
                           className="w-7 h-7 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 border border-emerald-100 transition-colors"
                         >
@@ -357,16 +302,40 @@ export default function CertificateTypePage() {
                 style={{ transform: 'scale(0.72)', transformOrigin: 'center' }}
               >
                 {previewItem.designId === 1 && (
-                  <CertificateDesign1 title={previewItem.title} subtitle={previewItem.subtitle} />
+                  <CertificateDesign1 
+                    title={previewItem.title} 
+                    subtitle={previewItem.subtitle} 
+                    themeColor={previewItem.themeColor}
+                    schoolName={previewItem.schoolName}
+                    principalName={previewItem.principalName}
+                  />
                 )}
                 {previewItem.designId === 2 && (
-                  <CertificateDesign2 title={previewItem.title} subtitle={previewItem.subtitle} />
+                  <CertificateDesign2 
+                    title={previewItem.title} 
+                    subtitle={previewItem.subtitle} 
+                    themeColor={previewItem.themeColor}
+                    schoolName={previewItem.schoolName}
+                    principalName={previewItem.principalName}
+                  />
                 )}
                 {previewItem.designId === 3 && (
-                  <CertificateDesign3 title={previewItem.title} subtitle={previewItem.subtitle} />
+                  <CertificateDesign3 
+                    title={previewItem.title} 
+                    subtitle={previewItem.subtitle} 
+                    themeColor={previewItem.themeColor}
+                    schoolName={previewItem.schoolName}
+                    principalName={previewItem.principalName}
+                  />
                 )}
                 {previewItem.designId === 4 && (
-                  <CertificateDesign4 title={previewItem.title} subtitle={previewItem.subtitle} />
+                  <CertificateDesign4 
+                    title={previewItem.title} 
+                    subtitle={previewItem.subtitle} 
+                    themeColor={previewItem.themeColor}
+                    schoolName={previewItem.schoolName}
+                    principalName={previewItem.principalName}
+                  />
                 )}
               </div>
             </div>
