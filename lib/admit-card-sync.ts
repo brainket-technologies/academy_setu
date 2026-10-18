@@ -27,10 +27,12 @@ export interface AdmitCardConfig {
   studentSignLabel?: string
   parentSignLabel?: string
   principalSignLabel?: string
+  principalName?: string
   signatureWidth?: string
   schoolStampWidth?: string
   templateStyle?: string
   themeColor?: string
+  customLabels?: Record<string, string>
   dateCreated: string
   timeCreated: string
 }
@@ -245,6 +247,7 @@ export function generateAdmitCardAndTimetableForSetup(setup: {
     studentSignLabel: customAdmit.studentSignLabel || existingCard?.studentSignLabel || "Student's Sign.",
     parentSignLabel: customAdmit.parentSignLabel || existingCard?.parentSignLabel || "Parent's Sign.",
     principalSignLabel: customAdmit.principalSignLabel || existingCard?.principalSignLabel || "Principal's Sign.",
+    principalName: setup.config?.schoolDetails?.principalName || customAdmit.principalName || existingCard?.principalName || 'fahad',
     signatureWidth: customAdmit.signatureWidth || existingCard?.signatureWidth || '30',
     schoolStampWidth: customAdmit.schoolStampWidth || existingCard?.schoolStampWidth || '30',
     dateCreated: existingCard ? existingCard.dateCreated : dateStr,

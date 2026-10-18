@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, Suspense } from 'react'
 import { Plus, X, ArrowLeft, ChevronDown, Sparkles, Eye, Printer, QrCode, Calendar, Check } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { fetchMarksheetSetups, ExamMarksheetSetupRecord } from '@/app/institute/exam-marksheet/setup/actions'
+import { fetchMarksheetSetups, ExamMarksheetSetupRecord, fetchCurrentInstitutionDetails } from '@/app/institute/exam-marksheet/setup/actions'
 import { getInstituteAddedClasses, MasterClassWithSections } from '@/lib/institute-classes'
 
 interface TimeTableOption {
@@ -27,9 +27,9 @@ const DISPLAY_FIELDS_KEYS = [
   { key: 'class', label: 'Class' },
   { key: 'section', label: 'Section' },
   { key: 'photo', label: 'Photo' },
-  { key: 'studentSign', label: 'Student Sign.' },
-  { key: 'teacherSign', label: 'Teacher Sign.' },
   { key: 'principalSign', label: 'Principal Sign.' },
+  { key: 'teacherSign', label: 'Teacher Sign.' },
+  { key: 'studentSign', label: 'Student Sign.' },
   { key: 'parentSign', label: 'Parent Sign.' },
   { key: 'schoolStamp', label: 'School Stamp' }
 ]
@@ -83,6 +83,7 @@ function CreateAdmitCardForm() {
   const [studentPhotoSize, setStudentPhotoSize] = useState('100')
   
   // Sign labels
+  const [principalName, setPrincipalName] = useState('fahad')
   const [teacherSignLabel, setTeacherSignLabel] = useState("Class Teacher's Sign.")
   const [studentSignLabel, setStudentSignLabel] = useState("Student's Sign.")
   const [parentSignLabel, setParentSignLabel] = useState("Parent's Sign.")
@@ -92,6 +93,15 @@ function CreateAdmitCardForm() {
 
   // Load Time Tables, Marksheet Setups & Edit Data
   useEffect(() => {
+    // 0. Auto-fetch institute details (principal name, school name, address)
+    fetchCurrentInstitutionDetails().then(res => {
+      if (res && res.success && res.data) {
+        if (res.data.principalName) setPrincipalName(res.data.principalName)
+        if (res.data.name) setSchoolName(res.data.name)
+        if (res.data.address && res.data.address !== 'na') setSchoolAddress(res.data.address)
+      }
+    }).catch(() => {})
+
     // 1. Load added master classes
     const addedClasses = getInstituteAddedClasses()
     setMasterClasses(addedClasses)
@@ -619,83 +629,227 @@ function CreateAdmitCardForm() {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-550 uppercase">No. of print per page</label>
-              <input type="text" value={noOfPrintPerPage} onChange={e => setNoOfPrintPerPage(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none text-center" />
+          {/* Authority Signatures & Official Stamp Configuration */}
+          <div className="border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/50 p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-800 gap-2">
+              <div>
+                <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                  Authority Signatures & Official Stamp Setup
+                </h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Enable or disable required signatures with individual ON / OFF toggles and configure their printed titles.
+                </p>
+              </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-550 uppercase">Header name font size (in px)</label>
-              <input type="text" value={headerNameFontSize} onChange={e => setHeaderNameFontSize(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none text-center" />
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+              {/* 1. Principal Sign (FIRST PLACE - Auto-fetched from Institute Details) */}
+              <div className={`p-4 rounded-2xl border transition-all ${
+                displayFields.principalSign 
+                  ? 'bg-white dark:bg-slate-800 border-teal-300 dark:border-teal-700/80 shadow-xs ring-1 ring-teal-500/15' 
+                  : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+              }`}>
+                <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-100">Principal Sign</span>
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                      displayFields.principalSign 
+                        ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                        : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                    }`}>
+                      {displayFields.principalSign ? 'ON' : 'OFF'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCheckboxChange('principalSign')}
+                    className={`w-10 h-5.5 rounded-full relative transition-colors ${displayFields.principalSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                  >
+                    <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${displayFields.principalSign ? 'left-5' : 'left-0.5'}`} />
+                  </button>
+                </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-550 uppercase">Header details font size (in px)</label>
-              <input type="text" value={headerDetailsFontSize} onChange={e => setHeaderDetailsFontSize(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none text-center" />
-            </div>
+                {/* Auto-fetch Institute Detail Pill */}
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200/80 dark:border-teal-800/80 text-[10.5px] text-teal-800 dark:text-teal-200 mb-2.5">
+                  <Sparkles className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                  <div className="truncate">
+                    <span className="text-slate-500 dark:text-slate-400 text-[10px] block">Auto-fetched from Institute:</span>
+                    <span className="font-extrabold capitalize text-teal-700 dark:text-teal-300">{principalName || 'fahad'}</span>
+                  </div>
+                </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-550 uppercase">Student details font size (in px)</label>
-              <input type="text" value={studentDetailsFontSize} onChange={e => setStudentDetailsFontSize(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none text-center" />
-            </div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                    {principalName && (
+                      <button
+                        type="button"
+                        onClick={() => setPrincipalSignLabel(`Principal's Sign. (${principalName})`)}
+                        className="text-[9px] font-bold text-teal-600 hover:text-teal-700 underline"
+                      >
+                        + Add Name
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={principalSignLabel}
+                    onChange={e => setPrincipalSignLabel(e.target.value)}
+                    disabled={!displayFields.principalSign}
+                    placeholder="Principal's Sign."
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
+                  />
+                </div>
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-550 uppercase">Timetable details font size (in px)</label>
-              <input type="text" value={timetableDetailsFontSize} onChange={e => setTimetableDetailsFontSize(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none text-center" />
-            </div>
+              {/* 2. Teacher Sign */}
+              <div className={`p-4 rounded-2xl border transition-all ${
+                displayFields.teacherSign 
+                  ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
+                  : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+              }`}>
+                <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-100">Teacher Sign</span>
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                      displayFields.teacherSign 
+                        ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                        : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                    }`}>
+                      {displayFields.teacherSign ? 'ON' : 'OFF'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCheckboxChange('teacherSign')}
+                    className={`w-10 h-5.5 rounded-full relative transition-colors ${displayFields.teacherSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                  >
+                    <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${displayFields.teacherSign ? 'left-5' : 'left-0.5'}`} />
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                  <input
+                    type="text"
+                    value={teacherSignLabel}
+                    onChange={e => setTeacherSignLabel(e.target.value)}
+                    disabled={!displayFields.teacherSign}
+                    placeholder="Class Teacher's Sign."
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
+                  />
+                </div>
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-550 uppercase">Heading font size (in px)</label>
-              <input type="text" value={headingFontSize} onChange={e => setHeadingFontSize(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none text-center" />
-            </div>
+              {/* 3. Student Sign */}
+              <div className={`p-4 rounded-2xl border transition-all ${
+                displayFields.studentSign 
+                  ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
+                  : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+              }`}>
+                <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-100">Student Sign</span>
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                      displayFields.studentSign 
+                        ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                        : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                    }`}>
+                      {displayFields.studentSign ? 'ON' : 'OFF'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCheckboxChange('studentSign')}
+                    className={`w-10 h-5.5 rounded-full relative transition-colors ${displayFields.studentSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                  >
+                    <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${displayFields.studentSign ? 'left-5' : 'left-0.5'}`} />
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                  <input
+                    type="text"
+                    value={studentSignLabel}
+                    onChange={e => setStudentSignLabel(e.target.value)}
+                    disabled={!displayFields.studentSign}
+                    placeholder="Student's Sign."
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
+                  />
+                </div>
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-550 uppercase">Default font size (in px)</label>
-              <input type="text" value={defaultFontSize} onChange={e => setDefaultFontSize(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none text-center" />
-            </div>
+              {/* 4. Parent Sign */}
+              <div className={`p-4 rounded-2xl border transition-all ${
+                displayFields.parentSign 
+                  ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
+                  : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+              }`}>
+                <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-100">Parent Sign</span>
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                      displayFields.parentSign 
+                        ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                        : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                    }`}>
+                      {displayFields.parentSign ? 'ON' : 'OFF'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCheckboxChange('parentSign')}
+                    className={`w-10 h-5.5 rounded-full relative transition-colors ${displayFields.parentSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                  >
+                    <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${displayFields.parentSign ? 'left-5' : 'left-0.5'}`} />
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                  <input
+                    type="text"
+                    value={parentSignLabel}
+                    onChange={e => setParentSignLabel(e.target.value)}
+                    disabled={!displayFields.parentSign}
+                    placeholder="Parent's Sign."
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
+                  />
+                </div>
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-550 uppercase">Spacing (in px)</label>
-              <input type="text" value={spacing} onChange={e => setSpacing(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none text-center" />
+              {/* 5. School Stamp */}
+              <div className={`p-4 rounded-2xl border transition-all ${
+                displayFields.schoolStamp 
+                  ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
+                  : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+              }`}>
+                <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-100">School Stamp</span>
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                      displayFields.schoolStamp 
+                        ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                        : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                    }`}>
+                      {displayFields.schoolStamp ? 'ON' : 'OFF'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCheckboxChange('schoolStamp')}
+                    className={`w-10 h-5.5 rounded-full relative transition-colors ${displayFields.schoolStamp ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                  >
+                    <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${displayFields.schoolStamp ? 'left-5' : 'left-0.5'}`} />
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Seal Status</label>
+                  <div className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs bg-slate-50 dark:bg-slate-850 font-semibold text-slate-600 dark:text-slate-300 flex items-center justify-between">
+                    <span>Official Institute Seal</span>
+                    <span className="text-[10px] text-teal-600 font-bold">{displayFields.schoolStamp ? 'Included' : 'Excluded'}</span>
+                  </div>
+                </div>
+              </div>
             </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-550 uppercase">Student photo size (in px)</label>
-              <input type="text" value={studentPhotoSize} onChange={e => setStudentPhotoSize(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none text-center" />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-550 uppercase">Teacher Sign Label</label>
-              <input type="text" value={teacherSignLabel} onChange={e => setTeacherSignLabel(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none font-semibold text-slate-700" />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-550 uppercase">Student Sign Label</label>
-              <input type="text" value={studentSignLabel} onChange={e => setStudentSignLabel(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none font-semibold text-slate-700" />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-550 uppercase">Parent Sign Label</label>
-              <input type="text" value={parentSignLabel} onChange={e => setParentSignLabel(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none font-semibold text-slate-700" />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-550 uppercase">Principal Sign Label</label>
-              <input type="text" value={principalSignLabel} onChange={e => setPrincipalSignLabel(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none font-semibold text-slate-700" />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-550 uppercase">Signature width (in pixel)</label>
-              <input type="text" value={signatureWidth} onChange={e => setSignatureWidth(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none text-center" />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-550 uppercase">School Stamp width (in px)</label>
-              <input type="text" value={schoolStampWidth} onChange={e => setSchoolStampWidth(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none text-center" />
-            </div>
-
           </div>
 
         </div>
@@ -966,23 +1120,45 @@ function CreateAdmitCardForm() {
                 )}
 
                 {/* Signatures Row */}
-                <div className="grid grid-cols-4 gap-4 text-center mt-12 pb-4 text-[9px] font-black uppercase text-slate-700">
-                  <div className="flex flex-col items-center">
-                    <div className="w-[80%] h-0.5 border-t border-dashed border-slate-400 mb-2"></div>
-                    <span>{studentSignLabel || "Student's Sign."}</span>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <div className="w-[80%] h-0.5 border-t border-dashed border-slate-400 mb-2"></div>
-                    <span>{parentSignLabel || "Parent's Sign."}</span>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <div className="w-[80%] h-0.5 border-t border-dashed border-slate-400 mb-2"></div>
-                    <span>{teacherSignLabel || "Teacher's Sign."}</span>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <div className="w-[80%] h-0.5 border-t border-dashed border-slate-400 mb-2"></div>
-                    <span>{principalSignLabel || "Principal's Sign."}</span>
-                  </div>
+                <div className="flex justify-between items-end gap-4 text-center mt-12 pb-4 text-[9px] font-black uppercase text-slate-700">
+                  {displayFields.principalSign && (
+                    <div className="flex-1 flex flex-col items-center">
+                      {principalName && (
+                        <span className="font-serif italic font-bold text-[11px] text-slate-800 capitalize mb-0.5">
+                          {principalName}
+                        </span>
+                      )}
+                      <div className="w-[80%] h-0.5 border-t border-dashed border-slate-400 mb-2"></div>
+                      <span>{principalSignLabel || "Principal's Sign."}</span>
+                    </div>
+                  )}
+                  {displayFields.teacherSign && (
+                    <div className="flex-1 flex flex-col items-center">
+                      <div className="w-[80%] h-0.5 border-t border-dashed border-slate-400 mb-2 min-h-[16px]"></div>
+                      <span>{teacherSignLabel || "Teacher's Sign."}</span>
+                    </div>
+                  )}
+                  {displayFields.studentSign && (
+                    <div className="flex-1 flex flex-col items-center">
+                      <div className="w-[80%] h-0.5 border-t border-dashed border-slate-400 mb-2 min-h-[16px]"></div>
+                      <span>{studentSignLabel || "Student's Sign."}</span>
+                    </div>
+                  )}
+                  {displayFields.parentSign && (
+                    <div className="flex-1 flex flex-col items-center">
+                      <div className="w-[80%] h-0.5 border-t border-dashed border-slate-400 mb-2 min-h-[16px]"></div>
+                      <span>{parentSignLabel || "Parent's Sign."}</span>
+                    </div>
+                  )}
+                  {displayFields.schoolStamp && (
+                    <div className="flex-1 flex flex-col items-center">
+                      <div className="w-12 h-12 rounded-full border-2 border-dashed border-teal-600 flex flex-col items-center justify-center text-[6px] font-bold text-teal-700 mb-1">
+                        <span>★ SEAL ★</span>
+                        <span>STAMP</span>
+                      </div>
+                      <span>Official Stamp</span>
+                    </div>
+                  )}
                 </div>
 
               </div>

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, X, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Save, Check, CheckCircle2, Award, Eye, FileText, LayoutTemplate, ShieldAlert, Sparkles, Printer, RefreshCw, Layers, Clock, Calendar, School, QrCode, Palette } from 'lucide-react'
 import { toast } from 'sonner'
-import { saveMultipleMarksheetSetups, saveMarksheetSetup, fetchExamGroups, saveExamGroup, fetchMarksheetSetupById } from '../actions'
+import { saveMultipleMarksheetSetups, saveMarksheetSetup, fetchExamGroups, saveExamGroup, fetchMarksheetSetupById, fetchCurrentInstitutionDetails } from '../actions'
 import { MarksheetPreview, MarksheetMiniPreview } from '@/components/marksheets/MarksheetPreview'
 import { getInstituteAddedClasses, MasterClassWithSections } from '@/lib/institute-classes'
 import { generateAdmitCardAndTimetableForSetup, AdmitCardConfig } from '@/lib/admit-card-sync'
@@ -38,11 +38,35 @@ const ADMIT_DISPLAY_FIELDS_KEYS = [
   { key: 'class', label: 'Class' },
   { key: 'section', label: 'Section' },
   { key: 'photo', label: 'Photo' },
-  { key: 'studentSign', label: 'Student Sign.' },
-  { key: 'teacherSign', label: 'Teacher Sign.' },
   { key: 'principalSign', label: 'Principal Sign.' },
+  { key: 'teacherSign', label: 'Teacher Sign.' },
+  { key: 'studentSign', label: 'Student Sign.' },
   { key: 'parentSign', label: 'Parent Sign.' },
   { key: 'schoolStamp', label: 'School Stamp' }
+]
+
+// Marksheet field keys for Display Fields
+const MARKSHEET_DISPLAY_FIELDS_KEYS = [
+  { key: 'rollNumber', label: 'Roll Number' },
+  { key: 'motherName', label: 'Mother Name' },
+  { key: 'fatherName', label: 'Father Name' },
+  { key: 'admissionNo', label: 'Admission No.' },
+  { key: 'mobileNumber', label: 'Mobile Number' },
+  { key: 'classSection', label: 'Class & Section' },
+  { key: 'gender', label: 'Gender' },
+  { key: 'dob', label: 'Date of Birth' },
+  { key: 'address', label: 'Address' },
+  { key: 'attendance', label: 'Attendance' },
+  { key: 'examName', label: 'Exam Name' },
+  { key: 'obtMarks', label: 'Obt Marks' },
+  { key: 'totalMarks', label: 'Total Marks' },
+  { key: 'percentage', label: 'Percentage' },
+  { key: 'grade', label: 'Grade' },
+  { key: 'rank', label: 'Class Rank' },
+  { key: 'result', label: 'Result Status' },
+  { key: 'remarks', label: 'Teacher Remarks' },
+  { key: 'examDate', label: 'Exam Date' },
+  { key: 'dateOfIssue', label: 'Date of Issue' },
 ]
 
 interface SubjectConfig {
@@ -144,6 +168,30 @@ function AddSetupWizardContent() {
       }
     } catch (e) {}
 
+    // Auto-fetch institution details from database
+    fetchCurrentInstitutionDetails().then(res => {
+      if (res && res.success && res.data) {
+        if (res.data.principalName) {
+          setPrincipalName(res.data.principalName)
+        }
+        if (res.data.name) {
+          setSchoolName(res.data.name)
+        }
+        if (res.data.affiliatedTo) {
+          setAffiliateTo(res.data.affiliatedTo)
+        }
+        if (res.data.mobileNo) {
+          setPhone(res.data.mobileNo)
+        }
+        if (res.data.emailId) {
+          setEmail(res.data.emailId)
+        }
+        if (res.data.address && res.data.address !== 'na') {
+          setSchoolAddress(res.data.address)
+        }
+      }
+    }).catch(() => {})
+
     if (editId) {
       setEditingId(editId)
       loadExistingSetup(editId)
@@ -175,6 +223,8 @@ function AddSetupWizardContent() {
         if (s.config?.admitCardSettings?.instructions) setAdmitInstructions(s.config.admitCardSettings.instructions)
         if (s.config?.admitCardSettings?.displayFields) setAdmitDisplayFields(s.config.admitCardSettings.displayFields)
         if (typeof s.config?.admitCardSettings?.showExamTimeTable === 'boolean') setShowExamTimeTableOnAdmit(s.config.admitCardSettings.showExamTimeTable)
+        if (s.config?.admitCardSettings?.customLabels) setAdmitCustomLabels(s.config.admitCardSettings.customLabels)
+        if (s.config?.marksheetCustomLabels) setMarksheetCustomLabels(s.config.marksheetCustomLabels)
         if (s.config?.minPassingPct) setMinPassingPct(String(s.config.minPassingPct))
         if (s.config?.minPassingMarks) setMinPassingMarks(String(s.config.minPassingMarks))
         if (s.config?.gradeToDisplay) setGradeToDisplay(s.config.gradeToDisplay)
@@ -306,6 +356,41 @@ function AddSetupWizardContent() {
   const [admitPrincipalSignLabel, setAdmitPrincipalSignLabel] = useState("Principal's Sign.")
   const [admitSignatureWidth, setAdmitSignatureWidth] = useState('30')
   const [admitSchoolStampWidth, setAdmitSchoolStampWidth] = useState('30')
+  const [admitCustomLabels, setAdmitCustomLabels] = useState<Record<string, string>>({})
+  const [marksheetCustomLabels, setMarksheetCustomLabels] = useState<Record<string, string>>({})
+
+  const handleMarksheetFieldUpdate = (field: string, value: any) => {
+    if (field === 'schoolName') setSchoolName(value)
+    else if (field === 'schoolAddress') setSchoolAddress(value)
+    else if (field === 'schoolCode') setSchoolCode(value)
+    else if (field === 'affiliateTo') setAffiliateTo(value)
+    else if (field === 'examName') setExamName(value)
+    else if (field === 'session' || field === 'academicYear') setSession(value)
+    else if (field === 'headingHeader') setHeadingHeader(value)
+    else if (field === 'principalName') setPrincipalName(value)
+    else if (field === 'phone') setPhone(value)
+    else if (field === 'email') setEmail(value)
+    else if (field === 'customLabels') {
+      setMarksheetCustomLabels(prev => ({ ...prev, ...value }))
+    }
+  }
+
+  const handleAdmitCardFieldUpdate = (field: string, value: any) => {
+    if (field === 'schoolName') setSchoolName(value)
+    else if (field === 'schoolAddress') setSchoolAddress(value)
+    else if (field === 'admitCardLabel') setAdmitLabel(value)
+    else if (field === 'examName') setExamName(value)
+    else if (field === 'session') setSession(value)
+    else if (field === 'instructions') setAdmitInstructions(value)
+    else if (field === 'principalSignLabel') setAdmitPrincipalSignLabel(value)
+    else if (field === 'teacherSignLabel') setAdmitTeacherSignLabel(value)
+    else if (field === 'studentSignLabel') setAdmitStudentSignLabel(value)
+    else if (field === 'parentSignLabel') setAdmitParentSignLabel(value)
+    else if (field === 'principalName') setPrincipalName(value)
+    else if (field === 'customLabels') {
+      setAdmitCustomLabels(prev => ({ ...prev, ...value }))
+    }
+  }
 
   const handleAdmitCheckboxChange = (key: string) => {
     setAdmitDisplayFields(prev => ({ ...prev, [key]: !prev[key] }))
@@ -316,6 +401,36 @@ function AddSetupWizardContent() {
     setAdmitDisplayFields(updated)
   }
   const isAdmitAllSelected = ADMIT_DISPLAY_FIELDS_KEYS.every(f => admitDisplayFields[f.key])
+
+  // Marksheet Columns & Display Fields State
+  const [columnsList, setColumnsList] = useState({
+    rollNumber: true, motherName: true, fatherName: true, admissionNo: true,
+    mobileNumber: false, classSection: true, gender: true, dob: true,
+    address: false, examName: true, obtMarks: true, totalMarks: true,
+    percentage: true, grade: true, remarks: true, rank: true,
+    result: true, teacherSign: true, controllerSign: true, principalSign: true,
+    attendance: true, examDate: false, dateOfIssue: true, parentSign: true
+  })
+
+  const handleMarksheetCheckboxChange = (key: string) => {
+    setColumnsList(prev => ({ ...prev, [key]: !(prev as any)[key] }))
+  }
+  const handleMarksheetSelectAllChange = (checked: boolean) => {
+    setColumnsList(prev => {
+      const next: Record<string, boolean> = { ...prev }
+      MARKSHEET_DISPLAY_FIELDS_KEYS.forEach(f => {
+        next[f.key] = checked
+      })
+      return next as any
+    })
+  }
+  const isMarksheetAllSelected = MARKSHEET_DISPLAY_FIELDS_KEYS.every(f => !!(columnsList as any)[f.key])
+
+  const [marksheetPrincipalSignLabel, setMarksheetPrincipalSignLabel] = useState("Principal's Signature")
+  const [marksheetTeacherSignLabel, setMarksheetTeacherSignLabel] = useState("Class Teacher's Signature")
+  const [marksheetControllerSignLabel, setMarksheetControllerSignLabel] = useState("Exam Controller")
+  const [marksheetParentSignLabel, setMarksheetParentSignLabel] = useState("Parent / Guardian Sign")
+  const [marksheetSealLabel, setMarksheetSealLabel] = useState("OFFICIAL SEAL")
 
   const [classes, setClasses] = useState<ClassConfig[]>([
     {
@@ -505,16 +620,6 @@ function AddSetupWizardContent() {
   const [showBlankSpace, setShowBlankSpace] = useState(false)
   const [showParentMobile, setShowParentMobile] = useState(false)
   const [showRoundBorderPhoto, setShowRoundBorderPhoto] = useState(false)
-  // Columns Checkboxes
-  const [columnsList, setColumnsList] = useState({
-    rollNumber: true, motherName: true, fatherName: true, admissionNo: true,
-    mobileNumber: false, classSection: true, gender: true, dob: true,
-    address: false, examName: true, obtMarks: true, totalMarks: true,
-    percentage: true, grade: true, remarks: true, rank: true,
-    result: true, teacherSign: true, controllerSign: true, principalSign: true,
-    attendance: true, examDate: false, dateOfIssue: true
-  })
-
   // School Details Accordions
   const [schoolName, setSchoolName] = useState('Delhi Public School')
   const [affiliateTo, setAffiliateTo] = useState('CBSE New Delhi')
@@ -635,6 +740,7 @@ function AddSetupWizardContent() {
           showParentMobile,
           showRoundBorderPhoto,
           columnsList,
+          marksheetCustomLabels,
           schoolDetails: {
             schoolName,
             affiliateTo,
@@ -670,7 +776,8 @@ function AddSetupWizardContent() {
             parentSignLabel: admitParentSignLabel,
             principalSignLabel: admitPrincipalSignLabel,
             signatureWidth: admitSignatureWidth,
-            schoolStampWidth: admitSchoolStampWidth
+            schoolStampWidth: admitSchoolStampWidth,
+            customLabels: admitCustomLabels
           }
         }
       }))
@@ -1558,6 +1665,7 @@ function AddSetupWizardContent() {
                         examName={examName || 'Final Term Exam'}
                         session={session}
                         isSelected={isSelected}
+                        displayFields={admitDisplayFields}
                       />
 
                       <div className="text-center my-0.5">
@@ -1621,6 +1729,7 @@ function AddSetupWizardContent() {
                         examName={examName || 'Final Term Exam'}
                         session={session}
                         isSelected={isSelected}
+                        displayFields={admitDisplayFields}
                       />
 
                       <div className="text-center my-0.5">
@@ -1684,6 +1793,7 @@ function AddSetupWizardContent() {
                         examName={examName || 'Final Term Exam'}
                         session={session}
                         isSelected={isSelected}
+                        displayFields={admitDisplayFields}
                       />
 
                       <div className="text-center my-0.5">
@@ -1747,6 +1857,7 @@ function AddSetupWizardContent() {
                         examName={examName || 'Final Term Exam'}
                         session={session}
                         isSelected={isSelected}
+                        displayFields={admitDisplayFields}
                       />
 
                       <div className="text-center my-0.5">
@@ -1799,9 +1910,14 @@ function AddSetupWizardContent() {
                           ⚡ Auto-Updating
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        Selecting any template style or color above automatically updates this live printable hall ticket preview in real time.
-                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-[11px] text-slate-500">
+                          Selecting any template style or color above automatically updates this live printable hall ticket preview in real time.
+                        </p>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20 shadow-2xs">
+                          ⚡ Click any label to edit text live
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -1846,8 +1962,10 @@ function AddSetupWizardContent() {
                         studentSignLabel: admitStudentSignLabel,
                         parentSignLabel: admitParentSignLabel,
                         principalSignLabel: admitPrincipalSignLabel,
+                        principalName: principalName,
                         signatureWidth: admitSignatureWidth,
                         schoolStampWidth: admitSchoolStampWidth,
+                        customLabels: admitCustomLabels,
                         dateCreated: new Date().toLocaleDateString('en-GB'),
                         timeCreated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                       }}
@@ -1857,6 +1975,8 @@ function AddSetupWizardContent() {
                         fromTime: s.startTime || s.fromTime || '10:00',
                         toTime: s.endTime || s.toTime || '13:00'
                       }))}
+                      editable={true}
+                      onUpdateField={handleAdmitCardFieldUpdate}
                     />
                   </div>
                 </div>
@@ -1959,58 +2079,227 @@ function AddSetupWizardContent() {
                 />
               </div>
 
-              {/* Collapsible Advanced Print & Layout Settings */}
-              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
-                <button
-                  type="button"
-                  onClick={() => setShowAdvancedAdmitStyles(!showAdvancedAdmitStyles)}
-                  className="w-full flex items-center justify-between px-5 py-3 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors"
-                >
-                  <span className="flex items-center gap-2">
-                    <span>Advanced Typography, Signatures & Print Dimensions</span>
-                    <span className="text-[10px] text-slate-400 font-normal">(Font sizes, stamp widths, signature titles)</span>
-                  </span>
-                  {showAdvancedAdmitStyles ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
+              {/* Authority Signatures & Official Stamp Configuration */}
+              <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/50 p-5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-800 gap-2">
+                  <div>
+                    <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                      Authority Signatures & Official Stamp Setup
+                    </h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      Enable or disable required signatures with individual ON / OFF toggles and configure their printed titles.
+                    </p>
+                  </div>
+                </div>
 
-                {showAdvancedAdmitStyles && (
-                  <div className="p-5 space-y-5 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 animate-in fade-in duration-200">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {[
-                        { label: 'No. of Print Per Page', val: admitNoOfPrintPerPage, set: setAdmitNoOfPrintPerPage },
-                        { label: 'Header Name Font Size (px)', val: admitHeaderNameFontSize, set: setAdmitHeaderNameFontSize },
-                        { label: 'Header Details Font Size (px)', val: admitHeaderDetailsFontSize, set: setAdmitHeaderDetailsFontSize },
-                        { label: 'Student Details Font Size (px)', val: admitStudentDetailsFontSize, set: setAdmitStudentDetailsFontSize },
-                        { label: 'Timetable Details Font Size (px)', val: admitTimetableDetailsFontSize, set: setAdmitTimetableDetailsFontSize },
-                        { label: 'Heading Font Size (px)', val: admitHeadingFontSize, set: setAdmitHeadingFontSize },
-                        { label: 'Default Font Size (px)', val: admitDefaultFontSize, set: setAdmitDefaultFontSize },
-                        { label: 'Spacing (px)', val: admitSpacing, set: setAdmitSpacing },
-                        { label: 'Student Photo Size (px)', val: admitStudentPhotoSize, set: setAdmitStudentPhotoSize },
-                      ].map(({ label, val, set }) => (
-                        <div key={label} className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{label}</label>
-                          <input type="text" value={val} onChange={e => set(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none text-center bg-white dark:bg-slate-800 font-semibold" />
-                        </div>
-                      ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                  {/* 1. Principal Sign (FIRST PLACE - Auto-fetched from Institute Details) */}
+                  <div className={`p-4 rounded-2xl border transition-all ${
+                    admitDisplayFields.principalSign 
+                      ? 'bg-white dark:bg-slate-800 border-teal-300 dark:border-teal-700/80 shadow-xs ring-1 ring-teal-500/15' 
+                      : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                  }`}>
+                    <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-100">Principal Sign</span>
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          admitDisplayFields.principalSign 
+                            ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                        }`}>
+                          {admitDisplayFields.principalSign ? 'ON' : 'OFF'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAdmitCheckboxChange('principalSign')}
+                        className={`w-10 h-5.5 rounded-full relative transition-colors ${admitDisplayFields.principalSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                      >
+                        <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${admitDisplayFields.principalSign ? 'left-5' : 'left-0.5'}`} />
+                      </button>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
-                      {[
-                        { label: 'Teacher Sign Label', val: admitTeacherSignLabel, set: setAdmitTeacherSignLabel },
-                        { label: 'Student Sign Label', val: admitStudentSignLabel, set: setAdmitStudentSignLabel },
-                        { label: 'Parent Sign Label', val: admitParentSignLabel, set: setAdmitParentSignLabel },
-                        { label: 'Principal Sign Label', val: admitPrincipalSignLabel, set: setAdmitPrincipalSignLabel },
-                        { label: 'Signature Width (px)', val: admitSignatureWidth, set: setAdmitSignatureWidth },
-                        { label: 'School Stamp Width (px)', val: admitSchoolStampWidth, set: setAdmitSchoolStampWidth },
-                      ].map(({ label, val, set }) => (
-                        <div key={label} className="flex flex-col gap-1.5">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{label}</label>
-                          <input type="text" value={val} onChange={e => set(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200" />
-                        </div>
-                      ))}
+                    {/* Auto-fetch Institute Detail Pill */}
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200/80 dark:border-teal-800/80 text-[10.5px] text-teal-800 dark:text-teal-200 mb-2.5">
+                      <Sparkles className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                      <div className="truncate">
+                        <span className="text-slate-500 dark:text-slate-400 text-[10px] block">Auto-fetched from Institute:</span>
+                        <span className="font-extrabold capitalize text-teal-700 dark:text-teal-300">{principalName || 'fahad'}</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                        {principalName && (
+                          <button
+                            type="button"
+                            onClick={() => setAdmitPrincipalSignLabel(`Principal's Sign. (${principalName})`)}
+                            className="text-[9px] font-bold text-teal-600 hover:text-teal-700 underline"
+                          >
+                            + Add Name
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        value={admitPrincipalSignLabel}
+                        onChange={e => setAdmitPrincipalSignLabel(e.target.value)}
+                        disabled={!admitDisplayFields.principalSign}
+                        placeholder="Principal's Sign."
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
+                      />
                     </div>
                   </div>
-                )}
+
+                  {/* 2. Teacher Sign */}
+                  <div className={`p-4 rounded-2xl border transition-all ${
+                    admitDisplayFields.teacherSign 
+                      ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
+                      : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                  }`}>
+                    <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-100">Teacher Sign</span>
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          admitDisplayFields.teacherSign 
+                            ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                        }`}>
+                          {admitDisplayFields.teacherSign ? 'ON' : 'OFF'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAdmitCheckboxChange('teacherSign')}
+                        className={`w-10 h-5.5 rounded-full relative transition-colors ${admitDisplayFields.teacherSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                      >
+                        <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${admitDisplayFields.teacherSign ? 'left-5' : 'left-0.5'}`} />
+                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                      <input
+                        type="text"
+                        value={admitTeacherSignLabel}
+                        onChange={e => setAdmitTeacherSignLabel(e.target.value)}
+                        disabled={!admitDisplayFields.teacherSign}
+                        placeholder="Class Teacher's Sign."
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 3. Student Sign */}
+                  <div className={`p-4 rounded-2xl border transition-all ${
+                    admitDisplayFields.studentSign 
+                      ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
+                      : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                  }`}>
+                    <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-100">Student Sign</span>
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          admitDisplayFields.studentSign 
+                            ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                        }`}>
+                          {admitDisplayFields.studentSign ? 'ON' : 'OFF'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAdmitCheckboxChange('studentSign')}
+                        className={`w-10 h-5.5 rounded-full relative transition-colors ${admitDisplayFields.studentSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                      >
+                        <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${admitDisplayFields.studentSign ? 'left-5' : 'left-0.5'}`} />
+                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                      <input
+                        type="text"
+                        value={admitStudentSignLabel}
+                        onChange={e => setAdmitStudentSignLabel(e.target.value)}
+                        disabled={!admitDisplayFields.studentSign}
+                        placeholder="Student's Sign."
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 4. Parent Sign */}
+                  <div className={`p-4 rounded-2xl border transition-all ${
+                    admitDisplayFields.parentSign 
+                      ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
+                      : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                  }`}>
+                    <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-100">Parent Sign</span>
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          admitDisplayFields.parentSign 
+                            ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                        }`}>
+                          {admitDisplayFields.parentSign ? 'ON' : 'OFF'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAdmitCheckboxChange('parentSign')}
+                        className={`w-10 h-5.5 rounded-full relative transition-colors ${admitDisplayFields.parentSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                      >
+                        <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${admitDisplayFields.parentSign ? 'left-5' : 'left-0.5'}`} />
+                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                      <input
+                        type="text"
+                        value={admitParentSignLabel}
+                        onChange={e => setAdmitParentSignLabel(e.target.value)}
+                        disabled={!admitDisplayFields.parentSign}
+                        placeholder="Parent's Sign."
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 5. School Stamp */}
+                  <div className={`p-4 rounded-2xl border transition-all ${
+                    admitDisplayFields.schoolStamp 
+                      ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
+                      : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                  }`}>
+                    <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-100">School Stamp</span>
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          admitDisplayFields.schoolStamp 
+                            ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                        }`}>
+                          {admitDisplayFields.schoolStamp ? 'ON' : 'OFF'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAdmitCheckboxChange('schoolStamp')}
+                        className={`w-10 h-5.5 rounded-full relative transition-colors ${admitDisplayFields.schoolStamp ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                      >
+                        <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${admitDisplayFields.schoolStamp ? 'left-5' : 'left-0.5'}`} />
+                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Seal Status</label>
+                      <div className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs bg-slate-50 dark:bg-slate-850 font-semibold text-slate-600 dark:text-slate-300 flex items-center justify-between">
+                        <span>Official Institute Seal</span>
+                        <span className="text-[10px] text-teal-600 font-bold">{admitDisplayFields.schoolStamp ? 'Included' : 'Excluded'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -2430,9 +2719,12 @@ function AddSetupWizardContent() {
                         <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
                           ⚡ Auto-Updating
                         </span>
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/60">
+                          ✍️ Click Any Label to Edit Live
+                        </span>
                       </div>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        Selecting any template style or color above automatically updates this live printable marksheet preview in real time.
+                        Selecting any template style or color above automatically updates this live printable marksheet preview in real time. Click any primary label or header to edit text directly.
                       </p>
                     </div>
                   </div>
@@ -2473,6 +2765,9 @@ function AddSetupWizardContent() {
                       showHeaderSign={showHeaderSign}
                       showHeaderStamp={showHeaderStamp}
                       columnsList={columnsList}
+                      editable={true}
+                      customLabels={marksheetCustomLabels}
+                      onUpdateField={handleMarksheetFieldUpdate}
                     />
                   </div>
                 </div>
@@ -2601,21 +2896,296 @@ function AddSetupWizardContent() {
               </div>
             </div>
 
-            {/* Columns Checkbox Grid */}
-            <div className="space-y-4">
-              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Display Fields on Marksheet</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 rounded-2xl text-xs text-slate-700 dark:text-slate-300">
-                {Object.entries(columnsList).map(([key, enabled]) => (
-                  <label key={key} className="flex items-center gap-2.5 cursor-pointer capitalize">
-                    <input 
-                      type="checkbox"
-                      checked={enabled}
-                      onChange={() => setColumnsList(prev => ({ ...prev, [key]: !enabled }))}
-                      className="w-4 h-4 rounded text-teal-600 border-slate-300 focus:ring-teal-500"
+            {/* Display Fields on Marksheet */}
+            <div className="space-y-3 pt-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5 gap-2">
+                <div>
+                  <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide block">
+                    Select Fields to Display on Marksheet
+                  </span>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Check or uncheck fields to show or hide them dynamically on the live printable marksheet preview.
+                  </p>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-teal-600 hover:text-teal-700 select-none shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={isMarksheetAllSelected}
+                    onChange={e => handleMarksheetSelectAllChange(e.target.checked)}
+                    className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500 rounded"
+                  />
+                  <span>Select All Fields</span>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-xs font-bold text-slate-700 dark:text-slate-300">
+                {MARKSHEET_DISPLAY_FIELDS_KEYS.map(f => {
+                  const isChecked = !!(columnsList as any)[f.key]
+                  return (
+                    <label 
+                      key={f.key} 
+                      className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                        isChecked 
+                          ? 'bg-teal-50/60 dark:bg-teal-950/20 border-teal-300 dark:border-teal-700 text-teal-900 dark:text-teal-200 shadow-2xs font-bold' 
+                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-medium hover:border-slate-300'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleMarksheetCheckboxChange(f.key)}
+                        className="w-3.5 h-3.5 text-teal-600 border-slate-300 focus:ring-teal-500 rounded"
+                      />
+                      <span className="truncate">{f.label}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* SEPARATE AUTHORITY SIGNATURES & OFFICIAL STAMP CONFIGURATION (EXACTLY LIKE ADMIT CARD) */}
+            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/50 p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-800 gap-2">
+                <div>
+                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                    Authority Signatures & Official Stamp Setup
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Enable or disable required signatures with individual ON / OFF toggles and configure their printed titles.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                {/* 1. Principal Sign (FIRST PLACE - Auto-fetched from Institute Details) */}
+                <div className={`p-4 rounded-2xl border transition-all ${
+                  columnsList.principalSign 
+                    ? 'bg-white dark:bg-slate-800 border-teal-300 dark:border-teal-700/80 shadow-xs ring-1 ring-teal-500/15' 
+                    : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                }`}>
+                  <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-slate-800 dark:text-slate-100">Principal Sign</span>
+                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        columnsList.principalSign 
+                          ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                          : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                      }`}>
+                        {columnsList.principalSign ? 'ON' : 'OFF'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleMarksheetCheckboxChange('principalSign')}
+                      className={`w-10 h-5.5 rounded-full relative transition-colors ${columnsList.principalSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                    >
+                      <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${columnsList.principalSign ? 'left-5' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+
+                  {/* Auto-fetch Institute Detail Pill */}
+                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200/80 dark:border-teal-800/80 text-[10.5px] text-teal-800 dark:text-teal-200 mb-2.5">
+                    <Sparkles className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                    <div className="truncate">
+                      <span className="text-slate-500 dark:text-slate-400 text-[10px] block">Auto-fetched from Institute:</span>
+                      <span className="font-extrabold capitalize text-teal-700 dark:text-teal-300">{principalName || 'Principal'}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                      {principalName && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const val = `Principal (${principalName})`
+                            setMarksheetPrincipalSignLabel(val)
+                            handleMarksheetFieldUpdate('customLabels', { principalSignLabel: val })
+                          }}
+                          className="text-[9px] font-bold text-teal-600 hover:text-teal-700 underline"
+                        >
+                          + Add Name
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={marksheetPrincipalSignLabel}
+                      onChange={e => {
+                        setMarksheetPrincipalSignLabel(e.target.value)
+                        handleMarksheetFieldUpdate('customLabels', { principalSignLabel: e.target.value })
+                      }}
+                      disabled={!columnsList.principalSign}
+                      placeholder="Principal's Signature"
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
                     />
-                    <span>{key.replace(/([A-Z])/g, ' $1')}</span>
-                  </label>
-                ))}
+                  </div>
+                </div>
+
+                {/* 2. Class Teacher Sign */}
+                <div className={`p-4 rounded-2xl border transition-all ${
+                  columnsList.teacherSign 
+                    ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
+                    : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                }`}>
+                  <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-slate-800 dark:text-slate-100">Teacher Sign</span>
+                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        columnsList.teacherSign 
+                          ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                          : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                      }`}>
+                        {columnsList.teacherSign ? 'ON' : 'OFF'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleMarksheetCheckboxChange('teacherSign')}
+                      className={`w-10 h-5.5 rounded-full relative transition-colors ${columnsList.teacherSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                    >
+                      <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${columnsList.teacherSign ? 'left-5' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                    <input
+                      type="text"
+                      value={marksheetTeacherSignLabel}
+                      onChange={e => {
+                        setMarksheetTeacherSignLabel(e.target.value)
+                        handleMarksheetFieldUpdate('customLabels', { teacherSignLabel: e.target.value })
+                      }}
+                      disabled={!columnsList.teacherSign}
+                      placeholder="Class Teacher's Signature"
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
+                    />
+                  </div>
+                </div>
+
+                {/* 3. Exam Controller / In-Charge Sign */}
+                <div className={`p-4 rounded-2xl border transition-all ${
+                  columnsList.controllerSign 
+                    ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
+                    : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                }`}>
+                  <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-slate-800 dark:text-slate-100">Exam Controller Sign</span>
+                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        columnsList.controllerSign 
+                          ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                          : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                      }`}>
+                        {columnsList.controllerSign ? 'ON' : 'OFF'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleMarksheetCheckboxChange('controllerSign')}
+                      className={`w-10 h-5.5 rounded-full relative transition-colors ${columnsList.controllerSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                    >
+                      <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${columnsList.controllerSign ? 'left-5' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                    <input
+                      type="text"
+                      value={marksheetControllerSignLabel}
+                      onChange={e => {
+                        setMarksheetControllerSignLabel(e.target.value)
+                        handleMarksheetFieldUpdate('customLabels', { examInChargeSignLabel: e.target.value })
+                      }}
+                      disabled={!columnsList.controllerSign}
+                      placeholder="Exam Controller"
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
+                    />
+                  </div>
+                </div>
+
+                {/* 4. Parent / Guardian Sign */}
+                <div className={`p-4 rounded-2xl border transition-all ${
+                  columnsList.parentSign 
+                    ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
+                    : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                }`}>
+                  <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-slate-800 dark:text-slate-100">Parent Sign</span>
+                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        columnsList.parentSign 
+                          ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                          : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                      }`}>
+                        {columnsList.parentSign ? 'ON' : 'OFF'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleMarksheetCheckboxChange('parentSign')}
+                      className={`w-10 h-5.5 rounded-full relative transition-colors ${columnsList.parentSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                    >
+                      <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${columnsList.parentSign ? 'left-5' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                    <input
+                      type="text"
+                      value={marksheetParentSignLabel}
+                      onChange={e => {
+                        setMarksheetParentSignLabel(e.target.value)
+                        handleMarksheetFieldUpdate('customLabels', { parentSignLabel: e.target.value })
+                      }}
+                      disabled={!columnsList.parentSign}
+                      placeholder="Parent / Guardian Sign"
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
+                    />
+                  </div>
+                </div>
+
+                {/* 5. Official Stamp & Seal */}
+                <div className={`p-4 rounded-2xl border transition-all ${
+                  showHeaderStamp 
+                    ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
+                    : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                }`}>
+                  <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-slate-800 dark:text-slate-100">Official Stamp / Seal</span>
+                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        showHeaderStamp 
+                          ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                          : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                      }`}>
+                        {showHeaderStamp ? 'ON' : 'OFF'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowHeaderStamp(!showHeaderStamp)}
+                      className={`w-10 h-5.5 rounded-full relative transition-colors ${showHeaderStamp ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                    >
+                      <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showHeaderStamp ? 'left-5' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Stamp Title</label>
+                    <input
+                      type="text"
+                      value={marksheetSealLabel}
+                      onChange={e => {
+                        setMarksheetSealLabel(e.target.value)
+                        handleMarksheetFieldUpdate('customLabels', { officialSealLabel: e.target.value })
+                      }}
+                      disabled={!showHeaderStamp}
+                      placeholder="OFFICIAL SEAL"
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -3239,6 +3809,9 @@ function AddSetupWizardContent() {
                   showHeaderSign={showHeaderSign}
                   showHeaderStamp={showHeaderStamp}
                   columnsList={columnsList}
+                  editable={true}
+                  customLabels={marksheetCustomLabels}
+                  onUpdateField={handleMarksheetFieldUpdate}
                 />
               </div>
             </div>
@@ -3319,8 +3892,10 @@ function AddSetupWizardContent() {
             studentSignLabel: admitStudentSignLabel,
             parentSignLabel: admitParentSignLabel,
             principalSignLabel: admitPrincipalSignLabel,
+            principalName: principalName,
             signatureWidth: admitSignatureWidth,
             schoolStampWidth: admitSchoolStampWidth,
+            customLabels: admitCustomLabels,
             dateCreated: new Date().toLocaleDateString('en-GB'),
             timeCreated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           }}
@@ -3330,6 +3905,8 @@ function AddSetupWizardContent() {
             fromTime: s.startTime || s.fromTime || '10:00',
             toTime: s.endTime || s.toTime || '13:00'
           }))}
+          editable={true}
+          onUpdateField={handleAdmitCardFieldUpdate}
           onClose={() => {
             setShowAdmitPreviewModal(false)
             setPreviewTargetAdmitStyle(null)

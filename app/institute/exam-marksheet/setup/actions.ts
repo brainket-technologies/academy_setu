@@ -299,3 +299,64 @@ export async function saveExamGroup(groupName: string, description?: string) {
   }
 }
 
+// -------------------------------------------------------------
+// INSTITUTION PROFILE DETAILS (Auto-fetch for Principal, Name, etc.)
+// -------------------------------------------------------------
+export async function fetchCurrentInstitutionDetails() {
+  const session = await getSession('institute_session')
+  const institutionId = session?.userId
+
+  try {
+    let res: any = null
+    if (institutionId && institutionId !== 'default_institution') {
+      res = await pool.query(`
+        SELECT 
+          id, 
+          name, 
+          affiliated_to as "affiliatedTo", 
+          affiliation_code as "affiliationCode", 
+          contact_person as "contactPerson", 
+          mobile_no as "mobileNo", 
+          email_id as "emailId", 
+          address, 
+          state, 
+          district, 
+          pincode, 
+          principal_name as "principalName", 
+          principal_sign as "principalSign"
+        FROM institutions
+        WHERE id = $1
+      `, [institutionId])
+    }
+
+    if (!res || res.rows.length === 0) {
+      res = await pool.query(`
+        SELECT 
+          id, 
+          name, 
+          affiliated_to as "affiliatedTo", 
+          affiliation_code as "affiliationCode", 
+          contact_person as "contactPerson", 
+          mobile_no as "mobileNo", 
+          email_id as "emailId", 
+          address, 
+          state, 
+          district, 
+          pincode, 
+          principal_name as "principalName", 
+          principal_sign as "principalSign"
+        FROM institutions
+        ORDER BY created_at ASC
+        LIMIT 1
+      `)
+    }
+
+    if (res && res.rows.length > 0) {
+      return { success: true, data: res.rows[0] }
+    }
+    return { success: false, data: null }
+  } catch (err: any) {
+    return { success: false, error: err.message, data: null }
+  }
+}
+

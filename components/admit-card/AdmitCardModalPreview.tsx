@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import {
   X,
   Printer,
@@ -17,7 +17,8 @@ import {
   AlertCircle,
   FileText,
   MapPin,
-  Check
+  Check,
+  Edit3
 } from 'lucide-react'
 import { AdmitCardConfig, getStoredTimetables } from '@/lib/admit-card-sync'
 
@@ -25,12 +26,18 @@ interface AdmitCardModalPreviewProps {
   card: AdmitCardConfig | null
   customSubjects?: { subjectName: string; date: string; fromTime: string; toTime: string }[]
   onClose: () => void
+  editable?: boolean
+  onUpdateField?: (field: string, value: any) => void
+  onUpdateSubject?: (idx: number, key: string, value: string) => void
 }
 
 export interface AdmitCardPaperProps {
   card: AdmitCardConfig | null
   customSubjects?: { subjectName: string; date: string; fromTime: string; toTime: string }[]
   className?: string
+  editable?: boolean
+  onUpdateField?: (field: string, value: any) => void
+  onUpdateSubject?: (idx: number, key: string, value: string) => void
 }
 
 // Convert any 3 or 6 hex code to rgba string
@@ -48,7 +55,162 @@ export function hexToRgba(hex?: string, alpha: number = 1): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({ card, customSubjects, className = '' }) => {
+export const ProperQrCode: React.FC<{
+  className?: string
+  color?: string
+}> = ({ className = 'w-20 h-20', color = '#0f172a' }) => {
+  const isFinder = (r: number, c: number) => {
+    if (r <= 6 && c <= 6) return true
+    if (r <= 6 && c >= 18) return true
+    if (r >= 18 && c <= 6) return true
+    return false
+  }
+
+  const isAlignment = (r: number, c: number) => {
+    return r >= 16 && r <= 20 && c >= 16 && c <= 20
+  }
+
+  const isTiming = (r: number, c: number) => {
+    return (r === 6 && c >= 7 && c <= 17) || (c === 6 && r >= 7 && r <= 17)
+  }
+
+  const modules: { r: number; c: number }[] = []
+  for (let r = 0; r < 25; r++) {
+    for (let c = 0; c < 25; c++) {
+      if (isFinder(r, c)) continue
+      if (isAlignment(r, c)) continue
+      if (isTiming(r, c)) {
+        if ((r === 6 && c % 2 === 0) || (c === 6 && r % 2 === 0)) {
+          modules.push({ r, c })
+        }
+        continue
+      }
+      const v = (r * 11 + c * 17 + (r ^ c) * 5 + (r * c)) % 7
+      if (v === 0 || v === 2 || v === 4) {
+        modules.push({ r, c })
+      }
+    }
+  }
+
+  return (
+    <svg
+      viewBox="0 0 25 25"
+      className={className}
+      shapeRendering="crispEdges"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect width="25" height="25" fill="#ffffff" />
+      {/* Top-Left Finder */}
+      <rect x="0" y="0" width="7" height="7" fill={color} />
+      <rect x="1" y="1" width="5" height="5" fill="#ffffff" />
+      <rect x="2" y="2" width="3" height="3" fill={color} />
+
+      {/* Top-Right Finder */}
+      <rect x="18" y="0" width="7" height="7" fill={color} />
+      <rect x="19" y="1" width="5" height="5" fill="#ffffff" />
+      <rect x="20" y="2" width="3" height="3" fill={color} />
+
+      {/* Bottom-Left Finder */}
+      <rect x="0" y="18" width="7" height="7" fill={color} />
+      <rect x="1" y="19" width="5" height="5" fill="#ffffff" />
+      <rect x="2" y="20" width="3" height="3" fill={color} />
+
+      {/* Alignment Pattern */}
+      <rect x="16" y="16" width="5" height="5" fill={color} />
+      <rect x="17" y="17" width="3" height="3" fill="#ffffff" />
+      <rect x="18" y="18" width="1" height="1" fill={color} />
+
+      {/* Data & Timing Modules */}
+      {modules.map(m => (
+        <rect key={`${m.r}-${m.c}`} x={m.c} y={m.r} width="1" height="1" fill={color} />
+      ))}
+    </svg>
+  )
+}
+
+export interface LiveEditableTextProps {
+  value: string
+  onSave?: (newValue: string) => void
+  className?: string
+  style?: React.CSSProperties
+  tag?: 'h1' | 'h2' | 'h3' | 'h4' | 'p' | 'span' | 'div'
+  multiline?: boolean
+  placeholder?: string
+  editable?: boolean
+  title?: string
+}
+
+export const LiveEditableText: React.FC<LiveEditableTextProps> = ({
+  value,
+  onSave,
+  className = '',
+  style,
+  tag = 'span',
+  multiline = false,
+  placeholder = 'Click to edit...',
+  editable = true,
+  title = 'Click to edit text live'
+}) => {
+  const [currentVal, setCurrentVal] = useState(value || '')
+  const elRef = useRef<HTMLElement | null>(null)
+  const isFocused = useRef(false)
+
+  useEffect(() => {
+    if (!isFocused.current) {
+      setCurrentVal(value || '')
+      if (elRef.current && elRef.current.innerText !== (value || '')) {
+        elRef.current.innerText = value || ''
+      }
+    }
+  }, [value])
+
+  if (!editable) {
+    const Tag = tag as any
+    return <Tag className={className} style={style}>{value}</Tag>
+  }
+
+  const Tag = tag as any
+
+  return (
+    <Tag
+      ref={elRef}
+      contentEditable
+      suppressContentEditableWarning
+      spellCheck={false}
+      title={title}
+      className={`${className} outline-none cursor-pointer transition-all rounded-xs hover:outline hover:outline-1 hover:outline-dashed hover:outline-amber-500/80 hover:bg-amber-50/60 dark:hover:bg-amber-950/30 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white focus:text-slate-900 print:outline-none print:ring-0 print:bg-transparent`}
+      style={style}
+      onFocus={() => {
+        isFocused.current = true
+      }}
+      onBlur={(e: React.FocusEvent<HTMLElement>) => {
+        isFocused.current = false
+        const text = (e.currentTarget.innerText || '').trim()
+        setCurrentVal(text)
+        if (text !== value) {
+          onSave?.(text)
+        }
+      }}
+      onKeyDown={(e: React.KeyboardEvent<HTMLElement>) => {
+        if (e.key === 'Enter' && !multiline) {
+          e.preventDefault()
+          e.currentTarget.blur()
+        }
+      }}
+    >
+      {currentVal || placeholder}
+    </Tag>
+  )
+}
+
+export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
+  card,
+  customSubjects,
+  className = '',
+  editable = true,
+  onUpdateField,
+  onUpdateSubject
+}) => {
   if (!card) return null
 
   // Lookup timetable subjects
@@ -67,6 +229,34 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({ card, customSubj
       ]
 
   const fields = card.displayFields || {}
+
+  // Helper to accurately determine field visibility from checkboxes
+  const isFieldVisible = (key: string): boolean => {
+    if (fields && typeof fields[key] === 'boolean') {
+      return fields[key]
+    }
+    const defaults: { [k: string]: boolean } = {
+      name: true,
+      fatherName: true,
+      motherName: true,
+      mobileNo: false,
+      admissionNo: true,
+      registrationNo: true,
+      rollNo: true,
+      enrollmentNo: false,
+      dob: true,
+      address: true,
+      class: true,
+      section: true,
+      photo: true,
+      studentSign: true,
+      teacherSign: true,
+      principalSign: true,
+      parentSign: true,
+      schoolStamp: false
+    }
+    return defaults[key] ?? true
+  }
 
   // Determine template style type (normalize for backwards compatibility)
   const styleRaw = (card.templateStyle || 'Classic Board').toLowerCase()
@@ -103,10 +293,109 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({ card, customSubj
   const instructions = card.instructions ||
     '1. Candidates must arrive at the examination center 30 minutes before scheduled time.\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.'
 
+  const principalName = card.principalName || ''
+  const studentSignTitle = card.studentSignLabel || "Candidate Sign"
+  const teacherSignTitle = card.teacherSignLabel || "Teacher Sign"
+  const parentSignTitle = card.parentSignLabel || "Parent Sign"
+  const principalSignTitle = card.principalSignLabel || "Principal Sign & Seal"
+  const showTimetable = card.showExamTimeTable !== false
+
+  // All primary labels are editable live so the user can customize template headers/labels
+  const [labels, setLabels] = useState<Record<string, string>>({
+    estd: 'ESTD',
+    estdYear: '2010',
+    boardFormat: 'Board Format',
+    affTo: 'Aff. To :',
+    schoolCode: 'School Code :',
+    affNo: 'Aff. No. :',
+    udiseCode: 'UDISE Code :',
+    email: 'Email :',
+    helpline: 'Helpline :',
+    qrCodeText: 'CODE: 123456',
+    specimenSign: 'Specimen Sign',
+    studentPhoto: 'Student Photo',
+    examTitle: 'EXAMINATION :',
+    sessionTitle: 'ACADEMIC SESSION :',
+    centerCode: 'Center :',
+    admissionNo: 'Admission No. :',
+    registrationNo: 'Registration No. :',
+    rollNo: 'Roll No. :',
+    enrollmentNo: 'Enrollment No. :',
+    name: 'Candidate Name :',
+    fatherName: 'Father Name :',
+    motherName: 'Mother Name :',
+    class: 'Class :',
+    section: 'Section :',
+    dob: 'Date of Birth :',
+    mobileNo: 'Mobile No. :',
+    address: 'Address :',
+    timetableHeading: 'EXAMINATION DATE SHEET & TIME TABLE',
+    thSNo: 'S.No.',
+    thDate: 'Exam Date',
+    thTime: 'Time Slot',
+    thSubject: 'Subject / Paper',
+    thInvigilator: 'Invigilator Sign',
+    instructionsHeading: 'Important Candidate Instructions:',
+    noteLabel: 'Note:',
+    reportingTime: 'Reporting Time',
+    gateClosure: 'Gate Closure',
+    stubTitle: 'Detachable Invigilator Attendance Slip',
+    stubHallCopy: 'Exam Hall Copy',
+    verifiedPass: 'Verified Pass',
+    activeBadge: 'ACTIVE',
+    ...(card.customLabels || {})
+  })
+
+  useEffect(() => {
+    if (card.customLabels) {
+      setLabels(prev => ({ ...prev, ...card.customLabels }))
+    }
+  }, [card.customLabels])
+
+  const updateLabel = (key: string, val: string) => {
+    setLabels(prev => {
+      const updated = { ...prev, [key]: val }
+      onUpdateField?.('customLabels', updated)
+      return updated
+    })
+  }
+
+  // Specimen student data (static display, not editable)
+  const specimenStudent = {
+    name: 'Aarav Sharma',
+    rollNo: '10104',
+    admissionNo: 'ADM-2025-089',
+    registrationNo: 'REG-2025-9842',
+    enrollmentNo: 'ENR-884920',
+    fatherName: 'Rajesh Sharma',
+    motherName: 'Sunita Sharma',
+    dob: '15/08/2010',
+    mobileNo: '+91 98765 43210',
+    address: 'H.No. 45, Green Avenue, Knowledge Park, New Delhi - 110092',
+    className: card.className || 'Class X',
+    section: 'Section A',
+    affiliateTo: 'Central Board of Secondary Education',
+    schoolCode: '123456',
+    affNo: '2130842',
+    udiseCode: '09100201923',
+    email: 'contact@cosmopolitan.edu',
+    phone: '+91 11 2345 6789 / 9999999999',
+    centerCode: 'CC-104',
+    centerName: 'Cosmopolitan Examination Center'
+  }
+
+  const activeSigns = [
+    isFieldVisible('principalSign') && { key: 'principalSign', label: principalSignTitle, type: 'sign', name: principalName },
+    isFieldVisible('teacherSign') && { key: 'teacherSign', label: teacherSignTitle, type: 'sign' },
+    isFieldVisible('studentSign') && { key: 'studentSign', label: studentSignTitle, type: 'sign' },
+    isFieldVisible('parentSign') && { key: 'parentSign', label: parentSignTitle, type: 'sign' },
+    isFieldVisible('schoolStamp') && { key: 'schoolStamp', label: 'School Stamp', type: 'stamp' }
+  ].filter(Boolean) as { key: string; label: string; type: 'sign' | 'stamp'; name?: string }[]
+
   return (
     <div
       id="printable-admit-card-container"
-      className={`w-full max-w-[800px] bg-white text-slate-900 flex flex-col font-sans shrink-0 relative shadow-2xl rounded-2xl select-none print:shadow-none print:rounded-none overflow-hidden ${className}`}
+      className={`w-full max-w-[800px] bg-white text-slate-900 flex flex-col font-sans shrink-0 relative shadow-2xl rounded-2xl print:shadow-none print:rounded-none overflow-hidden ${className}`}
     >
       {/* ========================================================================= */}
       {/* TEMPLATE 1: CLASSIC BOARD OFFICIAL (CBSE / State Board Official Style)    */}
@@ -130,44 +419,89 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({ card, customSubj
                   color: primaryColor
                 }}
               >
-                <span className="text-[8px] uppercase tracking-tighter">ESTD</span>
-                <span className="text-sm font-black">2010</span>
+                <LiveEditableText
+                  value={labels.estd || 'ESTD'}
+                  editable={editable}
+                  onSave={val => updateLabel('estd', val)}
+                  className="text-[8px] uppercase tracking-tighter"
+                />
+                <LiveEditableText
+                  value={labels.estdYear || '2010'}
+                  editable={editable}
+                  onSave={val => updateLabel('estdYear', val)}
+                  className="text-sm font-black"
+                />
               </div>
 
               <div>
-                <h1 className="text-xl sm:text-2xl font-black uppercase tracking-wide" style={{ color: primaryColor }}>
-                  {schoolName}
-                </h1>
-                <p className="text-[10.5px] font-semibold text-slate-600 leading-tight">
-                  {schoolAddress}
-                </p>
+                <LiveEditableText
+                  tag="h1"
+                  value={schoolName}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('schoolName', val)}
+                  className="text-xl sm:text-2xl font-black uppercase tracking-wide inline-block"
+                  style={{ color: primaryColor }}
+                />
+                <LiveEditableText
+                  tag="p"
+                  value={schoolAddress}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('schoolAddress', val)}
+                  className="text-[10.5px] font-semibold text-slate-600 leading-tight block mt-0.5"
+                />
 
                 <div className="grid grid-cols-2 gap-x-5 gap-y-0.5 text-[9px] font-bold text-slate-700 mt-1.5">
-                  <div>Aff. To : Central Board of Secondary Education</div>
-                  <div>School Code : 123456</div>
-                  <div>Aff. No. : 2130842</div>
-                  <div>UDISE Code : 09100201923</div>
+                  <div>
+                    <LiveEditableText value={labels.affTo || 'Aff. To :'} editable={editable} onSave={val => updateLabel('affTo', val)} className="inline-block" />{' '}
+                    <span className="text-slate-800 font-semibold">{specimenStudent.affiliateTo}</span>
+                  </div>
+                  <div>
+                    <LiveEditableText value={labels.schoolCode || 'School Code :'} editable={editable} onSave={val => updateLabel('schoolCode', val)} className="inline-block" />{' '}
+                    <span className="text-slate-800 font-semibold">{specimenStudent.schoolCode}</span>
+                  </div>
+                  <div>
+                    <LiveEditableText value={labels.affNo || 'Aff. No. :'} editable={editable} onSave={val => updateLabel('affNo', val)} className="inline-block" />{' '}
+                    <span className="text-slate-800 font-semibold">{specimenStudent.affNo}</span>
+                  </div>
+                  <div>
+                    <LiveEditableText value={labels.udiseCode || 'UDISE Code :'} editable={editable} onSave={val => updateLabel('udiseCode', val)} className="inline-block" />{' '}
+                    <span className="text-slate-800 font-semibold">{specimenStudent.udiseCode}</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-col items-end gap-1">
-              <span
-                className="px-2 py-0.5 rounded text-[8px] font-black uppercase text-white shadow-xs"
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <LiveEditableText
+                value={labels.boardFormat || 'Board Format'}
+                editable={editable}
+                onSave={val => updateLabel('boardFormat', val)}
+                className="px-2.5 py-0.5 rounded text-[8px] font-black uppercase text-white shadow-xs inline-block"
                 style={{ backgroundColor: primaryColor }}
-              >
-                Board Format
-              </span>
-              <QrCode className="w-12 h-12 text-slate-800 bg-white p-0.5 border border-slate-200 rounded mt-0.5" />
-              <span className="text-[7.5px] text-slate-400 font-bold font-mono">CODE: 123456</span>
+              />
+              <div className="bg-white p-1 rounded-md border border-slate-300 shadow-2xs flex flex-col items-center">
+                <ProperQrCode className="w-20 h-20" color={primaryColor} />
+                <LiveEditableText
+                  value={labels.qrCodeText || 'CODE: 123456'}
+                  editable={editable}
+                  onSave={val => updateLabel('qrCodeText', val)}
+                  className="text-[7.5px] text-slate-500 font-bold font-mono tracking-wider inline-block mt-0.5"
+                />
+              </div>
             </div>
           </div>
 
           {/* Sub Header Contact */}
           <div className="flex justify-center gap-6 text-[9.5px] font-bold text-slate-600 border-b pb-1.5 mb-3" style={{ borderColor: borderTint }}>
-            <span>Email : contact@cosmopolitan.edu</span>
+            <span>
+              <LiveEditableText value={labels.email || 'Email :'} editable={editable} onSave={val => updateLabel('email', val)} className="inline-block" />{' '}
+              <span className="font-normal text-slate-700">{specimenStudent.email}</span>
+            </span>
             <span>•</span>
-            <span>Helpline : +91 11 2345 6789 / 9999999999</span>
+            <span>
+              <LiveEditableText value={labels.helpline || 'Helpline :'} editable={editable} onSave={val => updateLabel('helpline', val)} className="inline-block" />{' '}
+              <span className="font-normal text-slate-700">{specimenStudent.phone}</span>
+            </span>
           </div>
 
           {/* Title Banner */}
@@ -176,13 +510,17 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({ card, customSubj
               className="inline-block px-8 py-1.5 rounded-lg shadow-sm"
               style={{ backgroundColor: primaryColor }}
             >
-              <h2 className="text-sm sm:text-base font-black tracking-widest uppercase text-white">
-                {admitLabel}
-              </h2>
+              <LiveEditableText
+                tag="h2"
+                value={admitLabel}
+                editable={editable}
+                onSave={val => onUpdateField?.('admitCardLabel', val)}
+                className="text-sm sm:text-base font-black tracking-widest uppercase text-white inline-block"
+              />
             </div>
           </div>
 
-          {/* Term & Session info bar */}
+          {/* Term & Session info bar (LABELS AND EXAM/SESSION ARE EDITABLE) */}
           <div
             className="flex justify-between items-center text-[11px] font-black uppercase mb-3.5 px-3 py-1.5 rounded-lg border"
             style={{
@@ -191,106 +529,190 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({ card, customSubj
               color: primaryColor
             }}
           >
-            <span>EXAMINATION : {examName}</span>
-            <span>ACADEMIC SESSION : {session}</span>
+            <span>
+              <LiveEditableText value={labels.examTitle || 'EXAMINATION :'} editable={editable} onSave={val => updateLabel('examTitle', val)} className="inline-block" />{' '}
+              <LiveEditableText value={examName} editable={editable} onSave={val => onUpdateField?.('examName', val)} className="inline-block ml-1" />
+            </span>
+            <span>
+              <LiveEditableText value={labels.sessionTitle || 'ACADEMIC SESSION :'} editable={editable} onSave={val => updateLabel('sessionTitle', val)} className="inline-block" />{' '}
+              <LiveEditableText value={session} editable={editable} onSave={val => onUpdateField?.('session', val)} className="inline-block ml-1" />
+            </span>
           </div>
 
-          {/* Student Details & Photo */}
+          {/* Student Details (PRIMARY LABELS ARE EDITABLE, DUMMY SPECIMEN DATA IS STATIC) */}
           <div className="flex gap-4 items-start mb-4">
             <div className="flex-1 grid grid-cols-2 gap-x-5 gap-y-2 text-xs text-slate-800">
-              {fields.admissionNo !== false && (
-                <div className="flex">
-                  <span className="font-extrabold whitespace-nowrap">Admission No. :</span>
+              {isFieldVisible('admissionNo') && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.admissionNo || 'Admission No. :'}
+                    editable={editable}
+                    onSave={val => updateLabel('admissionNo', val)}
+                    className="font-extrabold whitespace-nowrap inline-block"
+                  />
                   <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-900 px-1">
-                    ADM-2025-089
+                    {specimenStudent.admissionNo}
                   </span>
                 </div>
               )}
 
-              {fields.rollNo !== false && (
-                <div className="flex">
-                  <span className="font-extrabold whitespace-nowrap">Roll No. :</span>
+              {isFieldVisible('registrationNo') && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.registrationNo || 'Registration No. :'}
+                    editable={editable}
+                    onSave={val => updateLabel('registrationNo', val)}
+                    className="font-extrabold whitespace-nowrap inline-block"
+                  />
+                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-900 px-1">
+                    {specimenStudent.registrationNo}
+                  </span>
+                </div>
+              )}
+
+              {isFieldVisible('rollNo') && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.rollNo || 'Roll No. :'}
+                    editable={editable}
+                    onSave={val => updateLabel('rollNo', val)}
+                    className="font-extrabold whitespace-nowrap inline-block"
+                  />
                   <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-black text-slate-900 px-1" style={{ color: primaryColor }}>
-                    10104
+                    {specimenStudent.rollNo}
                   </span>
                 </div>
               )}
 
-              {fields.name !== false && (
-                <div className="flex col-span-2">
-                  <span className="font-extrabold whitespace-nowrap">Candidate Name :</span>
+              {isFieldVisible('enrollmentNo') && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.enrollmentNo || 'Enrollment No. :'}
+                    editable={editable}
+                    onSave={val => updateLabel('enrollmentNo', val)}
+                    className="font-extrabold whitespace-nowrap inline-block"
+                  />
+                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-900 px-1">
+                    {specimenStudent.enrollmentNo}
+                  </span>
+                </div>
+              )}
+
+              {isFieldVisible('name') && (
+                <div className="flex items-center col-span-2">
+                  <LiveEditableText
+                    value={labels.name || 'Candidate Name :'}
+                    editable={editable}
+                    onSave={val => updateLabel('name', val)}
+                    className="font-extrabold whitespace-nowrap inline-block"
+                  />
                   <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-black text-sm px-1" style={{ color: primaryColor }}>
-                    Aarav Sharma
+                    {specimenStudent.name}
                   </span>
                 </div>
               )}
 
-              {fields.fatherName !== false && (
-                <div className="flex">
-                  <span className="font-extrabold whitespace-nowrap">Father Name :</span>
+              {isFieldVisible('fatherName') && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.fatherName || 'Father Name :'}
+                    editable={editable}
+                    onSave={val => updateLabel('fatherName', val)}
+                    className="font-extrabold whitespace-nowrap inline-block"
+                  />
                   <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-700 px-1">
-                    Rajesh Sharma
+                    {specimenStudent.fatherName}
                   </span>
                 </div>
               )}
 
-              {fields.motherName !== false && (
-                <div className="flex">
-                  <span className="font-extrabold whitespace-nowrap">Mother Name :</span>
+              {isFieldVisible('motherName') && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.motherName || 'Mother Name :'}
+                    editable={editable}
+                    onSave={val => updateLabel('motherName', val)}
+                    className="font-extrabold whitespace-nowrap inline-block"
+                  />
                   <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-700 px-1">
-                    Sunita Sharma
+                    {specimenStudent.motherName}
                   </span>
                 </div>
               )}
 
-              {fields.class !== false && (
-                <div className="flex">
-                  <span className="font-extrabold whitespace-nowrap">Class :</span>
+              {isFieldVisible('class') && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.class || 'Class :'}
+                    editable={editable}
+                    onSave={val => updateLabel('class', val)}
+                    className="font-extrabold whitespace-nowrap inline-block"
+                  />
                   <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-black text-slate-900 px-1">
                     {classNameStr}
                   </span>
                 </div>
               )}
 
-              {fields.section !== false && (
-                <div className="flex">
-                  <span className="font-extrabold whitespace-nowrap">Section :</span>
+              {isFieldVisible('section') && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.section || 'Section :'}
+                    editable={editable}
+                    onSave={val => updateLabel('section', val)}
+                    className="font-extrabold whitespace-nowrap inline-block"
+                  />
                   <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-black text-slate-900 px-1">
-                    Section A
+                    {specimenStudent.section}
                   </span>
                 </div>
               )}
 
-              {fields.dob !== false && (
-                <div className="flex">
-                  <span className="font-extrabold whitespace-nowrap">Date of Birth :</span>
+              {isFieldVisible('dob') && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.dob || 'Date of Birth :'}
+                    editable={editable}
+                    onSave={val => updateLabel('dob', val)}
+                    className="font-extrabold whitespace-nowrap inline-block"
+                  />
                   <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-700 px-1">
-                    15/08/2010
+                    {specimenStudent.dob}
                   </span>
                 </div>
               )}
 
-              {fields.mobileNo !== false && (
-                <div className="flex">
-                  <span className="font-extrabold whitespace-nowrap">Mobile No. :</span>
+              {isFieldVisible('mobileNo') && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.mobileNo || 'Mobile No. :'}
+                    editable={editable}
+                    onSave={val => updateLabel('mobileNo', val)}
+                    className="font-extrabold whitespace-nowrap inline-block"
+                  />
                   <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-700 px-1">
-                    +91 98765 43210
+                    {specimenStudent.mobileNo}
                   </span>
                 </div>
               )}
 
-              {fields.address !== false && (
-                <div className="flex col-span-2">
-                  <span className="font-extrabold whitespace-nowrap">Address :</span>
+              {isFieldVisible('address') && (
+                <div className="flex items-center col-span-2">
+                  <LiveEditableText
+                    value={labels.address || 'Address :'}
+                    editable={editable}
+                    onSave={val => updateLabel('address', val)}
+                    className="font-extrabold whitespace-nowrap inline-block"
+                  />
                   <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 text-[11px] text-slate-600 px-1">
-                    H.No. 45, Green Avenue, Knowledge Park, New Delhi - 110092
+                    {specimenStudent.address}
                   </span>
                 </div>
               )}
             </div>
 
             {/* Photo Box with Specimen Signature underneath */}
-            {fields.photo !== false && (
+            {isFieldVisible('photo') && (
               <div className="flex flex-col items-center gap-1 shrink-0">
                 <div
                   className="w-24 h-28 bg-slate-50 border-2 rounded flex flex-col items-center justify-center text-[9px] text-slate-400 font-bold shrink-0 shadow-xs relative overflow-hidden"
@@ -298,60 +720,95 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({ card, customSubj
                 >
                   <div className="w-full h-full flex flex-col items-center justify-center border border-dashed border-slate-300 p-1 text-center">
                     <div className="w-8 h-8 rounded-full bg-slate-200 mb-1" />
-                    <span className="text-[8px] uppercase font-bold text-slate-500">Student Photo</span>
+                    <LiveEditableText
+                      value={labels.studentPhoto || 'Student Photo'}
+                      editable={editable}
+                      onSave={val => updateLabel('studentPhoto', val)}
+                      className="text-[8px] uppercase font-bold text-slate-500 inline-block"
+                    />
                   </div>
                 </div>
-                <div
-                  className="w-24 py-1 border text-center text-[7.5px] font-black uppercase text-slate-600 rounded bg-slate-50"
-                  style={{ borderColor: borderTint }}
-                >
-                  Specimen Sign
-                </div>
+                {isFieldVisible('studentSign') && (
+                  <div
+                    className="w-24 py-1 border text-center text-[7.5px] font-black uppercase text-slate-600 rounded bg-slate-50"
+                    style={{ borderColor: borderTint }}
+                  >
+                    <LiveEditableText
+                      value={labels.specimenSign || 'Specimen Sign'}
+                      editable={editable}
+                      onSave={val => updateLabel('specimenSign', val)}
+                      className="inline-block"
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          {/* Time Table */}
-          <div className="space-y-1.5 mt-1">
-            <div
-              className="text-center font-black text-[11px] tracking-widest uppercase py-1 rounded"
-              style={{ backgroundColor: bgTintMedium, color: primaryColor }}
-            >
-              EXAMINATION DATE SHEET & TIME TABLE
-            </div>
+          {/* Time Table (HEADING AND TABLE COLUMN HEADERS ARE EDITABLE LABELS) */}
+          {showTimetable && (
+            <div className="space-y-1.5 mt-1">
+              <div
+                className="text-center font-black text-[11px] tracking-widest uppercase py-1 rounded"
+                style={{ backgroundColor: bgTintMedium, color: primaryColor }}
+              >
+                <LiveEditableText
+                  value={labels.timetableHeading || 'EXAMINATION DATE SHEET & TIME TABLE'}
+                  editable={editable}
+                  onSave={val => updateLabel('timetableHeading', val)}
+                  className="inline-block"
+                />
+              </div>
 
-            <div className="border rounded-lg overflow-hidden" style={{ borderColor: borderTintStrong }}>
-              <table className="w-full text-xs text-center border-collapse">
-                <thead>
-                  <tr className="font-black text-white text-[11px]" style={{ backgroundColor: primaryColor }}>
-                    <th className="py-2 px-2 border-r border-white/20 w-12">S.No.</th>
-                    <th className="py-2 px-3 border-r border-white/20 w-28">Exam Date</th>
-                    <th className="py-2 px-3 border-r border-white/20 w-32">Time Slot</th>
-                    <th className="py-2 px-3 border-r border-white/20 text-left">Subject / Paper</th>
-                    <th className="py-2 px-3 w-32">Invigilator Sign</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {subjects.map((sub: any, sidx: number) => (
-                    <tr
-                      key={sidx}
-                      className="border-b font-semibold text-slate-700"
-                      style={{
-                        borderColor: borderTint,
-                        backgroundColor: sidx % 2 === 0 ? 'transparent' : bgTintSubtle
-                      }}
-                    >
-                      <td className="py-1.5 border-r font-bold" style={{ borderColor: borderTint }}>{sidx + 1}.</td>
-                      <td className="py-1.5 border-r font-bold text-slate-900" style={{ borderColor: borderTint }}>{sub.date}</td>
-                      <td className="py-1.5 border-r text-slate-600" style={{ borderColor: borderTint }}>{sub.fromTime} - {sub.toTime || '13:00'}</td>
-                      <td className="py-1.5 px-3 border-r text-left text-slate-900 font-bold" style={{ borderColor: borderTint }}>{sub.subjectName}</td>
-                      <td className="py-1.5"></td>
+              <div className="border rounded-lg overflow-hidden" style={{ borderColor: borderTintStrong }}>
+                <table className="w-full text-xs text-center border-collapse">
+                  <thead>
+                    <tr className="font-black text-white text-[11px]" style={{ backgroundColor: primaryColor }}>
+                      <th className="py-2 px-2 border-r border-white/20 w-12">
+                        <LiveEditableText value={labels.thSNo || 'S.No.'} editable={editable} onSave={val => updateLabel('thSNo', val)} />
+                      </th>
+                      <th className="py-2 px-3 border-r border-white/20 w-28">
+                        <LiveEditableText value={labels.thDate || 'Exam Date'} editable={editable} onSave={val => updateLabel('thDate', val)} />
+                      </th>
+                      <th className="py-2 px-3 border-r border-white/20 w-32">
+                        <LiveEditableText value={labels.thTime || 'Time Slot'} editable={editable} onSave={val => updateLabel('thTime', val)} />
+                      </th>
+                      <th className="py-2 px-3 border-r border-white/20 text-left">
+                        <LiveEditableText value={labels.thSubject || 'Subject / Paper'} editable={editable} onSave={val => updateLabel('thSubject', val)} />
+                      </th>
+                      <th className="py-2 px-3 w-32">
+                        <LiveEditableText value={labels.thInvigilator || 'Invigilator Sign'} editable={editable} onSave={val => updateLabel('thInvigilator', val)} />
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {subjects.map((sub: any, sidx: number) => (
+                      <tr
+                        key={sidx}
+                        className="border-b font-semibold text-slate-700"
+                        style={{
+                          borderColor: borderTint,
+                          backgroundColor: sidx % 2 === 0 ? 'transparent' : bgTintSubtle
+                        }}
+                      >
+                        <td className="py-1.5 border-r font-bold" style={{ borderColor: borderTint }}>{sidx + 1}.</td>
+                        <td className="py-1.5 border-r font-bold text-slate-900" style={{ borderColor: borderTint }}>
+                          {sub.date}
+                        </td>
+                        <td className="py-1.5 border-r text-slate-600" style={{ borderColor: borderTint }}>
+                          {sub.fromTime} - {sub.toTime || '13:00'}
+                        </td>
+                        <td className="py-1.5 px-3 border-r text-left text-slate-900 font-bold" style={{ borderColor: borderTint }}>
+                          {sub.subjectName}
+                        </td>
+                        <td className="py-1.5"></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Instructions */}
           {instructions && (
@@ -359,30 +816,60 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({ card, customSubj
               className="mt-3 p-2.5 rounded-lg border text-[9px] text-slate-700 leading-relaxed"
               style={{ backgroundColor: bgTintSubtle, borderColor: borderTint }}
             >
-              <span className="font-black uppercase" style={{ color: primaryColor }}>Important Candidate Instructions:</span>
-              <p className="mt-0.5 whitespace-pre-line text-slate-600">{instructions}</p>
+              <LiveEditableText
+                value={labels.instructionsHeading || 'Important Candidate Instructions:'}
+                editable={editable}
+                onSave={val => updateLabel('instructionsHeading', val)}
+                className="font-black uppercase inline-block"
+                style={{ color: primaryColor }}
+              />
+              <LiveEditableText
+                tag="p"
+                multiline
+                value={instructions}
+                editable={editable}
+                onSave={val => onUpdateField?.('instructions', val)}
+                className="mt-0.5 whitespace-pre-line text-slate-600 block"
+              />
             </div>
           )}
 
-          {/* Signatures */}
-          <div className="grid grid-cols-4 gap-4 text-center mt-8 pb-1 text-[8.5px] font-black uppercase text-slate-700">
-            <div className="flex flex-col items-center">
-              <div className="w-[85%] h-0.5 border-t border-dashed border-slate-400 mb-1.5" />
-              <span>Candidate Sign</span>
+          {/* Dynamic Signatures & Stamp */}
+          {activeSigns.length > 0 && (
+            <div className="flex justify-between items-end gap-3 text-center mt-7 pb-1 text-[8.5px] font-black uppercase text-slate-700">
+              {activeSigns.map(s => (
+                <div key={s.key} className="flex-1 flex flex-col items-center min-w-[70px]">
+                  {s.type === 'stamp' ? (
+                    <div
+                      className="w-14 h-14 rounded-full border-2 border-dashed flex flex-col items-center justify-center text-center p-1 text-[6.5px] font-black mb-1.5 leading-tight shadow-2xs"
+                      style={{ borderColor: primaryColor, color: primaryColor, backgroundColor: bgTintLight }}
+                    >
+                      <span className="text-[6px]">★ SEAL ★</span>
+                      <span className="font-extrabold text-[6.5px]">SCHOOL STAMP</span>
+                    </div>
+                  ) : (
+                    <div className="w-[85%] mb-1.5 min-h-[30px] flex flex-col items-center justify-end">
+                      {s.key === 'principalSign' && (s.name || principalName) && (
+                        <LiveEditableText
+                          value={s.name || principalName}
+                          editable={editable}
+                          onSave={val => onUpdateField?.('principalName', val)}
+                          className="font-serif italic font-bold text-[11px] text-slate-800 tracking-wider capitalize leading-tight mb-0.5 inline-block"
+                        />
+                      )}
+                      <div className="w-full h-0.5 border-t border-dashed border-slate-400" />
+                    </div>
+                  )}
+                  <LiveEditableText
+                    value={s.label}
+                    editable={editable}
+                    onSave={val => onUpdateField?.(s.key + 'Label', val)}
+                    className="truncate max-w-[130px] inline-block"
+                  />
+                </div>
+              ))}
             </div>
-            <div className="flex flex-col items-center">
-              <div className="w-[85%] h-0.5 border-t border-dashed border-slate-400 mb-1.5" />
-              <span>Parent Sign</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="w-[85%] h-0.5 border-t border-dashed border-slate-400 mb-1.5" />
-              <span>Invigilator Sign</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="w-[85%] h-0.5 border-t border-dashed border-slate-400 mb-1.5" />
-              <span>Principal Sign & Seal</span>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -402,62 +889,103 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({ card, customSubj
             <div className="space-y-4">
               {/* Badge */}
               <div className="flex items-center justify-between">
-                <span
-                  className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase text-white shadow-xs"
+                <LiveEditableText
+                  value={labels.verifiedPass || 'Verified Pass'}
+                  editable={editable}
+                  onSave={val => updateLabel('verifiedPass', val)}
+                  className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase text-white shadow-xs inline-block"
                   style={{ backgroundColor: primaryColor }}
-                >
-                  Verified Pass
-                </span>
-                <span className="text-[9px] font-black text-slate-500 font-mono">#ADM-089</span>
+                />
+                {isFieldVisible('admissionNo') && (
+                  <span className="text-[9px] font-black text-slate-500 font-mono">
+                    #{specimenStudent.admissionNo}
+                  </span>
+                )}
               </div>
 
               {/* Photo */}
-              <div className="flex flex-col items-center">
-                <div
-                  className="w-28 h-32 rounded-xl border-2 p-1 bg-white shadow-sm flex flex-col items-center justify-center relative overflow-hidden"
-                  style={{ borderColor: primaryColor }}
-                >
-                  <div className="w-full h-full rounded-lg bg-slate-100 flex flex-col items-center justify-center border border-dashed border-slate-300 text-center p-2">
-                    <User className="w-8 h-8 text-slate-400 mb-1" />
-                    <span className="text-[8px] font-bold text-slate-500 uppercase">Aarav Sharma</span>
-                  </div>
+              {isFieldVisible('photo') && (
+                <div className="flex flex-col items-center">
                   <div
-                    className="absolute bottom-1.5 right-1.5 px-1 py-0.5 rounded text-[7px] font-black text-white"
-                    style={{ backgroundColor: primaryColor }}
+                    className="w-28 h-32 rounded-xl border-2 p-1 bg-white shadow-sm flex flex-col items-center justify-center relative overflow-hidden"
+                    style={{ borderColor: primaryColor }}
                   >
-                    ACTIVE
+                    <div className="w-full h-full rounded-lg bg-slate-100 flex flex-col items-center justify-center border border-dashed border-slate-300 text-center p-2">
+                      <User className="w-8 h-8 text-slate-400 mb-1" />
+                      <LiveEditableText
+                        value={labels.studentPhoto || 'Student Photo'}
+                        editable={editable}
+                        onSave={val => updateLabel('studentPhoto', val)}
+                        className="text-[8px] font-bold text-slate-500 uppercase inline-block"
+                      />
+                    </div>
+                    <div
+                      className="absolute bottom-1.5 right-1.5 px-1 py-0.5 rounded text-[7px] font-black text-white"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      ACTIVE
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Roll No Callout Box */}
-              <div
-                className="rounded-xl p-3 text-center text-white shadow-sm"
-                style={{ backgroundColor: primaryColor }}
-              >
-                <div className="text-[9px] font-bold uppercase tracking-wider text-white/80">Roll Number</div>
-                <div className="text-xl font-black tracking-widest mt-0.5">10104</div>
-                <div className="text-[10px] font-bold text-white/90 mt-1 pt-1 border-t border-white/20">
-                  {classNameStr} • Sec A
+              {isFieldVisible('rollNo') && (
+                <div
+                  className="rounded-xl p-3 text-center text-white shadow-sm"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-white/80">
+                    <LiveEditableText
+                      value={labels.rollNo || 'Roll Number'}
+                      editable={editable}
+                      onSave={val => updateLabel('rollNo', val)}
+                      className="inline-block"
+                    />
+                  </div>
+                  <div className="text-xl font-black tracking-widest mt-0.5">
+                    {specimenStudent.rollNo}
+                  </div>
+                  {(isFieldVisible('class') || isFieldVisible('section')) && (
+                    <div className="text-[10px] font-bold text-white/90 mt-1 pt-1 border-t border-white/20">
+                      {isFieldVisible('class') ? classNameStr : ''}
+                      {isFieldVisible('class') && isFieldVisible('section') ? ' • ' : ''}
+                      {isFieldVisible('section') ? 'Sec A' : ''}
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
 
               {/* QR Code Verification */}
               <div className="bg-white p-2.5 rounded-xl border flex flex-col items-center gap-1.5 shadow-xs" style={{ borderColor: borderTint }}>
-                <QrCode className="w-16 h-16 text-slate-800" />
-                <span className="text-[7.5px] font-bold text-slate-500 text-center">Scan to Verify Candidate Record</span>
+                <ProperQrCode className="w-22 h-22" color={primaryColor} />
+                <span className="text-[7.5px] font-black uppercase tracking-wider text-slate-600 text-center">Scan to Verify Candidate Record</span>
+                <LiveEditableText
+                  value={labels.qrCodeText || 'CODE: 123456'}
+                  editable={editable}
+                  onSave={val => updateLabel('qrCodeText', val)}
+                  className="text-[7px] text-slate-400 font-bold font-mono inline-block"
+                />
               </div>
             </div>
 
             {/* Candidate Specimen Signature */}
-            <div className="pt-3 border-t mt-4" style={{ borderColor: borderTint }}>
-              <div className="h-9 border border-dashed rounded-lg bg-white/70 flex items-center justify-center text-[8px] font-bold text-slate-400" style={{ borderColor: borderTintStrong }}>
-                Candidate's Specimen Signature
+            {isFieldVisible('studentSign') && (
+              <div className="pt-3 border-t mt-4" style={{ borderColor: borderTint }}>
+                <div className="h-9 border border-dashed rounded-lg bg-white/70 flex items-center justify-center text-[8px] font-bold text-slate-400" style={{ borderColor: borderTintStrong }}>
+                  <LiveEditableText
+                    value={labels.specimenSign || 'Specimen Sign'}
+                    editable={editable}
+                    onSave={val => updateLabel('specimenSign', val)}
+                    className="inline-block"
+                  />
+                </div>
+                <div className="text-[7.5px] font-semibold text-slate-500 text-center mt-1">
+                  <LiveEditableText value={labels.helpline || 'Helpline :'} editable={editable} onSave={val => updateLabel('helpline', val)} className="inline-block" />{' '}
+                  <span>{specimenStudent.phone}</span>
+                </div>
               </div>
-              <div className="text-[7.5px] font-semibold text-slate-500 text-center mt-1">
-                Emergency Helpline: +91 11 2345 6789
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Right Column Content */}
@@ -467,19 +995,37 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({ card, customSubj
               <div className="border-b pb-3 mb-3" style={{ borderColor: borderTint }}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h1 className="text-lg sm:text-xl font-black uppercase tracking-tight" style={{ color: primaryColor }}>
-                      {schoolName}
-                    </h1>
-                    <p className="text-[10px] text-slate-500 font-semibold">{schoolAddress}</p>
+                    <LiveEditableText
+                      tag="h1"
+                      value={schoolName}
+                      editable={editable}
+                      onSave={val => onUpdateField?.('schoolName', val)}
+                      className="text-lg sm:text-xl font-black uppercase tracking-tight block"
+                      style={{ color: primaryColor }}
+                    />
+                    <LiveEditableText
+                      tag="p"
+                      value={schoolAddress}
+                      editable={editable}
+                      onSave={val => onUpdateField?.('schoolAddress', val)}
+                      className="text-[10px] text-slate-500 font-semibold block mt-0.5"
+                    />
                   </div>
                   <div className="text-right">
                     <span
-                      className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase text-white tracking-wider"
+                      className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase text-white tracking-wider inline-block"
                       style={{ backgroundColor: primaryColor }}
                     >
-                      {admitLabel}
+                      <LiveEditableText
+                        value={admitLabel}
+                        editable={editable}
+                        onSave={val => onUpdateField?.('admitCardLabel', val)}
+                      />
                     </span>
-                    <div className="text-[9px] font-bold text-slate-500 mt-1">Session: {session}</div>
+                    <div className="text-[9px] font-bold text-slate-500 mt-1">
+                      <LiveEditableText value={labels.sessionTitle || 'Session :'} editable={editable} onSave={val => updateLabel('sessionTitle', val)} className="inline-block" />{' '}
+                      <LiveEditableText value={session} editable={editable} onSave={val => onUpdateField?.('session', val)} className="inline-block" />
+                    </div>
                   </div>
                 </div>
 
@@ -487,86 +1033,262 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({ card, customSubj
                   className="mt-2.5 px-3 py-1 rounded-md text-[10.5px] font-black uppercase flex items-center justify-between"
                   style={{ backgroundColor: bgTintMedium, color: primaryColor }}
                 >
-                  <span>EXAM: {examName}</span>
-                  <span>CENTER CODE: CC-104</span>
+                  <span>
+                    <LiveEditableText value={labels.examTitle || 'EXAM :'} editable={editable} onSave={val => updateLabel('examTitle', val)} className="inline-block" />{' '}
+                    <LiveEditableText value={examName} editable={editable} onSave={val => onUpdateField?.('examName', val)} className="inline-block ml-1" />
+                  </span>
+                  <span>
+                    <LiveEditableText value={labels.centerCode || 'CENTER :'} editable={editable} onSave={val => updateLabel('centerCode', val)} className="inline-block" />{' '}
+                    <span>{specimenStudent.centerCode}</span>
+                  </span>
                 </div>
               </div>
 
-              {/* Student Details Grid (Pill tiles) */}
-              <div className="grid grid-cols-2 gap-2 text-xs mb-4">
-                <div className="p-2 rounded-lg border bg-slate-50/70" style={{ borderColor: borderTint }}>
-                  <div className="text-[8.5px] font-bold text-slate-400 uppercase">Student Name</div>
-                  <div className="font-black text-slate-900 text-xs" style={{ color: primaryColor }}>Aarav Sharma</div>
-                </div>
-                <div className="p-2 rounded-lg border bg-slate-50/70" style={{ borderColor: borderTint }}>
-                  <div className="text-[8.5px] font-bold text-slate-400 uppercase">Admission No.</div>
-                  <div className="font-black text-slate-800 text-xs">ADM-2025-089</div>
-                </div>
-                <div className="p-2 rounded-lg border bg-slate-50/70" style={{ borderColor: borderTint }}>
-                  <div className="text-[8.5px] font-bold text-slate-400 uppercase">Father's Name</div>
-                  <div className="font-bold text-slate-800 text-xs">Rajesh Sharma</div>
-                </div>
-                <div className="p-2 rounded-lg border bg-slate-50/70" style={{ borderColor: borderTint }}>
-                  <div className="text-[8.5px] font-bold text-slate-400 uppercase">Mother's Name</div>
-                  <div className="font-bold text-slate-800 text-xs">Sunita Sharma</div>
-                </div>
-                <div className="p-2 rounded-lg border bg-slate-50/70" style={{ borderColor: borderTint }}>
-                  <div className="text-[8.5px] font-bold text-slate-400 uppercase">Date of Birth</div>
-                  <div className="font-bold text-slate-800 text-xs">15/08/2010</div>
-                </div>
-                <div className="p-2 rounded-lg border bg-slate-50/70" style={{ borderColor: borderTint }}>
-                  <div className="text-[8.5px] font-bold text-slate-400 uppercase">Registration No.</div>
-                  <div className="font-bold text-slate-800 text-xs">REG-2025-9842</div>
-                </div>
+              {/* Student Details Grid (PRIMARY LABELS ARE EDITABLE, DATA IS STATIC) */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs mb-4">
+                {isFieldVisible('name') && (
+                  <div className="p-2 rounded-lg border bg-slate-50/70" style={{ borderColor: borderTint }}>
+                    <div className="text-[8.5px] font-bold text-slate-400 uppercase">
+                      <LiveEditableText value={labels.name || 'Student Name'} editable={editable} onSave={val => updateLabel('name', val)} className="inline-block" />
+                    </div>
+                    <div className="font-black text-slate-900 text-xs truncate" style={{ color: primaryColor }}>
+                      {specimenStudent.name}
+                    </div>
+                  </div>
+                )}
+                {isFieldVisible('admissionNo') && (
+                  <div className="p-2 rounded-lg border bg-slate-50/70" style={{ borderColor: borderTint }}>
+                    <div className="text-[8.5px] font-bold text-slate-400 uppercase">
+                      <LiveEditableText value={labels.admissionNo || 'Admission No.'} editable={editable} onSave={val => updateLabel('admissionNo', val)} className="inline-block" />
+                    </div>
+                    <div className="font-black text-slate-800 text-xs">
+                      {specimenStudent.admissionNo}
+                    </div>
+                  </div>
+                )}
+                {isFieldVisible('registrationNo') && (
+                  <div className="p-2 rounded-lg border bg-slate-50/70" style={{ borderColor: borderTint }}>
+                    <div className="text-[8.5px] font-bold text-slate-400 uppercase">
+                      <LiveEditableText value={labels.registrationNo || 'Registration No.'} editable={editable} onSave={val => updateLabel('registrationNo', val)} className="inline-block" />
+                    </div>
+                    <div className="font-bold text-slate-800 text-xs">
+                      {specimenStudent.registrationNo}
+                    </div>
+                  </div>
+                )}
+                {isFieldVisible('enrollmentNo') && (
+                  <div className="p-2 rounded-lg border bg-slate-50/70" style={{ borderColor: borderTint }}>
+                    <div className="text-[8.5px] font-bold text-slate-400 uppercase">
+                      <LiveEditableText value={labels.enrollmentNo || 'Enrollment No.'} editable={editable} onSave={val => updateLabel('enrollmentNo', val)} className="inline-block" />
+                    </div>
+                    <div className="font-bold text-slate-800 text-xs">
+                      {specimenStudent.enrollmentNo}
+                    </div>
+                  </div>
+                )}
+                {isFieldVisible('rollNo') && !isFieldVisible('photo') && (
+                  <div className="p-2 rounded-lg border bg-slate-50/70" style={{ borderColor: borderTint }}>
+                    <div className="text-[8.5px] font-bold text-slate-400 uppercase">
+                      <LiveEditableText value={labels.rollNo || 'Roll No.'} editable={editable} onSave={val => updateLabel('rollNo', val)} className="inline-block" />
+                    </div>
+                    <div className="font-black text-slate-800 text-xs">
+                      {specimenStudent.rollNo}
+                    </div>
+                  </div>
+                )}
+                {isFieldVisible('fatherName') && (
+                  <div className="p-2 rounded-lg border bg-slate-50/70" style={{ borderColor: borderTint }}>
+                    <div className="text-[8.5px] font-bold text-slate-400 uppercase">
+                      <LiveEditableText value={labels.fatherName || "Father's Name"} editable={editable} onSave={val => updateLabel('fatherName', val)} className="inline-block" />
+                    </div>
+                    <div className="font-bold text-slate-800 text-xs truncate">
+                      {specimenStudent.fatherName}
+                    </div>
+                  </div>
+                )}
+                {isFieldVisible('motherName') && (
+                  <div className="p-2 rounded-lg border bg-slate-50/70" style={{ borderColor: borderTint }}>
+                    <div className="text-[8.5px] font-bold text-slate-400 uppercase">
+                      <LiveEditableText value={labels.motherName || "Mother's Name"} editable={editable} onSave={val => updateLabel('motherName', val)} className="inline-block" />
+                    </div>
+                    <div className="font-bold text-slate-800 text-xs truncate">
+                      {specimenStudent.motherName}
+                    </div>
+                  </div>
+                )}
+                {isFieldVisible('class') && (
+                  <div className="p-2 rounded-lg border bg-slate-50/70" style={{ borderColor: borderTint }}>
+                    <div className="text-[8.5px] font-bold text-slate-400 uppercase">
+                      <LiveEditableText value={labels.class || 'Class'} editable={editable} onSave={val => updateLabel('class', val)} className="inline-block" />
+                    </div>
+                    <div className="font-bold text-slate-800 text-xs">
+                      {classNameStr}
+                    </div>
+                  </div>
+                )}
+                {isFieldVisible('section') && (
+                  <div className="p-2 rounded-lg border bg-slate-50/70" style={{ borderColor: borderTint }}>
+                    <div className="text-[8.5px] font-bold text-slate-400 uppercase">
+                      <LiveEditableText value={labels.section || 'Section'} editable={editable} onSave={val => updateLabel('section', val)} className="inline-block" />
+                    </div>
+                    <div className="font-bold text-slate-800 text-xs">
+                      {specimenStudent.section}
+                    </div>
+                  </div>
+                )}
+                {isFieldVisible('dob') && (
+                  <div className="p-2 rounded-lg border bg-slate-50/70" style={{ borderColor: borderTint }}>
+                    <div className="text-[8.5px] font-bold text-slate-400 uppercase">
+                      <LiveEditableText value={labels.dob || 'Date of Birth'} editable={editable} onSave={val => updateLabel('dob', val)} className="inline-block" />
+                    </div>
+                    <div className="font-bold text-slate-800 text-xs">
+                      {specimenStudent.dob}
+                    </div>
+                  </div>
+                )}
+                {isFieldVisible('mobileNo') && (
+                  <div className="p-2 rounded-lg border bg-slate-50/70" style={{ borderColor: borderTint }}>
+                    <div className="text-[8.5px] font-bold text-slate-400 uppercase">
+                      <LiveEditableText value={labels.mobileNo || 'Mobile No.'} editable={editable} onSave={val => updateLabel('mobileNo', val)} className="inline-block" />
+                    </div>
+                    <div className="font-bold text-slate-800 text-xs">
+                      {specimenStudent.mobileNo}
+                    </div>
+                  </div>
+                )}
+                {isFieldVisible('address') && (
+                  <div className="p-2 rounded-lg border bg-slate-50/70 col-span-2 sm:col-span-3" style={{ borderColor: borderTint }}>
+                    <div className="text-[8.5px] font-bold text-slate-400 uppercase">
+                      <LiveEditableText value={labels.address || 'Address'} editable={editable} onSave={val => updateLabel('address', val)} className="inline-block" />
+                    </div>
+                    <div className="font-medium text-slate-700 text-[11px] truncate">
+                      {specimenStudent.address}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Datesheet Table */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[10px] font-black text-slate-800 uppercase">
-                  <span>Subject Examination Schedule</span>
-                  <span className="text-[8.5px] text-slate-400 font-bold">{subjects.length} Subjects Scheduled</span>
-                </div>
-                <div className="border rounded-xl overflow-hidden" style={{ borderColor: borderTintStrong }}>
-                  <table className="w-full text-xs text-left border-collapse">
-                    <thead>
-                      <tr className="text-white text-[10px] font-black" style={{ backgroundColor: primaryColor }}>
-                        <th className="py-1.5 px-2.5">Date</th>
-                        <th className="py-1.5 px-2.5">Time</th>
-                        <th className="py-1.5 px-2.5">Subject Paper</th>
-                        <th className="py-1.5 px-2.5 text-center">Invigilator</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y" style={{ borderColor: borderTint }}>
-                      {subjects.map((sub: any, sidx: number) => (
-                        <tr key={sidx} className="text-[11px] font-semibold text-slate-700">
-                          <td className="py-1 px-2.5 font-bold text-slate-900">{sub.date}</td>
-                          <td className="py-1 px-2.5 text-slate-600">{sub.fromTime} - {sub.toTime || '13:00'}</td>
-                          <td className="py-1 px-2.5 font-bold" style={{ color: primaryColor }}>{sub.subjectName}</td>
-                          <td className="py-1 px-2.5 text-center">
-                            <span className="inline-block w-14 h-4 border border-dashed rounded bg-slate-50" style={{ borderColor: borderTint }} />
-                          </td>
+              {/* Datesheet Table (HEADERS ARE EDITABLE LABELS, DATA IS STATIC) */}
+              {showTimetable && (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[10px] font-black text-slate-800 uppercase">
+                    <LiveEditableText
+                      value={labels.timetableHeading || 'Subject Examination Schedule'}
+                      editable={editable}
+                      onSave={val => updateLabel('timetableHeading', val)}
+                      className="inline-block"
+                    />
+                    <span className="text-[8.5px] text-slate-400 font-bold">{subjects.length} Subjects Scheduled</span>
+                  </div>
+                  <div className="border rounded-xl overflow-hidden" style={{ borderColor: borderTintStrong }}>
+                    <table className="w-full text-xs text-left border-collapse">
+                      <thead>
+                        <tr className="text-white text-[10px] font-black" style={{ backgroundColor: primaryColor }}>
+                          <th className="py-1.5 px-2.5">
+                            <LiveEditableText value={labels.thDate || 'Date'} editable={editable} onSave={val => updateLabel('thDate', val)} />
+                          </th>
+                          <th className="py-1.5 px-2.5">
+                            <LiveEditableText value={labels.thTime || 'Time'} editable={editable} onSave={val => updateLabel('thTime', val)} />
+                          </th>
+                          <th className="py-1.5 px-2.5">
+                            <LiveEditableText value={labels.thSubject || 'Subject Paper'} editable={editable} onSave={val => updateLabel('thSubject', val)} />
+                          </th>
+                          <th className="py-1.5 px-2.5 text-center">
+                            <LiveEditableText value={labels.thInvigilator || 'Invigilator'} editable={editable} onSave={val => updateLabel('thInvigilator', val)} />
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y" style={{ borderColor: borderTint }}>
+                        {subjects.map((sub: any, sidx: number) => (
+                          <tr key={sidx} className="text-[11px] font-semibold text-slate-700">
+                            <td className="py-1 px-2.5 font-bold text-slate-900">{sub.date}</td>
+                            <td className="py-1 px-2.5 text-slate-600">{sub.fromTime} - {sub.toTime || '13:00'}</td>
+                            <td className="py-1 px-2.5 font-bold" style={{ color: primaryColor }}>{sub.subjectName}</td>
+                            <td className="py-1 px-2.5 text-center">
+                              <span className="inline-block w-14 h-4 border border-dashed rounded bg-slate-50" style={{ borderColor: borderTint }} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Bottom Signatures & Stamp */}
             <div className="pt-4 border-t mt-4 flex items-end justify-between" style={{ borderColor: borderTint }}>
-              <div className="text-[8px] text-slate-500 max-w-[280px]">
-                <strong>Note:</strong> Carry original student ID card with this admit card. Gate closes 15 mins prior to examination.
+              <div className="text-[8px] text-slate-500 max-w-[240px]">
+                <LiveEditableText value={labels.noteLabel || 'Note:'} editable={editable} onSave={val => updateLabel('noteLabel', val)} className="font-bold inline-block mr-1" />
+                <LiveEditableText
+                  value={instructions ? instructions.split('\n')[0] : 'Carry original student ID card with this admit card. Gate closes 15 mins prior.'}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('instructions', val)}
+                  className="inline-block"
+                />
               </div>
-              <div className="flex gap-6 text-center">
-                <div>
-                  <div className="w-24 h-0.5 border-t border-dashed border-slate-400 mb-1" />
-                  <span className="text-[8px] font-black uppercase text-slate-700">Class Teacher</span>
-                </div>
-                <div>
-                  <div className="w-24 h-0.5 border-t border-dashed border-slate-400 mb-1" />
-                  <span className="text-[8px] font-black uppercase text-slate-700">Principal & Stamp</span>
-                </div>
+              <div className="flex items-end gap-5 text-center">
+                {isFieldVisible('principalSign') && (
+                  <div>
+                    {principalName && (
+                      <LiveEditableText
+                        value={principalName}
+                        editable={editable}
+                        onSave={val => onUpdateField?.('principalName', val)}
+                        className="font-serif italic font-bold text-[10.5px] text-slate-800 tracking-wider block leading-none mb-0.5 capitalize"
+                      />
+                    )}
+                    <div className="w-20 h-0.5 border-t border-dashed border-slate-400 mb-1" />
+                    <LiveEditableText
+                      value={principalSignTitle}
+                      editable={editable}
+                      onSave={val => onUpdateField?.('principalSignLabel', val)}
+                      className="text-[8px] font-black uppercase text-slate-700 block"
+                    />
+                  </div>
+                )}
+                {isFieldVisible('teacherSign') && (
+                  <div>
+                    <div className="w-20 h-0.5 border-t border-dashed border-slate-400 mb-1" />
+                    <LiveEditableText
+                      value={teacherSignTitle}
+                      editable={editable}
+                      onSave={val => onUpdateField?.('teacherSignLabel', val)}
+                      className="text-[8px] font-black uppercase text-slate-700 block"
+                    />
+                  </div>
+                )}
+                {isFieldVisible('studentSign') && (
+                  <div>
+                    <div className="w-20 h-0.5 border-t border-dashed border-slate-400 mb-1" />
+                    <LiveEditableText
+                      value={studentSignTitle}
+                      editable={editable}
+                      onSave={val => onUpdateField?.('studentSignLabel', val)}
+                      className="text-[8px] font-black uppercase text-slate-700 block"
+                    />
+                  </div>
+                )}
+                {isFieldVisible('parentSign') && (
+                  <div>
+                    <div className="w-20 h-0.5 border-t border-dashed border-slate-400 mb-1" />
+                    <LiveEditableText
+                      value={parentSignTitle}
+                      editable={editable}
+                      onSave={val => onUpdateField?.('parentSignLabel', val)}
+                      className="text-[8px] font-black uppercase text-slate-700 block"
+                    />
+                  </div>
+                )}
+                {isFieldVisible('schoolStamp') && (
+                  <div
+                    className="w-12 h-12 rounded-full border-2 border-dashed flex flex-col items-center justify-center text-center p-0.5 text-[5.5px] font-black leading-tight shadow-2xs"
+                    style={{ borderColor: primaryColor, color: primaryColor, backgroundColor: bgTintLight }}
+                  >
+                    <span>STAMP</span>
+                    <span>SEAL</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -600,15 +1322,24 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({ card, customSubj
                 <Award className="w-7 h-7" />
               </div>
             </div>
-            <h1 className="text-2xl font-black uppercase tracking-wider font-serif" style={{ color: primaryColor }}>
-              {schoolName}
-            </h1>
+            <LiveEditableText
+              tag="h1"
+              value={schoolName}
+              editable={editable}
+              onSave={val => onUpdateField?.('schoolName', val)}
+              className="text-2xl font-black uppercase tracking-wider font-serif block"
+              style={{ color: primaryColor }}
+            />
             <p className="text-[10px] font-serif text-slate-600 font-semibold tracking-wide mt-0.5">
               An Autonomous Institution Committed to Academic Excellence
             </p>
-            <p className="text-[9px] text-slate-500 font-semibold mt-0.5">
-              {schoolAddress} • CBSE Affiliation No. 2130842 • School Code 123456
-            </p>
+            <LiveEditableText
+              tag="p"
+              value={schoolAddress}
+              editable={editable}
+              onSave={val => onUpdateField?.('schoolAddress', val)}
+              className="text-[9px] text-slate-500 font-semibold mt-0.5 block"
+            />
 
             {/* Official Title Ribbon */}
             <div className="mt-3 flex justify-center">
@@ -616,108 +1347,251 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({ card, customSubj
                 className="px-6 py-1.5 rounded-full border text-white font-serif uppercase tracking-widest text-xs font-black shadow-xs"
                 style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
               >
-                {admitLabel} • SESSION {session}
+                <LiveEditableText value={admitLabel} editable={editable} onSave={val => onUpdateField?.('admitCardLabel', val)} /> • SESSION <LiveEditableText value={session} editable={editable} onSave={val => onUpdateField?.('session', val)} />
               </div>
             </div>
             <div className="text-[11px] font-serif font-black uppercase mt-1.5" style={{ color: primaryColor }}>
-              {examName}
+              <LiveEditableText value={examName} editable={editable} onSave={val => onUpdateField?.('examName', val)} />
             </div>
           </div>
 
-          {/* Candidate Profile Block */}
+          {/* Candidate Profile Block (PRIMARY LABELS ARE EDITABLE, DATA IS STATIC) */}
           <div className="my-4 flex gap-5 items-center bg-slate-50/60 p-3.5 rounded-xl border" style={{ borderColor: borderTint }}>
             <div className="flex-1 grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
-              <div className="flex">
-                <span className="font-serif font-bold text-slate-600 w-28">Roll Number:</span>
-                <span className="font-black text-slate-900" style={{ color: primaryColor }}>10104</span>
-              </div>
-              <div className="flex">
-                <span className="font-serif font-bold text-slate-600 w-28">Admission No.:</span>
-                <span className="font-bold text-slate-800">ADM-2025-089</span>
-              </div>
-              <div className="flex col-span-2">
-                <span className="font-serif font-bold text-slate-600 w-28">Candidate Name:</span>
-                <span className="font-black text-slate-900 text-sm font-serif" style={{ color: primaryColor }}>Aarav Sharma</span>
-              </div>
-              <div className="flex">
-                <span className="font-serif font-bold text-slate-600 w-28">Class & Section:</span>
-                <span className="font-bold text-slate-800">{classNameStr} - Section A</span>
-              </div>
-              <div className="flex">
-                <span className="font-serif font-bold text-slate-600 w-28">Date of Birth:</span>
-                <span className="font-bold text-slate-800">15-Aug-2010</span>
-              </div>
-              <div className="flex">
-                <span className="font-serif font-bold text-slate-600 w-28">Father's Name:</span>
-                <span className="font-bold text-slate-800">Rajesh Sharma</span>
-              </div>
-              <div className="flex">
-                <span className="font-serif font-bold text-slate-600 w-28">Mother's Name:</span>
-                <span className="font-bold text-slate-800">Sunita Sharma</span>
-              </div>
-            </div>
-
-            {/* Photo & Verified Seal */}
-            <div className="flex items-center gap-3 shrink-0">
-              <div
-                className="w-24 h-28 border-2 rounded-lg bg-white flex flex-col items-center justify-center p-1 shadow-sm"
-                style={{ borderColor: primaryColor }}
-              >
-                <div className="w-full h-full border border-dashed border-slate-300 rounded flex flex-col items-center justify-center text-center p-1">
-                  <User className="w-7 h-7 text-slate-400 mb-0.5" />
-                  <span className="text-[7.5px] uppercase font-bold text-slate-500 font-serif">Candidate Photo</span>
+              {isFieldVisible('rollNo') && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.rollNo || 'Roll Number:'}
+                    editable={editable}
+                    onSave={val => updateLabel('rollNo', val)}
+                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                  />
+                  <span className="font-black text-slate-900" style={{ color: primaryColor }}>{specimenStudent.rollNo}</span>
                 </div>
-              </div>
+              )}
+              {isFieldVisible('admissionNo') && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.admissionNo || 'Admission No.:'}
+                    editable={editable}
+                    onSave={val => updateLabel('admissionNo', val)}
+                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                  />
+                  <span className="font-bold text-slate-800">{specimenStudent.admissionNo}</span>
+                </div>
+              )}
+              {isFieldVisible('registrationNo') && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.registrationNo || 'Registration No.:'}
+                    editable={editable}
+                    onSave={val => updateLabel('registrationNo', val)}
+                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                  />
+                  <span className="font-bold text-slate-800">{specimenStudent.registrationNo}</span>
+                </div>
+              )}
+              {isFieldVisible('enrollmentNo') && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.enrollmentNo || 'Enrollment No.:'}
+                    editable={editable}
+                    onSave={val => updateLabel('enrollmentNo', val)}
+                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                  />
+                  <span className="font-bold text-slate-800">{specimenStudent.enrollmentNo}</span>
+                </div>
+              )}
+              {isFieldVisible('name') && (
+                <div className="flex items-center col-span-2">
+                  <LiveEditableText
+                    value={labels.name || 'Candidate Name:'}
+                    editable={editable}
+                    onSave={val => updateLabel('name', val)}
+                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                  />
+                  <span className="font-black text-slate-900 text-sm font-serif" style={{ color: primaryColor }}>{specimenStudent.name}</span>
+                </div>
+              )}
+              {(isFieldVisible('class') || isFieldVisible('section')) && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.class || 'Class & Section:'}
+                    editable={editable}
+                    onSave={val => updateLabel('class', val)}
+                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                  />
+                  <span className="font-bold text-slate-800">
+                    {isFieldVisible('class') ? classNameStr : ''}
+                    {isFieldVisible('class') && isFieldVisible('section') ? ' - ' : ''}
+                    {isFieldVisible('section') ? 'Section A' : ''}
+                  </span>
+                </div>
+              )}
+              {isFieldVisible('dob') && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.dob || 'Date of Birth:'}
+                    editable={editable}
+                    onSave={val => updateLabel('dob', val)}
+                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                  />
+                  <span className="font-bold text-slate-800">{specimenStudent.dob}</span>
+                </div>
+              )}
+              {isFieldVisible('fatherName') && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.fatherName || "Father's Name:"}
+                    editable={editable}
+                    onSave={val => updateLabel('fatherName', val)}
+                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                  />
+                  <span className="font-bold text-slate-800">{specimenStudent.fatherName}</span>
+                </div>
+              )}
+              {isFieldVisible('motherName') && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.motherName || "Mother's Name:"}
+                    editable={editable}
+                    onSave={val => updateLabel('motherName', val)}
+                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                  />
+                  <span className="font-bold text-slate-800">{specimenStudent.motherName}</span>
+                </div>
+              )}
+              {isFieldVisible('mobileNo') && (
+                <div className="flex items-center">
+                  <LiveEditableText
+                    value={labels.mobileNo || 'Mobile No.:'}
+                    editable={editable}
+                    onSave={val => updateLabel('mobileNo', val)}
+                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                  />
+                  <span className="font-bold text-slate-800">{specimenStudent.mobileNo}</span>
+                </div>
+              )}
+              {isFieldVisible('address') && (
+                <div className="flex items-center col-span-2">
+                  <LiveEditableText
+                    value={labels.address || 'Address:'}
+                    editable={editable}
+                    onSave={val => updateLabel('address', val)}
+                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                  />
+                  <span className="font-medium text-slate-700 text-[11px]">{specimenStudent.address}</span>
+                </div>
+              )}
+            </div>
 
-              {/* Circular Seal Placeholder */}
+            {/* Photo, Proper QR & Verified Seal */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              {isFieldVisible('photo') && (
+                <div
+                  className="w-22 h-28 border-2 rounded-lg bg-white flex flex-col items-center justify-center p-1 shadow-sm"
+                  style={{ borderColor: primaryColor }}
+                >
+                  <div className="w-full h-full border border-dashed border-slate-300 rounded flex flex-col items-center justify-center text-center p-1">
+                    <User className="w-6 h-6 text-slate-400 mb-0.5" />
+                    <LiveEditableText
+                      value={labels.studentPhoto || 'Candidate Photo'}
+                      editable={editable}
+                      onSave={val => updateLabel('studentPhoto', val)}
+                      className="text-[7px] uppercase font-bold text-slate-500 font-serif inline-block"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Official Verification QR Code */}
               <div
-                className="w-20 h-20 rounded-full border-2 border-dashed flex flex-col items-center justify-center text-center p-1 font-serif text-[7px] font-bold"
-                style={{ borderColor: borderTintStrong, color: primaryColor }}
+                className="w-20 h-28 border-2 rounded-lg bg-white flex flex-col items-center justify-between p-1.5 shadow-sm text-center"
+                style={{ borderColor: borderTintStrong }}
               >
-                <span>★ SEAL ★</span>
-                <span className="font-black text-[6.5px] uppercase">CONTROLLER OF EXAMS</span>
-                <span>★ 2025 ★</span>
+                <span className="text-[6.5px] font-serif font-black uppercase text-slate-600 tracking-wider">OFFICIAL QR</span>
+                <ProperQrCode className="w-16 h-16" color={primaryColor} />
+                <LiveEditableText
+                  value={labels.qrCodeText || 'CODE: 123456'}
+                  editable={editable}
+                  onSave={val => updateLabel('qrCodeText', val)}
+                  className="text-[6.5px] font-mono font-bold text-slate-600 inline-block"
+                />
               </div>
+
+              {/* Circular Seal */}
+              {isFieldVisible('schoolStamp') && (
+                <div
+                  className="w-20 h-20 rounded-full border-2 border-dashed flex flex-col items-center justify-center text-center p-1 font-serif text-[7px] font-bold shadow-2xs"
+                  style={{ borderColor: borderTintStrong, color: primaryColor, backgroundColor: bgTintLight }}
+                >
+                  <span>★ SEAL ★</span>
+                  <LiveEditableText
+                    value={labels.schoolStamp || 'CONTROLLER OF EXAMS'}
+                    editable={editable}
+                    onSave={val => updateLabel('schoolStamp', val)}
+                    className="font-black text-[6.5px] uppercase inline-block"
+                  />
+                  <span>★ {session.split('-')[0] || '2025'} ★</span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Timetable Ledger */}
-          <div className="space-y-1">
-            <div className="font-serif font-bold text-xs uppercase tracking-wider text-center" style={{ color: primaryColor }}>
-              Official Examination Schedule
-            </div>
-            <div className="border rounded-lg overflow-hidden" style={{ borderColor: borderTintStrong }}>
-              <table className="w-full text-xs text-center border-collapse">
-                <thead>
-                  <tr className="text-white text-[10.5px] font-serif font-bold" style={{ backgroundColor: primaryColor }}>
-                    <th className="py-1.5 px-2 border-r border-white/20 w-12">No.</th>
-                    <th className="py-1.5 px-3 border-r border-white/20">Exam Date</th>
-                    <th className="py-1.5 px-3 border-r border-white/20">Time</th>
-                    <th className="py-1.5 px-3 border-r border-white/20 text-left">Subject / Course Paper</th>
-                    <th className="py-1.5 px-3">Invigilator Initial</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {subjects.map((sub: any, sidx: number) => (
-                    <tr
-                      key={sidx}
-                      className="border-b font-serif text-slate-800 text-[11px]"
-                      style={{
-                        borderColor: borderTint,
-                        backgroundColor: sidx % 2 === 0 ? 'transparent' : bgTintSubtle
-                      }}
-                    >
-                      <td className="py-1.5 border-r" style={{ borderColor: borderTint }}>{sidx + 1}</td>
-                      <td className="py-1.5 border-r font-bold" style={{ borderColor: borderTint }}>{sub.date}</td>
-                      <td className="py-1.5 border-r text-slate-600" style={{ borderColor: borderTint }}>{sub.fromTime} - {sub.toTime || '13:00'}</td>
-                      <td className="py-1.5 px-3 border-r text-left font-bold" style={{ borderColor: borderTint, color: primaryColor }}>{sub.subjectName}</td>
-                      <td className="py-1.5"></td>
+          {/* Timetable Ledger (HEADERS ARE EDITABLE LABELS, DATA IS STATIC) */}
+          {showTimetable && (
+            <div className="space-y-1">
+              <div className="font-serif font-bold text-xs uppercase tracking-wider text-center" style={{ color: primaryColor }}>
+                <LiveEditableText
+                  value={labels.timetableHeading || 'Official Examination Schedule'}
+                  editable={editable}
+                  onSave={val => updateLabel('timetableHeading', val)}
+                  className="inline-block"
+                />
+              </div>
+              <div className="border rounded-lg overflow-hidden" style={{ borderColor: borderTintStrong }}>
+                <table className="w-full text-xs text-center border-collapse">
+                  <thead>
+                    <tr className="text-white text-[10.5px] font-serif font-bold" style={{ backgroundColor: primaryColor }}>
+                      <th className="py-1.5 px-2 border-r border-white/20 w-12">
+                        <LiveEditableText value={labels.thSNo || 'No.'} editable={editable} onSave={val => updateLabel('thSNo', val)} />
+                      </th>
+                      <th className="py-1.5 px-3 border-r border-white/20">
+                        <LiveEditableText value={labels.thDate || 'Exam Date'} editable={editable} onSave={val => updateLabel('thDate', val)} />
+                      </th>
+                      <th className="py-1.5 px-3 border-r border-white/20">
+                        <LiveEditableText value={labels.thTime || 'Time'} editable={editable} onSave={val => updateLabel('thTime', val)} />
+                      </th>
+                      <th className="py-1.5 px-3 border-r border-white/20 text-left">
+                        <LiveEditableText value={labels.thSubject || 'Subject / Course Paper'} editable={editable} onSave={val => updateLabel('thSubject', val)} />
+                      </th>
+                      <th className="py-1.5 px-3">
+                        <LiveEditableText value={labels.thInvigilator || 'Invigilator Initial'} editable={editable} onSave={val => updateLabel('thInvigilator', val)} />
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {subjects.map((sub: any, sidx: number) => (
+                      <tr
+                        key={sidx}
+                        className="border-b font-serif text-slate-800 text-[11px]"
+                        style={{
+                          borderColor: borderTint,
+                          backgroundColor: sidx % 2 === 0 ? 'transparent' : bgTintSubtle
+                        }}
+                      >
+                        <td className="py-1.5 border-r" style={{ borderColor: borderTint }}>{sidx + 1}</td>
+                        <td className="py-1.5 border-r font-bold" style={{ borderColor: borderTint }}>{sub.date}</td>
+                        <td className="py-1.5 border-r text-slate-600" style={{ borderColor: borderTint }}>{sub.fromTime} - {sub.toTime || '13:00'}</td>
+                        <td className="py-1.5 px-3 border-r text-left font-bold" style={{ borderColor: borderTint, color: primaryColor }}>{sub.subjectName}</td>
+                        <td className="py-1.5"></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Declaration */}
           <div className="mt-3 p-2 rounded border bg-slate-50 text-[8.5px] text-slate-600 font-serif italic text-center" style={{ borderColor: borderTint }}>
@@ -725,20 +1599,41 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({ card, customSubj
           </div>
 
           {/* Signatures */}
-          <div className="grid grid-cols-3 gap-6 text-center mt-7 pt-2 text-[8.5px] font-serif font-black uppercase text-slate-700">
-            <div>
-              <div className="w-[80%] mx-auto h-0.5 border-t border-dashed border-slate-400 mb-1" />
-              <span>Candidate Signature</span>
+          {activeSigns.length > 0 && (
+            <div className="flex justify-around items-end gap-4 text-center mt-7 pt-2 text-[8.5px] font-serif font-black uppercase text-slate-700">
+              {activeSigns.map(s => (
+                <div key={s.key} className="flex-1 flex flex-col items-center">
+                  {s.type === 'stamp' ? (
+                    <div
+                      className="w-14 h-14 rounded-full border-2 border-dashed flex flex-col items-center justify-center text-center p-1 text-[6.5px] font-black mb-1 leading-tight"
+                      style={{ borderColor: primaryColor, color: primaryColor, backgroundColor: bgTintLight }}
+                    >
+                      <span>★ OFFICIAL ★</span>
+                      <span>STAMP</span>
+                    </div>
+                  ) : (
+                    <div className="w-[80%] mx-auto mb-1 min-h-[28px] flex flex-col items-center justify-end">
+                      {s.key === 'principalSign' && (s.name || principalName) && (
+                        <LiveEditableText
+                          value={s.name || principalName}
+                          editable={editable}
+                          onSave={val => onUpdateField?.('principalName', val)}
+                          className="font-serif italic font-bold text-[11px] text-slate-800 tracking-wider capitalize leading-tight mb-0.5 inline-block"
+                        />
+                      )}
+                      <div className="w-full h-0.5 border-t border-dashed border-slate-400" />
+                    </div>
+                  )}
+                  <LiveEditableText
+                    value={s.label}
+                    editable={editable}
+                    onSave={val => onUpdateField?.(s.key + 'Label', val)}
+                    className="inline-block"
+                  />
+                </div>
+              ))}
             </div>
-            <div>
-              <div className="w-[80%] mx-auto h-0.5 border-t border-dashed border-slate-400 mb-1" />
-              <span>Invigilator In-Charge</span>
-            </div>
-            <div>
-              <div className="w-[80%] mx-auto h-0.5 border-t border-dashed border-slate-400 mb-1" />
-              <span>Head of Institution / Principal</span>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -751,24 +1646,45 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({ card, customSubj
           <div>
             <div className="flex justify-between items-start pb-2 border-b" style={{ borderColor: borderTintStrong }}>
               <div>
-                <h1 className="text-base sm:text-lg font-black uppercase tracking-tight" style={{ color: primaryColor }}>
-                  {schoolName}
-                </h1>
-                <p className="text-[9.5px] text-slate-600 font-semibold">{schoolAddress}</p>
+                <LiveEditableText
+                  tag="h1"
+                  value={schoolName}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('schoolName', val)}
+                  className="text-base sm:text-lg font-black uppercase tracking-tight block"
+                  style={{ color: primaryColor }}
+                />
+                <LiveEditableText
+                  tag="p"
+                  value={schoolAddress}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('schoolAddress', val)}
+                  className="text-[9.5px] text-slate-600 font-semibold block"
+                />
                 <div className="text-[9px] font-bold text-slate-700 mt-0.5">
-                  Center: Cosmopolitan Examination Center (Code: 104)
+                  <LiveEditableText value={labels.centerCode || 'Center :'} editable={editable} onSave={val => updateLabel('centerCode', val)} className="inline-block" />{' '}
+                  <span>Cosmopolitan Examination Center (Code: 104)</span>
                 </div>
               </div>
 
-              <div className="text-right flex flex-col items-end">
+              <div className="text-right flex items-center gap-3 shrink-0">
+                <div className="bg-white p-1 rounded-md border border-slate-300 shadow-2xs flex flex-col items-center">
+                  <ProperQrCode className="w-18 h-18" color={primaryColor} />
+                  <LiveEditableText
+                    value={labels.qrCodeText || 'CODE: 10104-ADM'}
+                    editable={editable}
+                    onSave={val => updateLabel('qrCodeText', val)}
+                    className="text-[7px] text-slate-500 font-mono font-bold tracking-wider mt-0.5 inline-block"
+                  />
+                </div>
                 {/* Simulated Barcode */}
-                <div className="font-mono tracking-widest text-xs font-black text-slate-900 flex flex-col items-center">
-                  <div className="h-6 w-32 bg-slate-900 flex items-center justify-around px-1">
+                <div className="hidden sm:flex font-mono tracking-widest text-xs font-black text-slate-900 flex-col items-center">
+                  <div className="h-6 w-24 bg-slate-900 flex items-center justify-around px-1">
                     {[4, 2, 5, 2, 6, 3, 2, 5, 4, 2, 6, 3, 4].map((w, idx) => (
                       <span key={idx} className="bg-white h-full" style={{ width: `${w}px` }} />
                     ))}
                   </div>
-                  <span className="text-[8px] mt-0.5 font-bold tracking-widest text-slate-600">*10104-ADM089*</span>
+                  <span className="text-[7.5px] mt-0.5 font-bold tracking-widest text-slate-600">*10104-ADM089*</span>
                 </div>
               </div>
             </div>
@@ -778,131 +1694,301 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({ card, customSubj
               className="my-2 px-3 py-1 text-white text-[10.5px] font-black uppercase flex items-center justify-between rounded"
               style={{ backgroundColor: primaryColor }}
             >
-              <span>{admitLabel} // {examName}</span>
-              <span>SESSION: {session}</span>
+              <span>
+                <LiveEditableText value={admitLabel} editable={editable} onSave={val => onUpdateField?.('admitCardLabel', val)} /> // <LiveEditableText value={examName} editable={editable} onSave={val => onUpdateField?.('examName', val)} />
+              </span>
+              <span>
+                <LiveEditableText value={labels.sessionTitle || 'SESSION :'} editable={editable} onSave={val => updateLabel('sessionTitle', val)} className="inline-block mr-1" />
+                <LiveEditableText value={session} editable={editable} onSave={val => onUpdateField?.('session', val)} className="inline-block" />
+              </span>
             </div>
 
-            {/* 3-Section Candidate Card */}
+            {/* Candidate Card Info (PRIMARY LABELS ARE EDITABLE, DATA IS STATIC) */}
             <div className="grid grid-cols-12 gap-3 p-2.5 rounded-lg border bg-slate-50/70 text-xs mb-3" style={{ borderColor: borderTint }}>
               {/* Left Info */}
               <div className="col-span-5 space-y-1">
-                <div>
-                  <span className="text-[9px] text-slate-500 font-bold uppercase block">Candidate Name</span>
-                  <span className="font-black text-slate-900" style={{ color: primaryColor }}>Aarav Sharma</span>
-                </div>
+                {isFieldVisible('name') && (
+                  <div>
+                    <LiveEditableText
+                      value={labels.name || 'Candidate Name'}
+                      editable={editable}
+                      onSave={val => updateLabel('name', val)}
+                      className="text-[9px] text-slate-500 font-bold uppercase block"
+                    />
+                    <span className="font-black text-slate-900 truncate block" style={{ color: primaryColor }}>{specimenStudent.name}</span>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-1 text-[11px]">
-                  <div>
-                    <span className="text-[8.5px] text-slate-500 font-bold uppercase block">Roll No.</span>
-                    <span className="font-black text-slate-900">10104</span>
-                  </div>
-                  <div>
-                    <span className="text-[8.5px] text-slate-500 font-bold uppercase block">Class</span>
-                    <span className="font-bold text-slate-800">{classNameStr} - A</span>
-                  </div>
+                  {isFieldVisible('rollNo') && (
+                    <div>
+                      <LiveEditableText
+                        value={labels.rollNo || 'Roll No.'}
+                        editable={editable}
+                        onSave={val => updateLabel('rollNo', val)}
+                        className="text-[8.5px] text-slate-500 font-bold uppercase block"
+                      />
+                      <span className="font-black text-slate-900">{specimenStudent.rollNo}</span>
+                    </div>
+                  )}
+                  {isFieldVisible('admissionNo') && (
+                    <div>
+                      <LiveEditableText
+                        value={labels.admissionNo || 'Adm No.'}
+                        editable={editable}
+                        onSave={val => updateLabel('admissionNo', val)}
+                        className="text-[8.5px] text-slate-500 font-bold uppercase block"
+                      />
+                      <span className="font-bold text-slate-800">{specimenStudent.admissionNo}</span>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <span className="text-[8.5px] text-slate-500 font-bold uppercase block">Father's Name</span>
-                  <span className="font-semibold text-slate-800">Rajesh Sharma</span>
-                </div>
+                {(isFieldVisible('class') || isFieldVisible('section')) && (
+                  <div>
+                    <LiveEditableText
+                      value={labels.class || 'Class / Section'}
+                      editable={editable}
+                      onSave={val => updateLabel('class', val)}
+                      className="text-[8.5px] text-slate-500 font-bold uppercase block"
+                    />
+                    <span className="font-bold text-slate-800">
+                      {isFieldVisible('class') ? classNameStr : ''}
+                      {isFieldVisible('class') && isFieldVisible('section') ? ' - ' : ''}
+                      {isFieldVisible('section') ? 'Sec A' : ''}
+                    </span>
+                  </div>
+                )}
+                {isFieldVisible('registrationNo') && (
+                  <div>
+                    <LiveEditableText
+                      value={labels.registrationNo || 'Reg No.'}
+                      editable={editable}
+                      onSave={val => updateLabel('registrationNo', val)}
+                      className="text-[8.5px] text-slate-500 font-bold uppercase block"
+                    />
+                    <span className="font-semibold text-slate-800">{specimenStudent.registrationNo}</span>
+                  </div>
+                )}
+                {isFieldVisible('enrollmentNo') && (
+                  <div>
+                    <LiveEditableText
+                      value={labels.enrollmentNo || 'Enrollment'}
+                      editable={editable}
+                      onSave={val => updateLabel('enrollmentNo', val)}
+                      className="text-[8.5px] text-slate-500 font-bold uppercase block"
+                    />
+                    <span className="font-semibold text-slate-800">{specimenStudent.enrollmentNo}</span>
+                  </div>
+                )}
+                {isFieldVisible('fatherName') && (
+                  <div>
+                    <LiveEditableText
+                      value={labels.fatherName || "Father's Name"}
+                      editable={editable}
+                      onSave={val => updateLabel('fatherName', val)}
+                      className="text-[8.5px] text-slate-500 font-bold uppercase block"
+                    />
+                    <span className="font-semibold text-slate-800 truncate block">{specimenStudent.fatherName}</span>
+                  </div>
+                )}
+                {isFieldVisible('motherName') && (
+                  <div>
+                    <LiveEditableText
+                      value={labels.motherName || "Mother's Name"}
+                      editable={editable}
+                      onSave={val => updateLabel('motherName', val)}
+                      className="text-[8.5px] text-slate-500 font-bold uppercase block"
+                    />
+                    <span className="font-semibold text-slate-800 truncate block">{specimenStudent.motherName}</span>
+                  </div>
+                )}
               </div>
 
-              {/* Middle Venue Info */}
-              <div className="col-span-4 border-l pl-3 space-y-1" style={{ borderColor: borderTint }}>
+              {/* Middle Venue Info & other fields */}
+              <div className="col-span-4 border-l pl-3 space-y-1">
+                {isFieldVisible('dob') && (
+                  <div>
+                    <LiveEditableText
+                      value={labels.dob || 'DOB'}
+                      editable={editable}
+                      onSave={val => updateLabel('dob', val)}
+                      className="text-[8.5px] text-slate-500 font-bold uppercase block"
+                    />
+                    <span className="font-bold text-slate-900">{specimenStudent.dob}</span>
+                  </div>
+                )}
+                {isFieldVisible('mobileNo') && (
+                  <div>
+                    <LiveEditableText
+                      value={labels.mobileNo || 'Mobile'}
+                      editable={editable}
+                      onSave={val => updateLabel('mobileNo', val)}
+                      className="text-[8.5px] text-slate-500 font-bold uppercase block"
+                    />
+                    <span className="font-bold text-slate-900">{specimenStudent.mobileNo}</span>
+                  </div>
+                )}
+                {isFieldVisible('address') && (
+                  <div>
+                    <LiveEditableText
+                      value={labels.address || 'Address'}
+                      editable={editable}
+                      onSave={val => updateLabel('address', val)}
+                      className="text-[8.5px] text-slate-500 font-bold uppercase block"
+                    />
+                    <span className="font-medium text-slate-700 text-[10px] truncate block">{specimenStudent.address}</span>
+                  </div>
+                )}
                 <div>
-                  <span className="text-[8.5px] text-slate-500 font-bold uppercase block">Reporting Time</span>
+                  <LiveEditableText
+                    value={labels.reportingTime || 'Reporting Time'}
+                    editable={editable}
+                    onSave={val => updateLabel('reportingTime', val)}
+                    className="text-[8.5px] text-slate-500 font-bold uppercase block"
+                  />
                   <span className="font-bold text-slate-900">09:30 AM IST</span>
                 </div>
                 <div>
-                  <span className="text-[8.5px] text-slate-500 font-bold uppercase block">Gate Closure</span>
+                  <LiveEditableText
+                    value={labels.gateClosure || 'Gate Closure'}
+                    editable={editable}
+                    onSave={val => updateLabel('gateClosure', val)}
+                    className="text-[8.5px] text-slate-500 font-bold uppercase block"
+                  />
                   <span className="font-bold text-rose-700">09:50 AM (Sharp)</span>
-                </div>
-                <div>
-                  <span className="text-[8.5px] text-slate-500 font-bold uppercase block">Room / Hall</span>
-                  <span className="font-bold text-slate-900">Hall No. 3 (2nd Floor)</span>
                 </div>
               </div>
 
               {/* Right Photo */}
               <div className="col-span-3 flex flex-col items-center justify-center border-l pl-3" style={{ borderColor: borderTint }}>
-                <div
-                  className="w-20 h-24 border rounded bg-white flex flex-col items-center justify-center text-center p-1 shadow-2xs"
-                  style={{ borderColor: primaryColor }}
-                >
-                  <User className="w-6 h-6 text-slate-400 mb-0.5" />
-                  <span className="text-[7px] uppercase font-bold text-slate-500">Student Photo</span>
-                </div>
-                <span className="text-[7px] font-bold text-slate-400 mt-1 uppercase">Specimen ID</span>
+                {isFieldVisible('photo') ? (
+                  <div
+                    className="w-20 h-24 border rounded bg-white flex flex-col items-center justify-center text-center p-1 shadow-2xs"
+                    style={{ borderColor: primaryColor }}
+                  >
+                    <User className="w-6 h-6 text-slate-400 mb-0.5" />
+                    <LiveEditableText
+                      value={labels.studentPhoto || 'Student Photo'}
+                      editable={editable}
+                      onSave={val => updateLabel('studentPhoto', val)}
+                      className="text-[7px] uppercase font-bold text-slate-500 inline-block"
+                    />
+                  </div>
+                ) : (
+                  <div className="text-[8px] text-slate-400 font-bold uppercase text-center">
+                    Official Hall Ticket
+                  </div>
+                )}
+                {isFieldVisible('studentSign') && (
+                  <LiveEditableText
+                    value={labels.specimenSign || 'Specimen ID'}
+                    editable={editable}
+                    onSave={val => updateLabel('specimenSign', val)}
+                    className="text-[7px] font-bold text-slate-400 mt-1 uppercase inline-block"
+                  />
+                )}
               </div>
             </div>
 
-            {/* Timetable Matrix */}
-            <div className="border rounded overflow-hidden" style={{ borderColor: borderTintStrong }}>
-              <table className="w-full text-xs text-left border-collapse">
-                <thead>
-                  <tr className="text-white text-[9.5px] font-black uppercase" style={{ backgroundColor: primaryColor }}>
-                    <th className="py-1 px-2">#</th>
-                    <th className="py-1 px-2">Exam Date</th>
-                    <th className="py-1 px-2">Slot</th>
-                    <th className="py-1 px-2">Subject</th>
-                    <th className="py-1 px-2 text-center">Invigilator Verification</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y" style={{ borderColor: borderTint }}>
-                  {subjects.map((sub: any, sidx: number) => (
-                    <tr key={sidx} className="text-[10.5px] font-semibold text-slate-800">
-                      <td className="py-1 px-2 text-slate-500">{sidx + 1}</td>
-                      <td className="py-1 px-2 font-bold">{sub.date}</td>
-                      <td className="py-1 px-2 text-slate-600">{sub.fromTime} - {sub.toTime || '13:00'}</td>
-                      <td className="py-1 px-2 font-bold" style={{ color: primaryColor }}>{sub.subjectName}</td>
-                      <td className="py-1 px-2 text-center">
-                        <span className="inline-block w-16 h-3.5 border border-dashed rounded bg-slate-50" style={{ borderColor: borderTint }} />
-                      </td>
+            {/* Timetable Matrix (HEADERS ARE EDITABLE LABELS, DATA IS STATIC) */}
+            {showTimetable && (
+              <div className="border rounded overflow-hidden" style={{ borderColor: borderTintStrong }}>
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead>
+                    <tr className="text-white text-[9.5px] font-black uppercase" style={{ backgroundColor: primaryColor }}>
+                      <th className="py-1 px-2">
+                        <LiveEditableText value={labels.thSNo || '#'} editable={editable} onSave={val => updateLabel('thSNo', val)} />
+                      </th>
+                      <th className="py-1 px-2">
+                        <LiveEditableText value={labels.thDate || 'Exam Date'} editable={editable} onSave={val => updateLabel('thDate', val)} />
+                      </th>
+                      <th className="py-1 px-2">
+                        <LiveEditableText value={labels.thTime || 'Slot'} editable={editable} onSave={val => updateLabel('thTime', val)} />
+                      </th>
+                      <th className="py-1 px-2">
+                        <LiveEditableText value={labels.thSubject || 'Subject'} editable={editable} onSave={val => updateLabel('thSubject', val)} />
+                      </th>
+                      <th className="py-1 px-2 text-center">
+                        <LiveEditableText value={labels.thInvigilator || 'Invigilator Verification'} editable={editable} onSave={val => updateLabel('thInvigilator', val)} />
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Concise Instructions */}
-            <div className="mt-2 text-[8px] text-slate-500 leading-tight">
-              <strong>Rules:</strong> Entry without this ticket and institutional photo ID is strictly denied. No smart devices or unauthorized papers permitted.
-            </div>
-          </div>
-
-          {/* Perforated Divider Line */}
-          <div className="my-4 flex items-center justify-between text-slate-400">
-            <span className="h-[1px] flex-1 border-t-2 border-dashed border-slate-300" />
-            <span className="px-3 flex items-center gap-1 text-[8px] font-black uppercase tracking-wider text-slate-500">
-              <Scissors className="w-3 h-3 text-slate-400" /> Detachable Invigilator Attendance Slip
-            </span>
-            <span className="h-[1px] flex-1 border-t-2 border-dashed border-slate-300" />
-          </div>
-
-          {/* Tear-Off Invigilator Stub */}
-          <div
-            className="p-3 rounded-lg border bg-slate-50/60 flex items-center justify-between text-xs"
-            style={{ borderColor: borderTint }}
-          >
-            <div className="space-y-0.5">
-              <div className="text-[8.5px] font-black uppercase text-slate-400">Exam Hall Copy</div>
-              <div className="text-xs font-black text-slate-900" style={{ color: primaryColor }}>
-                Aarav Sharma • Roll: 10104 ({classNameStr})
+                  </thead>
+                  <tbody className="divide-y" style={{ borderColor: borderTint }}>
+                    {subjects.map((sub: any, sidx: number) => (
+                      <tr key={sidx} className="text-[10.5px] font-semibold text-slate-800">
+                        <td className="py-1 px-2 text-slate-500">{sidx + 1}</td>
+                        <td className="py-1 px-2 font-bold">{sub.date}</td>
+                        <td className="py-1 px-2 text-slate-600">{sub.fromTime} - {sub.toTime || '13:00'}</td>
+                        <td className="py-1 px-2 font-bold" style={{ color: primaryColor }}>{sub.subjectName}</td>
+                        <td className="py-1 px-2 text-center">
+                          <span className="inline-block w-16 h-3.5 border border-dashed rounded bg-slate-50" style={{ borderColor: borderTint }} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div className="text-[9px] text-slate-600 font-semibold">
-                Exam: {examName} • Date: {subjects[0]?.date || '2025-03-21'}
-              </div>
-            </div>
+            )}
 
-            <div className="flex gap-6 text-center">
-              <div>
-                <div className="w-20 h-0.5 border-t border-dashed border-slate-400 mb-1" />
-                <span className="text-[7.5px] font-black uppercase text-slate-600">Candidate Sign</span>
+            {/* Instructions */}
+            {instructions && (
+              <div
+                className="mt-3 p-2.5 rounded-lg border text-[9px] text-slate-700 leading-relaxed"
+                style={{ backgroundColor: bgTintSubtle, borderColor: borderTint }}
+              >
+                <LiveEditableText
+                  value={labels.instructionsHeading || 'Important Candidate Instructions:'}
+                  editable={editable}
+                  onSave={val => updateLabel('instructionsHeading', val)}
+                  className="font-black uppercase inline-block"
+                  style={{ color: primaryColor }}
+                />
+                <LiveEditableText
+                  tag="p"
+                  multiline
+                  value={instructions}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('instructions', val)}
+                  className="mt-0.5 whitespace-pre-line text-slate-600 block"
+                />
               </div>
-              <div>
-                <div className="w-20 h-0.5 border-t border-dashed border-slate-400 mb-1" />
-                <span className="text-[7.5px] font-black uppercase text-slate-600">Invigilator Sign</span>
+            )}
+
+            {/* Dynamic Signatures & Stamp (Same format as other templates) */}
+            {activeSigns.length > 0 && (
+              <div className="flex justify-between items-end gap-3 text-center mt-6 pt-2 pb-1 text-[8.5px] font-black uppercase text-slate-700">
+                {activeSigns.map(s => (
+                  <div key={s.key} className="flex-1 flex flex-col items-center min-w-[70px]">
+                    {s.type === 'stamp' ? (
+                      <div
+                        className="w-14 h-14 rounded-full border-2 border-dashed flex flex-col items-center justify-center text-center p-1 text-[6.5px] font-black mb-1.5 leading-tight shadow-2xs"
+                        style={{ borderColor: primaryColor, color: primaryColor, backgroundColor: bgTintLight }}
+                      >
+                        <span className="text-[6px]">★ SEAL ★</span>
+                        <span className="font-extrabold text-[6.5px]">SCHOOL STAMP</span>
+                      </div>
+                    ) : (
+                      <div className="w-[85%] mb-1.5 min-h-[30px] flex flex-col items-center justify-end">
+                        {s.key === 'principalSign' && (s.name || principalName) && (
+                          <LiveEditableText
+                            value={s.name || principalName}
+                            editable={editable}
+                            onSave={val => onUpdateField?.('principalName', val)}
+                            className="font-serif italic font-bold text-[11px] text-slate-800 tracking-wider capitalize leading-tight mb-0.5 inline-block"
+                          />
+                        )}
+                        <div className="w-full h-0.5 border-t border-dashed border-slate-400" />
+                      </div>
+                    )}
+                    <LiveEditableText
+                      value={s.label}
+                      editable={editable}
+                      onSave={val => onUpdateField?.(s.key + 'Label', val)}
+                      className="inline-block"
+                    />
+                  </div>
+                ))}
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
@@ -910,7 +1996,14 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({ card, customSubj
   )
 }
 
-export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({ card, customSubjects, onClose }) => {
+export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({
+  card,
+  customSubjects,
+  onClose,
+  editable,
+  onUpdateField,
+  onUpdateSubject
+}) => {
   const printRef = useRef<HTMLDivElement>(null)
 
   if (!card) return null
@@ -971,6 +2064,11 @@ export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({ ca
                 >
                   {card.templateStyle || 'Classic Board'}
                 </span>
+                {editable && (
+                  <span className="px-2 py-0.5 rounded text-[8px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                    Interactive Label Editing Enabled
+                  </span>
+                )}
               </div>
               <p className="text-[10px] text-slate-400">
                 Exam: <span className="font-bold text-slate-700 dark:text-slate-300">{card.examName}</span> • Class: <span className="font-bold text-teal-600">{card.className}</span> ({card.session})
@@ -1000,7 +2098,13 @@ export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({ ca
         {/* Template Paper Scroll Container */}
         <div className="overflow-auto bg-slate-200/60 dark:bg-slate-950 p-4 sm:p-6 flex-1 flex justify-center items-start">
           <div ref={printRef} className="w-full flex justify-center">
-            <AdmitCardPaper card={card} customSubjects={customSubjects} />
+            <AdmitCardPaper
+              card={card}
+              customSubjects={customSubjects}
+              editable={editable}
+              onUpdateField={onUpdateField}
+              onUpdateSubject={onUpdateSubject}
+            />
           </div>
         </div>
 
@@ -1025,6 +2129,7 @@ export interface AdmitCardMiniPreviewProps {
   examName?: string
   session?: string
   isSelected?: boolean
+  displayFields?: { [key: string]: boolean }
 }
 
 export const AdmitCardMiniPreview: React.FC<AdmitCardMiniPreviewProps> = ({
@@ -1036,8 +2141,16 @@ export const AdmitCardMiniPreview: React.FC<AdmitCardMiniPreviewProps> = ({
   rollNo = '10104',
   examName = 'Final Term Exam',
   session = '2025-26',
-  isSelected = false
+  isSelected = false,
+  displayFields
 }) => {
+  const isMiniFieldVisible = (key: string): boolean => {
+    if (displayFields && typeof displayFields[key] === 'boolean') {
+      return displayFields[key]
+    }
+    return true
+  }
+
   const styleRaw = (template || 'Classic Board').toLowerCase()
   let type: 'classic' | 'modern' | 'executive' | 'compact' = 'classic'
   if (styleRaw.includes('modern') || styleRaw.includes('split') || styleRaw.includes('emerald') || styleRaw.includes('dual')) {
@@ -1372,26 +2485,11 @@ export const AdmitCardMiniPreview: React.FC<AdmitCardMiniPreviewProps> = ({
             </div>
           </div>
 
-          {/* Detachable Scissor Line & Stub */}
-          <div>
-            <div className="flex items-center justify-between text-slate-400 my-0.5">
-              <span className="h-[1px] flex-1 border-t border-dashed border-slate-300" />
-              <span className="px-1 text-[4px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-0.5">
-                <Scissors className="w-2 h-2 text-slate-400" /> DETACHABLE ATTENDANCE STUB
-              </span>
-              <span className="h-[1px] flex-1 border-t border-dashed border-slate-300" />
-            </div>
-
-            <div className="p-1 rounded border bg-slate-50 flex items-center justify-between text-[4.5px]" style={{ borderColor: borderTint }}>
-              <div>
-                <span className="font-black text-slate-900" style={{ color: primary }}>{studentName}</span>
-                <span className="text-slate-500"> • Roll: {rollNo}</span>
-              </div>
-              <div className="flex gap-2">
-                <span className="text-slate-500">Candidate Sign [_____]</span>
-                <span className="text-slate-500">Invigilator [_____]</span>
-              </div>
-            </div>
+          {/* Signatures Bar */}
+          <div className="pt-2 flex justify-between items-end text-[4.5px] font-bold text-slate-500">
+            <span className="border-t border-dashed border-slate-300 pt-0.5">Principal's Sign</span>
+            <span className="border-t border-dashed border-slate-300 pt-0.5">Teacher's Sign</span>
+            <span className="border-t border-dashed border-slate-300 pt-0.5">Student's Sign</span>
           </div>
         </div>
       )}
