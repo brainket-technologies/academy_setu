@@ -129,6 +129,7 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
       icon: FileText, label: 'Exam & Marksheets', href: '#',
       subItems: [
         { label: 'Exam & Marksheet Setup', href: '/institute/exam-marksheet/setup' },
+        { label: 'Create Exam Group', href: '/institute/exam-marksheet/group' },
         { label: 'Download Marksheet', href: '/institute/exam-marksheet/report' },
         { label: 'Bulk Mark Update', href: '/institute/exam-marksheet/bulk-update' },
       ]

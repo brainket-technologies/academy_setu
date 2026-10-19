@@ -1,6 +1,6 @@
 import React from 'react'
-import { QrCode, Award, ShieldCheck, CheckCircle2 } from 'lucide-react'
-import { LiveEditableText, ProperQrCode, hexToRgba } from '@/components/admit-card/AdmitCardModalPreview'
+import { QrCode, Award, ShieldCheck, CheckCircle2, User } from 'lucide-react'
+import { LiveEditableText, ProperQrCode, SampleSchoolLogo, hexToRgba } from '@/components/admit-card/AdmitCardModalPreview'
 
 export { hexToRgba }
 
@@ -31,18 +31,41 @@ export const CERTIFICATE_COLOR_PRESETS = [
 export interface CertificateCustomProps {
   title?: string
   subtitle?: string
+  presentedTo?: string
   themeColor?: string
   schoolName?: string
   schoolAddress?: string
+  schoolLogo?: string
+  logoWidth?: string | number
+  logoHeight?: string | number
+  showLogo?: boolean
   studentName?: string
+  fatherName?: string
+  motherName?: string
+  admissionNo?: string
+  rollNo?: string
   className?: string
+  section?: string
+  dob?: string
+  gender?: string
+  studentPhoto?: string
+  showStudentPhoto?: boolean
+  examName?: string
+  session?: string
   content?: string
   date?: string
   awarder?: string
   principalName?: string
   principalLabel?: string
+  teacherSignName?: string
+  teacherSignLabel?: string
+  controllerSignName?: string
+  controllerSignLabel?: string
+  parentSignName?: string
+  parentSignLabel?: string
   secondarySignName?: string
   secondarySignLabel?: string
+  studentSignLabel?: string
   showQr?: boolean
   showSeal?: boolean
   textColor?: string
@@ -55,7 +78,7 @@ export interface CertificateCustomProps {
 }
 
 // Common Gold Seal with Ribbons (Themed ribbon support)
-const GoldSeal = ({ text = "ACADEMIC EXCELLENCE", ribbonColor = "#1e3a8a", className = "" }: { text?: string; ribbonColor?: string; className?: string }) => (
+const GoldSeal = ({ text = "OFFICIAL SEAL", ribbonColor = "#1e3a8a", className = "" }: { text?: string; ribbonColor?: string; className?: string }) => (
   <div className={`relative flex items-center justify-center select-none ${className}`}>
     {/* Sunburst edges */}
     {[0, 30, 60, 90, 120, 150].map((deg) => (
@@ -68,8 +91,8 @@ const GoldSeal = ({ text = "ACADEMIC EXCELLENCE", ribbonColor = "#1e3a8a", class
     {/* Inner golden disc */}
     <div className="absolute w-16 h-16 bg-gradient-to-b from-amber-300 via-amber-200 to-yellow-500 rounded-full z-10 border-2 border-amber-600/40 shadow-inner flex flex-col items-center justify-center p-1 text-center">
       <Award className="w-5 h-5 text-amber-900" />
-      <span className="text-[6.5px] font-black text-amber-950 uppercase tracking-tighter leading-none mt-0.5">
-        OFFICIAL SEAL
+      <span className="text-[6px] font-black text-amber-950 uppercase tracking-tighter leading-tight mt-0.5 px-0.5 line-clamp-1">
+        {text}
       </span>
     </div>
     {/* Ribbons */}
@@ -90,21 +113,349 @@ const GoldSeal = ({ text = "ACADEMIC EXCELLENCE", ribbonColor = "#1e3a8a", class
   </div>
 )
 
+// Shared Student Academic & Personal Metadata Badges
+export const CertificateStudentMetadata: React.FC<{
+  isHidden: (field: string) => boolean
+  customLabels?: Record<string, string>
+  primary?: string
+  fatherName?: string
+  motherName?: string
+  className?: string
+  section?: string
+  rollNo?: string
+  admissionNo?: string
+  dob?: string
+  gender?: string
+  examName?: string
+  session?: string
+}> = ({
+  isHidden,
+  customLabels = {},
+  primary,
+  fatherName,
+  motherName,
+  className,
+  section,
+  rollNo,
+  admissionNo,
+  dob,
+  gender,
+  examName,
+  session
+}) => {
+  const badges: { label: string; val: string }[] = []
+  if (!isHidden('Father Name')) {
+    badges.push({ label: 'Father', val: fatherName || customLabels['fatherName'] || 'Shri Rajesh Sharma' })
+  }
+  if (!isHidden('Mother Name')) {
+    badges.push({ label: 'Mother', val: motherName || customLabels['motherName'] || 'Smt. Sunita Sharma' })
+  }
+  if (!isHidden('Class & Section') && !isHidden('Class')) {
+    badges.push({ label: 'Class', val: section ? `${className || 'Class X'} - ${section}` : (className || 'Class X') })
+  }
+  if (!isHidden('Roll No.') && !isHidden('Roll Number')) {
+    badges.push({ label: 'Roll No', val: rollNo || customLabels['rollNo'] || '101' })
+  }
+  if (!isHidden('Admission No.') && !isHidden('Admission / Reg No.')) {
+    badges.push({ label: 'Adm No', val: admissionNo || customLabels['admissionNo'] || 'ADM-2025-042' })
+  }
+  if (!isHidden('Date of Birth') && !isHidden('DOB')) {
+    badges.push({ label: 'DOB', val: dob || customLabels['dob'] || '15/08/2010' })
+  }
+  if (!isHidden('Gender')) {
+    badges.push({ label: 'Gender', val: gender || customLabels['gender'] || 'Male' })
+  }
+  if (!isHidden('Exam Name') && !isHidden('Exam / Event Name')) {
+    badges.push({ label: 'Exam', val: examName || customLabels['examName'] || 'Annual Examination' })
+  }
+  if (!isHidden('Session') && !isHidden('Academic Session')) {
+    badges.push({ label: 'Session', val: session || customLabels['session'] || '2025-2026' })
+  }
+
+  if (badges.length === 0) return null
+
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 my-1 px-3 py-0.5 rounded-full bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200/70 dark:border-slate-700/70 max-w-2xl text-[9.5px] text-slate-700 dark:text-slate-200 shadow-2xs font-sans">
+      {badges.map((b, i) => (
+        <span key={b.label} className="inline-flex items-center gap-1 font-semibold">
+          <span className="text-[8.5px] uppercase font-bold text-slate-400">{b.label}:</span>
+          <span className="font-bold text-slate-800 dark:text-slate-100">{b.val}</span>
+          {i < badges.length - 1 && <span className="text-slate-300 dark:text-slate-600 ml-1">•</span>}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+// Shared Student Candidate Photo Badge
+export const CertificateCandidatePhoto: React.FC<{
+  studentPhoto?: string
+  isHidden: (field: string) => boolean
+  top?: string
+  left?: string
+}> = ({ studentPhoto, isHidden, top = 'top-8', left = 'left-10' }) => {
+  if (isHidden('Student Photo') || isHidden('Photo')) return null
+  return (
+    <div className={`absolute ${top} ${left} z-20 flex flex-col items-center bg-white dark:bg-slate-900 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm pointer-events-none`}>
+      <div className="w-11 h-13 bg-slate-100 dark:bg-slate-800 rounded overflow-hidden flex items-center justify-center border border-slate-200 dark:border-slate-700">
+        {studentPhoto ? (
+          <img src={studentPhoto} alt="Student" className="w-full h-full object-cover" />
+        ) : (
+          <User className="w-6 h-6 text-slate-400" />
+        )}
+      </div>
+      <span className="text-[6.5px] font-black text-slate-400 uppercase mt-0.5 tracking-wider">Candidate</span>
+    </div>
+  )
+}
+
+// Shared Comprehensive Footer Signatures & Official Seal
+export const CertificateFooterSignatures: React.FC<{
+  primary: string
+  primaryDark?: string
+  date?: string
+  editable?: boolean
+  isHidden: (field: string) => boolean
+  customLabels: Record<string, string>
+  showSeal?: boolean
+  sealComponent?: React.ReactNode
+  principalName?: string
+  principalLabel?: string
+  teacherSignName?: string
+  teacherSignLabel?: string
+  controllerSignName?: string
+  controllerSignLabel?: string
+  parentSignName?: string
+  parentSignLabel?: string
+  secondarySignName?: string
+  secondarySignLabel?: string
+  studentSignLabel?: string
+  onUpdateField?: (field: string, value: string) => void
+  onUpdateLabel?: (key: string, value: string) => void
+  fontFamily?: string
+}> = ({
+  primary,
+  primaryDark,
+  date,
+  editable,
+  isHidden,
+  customLabels,
+  showSeal = true,
+  sealComponent,
+  principalName,
+  principalLabel,
+  teacherSignName,
+  teacherSignLabel,
+  controllerSignName,
+  controllerSignLabel,
+  parentSignName,
+  parentSignLabel,
+  secondarySignName,
+  secondarySignLabel,
+  studentSignLabel,
+  onUpdateField,
+  onUpdateLabel,
+  fontFamily
+}) => {
+  const textColor = primaryDark || primary
+  const fontStyle = fontFamily ? { fontFamily } : {}
+
+  return (
+    <div className="relative z-20 flex flex-wrap justify-between items-end px-10 pb-7 mt-auto gap-3 w-full">
+      {/* 1. Date of Issue */}
+      {!isHidden('Certificate Date') && !isHidden('Date of Issue') && (
+        <div className="flex flex-col items-center min-w-[85px] max-w-[125px] text-center">
+          <LiveEditableText
+            tag="p"
+            value={date || '15 October 2025'}
+            editable={editable}
+            onSave={(val) => onUpdateField?.('date', val)}
+            className="font-bold text-xs text-slate-800 mb-0.5 truncate"
+          />
+          <div className="w-full h-px bg-slate-300 mb-0.5"></div>
+          <p className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase">
+            {customLabels['date_label'] || 'Date of Issue'}
+          </p>
+        </div>
+      )}
+
+      {/* 2. Class Teacher Sign */}
+      {!isHidden('Teacher Sign') && !isHidden('Class Teacher Sign') && (
+        <div className="flex flex-col items-center min-w-[85px] max-w-[125px] text-center">
+          <LiveEditableText
+            tag="p"
+            value={teacherSignName || customLabels['teacherSignName'] || 'Mrs. Kavita Verma'}
+            editable={editable}
+            onSave={(val) => onUpdateField?.('teacherSignName', val)}
+            className="italic font-bold text-xs mb-0.5 truncate"
+            style={{ color: textColor, ...fontStyle }}
+          />
+          <div className="w-full h-px bg-slate-300 mb-0.5"></div>
+          <LiveEditableText
+            tag="p"
+            value={teacherSignLabel || customLabels['teacherSignLabel'] || "Class Teacher's Sign"}
+            editable={editable}
+            onSave={(val) => onUpdateLabel?.('teacherSign', val)}
+            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase"
+          />
+        </div>
+      )}
+
+      {/* 3. Exam Controller Sign */}
+      {!isHidden('Controller Sign') && !isHidden('Exam Controller Sign') && (
+        <div className="flex flex-col items-center min-w-[85px] max-w-[125px] text-center">
+          <LiveEditableText
+            tag="p"
+            value={controllerSignName || customLabels['controllerSignName'] || 'Mr. R. K. Saxena'}
+            editable={editable}
+            onSave={(val) => onUpdateField?.('controllerSignName', val)}
+            className="italic font-bold text-xs mb-0.5 truncate"
+            style={{ color: textColor, ...fontStyle }}
+          />
+          <div className="w-full h-px bg-slate-300 mb-0.5"></div>
+          <LiveEditableText
+            tag="p"
+            value={controllerSignLabel || customLabels['controllerSignLabel'] || "Exam Controller"}
+            editable={editable}
+            onSave={(val) => onUpdateLabel?.('controllerSign', val)}
+            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase"
+          />
+        </div>
+      )}
+
+      {/* 4. Coordinator / In-Charge Sign */}
+      {!isHidden('Secondary Sign') && !isHidden('Coordinator Sign') && !isHidden('Coordinator / In-Charge Sign') && (
+        <div className="flex flex-col items-center min-w-[85px] max-w-[125px] text-center">
+          <LiveEditableText
+            tag="p"
+            value={secondarySignName || customLabels['secondarySignName'] || 'Authorized Signatory'}
+            editable={editable}
+            onSave={(val) => onUpdateField?.('secondarySignName', val)}
+            className="italic font-bold text-xs mb-0.5 truncate"
+            style={{ color: textColor, ...fontStyle }}
+          />
+          <div className="w-full h-px bg-slate-300 mb-0.5"></div>
+          <LiveEditableText
+            tag="p"
+            value={secondarySignLabel || customLabels['secondarySignLabel'] || 'Coordinator / In-Charge'}
+            editable={editable}
+            onSave={(val) => onUpdateLabel?.('secondarySign', val)}
+            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase"
+          />
+        </div>
+      )}
+
+      {/* 5. Parent / Guardian Sign */}
+      {!isHidden('Parent Sign') && !isHidden('Parent / Guardian Sign') && (
+        <div className="flex flex-col items-center min-w-[85px] max-w-[125px] text-center">
+          <LiveEditableText
+            tag="p"
+            value={parentSignName || customLabels['parentSignName'] || 'Parent / Guardian'}
+            editable={editable}
+            onSave={(val) => onUpdateField?.('parentSignName', val)}
+            className="italic font-bold text-xs mb-0.5 truncate text-slate-500"
+            style={fontStyle}
+          />
+          <div className="w-full h-px bg-slate-300 mb-0.5"></div>
+          <LiveEditableText
+            tag="p"
+            value={parentSignLabel || customLabels['parentSignLabel'] || "Parent's Signature"}
+            editable={editable}
+            onSave={(val) => onUpdateLabel?.('parentSign', val)}
+            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase"
+          />
+        </div>
+      )}
+
+      {/* 6. Student Signature Line */}
+      {!isHidden('Student Sign') && !isHidden('Student Signature Line') && (
+        <div className="flex flex-col items-center min-w-[85px] max-w-[125px] text-center">
+          <p className="italic font-bold text-xs mb-0.5 text-slate-400" style={fontStyle}>
+            Candidate
+          </p>
+          <div className="w-full h-px bg-slate-300 mb-0.5"></div>
+          <LiveEditableText
+            tag="p"
+            value={studentSignLabel || customLabels['studentSignLabel'] || "Student's Signature"}
+            editable={editable}
+            onSave={(val) => onUpdateLabel?.('studentSign', val)}
+            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase"
+          />
+        </div>
+      )}
+
+      {/* 7. Official Seal / Crest */}
+      {showSeal && !isHidden('Official Seal') && !isHidden('Seal') && !isHidden('School Stamp') && !isHidden('Official Seal / Crest') && (
+        <div className="mb-1 shrink-0 flex items-center justify-center">
+          {sealComponent}
+        </div>
+      )}
+
+      {/* 8. Principal / Director Sign */}
+      {!isHidden('Principal Sign') && !isHidden('Principal / Director Sign') && (
+        <div className="flex flex-col items-center min-w-[85px] max-w-[125px] text-center">
+          <LiveEditableText
+            tag="p"
+            value={principalName || 'Dr. S. K. Sharma'}
+            editable={editable}
+            onSave={(val) => onUpdateField?.('principalName', val)}
+            className="italic font-bold text-xs mb-0.5 truncate"
+            style={{ color: textColor, ...fontStyle }}
+          />
+          <div className="w-full h-px bg-slate-300 mb-0.5"></div>
+          <LiveEditableText
+            tag="p"
+            value={principalLabel || 'Principal & Director'}
+            editable={editable}
+            onSave={(val) => onUpdateLabel?.('principalSign', val)}
+            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase"
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 // -------------------------------------------------------------
 // DESIGN 1: BLUE & GOLD ROYAL GEOMETRIC (PORTRAIT/LANDSCAPE)
 // -------------------------------------------------------------
 export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
   title = 'CERTIFICATE OF ACHIEVEMENT',
   subtitle = 'In Recognition of Academic Excellence',
+  presentedTo,
   themeColor,
   schoolName = 'COSMOPOLITAN INTER COLLEGE',
   schoolAddress = 'Knowledge Park, Sector 62, New Delhi',
+  schoolLogo,
+  logoWidth = 60,
+  showLogo = true,
   studentName = 'Student Name',
+  fatherName,
+  motherName,
+  admissionNo,
+  rollNo,
+  className,
+  section,
+  dob,
+  gender,
+  studentPhoto,
+  examName,
+  session,
   content = 'This certificate is proudly awarded in recognition of outstanding performance, exemplary dedication, and commendable achievement during the academic session.',
   date = '15 October 2025',
   awarder = 'Principal & Director',
   principalName,
   principalLabel,
+  teacherSignName,
+  teacherSignLabel,
+  controllerSignName,
+  controllerSignLabel,
+  parentSignName,
+  parentSignLabel,
+  secondarySignName,
+  secondarySignLabel,
+  studentSignLabel,
   showQr = true,
   showSeal = true,
   hiddenFields = [],
@@ -118,6 +469,9 @@ export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
   const borderTint = hexToRgba(primary, 0.25)
   const effectivePrincipalName = principalName || 'Dr. S. K. Sharma'
   const effectivePrincipalLabel = principalLabel || awarder || 'Principal & Director'
+  const effectiveSecondaryName = secondarySignName || customLabels['secondarySignName'] || 'Authorized Signatory'
+  const effectiveSecondaryLabel = secondarySignLabel || customLabels['secondarySignLabel'] || 'Coordinator / In-Charge'
+  const actualLogoWidth = Math.max(28, Math.min(180, Number(logoWidth) || 60))
 
   return (
     <div className="w-[800px] h-[580px] bg-white relative overflow-hidden flex flex-col font-sans shrink-0 border border-slate-300 shadow-2xl select-none text-slate-800">
@@ -152,8 +506,23 @@ export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
         </div>
       )}
 
+      {/* Student Candidate Photo */}
+      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-8" left="left-10" />
+
       {/* Header Info */}
-      <div className="relative z-10 flex flex-col items-center pt-10 px-24 text-center">
+      <div className="relative z-10 flex flex-col items-center pt-7 px-20 text-center">
+        {showLogo && !isHidden('Logo') && !isHidden('Institute Logo') && (
+          <div 
+            className="mb-1.5 shrink-0 flex items-center justify-center overflow-hidden"
+            style={{ width: `${actualLogoWidth}px`, height: `${actualLogoWidth}px` }}
+          >
+            {schoolLogo ? (
+              <img src={schoolLogo} alt="Logo" className="w-full h-full object-contain" />
+            ) : (
+              <SampleSchoolLogo width={actualLogoWidth} height={actualLogoWidth} color={primary} />
+            )}
+          </div>
+        )}
         {!isHidden('School Name') && (
           <LiveEditableText
             tag="h4"
@@ -164,122 +533,112 @@ export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
             style={{ color: primary }}
           />
         )}
-        {!isHidden('School Address') && (
-          <LiveEditableText
-            tag="p"
-            value={schoolAddress}
-            editable={editable}
-            onSave={(val) => onUpdateField?.('schoolAddress', val)}
-            className="text-[10px] text-slate-500 font-medium mb-4"
-          />
-        )}
 
         {/* Certificate Title */}
         {!isHidden('Title') && (
-          <div className="mb-2">
+          <div className="mb-1">
             <LiveEditableText
               tag="h1"
               value={title}
               editable={editable}
               onSave={(val) => onUpdateField?.('title', val)}
-              className="font-serif font-black text-4xl tracking-wider text-slate-900 uppercase drop-shadow-xs"
+              className="font-serif font-black text-3xl tracking-wider text-slate-900 uppercase drop-shadow-xs"
             />
+            {!isHidden('Subtitle') && (
+              <LiveEditableText
+                tag="p"
+                value={subtitle}
+                editable={editable}
+                onSave={(val) => onUpdateField?.('subtitle', val)}
+                className="font-bold text-[11px] tracking-[0.25em] uppercase mt-0.5"
+                style={{ color: primary }}
+              />
+            )}
+          </div>
+        )}
+
+        <div className="w-36 h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent my-2"></div>
+
+        {!isHidden('Presented To') && (
+          <div className="mb-1">
             <LiveEditableText
               tag="p"
-              value={subtitle}
+              value={presentedTo || customLabels['presented_to'] || 'This Certificate is Proudly Presented To'}
               editable={editable}
-              onSave={(val) => onUpdateField?.('subtitle', val)}
-              className="font-bold text-xs tracking-[0.25em] uppercase mt-1"
-              style={{ color: primary }}
+              onSave={(val) => onUpdateLabel?.('presented_to', val)}
+              className="text-[10px] tracking-widest text-slate-500 font-semibold uppercase"
             />
           </div>
         )}
 
-        <div className="w-36 h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent my-3"></div>
-
-        <p className="text-[11px] tracking-widest text-slate-500 font-semibold uppercase mb-2">
-          {customLabels['presented_to'] || 'This Certificate is Proudly Presented To'}
-        </p>
-
         {/* Student Name */}
         {!isHidden('Student Name') && (
-          <div className="my-1">
+          <div className="my-0.5">
             <LiveEditableText
               tag="h3"
               value={studentName}
               editable={editable}
               onSave={(val) => onUpdateField?.('studentName', val)}
-              className="font-serif font-black text-4xl tracking-wide border-b-2 border-amber-400/80 px-8 pb-1 inline-block"
+              className="font-serif font-black text-3xl tracking-wide border-b-2 border-amber-400/80 px-8 pb-0.5 inline-block"
               style={{ color: primary }}
             />
           </div>
         )}
 
+        {/* Student Academic & Personal Metadata Badges */}
+        <CertificateStudentMetadata
+          fatherName={fatherName}
+          motherName={motherName}
+          className={className}
+          section={section}
+          rollNo={rollNo}
+          admissionNo={admissionNo}
+          dob={dob}
+          gender={gender}
+          examName={examName}
+          session={session}
+          isHidden={isHidden}
+          primary={primary}
+        />
+
         {/* Description / Content */}
-        <div className="max-w-xl mx-auto mt-4 px-6">
-          <LiveEditableText
-            tag="p"
-            multiline
-            value={content}
-            editable={editable}
-            onSave={(val) => onUpdateField?.('content', val)}
-            className="text-slate-600 text-xs font-medium leading-relaxed"
-          />
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="relative z-10 flex justify-between items-end px-20 pb-10 mt-auto">
-        {/* Date */}
-        <div className="flex flex-col items-center w-40">
-          {!isHidden('Certificate Date') && (
-            <>
-              <LiveEditableText
-                tag="p"
-                value={date}
-                editable={editable}
-                onSave={(val) => onUpdateField?.('date', val)}
-                className="font-bold text-xs text-slate-800 mb-1"
-              />
-              <div className="w-full h-px bg-slate-300 mb-1"></div>
-              <p className="text-[9px] font-bold text-slate-400 tracking-widest uppercase">
-                {customLabels['date_label'] || 'Date of Issue'}
-              </p>
-            </>
-          )}
-        </div>
-
-        {/* Seal */}
-        {showSeal && !isHidden('Water Mark') && (
-          <div className="mb-2">
-            <GoldSeal ribbonColor={primary} />
+        {!isHidden('Description') && (
+          <div className="max-w-xl mx-auto mt-2 px-6">
+            <LiveEditableText
+              tag="p"
+              multiline
+              value={content}
+              editable={editable}
+              onSave={(val) => onUpdateField?.('content', val)}
+              className="text-slate-600 text-[11.5px] font-medium leading-relaxed"
+            />
           </div>
         )}
-
-        {/* Awarder / Principal Signature */}
-        <div className="flex flex-col items-center w-40">
-          {!isHidden('Principal Sign') && (
-            <>
-              <LiveEditableText
-                tag="p"
-                value={effectivePrincipalName}
-                editable={editable}
-                onSave={(val) => onUpdateField?.('principalName', val)}
-                className="font-serif italic font-bold text-sm mb-1"
-                style={{ color: primary }}
-              />
-              <div className="w-full h-px bg-slate-300 mb-1"></div>
-              <LiveEditableText
-                tag="p"
-                value={effectivePrincipalLabel}
-                editable={editable}
-                onSave={(val) => onUpdateLabel?.('principalSign', val)}
-                className="text-[9px] font-bold text-slate-400 tracking-widest uppercase"
-              />
-            </>
-          )}
-        </div>
       </div>
+
+      {/* Comprehensive Footer Signatures & Official Seal */}
+      <CertificateFooterSignatures
+        primary={primary}
+        date={date}
+        editable={editable}
+        isHidden={isHidden}
+        customLabels={customLabels}
+        showSeal={showSeal}
+        sealComponent={<GoldSeal text={customLabels['seal_label'] || "ACADEMIC EXCELLENCE"} ribbonColor={primary} />}
+        principalName={effectivePrincipalName}
+        principalLabel={effectivePrincipalLabel}
+        teacherSignName={teacherSignName}
+        teacherSignLabel={teacherSignLabel}
+        controllerSignName={controllerSignName}
+        controllerSignLabel={controllerSignLabel}
+        parentSignName={parentSignName}
+        parentSignLabel={parentSignLabel}
+        secondarySignName={effectiveSecondaryName}
+        secondarySignLabel={effectiveSecondaryLabel}
+        studentSignLabel={studentSignLabel}
+        onUpdateField={onUpdateField}
+        onUpdateLabel={onUpdateLabel}
+      />
     </div>
   )
 }
@@ -290,15 +649,39 @@ export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
 export const CertificateDesign2: React.FC<CertificateCustomProps> = ({
   title = 'CERTIFICATE OF MERIT',
   subtitle = 'For Demonstrating High Excellence',
+  presentedTo,
   themeColor,
   schoolName = 'COSMOPOLITAN INTER COLLEGE',
   schoolAddress = 'Knowledge Park, Sector 62, New Delhi',
+  schoolLogo,
+  logoWidth = 60,
+  showLogo = true,
   studentName = 'Student Name',
+  fatherName,
+  motherName,
+  admissionNo,
+  rollNo,
+  className,
+  section,
+  dob,
+  gender,
+  studentPhoto,
+  examName,
+  session,
   content = 'This certificate is conferred in recognition of exceptional scholarly merit, consistent diligence, and exemplary conduct shown throughout the academic term.',
   date = '15 October 2025',
   awarder = 'Principal / Head of Institution',
   principalName,
   principalLabel,
+  teacherSignName,
+  teacherSignLabel,
+  controllerSignName,
+  controllerSignLabel,
+  parentSignName,
+  parentSignLabel,
+  secondarySignName,
+  secondarySignLabel,
+  studentSignLabel,
   showSeal = true,
   hiddenFields = [],
   editable = false,
@@ -312,6 +695,30 @@ export const CertificateDesign2: React.FC<CertificateCustomProps> = ({
   const primaryLight = hexToRgba(primary, 0.12)
   const effectivePrincipalName = principalName || 'Authorized Signatory'
   const effectivePrincipalLabel = principalLabel || awarder || 'Head of Institution'
+  const effectiveSecondaryName = secondarySignName || customLabels['secondarySignName'] || 'Authorized Signatory'
+  const effectiveSecondaryLabel = secondarySignLabel || customLabels['secondarySignLabel'] || 'Coordinator / In-Charge'
+  const actualLogoWidth = Math.max(28, Math.min(180, Number(logoWidth) || 60))
+
+  const vintageSeal = (
+    <div 
+      className="w-16 h-16 rounded-full border-2 border-dashed flex items-center justify-center flex-col relative shadow-inner"
+      style={{ 
+        borderColor: primary, 
+        color: primary,
+        backgroundColor: primaryLight
+      }}
+    >
+      {customLabels['seal_label'] ? (
+        <span className="font-bold text-[8px] text-center uppercase tracking-wider px-1 leading-tight">{customLabels['seal_label']}</span>
+      ) : (
+        <>
+          <span className="text-[7.5px]">★★★</span>
+          <span className="font-bold text-[8.5px] text-center leading-tight">MERIT<br/>AWARD</span>
+          <span className="text-[7.5px]">★★★</span>
+        </>
+      )}
+    </div>
+  )
 
   return (
     <div className="w-[800px] h-[580px] bg-[#faf8f2] relative overflow-hidden flex flex-col font-serif shrink-0 border-[14px] border-white shadow-2xl select-none text-slate-800">
@@ -326,59 +733,75 @@ export const CertificateDesign2: React.FC<CertificateCustomProps> = ({
         <div className="absolute -bottom-3.5 -right-3.5 w-10 h-10 bg-[#faf8f2] flex items-center justify-center text-2xl" style={{ color: primary }}>⚜</div>
       </div>
 
-      <div className="relative z-20 flex flex-col items-center pt-8 px-20 flex-1 text-center">
+      {/* Candidate Photo */}
+      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-8" left="left-10" />
+
+      <div className="relative z-20 flex flex-col items-center pt-7 px-20 flex-1 text-center">
+        {showLogo && !isHidden('Logo') && !isHidden('Institute Logo') && (
+          <div 
+            className="mb-1.5 shrink-0 flex items-center justify-center overflow-hidden"
+            style={{ width: `${actualLogoWidth}px`, height: `${actualLogoWidth}px` }}
+          >
+            {schoolLogo ? (
+              <img src={schoolLogo} alt="Logo" className="w-full h-full object-contain" />
+            ) : (
+              <SampleSchoolLogo width={actualLogoWidth} height={actualLogoWidth} color={primaryDark} />
+            )}
+          </div>
+        )}
         {!isHidden('School Name') && (
           <LiveEditableText
             tag="h4"
             value={schoolName}
             editable={editable}
             onSave={(val) => onUpdateField?.('schoolName', val)}
-            className="font-serif font-black text-xs tracking-widest uppercase mb-0.5"
+            className="font-serif font-black text-xs tracking-widest uppercase mb-1"
             style={{ color: primaryDark }}
-          />
-        )}
-        {!isHidden('School Address') && (
-          <LiveEditableText
-            tag="p"
-            value={schoolAddress}
-            editable={editable}
-            onSave={(val) => onUpdateField?.('schoolAddress', val)}
-            className="text-[9.5px] text-slate-500 font-sans mb-3"
           />
         )}
 
         {/* Certificate Title */}
         {!isHidden('Title') && (
-          <div className="mb-1">
+          <div className="mb-0.5">
             <LiveEditableText
               tag="h1"
               value={title}
               editable={editable}
               onSave={(val) => onUpdateField?.('title', val)}
-              className="font-black text-4xl tracking-wider text-slate-900 uppercase"
+              className="font-black text-3xl tracking-wider text-slate-900 uppercase"
             />
-            <div className="flex items-center justify-center gap-3 text-slate-600 mt-1">
-              <div className="w-10 h-px" style={{ backgroundColor: primary }}></div>
-              <LiveEditableText
-                tag="h2"
-                value={subtitle}
-                editable={editable}
-                onSave={(val) => onUpdateField?.('subtitle', val)}
-                className="tracking-[0.2em] font-medium text-xs uppercase"
-                style={{ color: primaryDark }}
-              />
-              <div className="w-10 h-px" style={{ backgroundColor: primary }}></div>
-            </div>
+            {!isHidden('Subtitle') && (
+              <div className="flex items-center justify-center gap-3 text-slate-600 mt-0.5">
+                <div className="w-10 h-px" style={{ backgroundColor: primary }}></div>
+                <LiveEditableText
+                  tag="h2"
+                  value={subtitle}
+                  editable={editable}
+                  onSave={(val) => onUpdateField?.('subtitle', val)}
+                  className="tracking-[0.2em] font-medium text-[11px] uppercase"
+                  style={{ color: primaryDark }}
+                />
+                <div className="w-10 h-px" style={{ backgroundColor: primary }}></div>
+              </div>
+            )}
           </div>
         )}
 
-        <div className="flex gap-1.5 my-2 text-xs" style={{ color: primary }}>
+        <div className="flex gap-1.5 my-1.5 text-xs" style={{ color: primary }}>
           <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
         </div>
 
-        <p className="text-[10px] tracking-widest text-slate-500 font-bold uppercase mb-2 font-sans">
-          {customLabels['presented_to'] || 'This Honor is Bestowed Upon'}
-        </p>
+        {!isHidden('Presented To') && (
+          <div className="mb-1">
+            <LiveEditableText
+              tag="p"
+              value={presentedTo || customLabels['presented_to'] || 'This Honor is Bestowed Upon'}
+              editable={editable}
+              onSave={(val) => onUpdateLabel?.('presented_to', val)}
+              className="text-[10px] tracking-widest text-slate-500 font-bold uppercase font-sans"
+            />
+          </div>
+        )}
 
         {/* Student Name */}
         {!isHidden('Student Name') && (
@@ -387,88 +810,73 @@ export const CertificateDesign2: React.FC<CertificateCustomProps> = ({
             value={studentName}
             editable={editable}
             onSave={(val) => onUpdateField?.('studentName', val)}
-            className="text-5xl mb-2 font-medium tracking-wide"
+            className="text-4xl mb-1 font-medium tracking-wide"
             style={{ fontFamily: 'Georgia, serif', color: primaryDark }}
           />
         )}
 
-        <div className="w-full max-w-xs mx-auto flex items-center gap-2 mb-3" style={{ color: primary }}>
+        {/* Student Metadata */}
+        <CertificateStudentMetadata
+          fatherName={fatherName}
+          motherName={motherName}
+          className={className}
+          section={section}
+          rollNo={rollNo}
+          admissionNo={admissionNo}
+          dob={dob}
+          gender={gender}
+          examName={examName}
+          session={session}
+          isHidden={isHidden}
+          primary={primaryDark}
+        />
+
+        <div className="w-full max-w-xs mx-auto flex items-center gap-2 my-1.5" style={{ color: primary }}>
           <span className="text-xs">♦</span>
           <div className="flex-1 h-px" style={{ backgroundColor: primary }}></div>
           <span className="text-xs">♦</span>
         </div>
 
         {/* Description */}
-        <div className="max-w-xl px-6 font-sans">
-          <LiveEditableText
-            tag="p"
-            multiline
-            value={content}
-            editable={editable}
-            onSave={(val) => onUpdateField?.('content', val)}
-            className="text-xs text-slate-600 leading-relaxed"
-          />
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="relative z-20 flex justify-between items-end px-20 pb-8 mt-auto h-32">
-        <div className="flex flex-col items-center w-36">
-          {!isHidden('Certificate Date') && (
-            <>
-              <LiveEditableText
-                tag="p"
-                value={date}
-                editable={editable}
-                onSave={(val) => onUpdateField?.('date', val)}
-                className="text-xs text-slate-700 font-bold mb-1 font-sans"
-              />
-              <div className="w-full h-px" style={{ backgroundColor: primary }}></div>
-              <p className="text-[8.5px] text-slate-400 font-bold tracking-widest uppercase font-sans mt-1">
-                {customLabels['date_label'] || 'Date'}
-              </p>
-            </>
-          )}
-        </div>
-
-        {showSeal && (
-          <div 
-            className="w-24 h-24 rounded-full border-2 border-dashed flex items-center justify-center flex-col relative shadow-inner"
-            style={{ 
-              borderColor: primary, 
-              color: primary,
-              backgroundColor: primaryLight
-            }}
-          >
-            <span className="text-[9px]">★★★</span>
-            <span className="font-bold text-[10px] text-center leading-tight">MERIT<br/>AWARD</span>
-            <span className="text-[9px]">★★★</span>
+        {!isHidden('Description') && (
+          <div className="max-w-xl px-6 font-sans">
+            <LiveEditableText
+              tag="p"
+              multiline
+              value={content}
+              editable={editable}
+              onSave={(val) => onUpdateField?.('content', val)}
+              className="text-[11.5px] text-slate-600 leading-relaxed"
+            />
           </div>
         )}
-
-        <div className="flex flex-col items-center w-36">
-          {!isHidden('Principal Sign') && (
-            <>
-              <LiveEditableText
-                tag="p"
-                value={effectivePrincipalName}
-                editable={editable}
-                onSave={(val) => onUpdateField?.('principalName', val)}
-                className="text-lg mb-0.5"
-                style={{ fontFamily: 'cursive', color: primaryDark }}
-              />
-              <div className="w-full h-px" style={{ backgroundColor: primary }}></div>
-              <LiveEditableText
-                tag="p"
-                value={effectivePrincipalLabel}
-                editable={editable}
-                onSave={(val) => onUpdateLabel?.('principalSign', val)}
-                className="text-[8.5px] text-slate-400 font-bold tracking-widest uppercase font-sans mt-1"
-              />
-            </>
-          )}
-        </div>
       </div>
+
+      {/* Comprehensive Footer Signatures & Official Seal */}
+      <CertificateFooterSignatures
+        primary={primary}
+        primaryDark={primaryDark}
+        date={date}
+        editable={editable}
+        isHidden={isHidden}
+        customLabels={customLabels}
+        showSeal={showSeal}
+        sealComponent={vintageSeal}
+        fontFamily="cursive"
+        principalName={effectivePrincipalName}
+        principalLabel={effectivePrincipalLabel}
+        teacherSignName={teacherSignName}
+        teacherSignLabel={teacherSignLabel}
+        controllerSignName={controllerSignName}
+        controllerSignLabel={controllerSignLabel}
+        parentSignName={parentSignName}
+        parentSignLabel={parentSignLabel}
+        secondarySignName={effectiveSecondaryName}
+        secondarySignLabel={effectiveSecondaryLabel}
+        studentSignLabel={studentSignLabel}
+        onUpdateField={onUpdateField}
+        onUpdateLabel={onUpdateLabel}
+      />
     </div>
   )
 }
@@ -479,16 +887,41 @@ export const CertificateDesign2: React.FC<CertificateCustomProps> = ({
 export const CertificateDesign3: React.FC<CertificateCustomProps> = ({
   title = 'CERTIFICATE OF EXCELLENCE',
   subtitle = 'Excellence in Extracurricular & Sports',
+  presentedTo,
   themeColor,
   schoolName = 'COSMOPOLITAN INTER COLLEGE',
   schoolAddress = 'Knowledge Park, Sector 62, New Delhi',
+  schoolLogo,
+  logoWidth = 60,
+  showLogo = true,
   studentName = 'Student Name',
+  fatherName,
+  motherName,
+  admissionNo,
+  rollNo,
+  className,
+  section,
+  dob,
+  gender,
+  studentPhoto,
+  examName,
+  session,
   content = 'Presented in high honor and appreciation for exceptional sportsmanship, energetic teamwork, and exemplary performance representing the institution with pride.',
   date = '15 October 2025',
   awarder = 'Principal & Sports Council',
   principalName,
   principalLabel,
+  teacherSignName,
+  teacherSignLabel,
+  controllerSignName,
+  controllerSignLabel,
+  parentSignName,
+  parentSignLabel,
+  secondarySignName,
+  secondarySignLabel,
+  studentSignLabel,
   showQr = true,
+  showSeal = true,
   hiddenFields = [],
   editable = false,
   customLabels = {},
@@ -501,6 +934,27 @@ export const CertificateDesign3: React.FC<CertificateCustomProps> = ({
   const primaryLight = hexToRgba(primary, 0.12)
   const effectivePrincipalName = principalName || 'Director.Admin'
   const effectivePrincipalLabel = principalLabel || awarder || 'Principal & Sports Council'
+  const effectiveSecondaryName = secondarySignName || customLabels['secondarySignName'] || 'Authorized Signatory'
+  const effectiveSecondaryLabel = secondarySignLabel || customLabels['secondarySignLabel'] || 'Coordinator / In-Charge'
+  const actualLogoWidth = Math.max(28, Math.min(180, Number(logoWidth) || 60))
+
+  const emeraldSeal = (
+    <div className="flex flex-col items-center">
+      <div 
+        className="w-13 h-13 rounded-full border-2 flex items-center justify-center shadow-xs"
+        style={{ 
+          borderColor: primary, 
+          backgroundColor: primaryLight,
+          color: primary 
+        }}
+      >
+        <ShieldCheck className="w-6 h-6" style={{ color: primary }} />
+      </div>
+      <span className="text-[7.5px] font-bold uppercase tracking-wider mt-0.5" style={{ color: primaryDark }}>
+        {customLabels['seal_label'] || 'Verified'}
+      </span>
+    </div>
+  )
 
   return (
     <div 
@@ -525,15 +979,32 @@ export const CertificateDesign3: React.FC<CertificateCustomProps> = ({
         </div>
       )}
 
-      <div className="relative z-10 flex flex-col items-center pt-8 px-24 flex-1 text-center">
+      {/* Candidate Photo */}
+      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-8" left="left-8" />
+
+      <div className="relative z-10 flex flex-col items-center pt-7 px-20 flex-1 text-center">
+        {showLogo && !isHidden('Logo') && !isHidden('Institute Logo') && (
+          <div 
+            className="mb-1.5 shrink-0 flex items-center justify-center overflow-hidden"
+            style={{ width: `${actualLogoWidth}px`, height: `${actualLogoWidth}px` }}
+          >
+            {schoolLogo ? (
+              <img src={schoolLogo} alt="Logo" className="w-full h-full object-contain" />
+            ) : (
+              <SampleSchoolLogo width={actualLogoWidth} height={actualLogoWidth} color={primary} />
+            )}
+          </div>
+        )}
         {!isHidden('School Name') && (
-          <div className="flex items-center gap-2 mb-0.5">
-            <div 
-              className="w-5 h-5 rounded-full text-white flex items-center justify-center font-bold text-[10px]"
-              style={{ backgroundColor: primary }}
-            >
-              <Award className="w-3.5 h-3.5" />
-            </div>
+          <div className="flex items-center gap-2 mb-1">
+            {!showLogo && (
+              <div 
+                className="w-5 h-5 rounded-full text-white flex items-center justify-center font-bold text-[10px]"
+                style={{ backgroundColor: primary }}
+              >
+                <Award className="w-3.5 h-3.5" />
+              </div>
+            )}
             <LiveEditableText
               tag="h4"
               value={schoolName}
@@ -544,44 +1015,45 @@ export const CertificateDesign3: React.FC<CertificateCustomProps> = ({
             />
           </div>
         )}
-        {!isHidden('School Address') && (
-          <LiveEditableText
-            tag="p"
-            value={schoolAddress}
-            editable={editable}
-            onSave={(val) => onUpdateField?.('schoolAddress', val)}
-            className="text-[9.5px] text-slate-400 font-medium mb-3"
-          />
-        )}
 
         {!isHidden('Title') && (
-          <div className="mb-2">
+          <div className="mb-1">
             <LiveEditableText
               tag="h1"
               value={title}
               editable={editable}
               onSave={(val) => onUpdateField?.('title', val)}
-              className="font-serif font-black text-4xl tracking-wider uppercase text-slate-900"
+              className="font-serif font-black text-3xl tracking-wider uppercase text-slate-900"
             />
-            <LiveEditableText
-              tag="p"
-              value={subtitle}
-              editable={editable}
-              onSave={(val) => onUpdateField?.('subtitle', val)}
-              className="font-bold text-xs tracking-[0.25em] uppercase mt-1"
-              style={{ color: primary }}
-            />
+            {!isHidden('Subtitle') && (
+              <LiveEditableText
+                tag="p"
+                value={subtitle}
+                editable={editable}
+                onSave={(val) => onUpdateField?.('subtitle', val)}
+                className="font-bold text-[11px] tracking-[0.25em] uppercase mt-0.5"
+                style={{ color: primary }}
+              />
+            )}
           </div>
         )}
 
         <div 
-          className="w-24 h-1 rounded-full my-2"
+          className="w-24 h-1 rounded-full my-1.5"
           style={{ background: `linear-gradient(to right, ${primary}, #f59e0b)` }}
         ></div>
 
-        <p className="text-[10px] tracking-widest text-slate-500 font-bold uppercase mb-2">
-          {customLabels['presented_to'] || 'This Distinction is Bestowed Upon'}
-        </p>
+        {!isHidden('Presented To') && (
+          <div className="mb-1">
+            <LiveEditableText
+              tag="p"
+              value={presentedTo || customLabels['presented_to'] || 'This Distinction is Bestowed Upon'}
+              editable={editable}
+              onSave={(val) => onUpdateLabel?.('presented_to', val)}
+              className="text-[10px] tracking-widest text-slate-500 font-bold uppercase"
+            />
+          </div>
+        )}
 
         {!isHidden('Student Name') && (
           <LiveEditableText
@@ -589,81 +1061,65 @@ export const CertificateDesign3: React.FC<CertificateCustomProps> = ({
             value={studentName}
             editable={editable}
             onSave={(val) => onUpdateField?.('studentName', val)}
-            className="font-serif font-black text-4xl tracking-wide border-b-2 px-8 pb-1 inline-block my-1"
+            className="font-serif font-black text-3xl tracking-wide border-b-2 px-8 pb-0.5 inline-block my-0.5"
             style={{ color: primaryDark, borderColor: primary }}
           />
         )}
 
-        <div className="max-w-xl mx-auto mt-4 px-6">
-          <LiveEditableText
-            tag="p"
-            multiline
-            value={content}
-            editable={editable}
-            onSave={(val) => onUpdateField?.('content', val)}
-            className="text-slate-600 text-xs font-medium leading-relaxed"
-          />
-        </div>
-      </div>
+        {/* Student Metadata Badges */}
+        <CertificateStudentMetadata
+          fatherName={fatherName}
+          motherName={motherName}
+          className={className}
+          section={section}
+          rollNo={rollNo}
+          admissionNo={admissionNo}
+          dob={dob}
+          gender={gender}
+          examName={examName}
+          session={session}
+          isHidden={isHidden}
+          primary={primaryDark}
+        />
 
-      <div className="relative z-10 flex justify-between items-end px-20 pb-8 mt-auto">
-        <div className="flex flex-col items-center w-36">
-          {!isHidden('Certificate Date') && (
-            <>
-              <LiveEditableText
-                tag="p"
-                value={date}
-                editable={editable}
-                onSave={(val) => onUpdateField?.('date', val)}
-                className="font-bold text-xs text-slate-800 mb-1"
-              />
-              <div className="w-full h-px mb-1" style={{ backgroundColor: hexToRgba(primary, 0.3) }}></div>
-              <p className="text-[8.5px] font-bold text-slate-400 tracking-widest uppercase">
-                {customLabels['date_label'] || 'Date of Issue'}
-              </p>
-            </>
-          )}
-        </div>
-
-        <div className="flex flex-col items-center">
-          <div 
-            className="w-14 h-14 rounded-full border-2 flex items-center justify-center shadow-sm"
-            style={{ 
-              borderColor: primary,
-              backgroundColor: primaryLight,
-              color: primary
-            }}
-          >
-            <ShieldCheck className="w-7 h-7" style={{ color: primary }} />
+        {!isHidden('Description') && (
+          <div className="max-w-xl mx-auto mt-2 px-6">
+            <LiveEditableText
+              tag="p"
+              multiline
+              value={content}
+              editable={editable}
+              onSave={(val) => onUpdateField?.('content', val)}
+              className="text-slate-600 text-[11.5px] font-medium leading-relaxed"
+            />
           </div>
-          <span className="text-[8px] font-bold uppercase tracking-wider mt-1" style={{ color: primaryDark }}>
-            Verified Credential
-          </span>
-        </div>
-
-        <div className="flex flex-col items-center w-36">
-          {!isHidden('Principal Sign') && (
-            <>
-              <LiveEditableText
-                tag="p"
-                value={effectivePrincipalName}
-                editable={editable}
-                onSave={(val) => onUpdateField?.('principalName', val)}
-                className="font-serif italic font-bold text-sm mb-1"
-                style={{ color: primaryDark }}
-              />
-              <div className="w-full h-px mb-1" style={{ backgroundColor: hexToRgba(primary, 0.3) }}></div>
-              <LiveEditableText
-                tag="p"
-                value={effectivePrincipalLabel}
-                editable={editable}
-                onSave={(val) => onUpdateLabel?.('principalSign', val)}
-                className="text-[8.5px] font-bold text-slate-400 tracking-widest uppercase"
-              />
-            </>
-          )}
-        </div>
+        )}
       </div>
+
+      {/* Comprehensive Footer Signatures & Official Seal */}
+      <CertificateFooterSignatures
+        primary={primary}
+        primaryDark={primaryDark}
+        date={date}
+        editable={editable}
+        isHidden={isHidden}
+        customLabels={customLabels}
+        showSeal={showSeal}
+        sealComponent={emeraldSeal}
+        principalName={effectivePrincipalName}
+        principalLabel={effectivePrincipalLabel}
+        teacherSignName={teacherSignName}
+        teacherSignLabel={teacherSignLabel}
+        controllerSignName={controllerSignName}
+        controllerSignLabel={controllerSignLabel}
+        parentSignName={parentSignName}
+        parentSignLabel={parentSignLabel}
+        secondarySignName={effectiveSecondaryName}
+        secondarySignLabel={effectiveSecondaryLabel}
+        studentSignLabel={studentSignLabel}
+        onUpdateField={onUpdateField}
+        onUpdateLabel={onUpdateLabel}
+      />
     </div>
   )
 }
@@ -674,15 +1130,36 @@ export const CertificateDesign3: React.FC<CertificateCustomProps> = ({
 export const CertificateDesign4: React.FC<CertificateCustomProps> = ({
   title = 'CERTIFICATE OF COMPLETION',
   subtitle = 'Academic Curriculum & Co-Curricular',
+  presentedTo,
   themeColor,
   schoolName = 'COSMOPOLITAN INTER COLLEGE',
   schoolAddress = 'Knowledge Park, Sector 62, New Delhi',
   studentName = 'Student Name',
+  fatherName,
+  motherName,
+  admissionNo,
+  rollNo,
+  className,
+  section,
+  dob,
+  gender,
+  studentPhoto,
+  examName,
+  session,
   content = 'This certifies the satisfactory completion of the prescribed curriculum and active participation in institutional projects with sincere effort and commendable diligence.',
   date = '15 October 2025',
   awarder = 'Principal & Academic Dean',
   principalName,
   principalLabel,
+  teacherSignName,
+  teacherSignLabel,
+  controllerSignName,
+  controllerSignLabel,
+  parentSignName,
+  parentSignLabel,
+  secondarySignName,
+  secondarySignLabel,
+  studentSignLabel,
   showQr = true,
   showSeal = true,
   hiddenFields = [],
@@ -696,6 +1173,8 @@ export const CertificateDesign4: React.FC<CertificateCustomProps> = ({
   const borderTint = hexToRgba(primary, 0.35)
   const effectivePrincipalName = principalName || 'Dean.Academics'
   const effectivePrincipalLabel = principalLabel || awarder || 'Principal & Academic Dean'
+  const effectiveSecondaryName = secondarySignName || customLabels['secondarySignName'] || 'Authorized Signatory'
+  const effectiveSecondaryLabel = secondarySignLabel || customLabels['secondarySignLabel'] || 'Coordinator / In-Charge'
 
   return (
     <div className="w-[800px] h-[580px] bg-white relative overflow-hidden flex flex-col font-sans shrink-0 border border-slate-300 shadow-2xl select-none text-slate-800">
@@ -709,7 +1188,10 @@ export const CertificateDesign4: React.FC<CertificateCustomProps> = ({
         </div>
       )}
 
-      <div className="relative z-10 flex flex-col items-center pt-10 px-24 flex-1 text-center">
+      {/* Candidate Photo */}
+      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-8" left="left-10" />
+
+      <div className="relative z-10 flex flex-col items-center pt-8 px-20 flex-1 text-center">
         {!isHidden('School Name') && (
           <LiveEditableText
             tag="h4"
@@ -726,35 +1208,43 @@ export const CertificateDesign4: React.FC<CertificateCustomProps> = ({
             value={schoolAddress}
             editable={editable}
             onSave={(val) => onUpdateField?.('schoolAddress', val)}
-            className="text-[9.5px] text-slate-500 font-medium mb-3"
+            className="text-[9.5px] text-slate-500 font-medium mb-2"
           />
         )}
 
         {!isHidden('Title') && (
-          <div className="mb-2">
+          <div className="mb-1">
             <LiveEditableText
               tag="h1"
               value={title}
               editable={editable}
               onSave={(val) => onUpdateField?.('title', val)}
-              className="font-serif font-black text-4xl tracking-wider text-slate-900 uppercase"
+              className="font-serif font-black text-3xl tracking-wider text-slate-900 uppercase"
             />
             <LiveEditableText
               tag="p"
               value={subtitle}
               editable={editable}
               onSave={(val) => onUpdateField?.('subtitle', val)}
-              className="font-bold text-xs tracking-[0.25em] uppercase mt-1"
+              className="font-bold text-[11px] tracking-[0.25em] uppercase mt-0.5"
               style={{ color: primary }}
             />
           </div>
         )}
 
-        <div className="w-28 h-0.5 my-2" style={{ backgroundColor: primary }}></div>
+        <div className="w-28 h-0.5 my-1.5" style={{ backgroundColor: primary }}></div>
 
-        <p className="text-[10px] tracking-widest text-slate-500 font-semibold uppercase mb-2">
-          {customLabels['presented_to'] || 'This Document Confirms That'}
-        </p>
+        {!isHidden('Presented To') && (
+          <div className="mb-1">
+            <LiveEditableText
+              tag="p"
+              value={presentedTo || customLabels['presented_to'] || 'This Document Confirms That'}
+              editable={editable}
+              onSave={(val) => onUpdateLabel?.('presented_to', val)}
+              className="text-[10px] tracking-widest text-slate-500 font-semibold uppercase"
+            />
+          </div>
+        )}
 
         {!isHidden('Student Name') && (
           <LiveEditableText
@@ -762,71 +1252,62 @@ export const CertificateDesign4: React.FC<CertificateCustomProps> = ({
             value={studentName}
             editable={editable}
             onSave={(val) => onUpdateField?.('studentName', val)}
-            className="font-serif font-black text-4xl tracking-wide border-b-2 px-8 pb-1 inline-block my-1"
+            className="font-serif font-black text-3xl tracking-wide border-b-2 px-8 pb-0.5 inline-block my-0.5"
             style={{ color: primary, borderColor: borderTint }}
           />
         )}
 
-        <div className="max-w-xl mx-auto mt-4 px-6">
+        {/* Student Metadata Badges */}
+        <CertificateStudentMetadata
+          fatherName={fatherName}
+          motherName={motherName}
+          className={className}
+          section={section}
+          rollNo={rollNo}
+          admissionNo={admissionNo}
+          dob={dob}
+          gender={gender}
+          examName={examName}
+          session={session}
+          isHidden={isHidden}
+          primary={primary}
+        />
+
+        <div className="max-w-xl mx-auto mt-2 px-6">
           <LiveEditableText
             tag="p"
             multiline
             value={content}
             editable={editable}
             onSave={(val) => onUpdateField?.('content', val)}
-            className="text-slate-600 text-xs font-medium leading-relaxed"
+            className="text-slate-600 text-[11.5px] font-medium leading-relaxed"
           />
         </div>
       </div>
 
-      <div className="relative z-10 flex justify-between items-end px-20 pb-10 mt-auto">
-        <div className="flex flex-col items-center w-36">
-          {!isHidden('Certificate Date') && (
-            <>
-              <LiveEditableText
-                tag="p"
-                value={date}
-                editable={editable}
-                onSave={(val) => onUpdateField?.('date', val)}
-                className="font-bold text-xs text-slate-800 mb-1"
-              />
-              <div className="w-full h-px bg-slate-300 mb-1"></div>
-              <p className="text-[8.5px] font-bold text-slate-400 tracking-widest uppercase">
-                {customLabels['date_label'] || 'Date of Issue'}
-              </p>
-            </>
-          )}
-        </div>
-
-        {showSeal && (
-          <div className="mb-1">
-            <GoldSeal text="CERTIFIED" ribbonColor={primary} />
-          </div>
-        )}
-
-        <div className="flex flex-col items-center w-36">
-          {!isHidden('Principal Sign') && (
-            <>
-              <LiveEditableText
-                tag="p"
-                value={effectivePrincipalName}
-                editable={editable}
-                onSave={(val) => onUpdateField?.('principalName', val)}
-                className="font-serif italic font-bold text-sm mb-1"
-                style={{ color: primary }}
-              />
-              <div className="w-full h-px bg-slate-300 mb-1"></div>
-              <LiveEditableText
-                tag="p"
-                value={effectivePrincipalLabel}
-                editable={editable}
-                onSave={(val) => onUpdateLabel?.('principalSign', val)}
-                className="text-[8.5px] font-bold text-slate-400 tracking-widest uppercase"
-              />
-            </>
-          )}
-        </div>
-      </div>
+      {/* Comprehensive Footer Signatures & Official Seal */}
+      <CertificateFooterSignatures
+        primary={primary}
+        date={date}
+        editable={editable}
+        isHidden={isHidden}
+        customLabels={customLabels}
+        showSeal={showSeal}
+        sealComponent={<GoldSeal text={customLabels['seal_label'] || "CERTIFIED"} ribbonColor={primary} />}
+        principalName={effectivePrincipalName}
+        principalLabel={effectivePrincipalLabel}
+        teacherSignName={teacherSignName}
+        teacherSignLabel={teacherSignLabel}
+        controllerSignName={controllerSignName}
+        controllerSignLabel={controllerSignLabel}
+        parentSignName={parentSignName}
+        parentSignLabel={parentSignLabel}
+        secondarySignName={effectiveSecondaryName}
+        secondarySignLabel={effectiveSecondaryLabel}
+        studentSignLabel={studentSignLabel}
+        onUpdateField={onUpdateField}
+        onUpdateLabel={onUpdateLabel}
+      />
     </div>
   )
 }
@@ -853,6 +1334,8 @@ export interface CertificateMiniPreviewProps {
   template: 'Certificate Design 1' | 'Certificate Design 2' | 'Certificate Design 3' | 'Certificate Design 4' | string
   themeColor?: string
   schoolName?: string
+  schoolLogo?: string
+  showLogo?: boolean
   studentName?: string
   title?: string
   subtitle?: string
@@ -864,6 +1347,8 @@ export const CertificateMiniPreview: React.FC<CertificateMiniPreviewProps> = ({
   template,
   themeColor,
   schoolName = 'COSMOPOLITAN INTER COLLEGE',
+  schoolLogo,
+  showLogo = true,
   studentName = 'Aarav Sharma',
   title,
   subtitle,
@@ -913,8 +1398,17 @@ export const CertificateMiniPreview: React.FC<CertificateMiniPreviewProps> = ({
 
           {/* Header */}
           <div className="relative z-10 text-center pt-0.5">
-            <div className="text-[6.5px] font-black uppercase tracking-wider truncate px-4" style={{ color: primary }}>
-              {schoolName}
+            <div className="flex items-center justify-center gap-1 mb-0.5">
+              {showLogo && (
+                schoolLogo ? (
+                  <img src={schoolLogo} alt="Logo" className="w-3.5 h-3.5 rounded object-contain shrink-0" />
+                ) : (
+                  <SampleSchoolLogo width={14} height={14} color={primary} className="shrink-0" />
+                )
+              )}
+              <span className="text-[6.5px] font-black uppercase tracking-wider truncate px-1" style={{ color: primary }}>
+                {schoolName}
+              </span>
             </div>
             <div className="text-[7.5px] font-serif font-black uppercase text-slate-900 tracking-wide mt-0.5">
               {title || 'CERTIFICATE OF ACHIEVEMENT'}
@@ -972,8 +1466,17 @@ export const CertificateMiniPreview: React.FC<CertificateMiniPreviewProps> = ({
 
           {/* Header */}
           <div className="relative z-10 text-center pt-0.5 font-serif">
-            <div className="text-[6.5px] font-black uppercase tracking-wider truncate px-4" style={{ color: primary }}>
-              {schoolName}
+            <div className="flex items-center justify-center gap-1 mb-0.5">
+              {showLogo && (
+                schoolLogo ? (
+                  <img src={schoolLogo} alt="Logo" className="w-3.5 h-3.5 rounded object-contain shrink-0" />
+                ) : (
+                  <SampleSchoolLogo width={14} height={14} color={primary} className="shrink-0" />
+                )
+              )}
+              <span className="text-[6.5px] font-black uppercase tracking-wider truncate px-1" style={{ color: primary }}>
+                {schoolName}
+              </span>
             </div>
             <div className="text-[7.5px] font-black uppercase text-slate-900 tracking-wide mt-0.5">
               {title || 'CERTIFICATE OF MERIT'}
@@ -1031,7 +1534,15 @@ export const CertificateMiniPreview: React.FC<CertificateMiniPreviewProps> = ({
           {/* Header */}
           <div className="relative z-10 text-center pt-0.5">
             <div className="flex items-center justify-center gap-1 mb-0.5">
-              <Award className="w-2.5 h-2.5" style={{ color: primary }} />
+              {showLogo ? (
+                schoolLogo ? (
+                  <img src={schoolLogo} alt="Logo" className="w-3.5 h-3.5 rounded object-contain shrink-0" />
+                ) : (
+                  <SampleSchoolLogo width={14} height={14} color={primary} className="shrink-0" />
+                )
+              ) : (
+                <Award className="w-2.5 h-2.5" style={{ color: primary }} />
+              )}
               <span className="text-[6.5px] font-black uppercase tracking-wider truncate" style={{ color: primary }}>
                 {schoolName}
               </span>

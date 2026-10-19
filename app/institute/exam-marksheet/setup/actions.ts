@@ -49,10 +49,55 @@ export async function fetchMarksheetSetups() {
       ORDER BY created_at DESC
     `, [institutionId])
 
-    return { success: true, data: res.rows }
+    // Deduplicate / consolidate setups that share the same exam name, group, and session into one setup row
+    const consolidatedMap = new Map<string, any>()
+    for (const row of res.rows) {
+      const key = `${(row.exam || '').trim().toLowerCase()}__${(row.session || '').trim().toLowerCase()}`
+      if (!consolidatedMap.has(key)) {
+        consolidatedMap.set(key, { ...row })
+      } else {
+        const existing = consolidatedMap.get(key)
+        // Combine classGrade if distinct
+        const existingGrade = existing.classGrade || ''
+        const rowGrade = row.classGrade || ''
+        if (rowGrade && !existingGrade.toLowerCase().includes(rowGrade.toLowerCase())) {
+          existing.classGrade = `${existingGrade}, ${rowGrade}`
+        }
+        // Merge config.classes if present
+        if (Array.isArray(row.config?.classes)) {
+          existing.config = existing.config || {}
+          const existingClasses = Array.isArray(existing.config.classes) ? existing.config.classes : []
+          existing.config.classes = [...existingClasses, ...row.config.classes]
+        }
+      }
+    }
+
+    return { success: true, data: Array.from(consolidatedMap.values()) }
   } catch (err: any) {
     return { success: false, error: err.message, data: [] }
   }
+}
+
+function parseSqlDate(val?: any): string | null {
+  if (!val) return null
+  const s = String(val).trim()
+  if (!s) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+  if (s.includes('T')) {
+    const p = s.split('T')[0]
+    if (/^\d{4}-\d{2}-\d{2}$/.test(p)) return p
+  }
+  const dmy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/)
+  if (dmy) {
+    return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`
+  }
+  try {
+    const d = new Date(s)
+    if (!isNaN(d.getTime())) {
+      return d.toISOString().split('T')[0]
+    }
+  } catch (e) {}
+  return null
 }
 
 // -------------------------------------------------------------
@@ -86,7 +131,25 @@ export async function fetchMarksheetSetupById(id: string) {
     if (!res.rows[0]) {
       return { success: false, error: 'Setup not found', data: null }
     }
-    return { success: true, data: res.rows[0] }
+    const row = res.rows[0]
+    let cfg = row.config
+    if (typeof cfg === 'string') {
+      try {
+        cfg = JSON.parse(cfg)
+      } catch (e) {
+        cfg = {}
+      }
+    }
+    if (!row.examDate && (cfg?.examDate || cfg?.dateOfExam)) {
+      row.examDate = parseSqlDate(cfg.examDate || cfg.dateOfExam)
+    }
+    if (!row.admitCardDate) {
+      row.admitCardDate = parseSqlDate(cfg?.admitCardDate || cfg?.admitCardSettings?.admitCardDate || row.examDate)
+    }
+    if (!row.lastDateToEnter) {
+      row.lastDateToEnter = parseSqlDate(cfg?.lastDateToEnter || cfg?.resultDate || row.examDate)
+    }
+    return { success: true, data: row }
   } catch (err: any) {
     return { success: false, error: err.message, data: null }
   }
@@ -113,9 +176,13 @@ export async function saveMarksheetSetup(data: {
   const institutionId = session?.userId || 'default_institution'
 
   try {
+    const parsedExamDate = parseSqlDate(data.examDate)
+    const parsedAdmitCardDate = parseSqlDate(data.admitCardDate) || parsedExamDate
+    const parsedLastDate = parseSqlDate(data.lastDateToEnter) || parsedExamDate
+
     if (data.id) {
       // Update existing setup
-      const res = await pool.query(`
+      const updateRes = await pool.query(`
         UPDATE institute_marksheet_setups
         SET 
           group_name = $1,
@@ -133,25 +200,71 @@ export async function saveMarksheetSetup(data: {
         WHERE id = $12 AND (institution_id = $13 OR institution_id = 'default_institution')
         RETURNING id, group_name as "group", exam_name as "exam", class_grade as "classGrade"
       `, [
-        data.groupName || 'Exam',
+        data.groupName || 'Quarterly',
         data.examName,
         data.classGrade,
         data.marksGrade || 'Percentage',
         data.templateName || 'CBSE Royal Emerald',
         data.session || '2025-2026',
-        data.examDate ? new Date(data.examDate) : null,
-        data.admitCardDate ? new Date(data.admitCardDate) : null,
+        parsedExamDate,
+        parsedAdmitCardDate,
         data.lockExam || false,
-        data.lastDateToEnter ? new Date(data.lastDateToEnter) : null,
+        parsedLastDate,
         JSON.stringify(data.config || {}),
         data.id,
         institutionId
       ])
 
-      return { success: true, data: res.rows[0] }
+      return { success: true, data: updateRes.rows[0] }
     } else {
+      // Check if setup already exists for this exam name and session
+      const existing = await pool.query(`
+        SELECT id FROM institute_marksheet_setups
+        WHERE (institution_id = $1 OR institution_id = 'default_institution')
+          AND LOWER(TRIM(exam_name)) = LOWER(TRIM($2))
+          AND LOWER(TRIM(session)) = LOWER(TRIM($3))
+        LIMIT 1
+      `, [institutionId, data.examName, data.session || '2025-2026'])
+
+      if (existing.rows.length > 0) {
+        const existingId = existing.rows[0].id
+        const updateExistingRes = await pool.query(`
+          UPDATE institute_marksheet_setups
+          SET 
+            group_name = $1,
+            exam_name = $2,
+            class_grade = $3,
+            marks_grade = $4,
+            template_name = $5,
+            session = $6,
+            exam_date = $7,
+            admit_card_date = $8,
+            lock_exam = $9,
+            last_date_to_enter = $10,
+            config = $11,
+            updated_at = now()
+          WHERE id = $12
+          RETURNING id, group_name as "group", exam_name as "exam", class_grade as "classGrade"
+        `, [
+          data.groupName || 'Quarterly',
+          data.examName,
+          data.classGrade,
+          data.marksGrade || 'Percentage',
+          data.templateName || 'CBSE Royal Emerald',
+          data.session || '2025-2026',
+          parsedExamDate,
+          parsedAdmitCardDate,
+          data.lockExam || false,
+          parsedLastDate,
+          JSON.stringify(data.config || {}),
+          existingId
+        ])
+
+        return { success: true, data: updateExistingRes.rows[0] }
+      }
+
       // Insert new setup
-      const res = await pool.query(`
+      const insertRes = await pool.query(`
         INSERT INTO institute_marksheet_setups (
           institution_id, group_name, exam_name, class_grade, marks_grade,
           template_name, session, exam_date, admit_card_date, lock_exam,
@@ -160,20 +273,20 @@ export async function saveMarksheetSetup(data: {
         RETURNING id, group_name as "group", exam_name as "exam", class_grade as "classGrade"
       `, [
         institutionId,
-        data.groupName || 'Exam',
+        data.groupName || 'Quarterly',
         data.examName,
         data.classGrade,
         data.marksGrade || 'Percentage',
         data.templateName || 'CBSE Royal Emerald',
         data.session || '2025-2026',
-        data.examDate ? new Date(data.examDate) : null,
-        data.admitCardDate ? new Date(data.admitCardDate) : null,
+        parsedExamDate,
+        parsedAdmitCardDate,
         data.lockExam || false,
-        data.lastDateToEnter ? new Date(data.lastDateToEnter) : null,
+        parsedLastDate,
         JSON.stringify(data.config || {})
       ])
 
-      return { success: true, data: res.rows[0] }
+      return { success: true, data: insertRes.rows[0] }
     }
   } catch (err: any) {
     return { success: false, error: err.message }
@@ -254,12 +367,32 @@ export async function deleteMarksheetSetup(id: string) {
 // -------------------------------------------------------------
 // EXAM GROUPS (institute_exam_groups)
 // -------------------------------------------------------------
+const DEFAULT_SYSTEM_EXAM_GROUPS = [
+  { groupName: 'Quarterly', description: 'Quarterly examination assessment scheme' },
+  { groupName: 'Half Yearly', description: 'Half Yearly examination assessment scheme' },
+  { groupName: 'Yearly', description: 'Yearly comprehensive examination scheme' },
+  { groupName: 'Annually', description: 'Annual final examination scheme' }
+]
+
 export async function fetchExamGroups() {
   const session = await getSession('institute_session')
   const institutionId = session?.userId || 'default_institution'
 
   try {
-    const res = await pool.query(`
+    // 1. Ensure table exists
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS institute_exam_groups (
+        id SERIAL PRIMARY KEY,
+        institution_id VARCHAR(255) NOT NULL,
+        group_name VARCHAR(255) NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `)
+
+    // 2. Fetch existing groups
+    let res = await pool.query(`
       SELECT 
         id, 
         group_name as "groupName", 
@@ -268,12 +401,44 @@ export async function fetchExamGroups() {
         TO_CHAR(created_at, 'HH12:MI AM') as "time"
       FROM institute_exam_groups
       WHERE (institution_id = $1 OR institution_id = 'default_institution')
-      ORDER BY created_at ASC
+      ORDER BY id ASC
     `, [institutionId])
+
+    // 3. Seed default groups if empty
+    if (res.rows.length === 0) {
+      for (const defGroup of DEFAULT_SYSTEM_EXAM_GROUPS) {
+        await pool.query(`
+          INSERT INTO institute_exam_groups (institution_id, group_name, description)
+          VALUES ($1, $2, $3)
+        `, [institutionId, defGroup.groupName, defGroup.description])
+      }
+
+      res = await pool.query(`
+        SELECT 
+          id, 
+          group_name as "groupName", 
+          description,
+          TO_CHAR(created_at, 'DD/MM/YYYY') as "date",
+          TO_CHAR(created_at, 'HH12:MI AM') as "time"
+        FROM institute_exam_groups
+        WHERE (institution_id = $1 OR institution_id = 'default_institution')
+        ORDER BY id ASC
+      `, [institutionId])
+    }
 
     return { success: true, data: res.rows }
   } catch (err: any) {
-    return { success: false, error: err.message, data: [] }
+    const today = new Date()
+    const formattedDate = today.toLocaleDateString('en-GB')
+    const formattedTime = today.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    const fallbackData = DEFAULT_SYSTEM_EXAM_GROUPS.map((g, idx) => ({
+      id: idx + 1,
+      groupName: g.groupName,
+      description: g.description,
+      date: formattedDate,
+      time: formattedTime
+    }))
+    return { success: true, data: fallbackData }
   }
 }
 
@@ -294,6 +459,49 @@ export async function saveExamGroup(groupName: string, description?: string) {
     `, [institutionId, groupName.trim(), description?.trim() || ''])
 
     return { success: true, data: res.rows[0] }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+export async function updateExamGroup(id: number | string, groupName: string, description?: string) {
+  const session = await getSession('institute_session')
+  const institutionId = session?.userId || 'default_institution'
+
+  try {
+    const res = await pool.query(`
+      UPDATE institute_exam_groups
+      SET group_name = $1, description = $2
+      WHERE id = $3 AND (institution_id = $4 OR institution_id = 'default_institution')
+      RETURNING 
+        id, 
+        group_name as "groupName", 
+        description,
+        TO_CHAR(created_at, 'DD/MM/YYYY') as "date",
+        TO_CHAR(created_at, 'HH12:MI AM') as "time"
+    `, [groupName.trim(), description?.trim() || '', id, institutionId])
+
+    if (res.rows.length === 0) {
+      return { success: false, error: 'Group not found or unauthorized' }
+    }
+
+    return { success: true, data: res.rows[0] }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+export async function deleteExamGroup(id: number | string) {
+  const session = await getSession('institute_session')
+  const institutionId = session?.userId || 'default_institution'
+
+  try {
+    await pool.query(`
+      DELETE FROM institute_exam_groups
+      WHERE id = $1 AND (institution_id = $2 OR institution_id = 'default_institution')
+    `, [id, institutionId])
+
+    return { success: true }
   } catch (err: any) {
     return { success: false, error: err.message }
   }

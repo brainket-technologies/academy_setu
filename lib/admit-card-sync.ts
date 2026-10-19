@@ -23,6 +23,8 @@ export interface AdmitCardConfig {
   defaultFontSize?: string
   spacing?: string
   studentPhotoSize?: string
+  studentPhotoWidth?: string
+  studentPhotoHeight?: string
   teacherSignLabel?: string
   studentSignLabel?: string
   parentSignLabel?: string
@@ -30,6 +32,10 @@ export interface AdmitCardConfig {
   principalName?: string
   signatureWidth?: string
   schoolStampWidth?: string
+  schoolLogo?: string
+  schoolLogoWidth?: string
+  schoolLogoHeight?: string
+  signatureOrder?: string[]
   templateStyle?: string
   themeColor?: string
   customLabels?: Record<string, string>
@@ -68,6 +74,7 @@ const DEFAULT_DISPLAY_FIELDS = {
   class: true,
   section: true,
   photo: true,
+  logo: true,
   studentSign: true,
   teacherSign: true,
   principalSign: true,

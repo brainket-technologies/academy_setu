@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Award, CheckCircle2, ShieldCheck, QrCode, Sparkles, School, Star, BookOpen, Heart, Activity, Palette, Compass, Trophy, User, Check } from 'lucide-react'
-import { LiveEditableText, ProperQrCode } from '@/components/admit-card/AdmitCardModalPreview'
+import { LiveEditableText, ProperQrCode, SampleSchoolLogo } from '@/components/admit-card/AdmitCardModalPreview'
 
 // Helper: convert hex to rgba
 export function hexToRgba(hex: string, alpha: number): string {
@@ -25,6 +25,10 @@ export interface MarksheetPreviewProps {
   affiliateTo?: string
   schoolAddress?: string
   schoolCode?: string
+  schoolLogo?: string
+  logoWidth?: string | number
+  logoHeight?: string | number
+  showLogo?: boolean
   phone?: string
   email?: string
   principalName?: string
@@ -70,6 +74,10 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
   affiliateTo = 'Affiliated to CBSE, New Delhi • Affiliation No. 2130842',
   schoolAddress = 'Knowledge Park, Sector 62, New Delhi - 110092',
   schoolCode = '123456',
+  schoolLogo,
+  logoWidth = 60,
+  logoHeight,
+  showLogo: showLogoProp,
   phone = '+91 11 2345 6789',
   email = 'info@cosmopolitan.edu',
   principalName = 'Dr. Meenakshi Sundaram',
@@ -246,6 +254,12 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
   const tintMed = hexToRgba(primary, 0.16)
   const borderTint = hexToRgba(primary, 0.3)
 
+  // Dynamic logo calculation with sample fallback
+  const showLogo = showLogoProp !== undefined 
+    ? showLogoProp 
+    : (columnsList ? (columnsList as any).logo !== false : true)
+  const actualLogoWidth = Math.max(28, Math.min(180, Number(logoWidth) || 60))
+
   // =========================================================================
   // TEMPLATE 2: MINIMALIST MODERN (CANVA / PINTEREST STYLE - TEAL & SLATE)
   // =========================================================================
@@ -254,8 +268,24 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
       <div className="w-full max-w-[780px] bg-white text-slate-800 rounded-3xl shadow-2xl p-7 md:p-9 font-sans border select-none" style={{ borderColor: borderTint }}>
         {/* Header */}
         <div className="flex flex-col items-center text-center pb-6 border-b border-slate-100">
+          {showLogo && (
+            <div 
+              className="mb-2.5 shrink-0 flex items-center justify-center overflow-hidden"
+              style={{ width: `${actualLogoWidth}px`, height: `${actualLogoWidth}px` }}
+            >
+              {schoolLogo ? (
+                <img
+                  src={schoolLogo}
+                  alt={schoolName || 'School Logo'}
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <SampleSchoolLogo width={actualLogoWidth} height={actualLogoWidth} color={primary} />
+              )}
+            </div>
+          )}
           <div className="flex items-center gap-2.5 font-black text-lg md:text-xl tracking-tight uppercase" style={{ color: primary }}>
-            <School className="w-7 h-7" style={{ color: primary }} />
+            {!showLogo && <School className="w-7 h-7" style={{ color: primary }} />}
             <LiveEditableText
               tag="span"
               value={schoolName}
@@ -597,12 +627,27 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
           {/* Header */}
           <div className="text-center pb-4 border-b-2" style={{ borderColor: primary }}>
             <div className="flex items-center justify-center gap-3">
-              <div 
-                className="w-12 h-12 rounded-full border-2 flex items-center justify-center text-white shadow-xs"
-                style={{ backgroundColor: primary, borderColor: borderTint }}
-              >
-                <School className="w-7 h-7" />
-              </div>
+              {showLogo && (
+                <div 
+                  className="shrink-0 flex items-center justify-center overflow-hidden rounded-full border-2 shadow-xs p-1"
+                  style={{ 
+                    width: `${actualLogoWidth}px`, 
+                    height: `${actualLogoWidth}px`,
+                    backgroundColor: schoolLogo ? 'transparent' : primary,
+                    borderColor: borderTint
+                  }}
+                >
+                  {schoolLogo ? (
+                    <img
+                      src={schoolLogo}
+                      alt={schoolName || 'School Logo'}
+                      className="w-full h-full object-contain rounded-full"
+                    />
+                  ) : (
+                    <SampleSchoolLogo width={actualLogoWidth - 8} height={actualLogoWidth - 8} color="#ffffff" />
+                  )}
+                </div>
+              )}
               <h1 className="text-2xl md:text-3xl font-black uppercase tracking-wide" style={{ color: primary }}>
                 <LiveEditableText
                   tag="span"
@@ -994,6 +1039,22 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
         
         {/* Playful Header */}
         <div className="text-center pb-5 border-b-2" style={{ borderColor: borderTint }}>
+          {showLogo && (
+            <div 
+              className="mx-auto mb-2.5 shrink-0 flex items-center justify-center overflow-hidden"
+              style={{ width: `${actualLogoWidth}px`, height: `${actualLogoWidth}px` }}
+            >
+              {schoolLogo ? (
+                <img
+                  src={schoolLogo}
+                  alt={schoolName || 'School Logo'}
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <SampleSchoolLogo width={actualLogoWidth} height={actualLogoWidth} color={primary} />
+              )}
+            </div>
+          )}
           <div 
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full font-black text-xs mb-2 border"
             style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}
@@ -1328,9 +1389,27 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 pb-5 border-b-2" style={{ borderColor: primary }}>
           {/* School Emblem / Logo */}
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full text-white border-2 flex items-center justify-center shadow-md shrink-0" style={{ backgroundColor: primary, borderColor: borderTint }}>
-              <School className="w-9 h-9" />
-            </div>
+            {showLogo && (
+              <div 
+                className="shrink-0 flex items-center justify-center overflow-hidden rounded-full border-2 shadow-md p-1"
+                style={{ 
+                  width: `${actualLogoWidth}px`, 
+                  height: `${actualLogoWidth}px`,
+                  backgroundColor: schoolLogo ? 'transparent' : primary,
+                  borderColor: borderTint
+                }}
+              >
+                {schoolLogo ? (
+                  <img
+                    src={schoolLogo}
+                    alt={schoolName || 'School Logo'}
+                    className="w-full h-full object-contain rounded-full"
+                  />
+                ) : (
+                  <SampleSchoolLogo width={actualLogoWidth - 8} height={actualLogoWidth - 8} color="#ffffff" />
+                )}
+              </div>
+            )}
             <div>
               <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight" style={{ color: primary }}>
                 <LiveEditableText
@@ -1355,20 +1434,17 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
                   className="inline-block"
                 />
               </p>
-              <p className="text-[10px] text-slate-500">
-                <LiveEditableText
-                  value={schoolAddress}
-                  editable={editable}
-                  onSave={val => onUpdateField?.('schoolAddress', val)}
-                  className="inline-block"
-                /> | {labels.phoneLabel || 'Ph:'}{' '}
-                <LiveEditableText
-                  value={phone}
-                  editable={editable}
-                  onSave={val => onUpdateField?.('phone', val)}
-                  className="inline-block"
-                />
-              </p>
+              {phone && (
+                <p className="text-[10px] text-slate-500">
+                  {labels.phoneLabel || 'Ph:'}{' '}
+                  <LiveEditableText
+                    value={phone}
+                    editable={editable}
+                    onSave={val => onUpdateField?.('phone', val)}
+                    className="inline-block"
+                  />
+                </p>
+              )}
             </div>
           </div>
 
@@ -1546,12 +1622,6 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
             <div>
               <span className="text-[10px] font-bold uppercase text-slate-400 block">Mobile</span>
               <span className="font-semibold text-slate-700">9876543210</span>
-            </div>
-          )}
-          {columnsList.address && (
-            <div>
-              <span className="text-[10px] font-bold uppercase text-slate-400 block">Address</span>
-              <span className="font-semibold text-slate-700">New Delhi</span>
             </div>
           )}
         </div>
@@ -1819,6 +1889,8 @@ export interface MarksheetMiniPreviewProps {
   template: 'CBSE Royal Emerald' | 'Minimalist Modern' | 'Dual-Term Consolidated' | 'Holistic Early Skills' | string
   themeColor?: string
   schoolName?: string
+  schoolLogo?: string
+  showLogo?: boolean
   studentName?: string
   className?: string
   rollNo?: string
@@ -1831,6 +1903,8 @@ export const MarksheetMiniPreview: React.FC<MarksheetMiniPreviewProps> = ({
   template,
   themeColor,
   schoolName = 'COSMOPOLITAN INTER COLLEGE',
+  schoolLogo,
+  showLogo = true,
   studentName = 'Rahul Verma',
   className: studentClass = 'Class 10',
   rollNo = '23',
@@ -1868,21 +1942,22 @@ export const MarksheetMiniPreview: React.FC<MarksheetMiniPreviewProps> = ({
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b pb-1" style={{ borderColor: borderTint }}>
-            <div className="flex items-center gap-1.5">
-              <div
-                className="w-5 h-5 rounded-full border flex items-center justify-center text-[5.5px] font-black shrink-0 text-white"
-                style={{ backgroundColor: primary, borderColor: '#b45309' }}
-              >
-                <School className="w-3 h-3 text-amber-300" />
-              </div>
-              <div>
+            <div className="flex items-center gap-1.5 min-w-0">
+              {showLogo && (
+                schoolLogo ? (
+                  <img src={schoolLogo} alt="Logo" className="w-5 h-5 rounded-full object-contain shrink-0" />
+                ) : (
+                  <SampleSchoolLogo width={20} height={20} color={primary} className="shrink-0" />
+                )
+              )}
+              <div className="min-w-0">
                 <div className="text-[7.5px] font-black leading-tight uppercase truncate max-w-[120px]" style={{ color: primary }}>
                   {schoolName}
                 </div>
                 <div className="text-[5px] text-amber-800 font-bold leading-none">Affiliated to CBSE • Code: 123456</div>
               </div>
             </div>
-            <span className="text-[5px] font-black uppercase px-1 py-0.5 rounded text-white" style={{ backgroundColor: primary }}>
+            <span className="text-[5px] font-black uppercase px-1 py-0.5 rounded text-white shrink-0" style={{ backgroundColor: primary }}>
               CBSE BOARD
             </span>
           </div>
@@ -1943,13 +2018,22 @@ export const MarksheetMiniPreview: React.FC<MarksheetMiniPreviewProps> = ({
         <div className="w-full h-full p-2 flex flex-col justify-between bg-white text-slate-900 border" style={{ borderColor: primary }}>
           {/* Header */}
           <div className="flex items-center justify-between border-b pb-1" style={{ borderColor: borderTint }}>
-            <div>
-              <div className="text-[7.5px] font-black uppercase leading-tight truncate max-w-[120px]" style={{ color: primary }}>
-                {schoolName}
+            <div className="flex items-center gap-1.5 min-w-0">
+              {showLogo && (
+                schoolLogo ? (
+                  <img src={schoolLogo} alt="Logo" className="w-4.5 h-4.5 rounded object-contain shrink-0" />
+                ) : (
+                  <SampleSchoolLogo width={18} height={18} color={primary} className="shrink-0" />
+                )
+              )}
+              <div className="min-w-0">
+                <div className="text-[7.5px] font-black uppercase leading-tight truncate max-w-[110px]" style={{ color: primary }}>
+                  {schoolName}
+                </div>
+                <div className="text-[5px] text-slate-400 font-semibold">{examName}</div>
               </div>
-              <div className="text-[5px] text-slate-400 font-semibold">{examName}</div>
             </div>
-            <span className="text-[4.5px] font-black uppercase px-1.5 py-0.5 rounded-full text-white shadow-2xs" style={{ backgroundColor: primary }}>
+            <span className="text-[4.5px] font-black uppercase px-1.5 py-0.5 rounded-full text-white shadow-2xs shrink-0" style={{ backgroundColor: primary }}>
               REPORT CARD
             </span>
           </div>
@@ -2014,8 +2098,17 @@ export const MarksheetMiniPreview: React.FC<MarksheetMiniPreviewProps> = ({
         >
           {/* Header */}
           <div className="text-center border-b pb-0.5" style={{ borderColor: borderTint }}>
-            <div className="text-[7.5px] font-serif font-black uppercase tracking-wide truncate" style={{ color: primary }}>
-              {schoolName}
+            <div className="flex items-center justify-center gap-1.5 min-w-0">
+              {showLogo && (
+                schoolLogo ? (
+                  <img src={schoolLogo} alt="Logo" className="w-4.5 h-4.5 rounded-full object-contain shrink-0" />
+                ) : (
+                  <SampleSchoolLogo width={18} height={18} color={primary} className="shrink-0" />
+                )
+              )}
+              <div className="text-[7.5px] font-serif font-black uppercase tracking-wide truncate max-w-[130px]" style={{ color: primary }}>
+                {schoolName}
+              </div>
             </div>
             <div className="text-[5px] text-white font-sans font-black uppercase px-2 py-0.2 rounded-xs inline-block my-0.5" style={{ backgroundColor: primary }}>
               CONSOLIDATED MARK SHEET • TERM I & II
@@ -2074,12 +2167,19 @@ export const MarksheetMiniPreview: React.FC<MarksheetMiniPreviewProps> = ({
         >
           {/* Header */}
           <div className="text-center border-b pb-0.5" style={{ borderColor: borderTint }}>
-            <div className="flex items-center justify-center gap-1">
-              <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-500" />
-              <span className="text-[7.5px] font-black uppercase tracking-tight" style={{ color: primary }}>
+            <div className="flex items-center justify-center gap-1 min-w-0">
+              {showLogo && (
+                schoolLogo ? (
+                  <img src={schoolLogo} alt="Logo" className="w-4 h-4 rounded-full object-contain shrink-0" />
+                ) : (
+                  <SampleSchoolLogo width={16} height={16} color={primary} className="shrink-0" />
+                )
+              )}
+              <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-500 shrink-0" />
+              <span className="text-[7.5px] font-black uppercase tracking-tight truncate max-w-[120px]" style={{ color: primary }}>
                 {schoolName}
               </span>
-              <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-500" />
+              <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-500 shrink-0" />
             </div>
             <div className="text-[5px] font-bold text-slate-500 uppercase">
               HOLISTIC SKILLS & DEVELOPMENT PROGRESS

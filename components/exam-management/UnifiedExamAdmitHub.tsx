@@ -76,7 +76,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
   const [masterClasses, setMasterClasses] = useState<MasterClassWithSections[]>([])
 
   // Form fields for Quick Add / Edit Modal
-  const [formGroup, setFormGroup] = useState('Exam')
+  const [formGroup, setFormGroup] = useState('Quarterly')
   const [formExam, setFormExam] = useState('')
   const [formClassGrade, setFormClassGrade] = useState('')
   const [formSections, setFormSections] = useState<string[]>([])
@@ -142,7 +142,9 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
   const [newGroupName, setNewGroupName] = useState('')
   const [newGroupDesc, setNewGroupDesc] = useState('')
   const [isSavingGroup, setIsSavingGroup] = useState(false)
-  const [availableGroups, setAvailableGroups] = useState<string[]>([])
+  const [availableGroups, setAvailableGroups] = useState<string[]>([
+    'Quarterly', 'Half Yearly', 'Yearly', 'Annually'
+  ])
 
   const printAreaRef = useRef<HTMLDivElement>(null)
 
@@ -418,6 +420,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
         admitTemplateStyle: formAdmitTemplateStyle,
         admitThemeColor: formAdmitThemeColor,
         admitCardSettings: {
+          ...(editingSetup?.config?.admitCardSettings || {}),
           admitLabel: formAdmitCardLabel,
           templateStyle: formAdmitTemplateStyle,
           themeColor: formAdmitThemeColor,
@@ -445,7 +448,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
         config: configData
       })
 
-      if (res.success) {
+      if (res?.success) {
         // Simultaneously generate Admit Card & Timetable if requested
         if (autoGenerateAdmitCard) {
           generateAdmitCardAndTimetableForSetup({
@@ -470,7 +473,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
         setIsModalOpen(false)
         await loadSetups()
       } else {
-        toast.error(res.error || 'Failed to save setup')
+        toast.error(res?.error || 'Failed to save setup')
       }
     } catch (err: any) {
       toast.error('Error saving: ' + err.message)
@@ -1075,9 +1078,13 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
 
                         {/* Class Grade */}
                         <td className="px-4 py-3.5">
-                          <span className="px-2.5 py-1 rounded-md text-[10.5px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
-                            {item.classGrade}
-                          </span>
+                          <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-md mx-auto">
+                            {(item.classGrade || '').split(', ').map((cls, cIdx) => (
+                              <span key={cIdx} className="px-2.5 py-1 rounded-md text-[10.5px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 shadow-2xs">
+                                {cls.trim()}
+                              </span>
+                            ))}
+                          </div>
                         </td>
 
                         {/* Exam Start Date */}
