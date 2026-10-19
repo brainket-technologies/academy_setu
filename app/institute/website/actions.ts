@@ -190,7 +190,9 @@ export async function saveWebsiteSettings(data: Record<string, any>) {
         card_bg_color, card_border_color,
         font_family, heading_font_family,
         social_facebook, social_instagram, social_twitter, social_youtube, social_linkedin,
-        google_map_link, is_published, updated_at
+        google_map_link, is_published,
+        page_sections_visibility, page_content,
+        updated_at
       ) VALUES (
         $1,$2,$3,$4,$5,
         $6,$7,$8,$9,$10,
@@ -204,7 +206,9 @@ export async function saveWebsiteSettings(data: Record<string, any>) {
         $30,$31,
         $32,$33,
         $34,$35,$36,$37,$38,
-        $39,$40,now()
+        $39,$40,
+        $41,$42,
+        now()
       )
       ON CONFLICT (institution_id) DO UPDATE SET
         slug = EXCLUDED.slug,
@@ -246,6 +250,8 @@ export async function saveWebsiteSettings(data: Record<string, any>) {
         social_linkedin = EXCLUDED.social_linkedin,
         google_map_link = EXCLUDED.google_map_link,
         is_published = EXCLUDED.is_published,
+        page_sections_visibility = COALESCE(EXCLUDED.page_sections_visibility, institute_website_settings.page_sections_visibility),
+        page_content = COALESCE(EXCLUDED.page_content, institute_website_settings.page_content),
         updated_at = now()
       RETURNING *`,
       [
@@ -262,12 +268,66 @@ export async function saveWebsiteSettings(data: Record<string, any>) {
         data.font_family || 'Plus Jakarta Sans', data.heading_font_family || 'Plus Jakarta Sans',
         data.social_facebook, data.social_instagram, data.social_twitter,
         data.social_youtube, data.social_linkedin,
-        data.google_map_link, data.is_published ?? true
+        data.google_map_link, data.is_published ?? true,
+        data.page_sections_visibility ? JSON.stringify(data.page_sections_visibility) : '{}',
+        data.page_content ? JSON.stringify(data.page_content) : '{}'
       ]
     )
 
     revalidateWebsite(slug)
     return { success: true, data: res.rows[0] }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+export async function updateSectionVisibility(visibilityUpdates: Record<string, boolean>) {
+  const institutionId = await getInstitutionId()
+  if (!institutionId) {
+    return { success: false, error: 'Unauthorized: No active institution session found.' }
+  }
+  try {
+    const cur = await pool.query(
+      `SELECT slug, page_sections_visibility FROM institute_website_settings WHERE institution_id = $1`,
+      [institutionId]
+    )
+    const existing = cur.rows[0]?.page_sections_visibility || {}
+    const merged = { ...existing, ...visibilityUpdates }
+    const res = await pool.query(
+      `UPDATE institute_website_settings 
+       SET page_sections_visibility = $1, updated_at = now() 
+       WHERE institution_id = $2 
+       RETURNING page_sections_visibility, slug`,
+      [JSON.stringify(merged), institutionId]
+    )
+    revalidateWebsite(res.rows[0]?.slug)
+    return { success: true, data: res.rows[0]?.page_sections_visibility }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+export async function updatePageContent(contentUpdates: Record<string, any>) {
+  const institutionId = await getInstitutionId()
+  if (!institutionId) {
+    return { success: false, error: 'Unauthorized: No active institution session found.' }
+  }
+  try {
+    const cur = await pool.query(
+      `SELECT slug, page_content FROM institute_website_settings WHERE institution_id = $1`,
+      [institutionId]
+    )
+    const existing = cur.rows[0]?.page_content || {}
+    const merged = { ...existing, ...contentUpdates }
+    const res = await pool.query(
+      `UPDATE institute_website_settings 
+       SET page_content = $1, updated_at = now() 
+       WHERE institution_id = $2 
+       RETURNING page_content, slug`,
+      [JSON.stringify(merged), institutionId]
+    )
+    revalidateWebsite(res.rows[0]?.slug)
+    return { success: true, data: res.rows[0]?.page_content }
   } catch (err: any) {
     return { success: false, error: err.message }
   }
@@ -705,5 +765,22 @@ export async function fetchPublicWebsiteBySlug(slug: string) {
     }
   } catch (err: any) {
     return { success: false, error: err.message }
+  }
+}
+
+export async function fetchTeachersList() {
+  const institutionId = await getInstitutionId()
+  if (!institutionId) return { success: false, data: [] }
+  try {
+    const res = await pool.query(
+      `SELECT id, name, username, contact, email, assigned_classes, avatar, details 
+       FROM institute_teachers 
+       WHERE institution_id = $1 AND status = 'Active' 
+       ORDER BY created_at ASC`,
+      [institutionId]
+    )
+    return { success: true, data: res.rows }
+  } catch {
+    return { success: true, data: [] }
   }
 }

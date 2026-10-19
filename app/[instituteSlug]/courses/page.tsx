@@ -31,6 +31,10 @@ export default async function CoursesPage({
   if (!res.success || !res.data) notFound()
 
   const { settings, courses } = res.data
+  const visibility = (settings as any)?.page_sections_visibility || {}
+  const showCourseFees = visibility.courses_fees !== false
+  const showCourseDuration = visibility.courses_duration !== false
+  const showCourseApply = visibility.courses_apply !== false
 
   return (
     <WebsiteLayout
@@ -80,15 +84,17 @@ export default async function CoursesPage({
                   <div>
                     <hr className="my-3 border-slate-100" />
                     <div className="flex items-center justify-between text-xs mb-3 text-slate-600">
-                      {crs.duration && <span className="font-medium">⏱ {crs.duration}</span>}
-                      {crs.fees && <span className="font-bold text-slate-900">{crs.fees}</span>}
+                      {showCourseDuration && crs.duration && <span className="font-medium">⏱ {crs.duration}</span>}
+                      {showCourseFees && crs.fees && <span className="font-bold text-slate-900">{crs.fees}</span>}
                     </div>
-                    <Link
-                      href={`/${instituteSlug}/courses/${crs.id}`}
-                      className="block w-full border border-[#0d6efd] text-[#0d6efd] hover:bg-[#0d6efd] hover:text-white rounded-full py-1.5 text-xs font-semibold transition-colors"
-                    >
-                      View Details
-                    </Link>
+                    {showCourseApply && (
+                      <Link
+                        href={`/${instituteSlug}/courses/${crs.id}`}
+                        className="block w-full border border-[#0d6efd] text-[#0d6efd] hover:bg-[#0d6efd] hover:text-white rounded-full py-1.5 text-xs font-semibold transition-colors"
+                      >
+                        View Details
+                      </Link>
+                    )}
                   </div>
                 </div>
               ))

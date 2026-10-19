@@ -154,6 +154,21 @@ export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug:
   const footerText = settings.footer_text_color || '#cbd5e1'
   const websiteTitle = settings.website_title || 'Cosmopolitan Inter College'
 
+  // Section visibility controls (page_sections_visibility)
+  const visibility = (settings as any)?.page_sections_visibility || {}
+  const showHomeSliders = visibility.home_sliders !== false
+  const showHomeAbout = visibility.home_about !== false
+  const showHomeStats = visibility.home_stats !== false
+  const showHomeCourses = visibility.home_courses !== false
+  const showHomeTeachers = visibility.home_teachers !== false
+  const showHomeGallery = visibility.home_gallery !== false
+  const showHomeBlogs = visibility.home_blogs !== false
+  const showHomeTestimonials = visibility.home_testimonials !== false
+  const showHomeContact = visibility.home_contact !== false
+  const showContactMap = visibility.contact_map !== false
+  const showContactForm = visibility.contact_form !== false
+  const showContactInfo = visibility.contact_info !== false
+
   // Mobile menu
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false)
@@ -442,6 +457,7 @@ export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug:
       </header>
 
       {/* ─── HERO CAROUSEL / SLIDER (FULL WIDTH BANNER LIKE LCABITHAN) ─── */}
+      {showHomeSliders && (
       <section id="home" className="relative overflow-hidden bg-slate-900">
         {hasSliders ? (
           <div className="relative w-full h-[320px] sm:h-[450px] md:h-[520px] lg:h-[600px] overflow-hidden">
@@ -547,8 +563,10 @@ export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug:
           </div>
         )}
       </section>
+      )}
 
       {/* ─── ABOUT OUR SCHOOL (EXACT LCABITHAN SECTION WITH BLUE UNDERLINE BAR) ─── */}
+      {showHomeAbout && (
       <section id="about" className="py-16 sm:py-20 px-4 sm:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
           {/* Centered Heading with Blue Underline */}
@@ -633,8 +651,10 @@ export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug:
           </div>
         </div>
       </section>
+      )}
 
       {/* ─── COUNTER / STATS SECTION (SOLID BLUE BG LIKE LCABITHAN) ─── */}
+      {showHomeStats && (
       <section className="py-14 text-white bg-[#0d6efd]">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 text-center">
@@ -676,8 +696,10 @@ export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug:
           </div>
         </div>
       </section>
+      )}
 
       {/* ─── OUR ACADEMIC PROGRAMS / COURSES (CARD GRID WITH CIRCLE ICONS) ─── */}
+      {showHomeCourses && (
       <section id="courses" className="py-16 sm:py-20 px-4 sm:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
           {/* Centered Heading */}
@@ -723,8 +745,10 @@ export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug:
           </div>
         </div>
       </section>
+      )}
 
       {/* ─── MEET OUR EXPERT TEACHERS (EXACT LCABITHAN STYLE) ─── */}
+      {showHomeTeachers && (
       <section id="teachers" className="py-16 sm:py-20 px-4 sm:px-8 bg-[#f8f9fa]">
         <div className="max-w-7xl mx-auto">
           {/* Centered Heading */}
@@ -780,9 +804,10 @@ export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug:
           </div>
         </div>
       </section>
+      )}
 
       {/* ─── OUR SCHOOL GALLERY (WITH EYE HOVER LIKE LCABITHAN) ─── */}
-      {gallery.length > 0 && (
+      {showHomeGallery && gallery.length > 0 && (
         <section id="gallery" className="py-16 sm:py-20 px-4 sm:px-8 bg-white">
           <div className="max-w-7xl mx-auto">
             {/* Centered Heading */}
@@ -846,7 +871,7 @@ export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug:
       )}
 
       {/* ─── LATEST NOTICES & NEWS (WITH TOP FLOATING BADGE) ─── */}
-      {blogs.length > 0 && (
+      {showHomeBlogs && blogs.length > 0 && (
         <section id="blogs" className="py-16 sm:py-20 px-4 sm:px-8 bg-[#f8f9fa]">
           <div className="max-w-7xl mx-auto">
             {/* Centered Heading */}
@@ -902,7 +927,7 @@ export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug:
       )}
 
       {/* ─── WHAT OUR PARENT & STUDENT SAY (TESTIMONIALS) ─── */}
-      {testimonials.length > 0 && (
+      {showHomeTestimonials && testimonials.length > 0 && (
         <section className="py-16 sm:py-20 px-4 sm:px-8 bg-white">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-12">
@@ -954,6 +979,7 @@ export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug:
       )}
 
       {/* ─── CONTACT US SECTION (EXACT LCABITHAN 2-COLUMN LAYOUT) ─── */}
+      {showHomeContact && (
       <section id="contact" className="py-16 sm:py-20 px-4 sm:px-8 bg-[#f8f9fa]">
         <div className="max-w-7xl mx-auto">
           {/* Centered Heading */}
@@ -1104,6 +1130,7 @@ export default function ClientWebsite({ data, slug }: { data: WebsiteData; slug:
           </div>
         </div>
       </section>
+      )}
 
       {/* ─── MODAL ENQUIRY DIALOG ─── */}
       {enquiryModalOpen && (

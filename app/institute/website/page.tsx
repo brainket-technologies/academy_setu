@@ -6,10 +6,12 @@ import {
   Globe, Settings, Image, BarChart2, BookOpen, HelpCircle, MessageSquare, FileText,
   Camera, Save, Plus, Trash2, ExternalLink, Eye, EyeOff, Edit2, X, CheckCircle, RefreshCw,
   ChevronDown, ChevronUp, Star, LayoutDashboard, Link2, Inbox, Phone, Mail,
-  Palette, Type, Sparkles, Check, Copy
+  Palette, Type, Sparkles, Check, Copy, Home, Info, Users, GraduationCap, MapPin,
+  Award, CheckCircle2, AlertCircle
 } from 'lucide-react'
 import {
   fetchWebsiteSettings, saveWebsiteSettings,
+  updateSectionVisibility, updatePageContent, fetchTeachersList,
   fetchSliders, saveSlider, deleteSlider,
   fetchStats, saveStat, deleteStat,
   fetchCourses, saveCourse, deleteCourse,
@@ -20,17 +22,17 @@ import {
   fetchEnquiries, updateEnquiryStatus,
 } from './actions'
 
-// ─── SIDEBAR TABS ────────────────────────────────────────────────
+// ─── SIDEBAR TABS (PAGE-WISE) ────────────────────────────────────
 const TABS = [
-  { key: 'general', label: 'General Settings', icon: Settings },
-  { key: 'sliders', label: 'Sliders', icon: Image },
-  { key: 'stats', label: 'Statistics', icon: BarChart2 },
-  { key: 'courses', label: 'Courses', icon: BookOpen },
-  { key: 'faqs', label: 'FAQs', icon: HelpCircle },
-  { key: 'testimonials', label: 'Testimonials', icon: MessageSquare },
-  { key: 'blogs', label: 'Blogs', icon: FileText },
-  { key: 'gallery', label: 'Gallery', icon: Camera },
-  { key: 'enquiries', label: 'Admission Enquiries', icon: Inbox },
+  { key: 'general', label: 'General Settings', icon: Settings, badge: 'Global Branding' },
+  { key: 'home', label: 'Home Page', icon: Home, badge: 'Main Landing /' },
+  { key: 'about', label: 'About Page', icon: Info, badge: '/about' },
+  { key: 'courses', label: 'Courses & Classes', icon: BookOpen, badge: '/courses' },
+  { key: 'teachers', label: 'Teachers / Faculty', icon: Users, badge: '/teachers' },
+  { key: 'gallery', label: 'Campus Gallery', icon: Camera, badge: '/gallery' },
+  { key: 'news', label: 'Notice & News', icon: FileText, badge: '/news' },
+  { key: 'contact', label: 'Contact Us', icon: Phone, badge: '/contact' },
+  { key: 'enquiries', label: 'Admission Enquiries', icon: Inbox, badge: '/apply' },
 ]
 
 // ─── REUSABLE INPUT ───────────────────────────────────────────────
@@ -1000,7 +1002,7 @@ function GeneralTab() {
 // ═══════════════════════════════════════════════════════════════════
 // SLIDERS TAB
 // ═══════════════════════════════════════════════════════════════════
-function SlidersTab({ slug }: { slug?: string }) {
+function SlidersTab({ slug, hideHeader = false }: { slug?: string; hideHeader?: boolean }) {
   const [items, setItems] = useState<any[]>([])
   const [form, setForm] = useState<Record<string, any>>({})
   const [editing, setEditing] = useState<number | null>(null)
@@ -1026,27 +1028,36 @@ function SlidersTab({ slug }: { slug?: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Hero Sliders ({items.length})</h3>
-          <p className="text-xs text-slate-400">Hero banners shown on the top of the homepage</p>
+      {!hideHeader ? (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Hero Sliders ({items.length})</h3>
+            <p className="text-xs text-slate-400">Hero banners shown on the top of the homepage</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {slug && (
+              <a
+                href={`/${slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Preview on Website
+              </a>
+            )}
+            <button onClick={handleNew} className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition-colors">
+              <Plus className="w-4 h-4" /> Add Slider
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {slug && (
-            <a
-              href={`/${slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-colors"
-            >
-              <ExternalLink className="w-3.5 h-3.5" /> Preview on Website
-            </a>
-          )}
-          <button onClick={handleNew} className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition-colors">
-            <Plus className="w-4 h-4" /> Add Slider
+      ) : (
+        <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+          <span className="text-xs font-bold text-slate-500">Carousel Slides List ({items.length})</span>
+          <button onClick={handleNew} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-bold transition-colors">
+            <Plus className="w-3.5 h-3.5" /> Add New Slide
           </button>
         </div>
-      </div>
+      )}
 
       {editing !== null && (
         <Card className="border-violet-300 dark:border-violet-700">
@@ -1096,7 +1107,7 @@ function SlidersTab({ slug }: { slug?: string }) {
 // ═══════════════════════════════════════════════════════════════════
 // STATS TAB
 // ═══════════════════════════════════════════════════════════════════
-function StatsTab({ slug }: { slug?: string }) {
+function StatsTab({ slug, hideHeader = false }: { slug?: string; hideHeader?: boolean }) {
   const [items, setItems] = useState<any[]>([])
   const [form, setForm] = useState<Record<string, any>>({})
   const [editing, setEditing] = useState<number | null>(null)
@@ -1114,25 +1125,34 @@ function StatsTab({ slug }: { slug?: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Statistics / Achievements</h3>
-          <p className="text-xs text-slate-400">Milestones displayed in the counters section</p>
+      {!hideHeader ? (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Statistics / Achievements</h3>
+            <p className="text-xs text-slate-400">Milestones displayed in the counters section</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {slug && (
+              <a
+                href={`/${slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Preview on Website
+              </a>
+            )}
+            <button onClick={() => { setForm({}); setEditing(0) }} className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold"><Plus className="w-4 h-4" /> Add Stat</button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {slug && (
-            <a
-              href={`/${slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-colors"
-            >
-              <ExternalLink className="w-3.5 h-3.5" /> Preview on Website
-            </a>
-          )}
-          <button onClick={() => { setForm({}); setEditing(0) }} className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold"><Plus className="w-4 h-4" /> Add Stat</button>
+      ) : (
+        <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+          <span className="text-xs font-bold text-slate-500">Milestones & Numbers List ({items.length})</span>
+          <button onClick={() => { setForm({}); setEditing(0) }} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-bold transition-colors">
+            <Plus className="w-3.5 h-3.5" /> Add New Stat
+          </button>
         </div>
-      </div>
+      )}
 
       {editing !== null && (
         <Card className="border-violet-300 dark:border-violet-700">
@@ -1174,7 +1194,7 @@ function StatsTab({ slug }: { slug?: string }) {
 // ═══════════════════════════════════════════════════════════════════
 // COURSES TAB
 // ═══════════════════════════════════════════════════════════════════
-function CoursesTab({ slug }: { slug?: string }) {
+function CoursesTab({ slug, hideHeader = false }: { slug?: string; hideHeader?: boolean }) {
   const [items, setItems] = useState<any[]>([])
   const [form, setForm] = useState<Record<string, any>>({})
   const [editing, setEditing] = useState<number | null>(null)
@@ -1191,25 +1211,34 @@ function CoursesTab({ slug }: { slug?: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Courses Offered ({items.length})</h3>
-          <p className="text-xs text-slate-400">Academic courses and classes with curriculum details and fees</p>
+      {!hideHeader ? (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Courses Offered ({items.length})</h3>
+            <p className="text-xs text-slate-400">Academic courses and classes with curriculum details and fees</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {slug && (
+              <a
+                href={`/${slug}/courses`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> View Courses Page
+              </a>
+            )}
+            <button onClick={() => { setForm({}); setEditing(0) }} className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold"><Plus className="w-4 h-4" /> Add Course</button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {slug && (
-            <a
-              href={`/${slug}/courses`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-colors"
-            >
-              <ExternalLink className="w-3.5 h-3.5" /> View Courses Page
-            </a>
-          )}
-          <button onClick={() => { setForm({}); setEditing(0) }} className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold"><Plus className="w-4 h-4" /> Add Course</button>
+      ) : (
+        <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+          <span className="text-xs font-bold text-slate-500">Courses & Programs List ({items.length})</span>
+          <button onClick={() => { setForm({}); setEditing(0) }} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-bold transition-colors">
+            <Plus className="w-3.5 h-3.5" /> Add New Course
+          </button>
         </div>
-      </div>
+      )}
 
       {editing !== null && (
         <Card className="border-violet-300 dark:border-violet-700">
@@ -1322,7 +1351,7 @@ function FaqsTab() {
 // ═══════════════════════════════════════════════════════════════════
 // TESTIMONIALS TAB
 // ═══════════════════════════════════════════════════════════════════
-function TestimonialsTab() {
+function TestimonialsTab({ hideHeader = false }: { hideHeader?: boolean }) {
   const [items, setItems] = useState<any[]>([])
   const [form, setForm] = useState<Record<string, any>>({})
   const [editing, setEditing] = useState<number | null>(null)
@@ -1335,10 +1364,19 @@ function TestimonialsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Testimonials</h3>
-        <button onClick={() => { setForm({ rating: 5 }); setEditing(0) }} className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold"><Plus className="w-4 h-4" /> Add</button>
-      </div>
+      {!hideHeader ? (
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Testimonials</h3>
+          <button onClick={() => { setForm({ rating: 5 }); setEditing(0) }} className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold"><Plus className="w-4 h-4" /> Add</button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+          <span className="text-xs font-bold text-slate-500">Parent & Student Reviews ({items.length})</span>
+          <button onClick={() => { setForm({ rating: 5 }); setEditing(0) }} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-bold transition-colors">
+            <Plus className="w-3.5 h-3.5" /> Add Testimonial
+          </button>
+        </div>
+      )}
       {editing !== null && (
         <Card className="border-violet-300 dark:border-violet-700">
           <div className="flex items-center justify-between mb-4">
@@ -1384,7 +1422,7 @@ function TestimonialsTab() {
 // ═══════════════════════════════════════════════════════════════════
 // BLOGS TAB
 // ═══════════════════════════════════════════════════════════════════
-function BlogsTab({ slug }: { slug?: string }) {
+function BlogsTab({ slug, hideHeader = false }: { slug?: string; hideHeader?: boolean }) {
   const [items, setItems] = useState<any[]>([])
   const [form, setForm] = useState<Record<string, any>>({})
   const [editing, setEditing] = useState<number | null>(null)
@@ -1397,25 +1435,34 @@ function BlogsTab({ slug }: { slug?: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Notice Board & News ({items.length})</h3>
-          <p className="text-xs text-slate-400">School circulars, notices, and exam announcements</p>
+      {!hideHeader ? (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Notice Board & News ({items.length})</h3>
+            <p className="text-xs text-slate-400">School circulars, notices, and exam announcements</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {slug && (
+              <a
+                href={`/${slug}/news`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> View Notice Page
+              </a>
+            )}
+            <button onClick={() => { setForm({}); setEditing(0) }} className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold"><Plus className="w-4 h-4" /> Add Post</button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {slug && (
-            <a
-              href={`/${slug}/news`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-colors"
-            >
-              <ExternalLink className="w-3.5 h-3.5" /> View Notice Page
-            </a>
-          )}
-          <button onClick={() => { setForm({}); setEditing(0) }} className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold"><Plus className="w-4 h-4" /> Add Post</button>
+      ) : (
+        <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+          <span className="text-xs font-bold text-slate-500">Notices & News Circulars ({items.length})</span>
+          <button onClick={() => { setForm({}); setEditing(0) }} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-bold transition-colors">
+            <Plus className="w-3.5 h-3.5" /> Add New Notice
+          </button>
         </div>
-      </div>
+      )}
       {editing !== null && (
         <Card className="border-violet-300 dark:border-violet-700">
           <div className="flex items-center justify-between mb-4">
@@ -1473,7 +1520,7 @@ function BlogsTab({ slug }: { slug?: string }) {
 // ═══════════════════════════════════════════════════════════════════
 // GALLERY TAB
 // ═══════════════════════════════════════════════════════════════════
-function GalleryTab({ slug }: { slug?: string }) {
+function GalleryTab({ slug, hideHeader = false }: { slug?: string; hideHeader?: boolean }) {
   const [items, setItems] = useState<any[]>([])
   const [form, setForm] = useState<Record<string, any>>({})
   const [editing, setEditing] = useState<number | null>(null)
@@ -1486,25 +1533,34 @@ function GalleryTab({ slug }: { slug?: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Gallery ({items.length} images)</h3>
-          <p className="text-xs text-slate-400">Photos of school events, sports, and campus activities</p>
+      {!hideHeader ? (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">Gallery ({items.length} images)</h3>
+            <p className="text-xs text-slate-400">Photos of school events, sports, and campus activities</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {slug && (
+              <a
+                href={`/${slug}/gallery`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> View Gallery Page
+              </a>
+            )}
+            <button onClick={() => { setForm({}); setEditing(0) }} className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold"><Plus className="w-4 h-4" /> Add Image</button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {slug && (
-            <a
-              href={`/${slug}/gallery`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-colors"
-            >
-              <ExternalLink className="w-3.5 h-3.5" /> View Gallery Page
-            </a>
-          )}
-          <button onClick={() => { setForm({}); setEditing(0) }} className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold"><Plus className="w-4 h-4" /> Add Image</button>
+      ) : (
+        <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+          <span className="text-xs font-bold text-slate-500">Campus Photos ({items.length})</span>
+          <button onClick={() => { setForm({}); setEditing(0) }} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-bold transition-colors">
+            <Plus className="w-3.5 h-3.5" /> Add New Photo
+          </button>
         </div>
-      </div>
+      )}
       {editing !== null && (
         <Card className="border-violet-300 dark:border-violet-700">
           <div className="flex items-center justify-between mb-4">
@@ -1668,31 +1724,1331 @@ function EnquiriesTab({ slug }: { slug?: string }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// SECTION VISIBILITY HEADER COMPONENT
+// ═══════════════════════════════════════════════════════════════════
+function SectionVisibilityHeader({
+  title,
+  subtitle,
+  icon: Icon,
+  sectionKey,
+  visibility,
+  onToggle,
+  badge,
+}: {
+  title: string
+  subtitle?: string
+  icon?: any
+  sectionKey: string
+  visibility: Record<string, boolean>
+  onToggle: (key: string, val: boolean) => void
+  badge?: string
+}) {
+  const isVisible = visibility[sectionKey] !== false
+  return (
+    <div className={`p-4 rounded-xl border transition-all ${
+      isVisible 
+        ? 'bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/80 dark:to-slate-800 border-slate-200 dark:border-slate-700 shadow-2xs' 
+        : 'bg-slate-100/70 dark:bg-slate-900/40 border-dashed border-slate-300 dark:border-slate-700 opacity-75'
+    }`}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-start sm:items-center gap-3">
+          {Icon && (
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+              isVisible ? 'bg-violet-100 dark:bg-violet-900/50 text-violet-600 dark:text-violet-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-400'
+            }`}>
+              <Icon className="w-5 h-5" />
+            </div>
+          )}
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="text-sm font-black text-slate-800 dark:text-slate-100">{title}</h4>
+              {badge && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
+                  {badge}
+                </span>
+              )}
+            </div>
+            {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-auto bg-white dark:bg-slate-900/70 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+          <span className={`text-xs font-bold flex items-center gap-1.5 ${
+            isVisible ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'
+          }`}>
+            {isVisible ? (
+              <><Eye className="w-3.5 h-3.5 text-emerald-500" /> Visible on Website</>
+            ) : (
+              <><EyeOff className="w-3.5 h-3.5 text-slate-400" /> Hidden from Website</>
+            )}
+          </span>
+          <Toggle value={isVisible} onChange={(val) => onToggle(sectionKey, val)} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 1. HOME PAGE TAB
+// ═══════════════════════════════════════════════════════════════════
+function HomePageTab({
+  slug,
+  visibility,
+  onToggle,
+  pageContent,
+  onSaveContent,
+}: {
+  slug?: string
+  visibility: Record<string, boolean>
+  onToggle: (key: string, val: boolean) => void
+  pageContent: Record<string, any>
+  onSaveContent: (updates: Record<string, any>) => void
+}) {
+  const [aboutTitle, setAboutTitle] = useState(pageContent.home_about_title || '')
+  const [aboutDesc, setAboutDesc] = useState(pageContent.home_about_desc || '')
+
+  useEffect(() => {
+    setAboutTitle(pageContent.home_about_title || '')
+    setAboutDesc(pageContent.home_about_desc || '')
+  }, [pageContent])
+
+  const homeSections = [
+    { key: 'home_sliders', label: 'Hero Banner Sliders', icon: Image, desc: 'Rotating carousel banner on top' },
+    { key: 'home_about', label: 'About College Teaser', icon: Info, desc: 'Introductory snippet & vision highlight' },
+    { key: 'home_stats', label: 'Key Statistics Counter', icon: BarChart2, desc: 'Students, faculty, and pass rates' },
+    { key: 'home_courses', label: 'Featured Courses', icon: BookOpen, desc: 'Popular classes & programs grid' },
+    { key: 'home_teachers', label: 'Teachers Showcase', icon: Users, desc: 'Faculty members spotlight' },
+    { key: 'home_gallery', label: 'Campus Life Gallery', icon: Camera, desc: 'Selected campus photos' },
+    { key: 'home_blogs', label: 'Notice & News Feed', icon: FileText, desc: 'Recent school circulars' },
+    { key: 'home_testimonials', label: 'Student Reviews', icon: Star, desc: 'Testimonials carousel' },
+    { key: 'home_contact', label: 'Quick Contact & Map', icon: Phone, desc: 'Campus location & enquiry callout' },
+  ]
+
+  return (
+    <div className="space-y-6">
+      {/* Top Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+        <div>
+          <div className="flex items-center gap-2">
+            <Home className="w-5 h-5 text-violet-600" />
+            <h2 className="text-base font-black text-slate-900 dark:text-slate-100">Home Page (Landing /)</h2>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700">9 Content Sections</span>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Toggle visibility and manage the content of each section on your home landing page.
+          </p>
+        </div>
+        {slug && (
+          <a
+            href={`/${slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition-colors shrink-0 shadow-2xs"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Preview Live Home Page
+          </a>
+        )}
+      </div>
+
+      {/* Quick Section Switchboard */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-700">
+          <div>
+            <h3 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-violet-600" /> Section Visibility Switchboard
+            </h3>
+            <p className="text-[11px] text-slate-400">Quickly toggle which sections appear on the home landing page</p>
+          </div>
+          <span className="text-[11px] font-bold text-violet-600 dark:text-violet-400">
+            {homeSections.filter(s => visibility[s.key] !== false).length} of {homeSections.length} Visible
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+          {homeSections.map((sec) => {
+            const isVisible = visibility[sec.key] !== false
+            return (
+              <div
+                key={sec.key}
+                onClick={() => onToggle(sec.key, !isVisible)}
+                className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
+                  isVisible
+                    ? 'bg-violet-50/50 dark:bg-violet-950/20 border-violet-200 dark:border-violet-800/50 text-slate-800 dark:text-slate-100'
+                    : 'bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 text-slate-400'
+                }`}
+              >
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <sec.icon className={`w-4 h-4 shrink-0 ${isVisible ? 'text-violet-600 dark:text-violet-400' : 'text-slate-400'}`} />
+                  <span className="text-xs font-bold truncate">{sec.label}</span>
+                </div>
+                <Toggle value={isVisible} onChange={(val) => onToggle(sec.key, val)} />
+              </div>
+            )
+          })}
+        </div>
+      </Card>
+
+      {/* SECTION 1: HERO SLIDERS */}
+      <Card className="space-y-4">
+        <SectionVisibilityHeader
+          title="1. Hero Carousel Sliders"
+          subtitle="Top banner with rotating imagery, headline titles, and call-to-action buttons"
+          icon={Image}
+          sectionKey="home_sliders"
+          visibility={visibility}
+          onToggle={onToggle}
+          badge="Top Hero"
+        />
+        {visibility.home_sliders !== false && (
+          <div className="pt-2 pl-1 border-t border-slate-100 dark:border-slate-800">
+            <SlidersTab slug={slug} hideHeader />
+          </div>
+        )}
+      </Card>
+
+      {/* SECTION 2: ABOUT SNAPSHOT */}
+      <Card className="space-y-4">
+        <SectionVisibilityHeader
+          title="2. About Institution Snapshot"
+          subtitle="Brief introduction, school overview, and direct link to the About Us page"
+          icon={Info}
+          sectionKey="home_about"
+          visibility={visibility}
+          onToggle={onToggle}
+          badge="Story"
+        />
+        {visibility.home_about !== false && (
+          <div className="pt-2 pl-1 border-t border-slate-100 dark:border-slate-800 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Home About Heading">
+                <input
+                  className={inp}
+                  placeholder="e.g. Empowering Students For Tomorrow's World"
+                  value={aboutTitle}
+                  onChange={(e) => setAboutTitle(e.target.value)}
+                />
+              </Field>
+              <div className="md:col-span-2">
+                <Field label="Home About Teaser Paragraph">
+                  <textarea
+                    className={txa}
+                    placeholder="Brief description that will appear on the landing page..."
+                    value={aboutDesc}
+                    onChange={(e) => setAboutDesc(e.target.value)}
+                  />
+                </Field>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => onSaveContent({ home_about_title: aboutTitle, home_about_desc: aboutDesc })}
+                className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition-colors"
+              >
+                <Save className="w-3.5 h-3.5" /> Save About Snippet
+              </button>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* SECTION 3: KEY STATISTICS */}
+      <Card className="space-y-4">
+        <SectionVisibilityHeader
+          title="3. Key Statistics Counters"
+          subtitle="Animated counters showcasing student count, faculty, pass rate, and achievements"
+          icon={BarChart2}
+          sectionKey="home_stats"
+          visibility={visibility}
+          onToggle={onToggle}
+          badge="Counters"
+        />
+        {visibility.home_stats !== false && (
+          <div className="pt-2 pl-1 border-t border-slate-100 dark:border-slate-800">
+            <StatsTab slug={slug} hideHeader />
+          </div>
+        )}
+      </Card>
+
+      {/* SECTION 4: COURSES & CLASSES */}
+      <Card className="space-y-4">
+        <SectionVisibilityHeader
+          title="4. Featured Academic Courses"
+          subtitle="Display top academic streams, classes, and special programs on the home page"
+          icon={BookOpen}
+          sectionKey="home_courses"
+          visibility={visibility}
+          onToggle={onToggle}
+          badge="Curriculum"
+        />
+        {visibility.home_courses !== false && (
+          <div className="pt-2 pl-1 border-t border-slate-100 dark:border-slate-800">
+            <CoursesTab slug={slug} hideHeader />
+          </div>
+        )}
+      </Card>
+
+      {/* SECTION 5: TEACHERS SPOTLIGHT */}
+      <Card className="space-y-4">
+        <SectionVisibilityHeader
+          title="5. Faculty & Mentors Showcase"
+          subtitle="Highlight experienced teachers and subject heads on the home page"
+          icon={Users}
+          sectionKey="home_teachers"
+          visibility={visibility}
+          onToggle={onToggle}
+          badge="Faculty"
+        />
+        {visibility.home_teachers !== false && (
+          <div className="pt-2 pl-1 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/40 rounded-xl text-xs text-slate-600 dark:text-slate-300">
+              <span>Teachers are automatically fetched from your active Employee records with designation 'Teacher' or 'Faculty'.</span>
+              {slug && (
+                <a
+                  href={`/${slug}/teachers`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 font-bold text-violet-600 hover:text-violet-700"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> View Faculty Page
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* SECTION 6: CAMPUS GALLERY */}
+      <Card className="space-y-4">
+        <SectionVisibilityHeader
+          title="6. Campus Life Gallery Highlights"
+          subtitle="Display recent photos from school functions, sports, and science labs"
+          icon={Camera}
+          sectionKey="home_gallery"
+          visibility={visibility}
+          onToggle={onToggle}
+          badge="Photos"
+        />
+        {visibility.home_gallery !== false && (
+          <div className="pt-2 pl-1 border-t border-slate-100 dark:border-slate-800">
+            <GalleryTab slug={slug} hideHeader />
+          </div>
+        )}
+      </Card>
+
+      {/* SECTION 7: NOTICE & NEWS */}
+      <Card className="space-y-4">
+        <SectionVisibilityHeader
+          title="7. Notice Board & News Feed"
+          subtitle="Display exam circulars, holiday announcements, and event highlights"
+          icon={FileText}
+          sectionKey="home_blogs"
+          visibility={visibility}
+          onToggle={onToggle}
+          badge="Notices"
+        />
+        {visibility.home_blogs !== false && (
+          <div className="pt-2 pl-1 border-t border-slate-100 dark:border-slate-800">
+            <BlogsTab slug={slug} hideHeader />
+          </div>
+        )}
+      </Card>
+
+      {/* SECTION 8: TESTIMONIALS */}
+      <Card className="space-y-4">
+        <SectionVisibilityHeader
+          title="8. Student & Parent Testimonials"
+          subtitle="Display reviews, alumni achievements, and parent feedback"
+          icon={Star}
+          sectionKey="home_testimonials"
+          visibility={visibility}
+          onToggle={onToggle}
+          badge="Reviews"
+        />
+        {visibility.home_testimonials !== false && (
+          <div className="pt-2 pl-1 border-t border-slate-100 dark:border-slate-800">
+            <TestimonialsTab hideHeader />
+          </div>
+        )}
+      </Card>
+
+      {/* SECTION 9: QUICK CONTACT */}
+      <Card className="space-y-4">
+        <SectionVisibilityHeader
+          title="9. Quick Contact & Map Teaser"
+          subtitle="Direct contact card with institution phone number, address, and quick link"
+          icon={Phone}
+          sectionKey="home_contact"
+          visibility={visibility}
+          onToggle={onToggle}
+          badge="Contact"
+        />
+        {visibility.home_contact !== false && (
+          <div className="pt-2 pl-1 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/40 rounded-xl text-xs text-slate-600 dark:text-slate-300">
+              <span>The quick contact card displays your primary contact number, email, and address from General Settings.</span>
+              {slug && (
+                <a
+                  href={`/${slug}/contact`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 font-bold text-violet-600 hover:text-violet-700"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> View Contact Page
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+      </Card>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 2. ABOUT PAGE TAB
+// ═══════════════════════════════════════════════════════════════════
+function AboutPageTab({
+  slug,
+  visibility,
+  onToggle,
+  pageContent,
+  onSaveContent,
+}: {
+  slug?: string
+  visibility: Record<string, boolean>
+  onToggle: (key: string, val: boolean) => void
+  pageContent: Record<string, any>
+  onSaveContent: (updates: Record<string, any>) => void
+}) {
+  const [form, setForm] = useState({
+    about_intro_title: pageContent.about_intro_title || '',
+    about_intro_text: pageContent.about_intro_text || '',
+    about_vision_text: pageContent.about_vision_text || '',
+    about_mission_text: pageContent.about_mission_text || '',
+    principal_name: pageContent.principal_name || '',
+    principal_title: pageContent.principal_title || '',
+    principal_photo: pageContent.principal_photo || '',
+    principal_message: pageContent.principal_message || '',
+  })
+
+  useEffect(() => {
+    setForm({
+      about_intro_title: pageContent.about_intro_title || '',
+      about_intro_text: pageContent.about_intro_text || '',
+      about_vision_text: pageContent.about_vision_text || '',
+      about_mission_text: pageContent.about_mission_text || '',
+      principal_name: pageContent.principal_name || '',
+      principal_title: pageContent.principal_title || '',
+      principal_photo: pageContent.principal_photo || '',
+      principal_message: pageContent.principal_message || '',
+    })
+  }, [pageContent])
+
+  const setField = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }))
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+        <div>
+          <div className="flex items-center gap-2">
+            <Info className="w-5 h-5 text-violet-600" />
+            <h2 className="text-base font-black text-slate-900 dark:text-slate-100">About Page (/about)</h2>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700">Dedicated Subpage</span>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Customize your institution's history, vision, mission, and principal's message with hide/show toggles.
+          </p>
+        </div>
+        {slug && (
+          <a
+            href={`/${slug}/about`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition-colors shrink-0 shadow-2xs"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Preview Live About Page
+          </a>
+        )}
+      </div>
+
+      {/* SECTION 1: MAIN STORY */}
+      <Card className="space-y-4">
+        <SectionVisibilityHeader
+          title="1. Main Institution Story & Introduction"
+          subtitle="Detailed overview of the institution foundation, ethos, and history"
+          icon={BookOpen}
+          sectionKey="about_main"
+          visibility={visibility}
+          onToggle={onToggle}
+          badge="History"
+        />
+        {visibility.about_main !== false && (
+          <div className="pt-2 pl-1 border-t border-slate-100 dark:border-slate-800 space-y-4">
+            <Field label="Page Main Heading">
+              <input
+                className={inp}
+                placeholder="e.g. Dedicated to Academic Excellence & Holistic Growth"
+                value={form.about_intro_title}
+                onChange={e => setField('about_intro_title', e.target.value)}
+              />
+            </Field>
+            <Field label="Our Story & Foundation Text">
+              <textarea
+                className={txa + " min-h-[110px]"}
+                placeholder="Describe your school's history, values, and environment..."
+                value={form.about_intro_text}
+                onChange={e => setField('about_intro_text', e.target.value)}
+              />
+            </Field>
+          </div>
+        )}
+      </Card>
+
+      {/* SECTION 2: VISION & MISSION */}
+      <Card className="space-y-4">
+        <div className="space-y-3">
+          <SectionVisibilityHeader
+            title="2A. Vision Statement Card"
+            subtitle="Display institution's long-term vision for learners"
+            icon={Sparkles}
+            sectionKey="about_vision"
+            visibility={visibility}
+            onToggle={onToggle}
+            badge="Vision"
+          />
+          {visibility.about_vision !== false && (
+            <div className="pt-2 pl-1 border-t border-slate-100 dark:border-slate-800">
+              <Field label="Our Vision Statement">
+                <textarea
+                  className={txa}
+                  placeholder="To nurture resilient global citizens equipped with intellectual excellence..."
+                  value={form.about_vision_text}
+                  onChange={e => setField('about_vision_text', e.target.value)}
+                />
+              </Field>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <SectionVisibilityHeader
+            title="2B. Mission Statement Card"
+            subtitle="Display core daily educational commitments"
+            icon={Award}
+            sectionKey="about_mission"
+            visibility={visibility}
+            onToggle={onToggle}
+            badge="Mission"
+          />
+          {visibility.about_mission !== false && (
+            <div className="pt-2 pl-1 border-t border-slate-100 dark:border-slate-800">
+              <Field label="Our Mission Statement">
+                <textarea
+                  className={txa}
+                  placeholder="Provide learner-centric pedagogy, world-class athletic facilities, and ethical grounding..."
+                  value={form.about_mission_text}
+                  onChange={e => setField('about_mission_text', e.target.value)}
+                />
+              </Field>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* SECTION 3: PRINCIPAL'S DESK */}
+      <Card className="space-y-4">
+        <SectionVisibilityHeader
+          title="3. Principal's / Director's Desk & Message"
+          subtitle="Display greeting from the head of the institution with portrait photo"
+          icon={GraduationCap}
+          sectionKey="about_principal"
+          visibility={visibility}
+          onToggle={onToggle}
+          badge="Leadership"
+        />
+        {visibility.about_principal !== false && (
+          <div className="pt-2 pl-1 border-t border-slate-100 dark:border-slate-800 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field label="Principal / Director Name">
+                <input
+                  className={inp}
+                  placeholder="Dr. Anand Verma, Ph.D."
+                  value={form.principal_name}
+                  onChange={e => setField('principal_name', e.target.value)}
+                />
+              </Field>
+              <Field label="Designation / Credentials">
+                <input
+                  className={inp}
+                  placeholder="Principal & Academic Director"
+                  value={form.principal_title}
+                  onChange={e => setField('principal_title', e.target.value)}
+                />
+              </Field>
+              <Field label="Portrait Image URL">
+                <input
+                  className={inp}
+                  placeholder="https://..."
+                  value={form.principal_photo}
+                  onChange={e => setField('principal_photo', e.target.value)}
+                />
+              </Field>
+            </div>
+            <Field label="Principal's Message Quote">
+              <textarea
+                className={txa + " min-h-[100px]"}
+                placeholder="Welcome to our institution. Every child who enters our campus carries boundless potential..."
+                value={form.principal_message}
+                onChange={e => setField('principal_message', e.target.value)}
+              />
+            </Field>
+          </div>
+        )}
+      </Card>
+
+      {/* SECTION 4: STATS ON ABOUT */}
+      <Card className="space-y-4">
+        <SectionVisibilityHeader
+          title="4. Statistics & Milestones Counter"
+          subtitle="Display achievement counters (total students, faculty, pass rate) on the About page"
+          icon={BarChart2}
+          sectionKey="about_stats"
+          visibility={visibility}
+          onToggle={onToggle}
+          badge="Metrics"
+        />
+        {visibility.about_stats !== false && (
+          <div className="pt-2 pl-1 border-t border-slate-100 dark:border-slate-800">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Counters use data configured in your Key Statistics manager.
+            </p>
+          </div>
+        )}
+      </Card>
+
+      {/* Save Button */}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => onSaveContent(form)}
+          className="flex items-center gap-1.5 px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition-colors shadow-2xs"
+        >
+          <Save className="w-4 h-4" /> Save About Page Content
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 3. COURSES PAGE TAB
+// ═══════════════════════════════════════════════════════════════════
+function CoursesPageTab({
+  slug,
+  visibility,
+  onToggle,
+}: {
+  slug?: string
+  visibility: Record<string, boolean>
+  onToggle: (key: string, val: boolean) => void
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+        <div>
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-violet-600" />
+            <h2 className="text-base font-black text-slate-900 dark:text-slate-100">Courses & Classes (/courses)</h2>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700">Dedicated Subpage</span>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Manage academic programs, classes, syllabus highlights, and customize which details are visible.
+          </p>
+        </div>
+        {slug && (
+          <a
+            href={`/${slug}/courses`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition-colors shrink-0 shadow-2xs"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Preview Live Courses Page
+          </a>
+        )}
+      </div>
+
+      {/* Subpage Display Options */}
+      <Card className="p-5">
+        <h3 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200 mb-3 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
+          <Settings className="w-3.5 h-3.5 text-violet-600" /> Course Card Display Options
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
+            <div>
+              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">Show Course Fees</span>
+              <span className="text-[10px] text-slate-400">Display annual / monthly tuition</span>
+            </div>
+            <Toggle value={visibility.courses_fees !== false} onChange={val => onToggle('courses_fees', val)} />
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
+            <div>
+              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">Show Duration & Grade</span>
+              <span className="text-[10px] text-slate-400">Display class eligibility level</span>
+            </div>
+            <Toggle value={visibility.courses_duration !== false} onChange={val => onToggle('courses_duration', val)} />
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
+            <div>
+              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">"Apply Online" Button</span>
+              <span className="text-[10px] text-slate-400">Link directly to admission form</span>
+            </div>
+            <Toggle value={visibility.courses_apply !== false} onChange={val => onToggle('courses_apply', val)} />
+          </div>
+        </div>
+      </Card>
+
+      {/* Courses Manager */}
+      <Card className="p-6">
+        <CoursesTab slug={slug} hideHeader={false} />
+      </Card>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 4. TEACHERS PAGE TAB
+// ═══════════════════════════════════════════════════════════════════
+function TeachersPageTab({
+  slug,
+  visibility,
+  onToggle,
+}: {
+  slug?: string
+  visibility: Record<string, boolean>
+  onToggle: (key: string, val: boolean) => void
+}) {
+  const [teachers, setTeachers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const loadTeachers = useCallback(async () => {
+    setLoading(true)
+    const res = await fetchTeachersList()
+    setTeachers(res.data || [])
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    loadTeachers()
+  }, [loadTeachers])
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+        <div>
+          <div className="flex items-center gap-2">
+            <Users className="w-5 h-5 text-violet-600" />
+            <h2 className="text-base font-black text-slate-900 dark:text-slate-100">Teachers / Faculty (/teachers)</h2>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700">Dedicated Subpage</span>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Showcase your qualified faculty members, their educational backgrounds, and subject specializations.
+          </p>
+        </div>
+        {slug && (
+          <a
+            href={`/${slug}/teachers`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition-colors shrink-0 shadow-2xs"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Preview Live Faculty Page
+          </a>
+        )}
+      </div>
+
+      {/* Display Controls */}
+      <Card className="p-5">
+        <h3 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200 mb-3 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
+          <Settings className="w-3.5 h-3.5 text-violet-600" /> Faculty Card Display Options
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
+            <div>
+              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">Show Experience Badge</span>
+              <span className="text-[10px] text-slate-400">Display years of teaching experience</span>
+            </div>
+            <Toggle value={visibility.teachers_experience !== false} onChange={val => onToggle('teachers_experience', val)} />
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
+            <div>
+              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">Show Teacher Bio</span>
+              <span className="text-[10px] text-slate-400">Display teacher summary note</span>
+            </div>
+            <Toggle value={visibility.teachers_bio !== false} onChange={val => onToggle('teachers_bio', val)} />
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
+            <div>
+              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">Show Assigned Subjects</span>
+              <span className="text-[10px] text-slate-400">Display department & subject tags</span>
+            </div>
+            <Toggle value={visibility.teachers_classes !== false} onChange={val => onToggle('teachers_classes', val)} />
+          </div>
+        </div>
+      </Card>
+
+      {/* Teachers List */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">
+              Active Faculty Members ({teachers.length})
+            </h3>
+            <p className="text-xs text-slate-400">Synchronized with your institute staff master</p>
+          </div>
+          <button
+            onClick={loadTeachers}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Refresh List
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="py-8 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+            <RefreshCw className="w-4 h-4 animate-spin" /> Loading teachers...
+          </div>
+        ) : teachers.length === 0 ? (
+          <div className="text-center py-8 text-slate-400 text-xs">
+            No active teachers found in your staff list. Add teachers in Employee Management with designation 'Teacher' or 'Faculty'.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {teachers.map((t) => (
+              <div
+                key={t.id}
+                className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center gap-3.5 hover:border-violet-300 transition-colors"
+              >
+                {t.photo_url ? (
+                  <img src={t.photo_url} alt={t.name} className="w-12 h-12 rounded-full object-cover border-2 border-violet-200 shrink-0" />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-violet-100 dark:bg-violet-900/50 text-violet-700 dark:text-violet-300 flex items-center justify-center font-black text-sm shrink-0">
+                    {t.name?.[0] || 'T'}
+                  </div>
+                )}
+                <div className="overflow-hidden">
+                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{t.name}</h4>
+                  <p className="text-[11px] text-violet-600 font-semibold truncate">{t.designation || 'Teacher'}</p>
+                  <p className="text-[10px] text-slate-400 truncate">{t.qualification || t.department || 'Academic Department'}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 5. GALLERY PAGE TAB
+// ═══════════════════════════════════════════════════════════════════
+function GalleryPageTab({
+  slug,
+  visibility,
+  onToggle,
+}: {
+  slug?: string
+  visibility: Record<string, boolean>
+  onToggle: (key: string, val: boolean) => void
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+        <div>
+          <div className="flex items-center gap-2">
+            <Camera className="w-5 h-5 text-violet-600" />
+            <h2 className="text-base font-black text-slate-900 dark:text-slate-100">Campus Gallery (/gallery)</h2>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700">Dedicated Subpage</span>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Organize photo albums, annual sports, lab sessions, and campus events.
+          </p>
+        </div>
+        {slug && (
+          <a
+            href={`/${slug}/gallery`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition-colors shrink-0 shadow-2xs"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Preview Live Gallery Page
+          </a>
+        )}
+      </div>
+
+      {/* Gallery Display Options */}
+      <Card className="p-5">
+        <h3 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200 mb-3 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
+          <Settings className="w-3.5 h-3.5 text-violet-600" /> Gallery Page Display Options
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
+            <div>
+              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">Lightbox Fullscreen</span>
+              <span className="text-[10px] text-slate-400">Click photo to zoom fullscreen</span>
+            </div>
+            <Toggle value={visibility.gallery_lightbox !== false} onChange={val => onToggle('gallery_lightbox', val)} />
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
+            <div>
+              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">Show Photo Captions</span>
+              <span className="text-[10px] text-slate-400">Display caption label on hover</span>
+            </div>
+            <Toggle value={visibility.gallery_captions !== false} onChange={val => onToggle('gallery_captions', val)} />
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
+            <div>
+              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">Category Filter Tabs</span>
+              <span className="text-[10px] text-slate-400">Sports, Events, Campus filter</span>
+            </div>
+            <Toggle value={visibility.gallery_filters !== false} onChange={val => onToggle('gallery_filters', val)} />
+          </div>
+        </div>
+      </Card>
+
+      {/* Gallery Photos Tab */}
+      <Card className="p-6">
+        <GalleryTab slug={slug} hideHeader={false} />
+      </Card>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 6. NOTICE & NEWS PAGE TAB
+// ═══════════════════════════════════════════════════════════════════
+function NewsPageTab({
+  slug,
+  visibility,
+  onToggle,
+}: {
+  slug?: string
+  visibility: Record<string, boolean>
+  onToggle: (key: string, val: boolean) => void
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+        <div>
+          <div className="flex items-center gap-2">
+            <FileText className="w-5 h-5 text-violet-600" />
+            <h2 className="text-base font-black text-slate-900 dark:text-slate-100">Notice & News (/news)</h2>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700">Dedicated Subpage</span>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Publish school circulars, exam timetables, event notifications, and urgent parent bulletins.
+          </p>
+        </div>
+        {slug && (
+          <a
+            href={`/${slug}/news`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition-colors shrink-0 shadow-2xs"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Preview Live Notice Board
+          </a>
+        )}
+      </div>
+
+      {/* Display Options */}
+      <Card className="p-5">
+        <h3 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200 mb-3 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
+          <Settings className="w-3.5 h-3.5 text-violet-600" /> Notice Board Display Options
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
+            <div>
+              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">Show Publish Dates</span>
+              <span className="text-[10px] text-slate-400">Display circular issue timestamp</span>
+            </div>
+            <Toggle value={visibility.news_dates !== false} onChange={val => onToggle('news_dates', val)} />
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
+            <div>
+              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">Show Category Tags</span>
+              <span className="text-[10px] text-slate-400">Holiday, Exam, Event badges</span>
+            </div>
+            <Toggle value={visibility.news_categories !== false} onChange={val => onToggle('news_categories', val)} />
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40">
+            <div>
+              <span className="text-xs font-bold block text-slate-800 dark:text-slate-200">Enable Detail Popup</span>
+              <span className="text-[10px] text-slate-400">Full notice modal for visitors</span>
+            </div>
+            <Toggle value={visibility.news_modals !== false} onChange={val => onToggle('news_modals', val)} />
+          </div>
+        </div>
+      </Card>
+
+      {/* Notices Manager */}
+      <Card className="p-6">
+        <BlogsTab slug={slug} hideHeader={false} />
+      </Card>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 7. CONTACT US PAGE TAB
+// ═══════════════════════════════════════════════════════════════════
+function ContactPageTab({
+  slug,
+  visibility,
+  onToggle,
+  pageContent,
+  onSaveContent,
+}: {
+  slug?: string
+  visibility: Record<string, boolean>
+  onToggle: (key: string, val: boolean) => void
+  pageContent: Record<string, any>
+  onSaveContent: (updates: Record<string, any>) => void
+}) {
+  const [mapUrl, setMapUrl] = useState(pageContent.map_embed_url || '')
+  const [officeHours, setOfficeHours] = useState(pageContent.contact_office_hours || '')
+  const [directions, setDirections] = useState(pageContent.contact_directions || '')
+
+  useEffect(() => {
+    setMapUrl(pageContent.map_embed_url || '')
+    setOfficeHours(pageContent.contact_office_hours || '')
+    setDirections(pageContent.contact_directions || '')
+  }, [pageContent])
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+        <div>
+          <div className="flex items-center gap-2">
+            <Phone className="w-5 h-5 text-violet-600" />
+            <h2 className="text-base font-black text-slate-900 dark:text-slate-100">Contact Us (/contact)</h2>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700">Dedicated Subpage</span>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Configure campus address, Google Map embed, direct enquiry form, and visiting hours.
+          </p>
+        </div>
+        {slug && (
+          <a
+            href={`/${slug}/contact`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition-colors shrink-0 shadow-2xs"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Preview Live Contact Page
+          </a>
+        )}
+      </div>
+
+      {/* SECTION 1: MAP EMBED */}
+      <Card className="space-y-4">
+        <SectionVisibilityHeader
+          title="1. Google Map Interactive Embed"
+          subtitle="Interactive location map so parents and visitors can navigate to campus easily"
+          icon={MapPin}
+          sectionKey="contact_map"
+          visibility={visibility}
+          onToggle={onToggle}
+          badge="Map"
+        />
+        {visibility.contact_map !== false && (
+          <div className="pt-2 pl-1 border-t border-slate-100 dark:border-slate-800 space-y-4">
+            <Field label="Google Maps Embed URL (or iframe src)">
+              <input
+                className={inp}
+                placeholder="https://www.google.com/maps/embed?pb=..."
+                value={mapUrl}
+                onChange={e => setMapUrl(e.target.value)}
+              />
+            </Field>
+            <p className="text-[11px] text-slate-400">
+              Open Google Maps &gt; Search your school &gt; Click 'Share' &gt; 'Embed a map' &gt; Copy the URL from inside the <code className="text-violet-600">src="..."</code> attribute.
+            </p>
+          </div>
+        )}
+      </Card>
+
+      {/* SECTION 2: DIRECT ENQUIRY FORM */}
+      <Card className="space-y-4">
+        <SectionVisibilityHeader
+          title="2. Direct Online Message Form"
+          subtitle="Visitors can fill out their name, phone, email, and message to reach admissions"
+          icon={Mail}
+          sectionKey="contact_form"
+          visibility={visibility}
+          onToggle={onToggle}
+          badge="Form"
+        />
+        {visibility.contact_form !== false && (
+          <div className="pt-2 pl-1 border-t border-slate-100 dark:border-slate-800">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              When visitors submit this form, entries are automatically logged into your <strong className="text-violet-600 font-bold">Admission Enquiries</strong> tab.
+            </p>
+          </div>
+        )}
+      </Card>
+
+      {/* SECTION 3: ADDRESS & CONTACT CARDS */}
+      <Card className="space-y-4">
+        <SectionVisibilityHeader
+          title="3. Campus Address & Contact Cards"
+          subtitle="Display official school phone numbers, email addresses, and campus location"
+          icon={Phone}
+          sectionKey="contact_info"
+          visibility={visibility}
+          onToggle={onToggle}
+          badge="Contact Info"
+        />
+        {visibility.contact_info !== false && (
+          <div className="pt-2 pl-1 border-t border-slate-100 dark:border-slate-800 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Office / Visiting Hours">
+                <input
+                  className={inp}
+                  placeholder="e.g. Mon – Sat: 8:00 AM – 3:30 PM"
+                  value={officeHours}
+                  onChange={e => setOfficeHours(e.target.value)}
+                />
+              </Field>
+              <Field label="Landmark / Directions Note">
+                <input
+                  className={inp}
+                  placeholder="e.g. Opposite City Park, 500m from Central Metro Station"
+                  value={directions}
+                  onChange={e => setDirections(e.target.value)}
+                />
+              </Field>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Save Button */}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => onSaveContent({
+            map_embed_url: mapUrl,
+            contact_office_hours: officeHours,
+            contact_directions: directions,
+          })}
+          className="flex items-center gap-1.5 px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition-colors shadow-2xs"
+        >
+          <Save className="w-4 h-4" /> Save Contact Settings
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 8. ADMISSION ENQUIRIES TAB (WRAPPER)
+// ═══════════════════════════════════════════════════════════════════
+function EnquiriesPageTab({
+  slug,
+  visibility,
+  onToggle,
+}: {
+  slug?: string
+  visibility: Record<string, boolean>
+  onToggle: (key: string, val: boolean) => void
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+        <div>
+          <div className="flex items-center gap-2">
+            <Inbox className="w-5 h-5 text-violet-600" />
+            <h2 className="text-base font-black text-slate-900 dark:text-slate-100">Admission Applications & Leads (/apply)</h2>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700">Dedicated Subpage</span>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Review and follow up on admission enquiries and applications received from your website.
+          </p>
+        </div>
+        {slug && (
+          <a
+            href={`/${slug}/apply`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold transition-colors shrink-0 shadow-2xs"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Preview Online Application Form
+          </a>
+        )}
+      </div>
+
+      {/* Online Application Setting */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200">
+              Allow Public Online Student Applications
+            </h4>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              When enabled, visitors can fill out complete online admission registration at <code className="text-violet-600">/{slug}/apply</code>
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-bold ${visibility.enquiries_public_form !== false ? 'text-emerald-600' : 'text-slate-400'}`}>
+              {visibility.enquiries_public_form !== false ? 'Accepting Applications' : 'Form Disabled'}
+            </span>
+            <Toggle value={visibility.enquiries_public_form !== false} onChange={val => onToggle('enquiries_public_form', val)} />
+          </div>
+        </div>
+      </Card>
+
+      {/* Leads Table */}
+      <EnquiriesTab slug={slug} />
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // MAIN PAGE COMPONENT
 // ═══════════════════════════════════════════════════════════════════
 export default function WebsiteManagementPage() {
   const [activeTab, setActiveTab] = useState('general')
   const [settings, setSettings] = useState<any>(null)
+  const [visibility, setVisibility] = useState<Record<string, boolean>>({})
+  const [pageContent, setPageContent] = useState<Record<string, any>>({})
 
   useEffect(() => {
-    fetchWebsiteSettings().then(r => { if (r.data) setSettings(r.data) })
+    fetchWebsiteSettings().then(r => {
+      if (r.data) {
+        setSettings(r.data)
+        setVisibility(r.data.page_sections_visibility || {})
+        setPageContent(r.data.page_content || {})
+      }
+    })
   }, [])
 
   const slug = settings?.slug
   const publicUrl = slug ? `${typeof window !== 'undefined' ? window.location.origin : ''}/${slug}` : null
 
+  const handleToggleVisibility = async (key: string, value: boolean) => {
+    setVisibility(prev => ({ ...prev, [key]: value }))
+    const res = await updateSectionVisibility({ [key]: value })
+    if (res.success) {
+      toast.success(`${value ? 'Visible' : 'Hidden'} on website`)
+    } else {
+      toast.error('Failed to update visibility')
+      setVisibility(prev => ({ ...prev, [key]: !value }))
+    }
+  }
+
+  const handleSavePageContent = async (updates: Record<string, any>) => {
+    setPageContent(prev => ({ ...prev, ...updates }))
+    const res = await updatePageContent(updates)
+    if (res.success) {
+      toast.success('Page content saved successfully!')
+    } else {
+      toast.error('Failed to save page content')
+    }
+  }
+
   const renderTab = () => {
     switch (activeTab) {
-      case 'general': return <GeneralTab />
-      case 'sliders': return <SlidersTab slug={slug} />
-      case 'stats': return <StatsTab slug={slug} />
-      case 'courses': return <CoursesTab slug={slug} />
-      case 'faqs': return <FaqsTab />
-      case 'testimonials': return <TestimonialsTab />
-      case 'blogs': return <BlogsTab slug={slug} />
-      case 'gallery': return <GalleryTab slug={slug} />
-      case 'enquiries': return <EnquiriesTab slug={slug} />
-      default: return null
+      case 'general':
+        return <GeneralTab />
+      case 'home':
+        return (
+          <HomePageTab
+            slug={slug}
+            visibility={visibility}
+            onToggle={handleToggleVisibility}
+            pageContent={pageContent}
+            onSaveContent={handleSavePageContent}
+          />
+        )
+      case 'about':
+        return (
+          <AboutPageTab
+            slug={slug}
+            visibility={visibility}
+            onToggle={handleToggleVisibility}
+            pageContent={pageContent}
+            onSaveContent={handleSavePageContent}
+          />
+        )
+      case 'courses':
+        return (
+          <CoursesPageTab
+            slug={slug}
+            visibility={visibility}
+            onToggle={handleToggleVisibility}
+          />
+        )
+      case 'teachers':
+        return (
+          <TeachersPageTab
+            slug={slug}
+            visibility={visibility}
+            onToggle={handleToggleVisibility}
+          />
+        )
+      case 'gallery':
+        return (
+          <GalleryPageTab
+            slug={slug}
+            visibility={visibility}
+            onToggle={handleToggleVisibility}
+          />
+        )
+      case 'news':
+        return (
+          <NewsPageTab
+            slug={slug}
+            visibility={visibility}
+            onToggle={handleToggleVisibility}
+          />
+        )
+      case 'contact':
+        return (
+          <ContactPageTab
+            slug={slug}
+            visibility={visibility}
+            onToggle={handleToggleVisibility}
+            pageContent={pageContent}
+            onSaveContent={handleSavePageContent}
+          />
+        )
+      case 'enquiries':
+        return (
+          <EnquiriesPageTab
+            slug={slug}
+            visibility={visibility}
+            onToggle={handleToggleVisibility}
+          />
+        )
+      default:
+        return null
     }
   }
 
@@ -1763,7 +3119,10 @@ export default function WebsiteManagementPage() {
       {/* Body: Sidebar + Content */}
       <div className="flex flex-1 min-h-0">
         {/* Left Sidebar */}
-        <aside className="w-56 shrink-0 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col py-4 gap-1 px-3">
+        <aside className="w-60 shrink-0 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col py-4 gap-1 px-3">
+          <div className="px-3 pb-2 mb-1 border-b border-slate-100 dark:border-slate-700/60">
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Page-Wise Management</span>
+          </div>
           {TABS.map(tab => {
             const Icon = tab.icon
             const isActive = activeTab === tab.key
@@ -1771,14 +3130,23 @@ export default function WebsiteManagementPage() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all text-left ${
+                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all text-left ${
                   isActive
                     ? 'bg-violet-600 text-white shadow-sm'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
                 }`}
               >
-                <Icon className="w-4 h-4 shrink-0" />
-                {tab.label}
+                <div className="flex items-center gap-2.5 truncate">
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span className="truncate">{tab.label}</span>
+                </div>
+                {tab.badge && (
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
+                    isActive ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400'
+                  }`}>
+                    {tab.badge}
+                  </span>
+                )}
               </button>
             )
           })}
@@ -1792,3 +3160,4 @@ export default function WebsiteManagementPage() {
     </div>
   )
 }
+

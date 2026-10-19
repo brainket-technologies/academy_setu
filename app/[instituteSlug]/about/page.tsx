@@ -33,6 +33,24 @@ export default async function AboutPage({
   const { settings, stats, courses } = res.data
   const websiteTitle = settings.website_title || 'Cosmopolitan Inter College'
 
+  const visibility = (settings as any)?.page_sections_visibility || {}
+  const pageContent = (settings as any)?.page_content || {}
+
+  const showAboutMain = visibility.about_main !== false
+  const showAboutVision = visibility.about_vision !== false
+  const showAboutMission = visibility.about_mission !== false
+  const showAboutPrincipal = visibility.about_principal !== false
+  const showAboutStats = visibility.about_stats !== false
+
+  const principalName = pageContent.principal_name || 'Academic Director & Principal'
+  const principalTitle = pageContent.principal_title || 'Principal Message'
+  const principalQuote = pageContent.principal_quote || '"Education Beyond the Classroom"'
+  const principalMessage = pageContent.principal_message ||
+    `Welcome to ${websiteTitle}, where every child is valued, encouraged, and inspired to achieve their fullest potential. Our mission is to provide a nurturing environment that promotes academic excellence, strong moral values, creativity, and lifelong learning. We believe that education is not only about gaining knowledge but also about developing character, confidence, and compassion.`
+  const principalPhoto = pageContent.principal_photo_url ||
+    'https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=800&auto=format&fit=crop'
+  const badgeText = pageContent.about_badge_text || '10+ Years of Excellence'
+
   return (
     <WebsiteLayout
       slug={instituteSlug}
@@ -48,6 +66,7 @@ export default async function AboutPage({
       />
 
       {/* Main About Section */}
+      {showAboutMain && (
       <section className="py-16 sm:py-20 px-4 sm:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
@@ -70,11 +89,11 @@ export default async function AboutPage({
                   className="w-full h-[360px] sm:h-[420px] object-cover"
                 />
                 
-                {/* 10+ Years of Excellence Badge */}
+                {/* Years of Excellence Badge */}
                 <div className="absolute bottom-5 right-5 bg-white text-center rounded-2xl shadow-xl p-4 border border-slate-100 min-w-[130px]">
                   <h5 className="text-2xl sm:text-3xl font-black text-[#0d6efd]">10+</h5>
                   <small className="text-xs font-bold text-slate-700 block leading-tight">
-                    Years of<br />Excellence
+                    {badgeText.includes('\n') ? badgeText : badgeText.replace(' Years of ', ' Years of\n')}
                   </small>
                 </div>
               </div>
@@ -91,14 +110,14 @@ export default async function AboutPage({
                   `At ${websiteTitle}, we are committed to providing a safe, inspiring, and student-centered learning environment where every child is encouraged to discover their unique talents and reach their highest potential. Our dedicated educators combine academic excellence with strong moral values, creativity, and life skills to prepare students for the challenges of tomorrow.`}
               </p>
 
-              {settings.about_vision && (
+              {showAboutVision && settings.about_vision && (
                 <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-100 text-xs sm:text-sm text-slate-700">
                   <strong className="text-[#0d6efd] block mb-1">Our Vision:</strong>
                   {settings.about_vision}
                 </div>
               )}
 
-              {settings.about_mission && (
+              {showAboutMission && settings.about_mission && (
                 <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 text-xs sm:text-sm text-slate-700">
                   <strong className="text-amber-800 block mb-1">Our Mission:</strong>
                   {settings.about_mission}
@@ -117,13 +136,15 @@ export default async function AboutPage({
           </div>
         </div>
       </section>
+      )}
 
       {/* Principal's Message Section (Exact lcabithan style) */}
+      {showAboutPrincipal && (
       <section className="py-16 sm:py-20 px-4 sm:px-8 bg-[#f8f9fa]">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900">
-              Principal Message
+              {principalTitle}
             </h2>
             <div className="mx-auto bg-[#0d6efd] mt-2.5 mb-2 h-[3.5px] w-[150px] rounded-full" />
           </div>
@@ -131,31 +152,30 @@ export default async function AboutPage({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             <div className="lg:col-span-5 text-center">
               <img
-                src="https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=800&auto=format&fit=crop"
+                src={principalPhoto}
                 alt="Principal"
                 className="w-72 sm:w-80 h-96 object-cover rounded-2xl shadow-md mx-auto border-4 border-white"
               />
             </div>
             <div className="lg:col-span-7 space-y-4">
               <h3 className="text-2xl font-bold text-slate-900 italic">
-                "Education Beyond the Classroom"
+                {principalQuote}
               </h3>
-              <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
-                Welcome to {websiteTitle}, where every child is valued, encouraged, and inspired to achieve their fullest potential. Our mission is to provide a nurturing environment that promotes academic excellence, strong moral values, creativity, and lifelong learning. We believe that education is not only about gaining knowledge but also about developing character, confidence, and compassion.
-              </p>
-              <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
-                With the dedicated efforts of our teachers, the support of our parents, and the determination of our students, we continue to build a learning community where every child can grow, succeed, and become a responsible citizen.
+              <p className="text-slate-600 text-sm sm:text-base leading-relaxed whitespace-pre-line">
+                {principalMessage}
               </p>
               <div className="pt-2">
-                <h5 className="font-bold text-base text-slate-900">Academic Director & Principal</h5>
+                <h5 className="font-bold text-base text-slate-900">{principalName}</h5>
                 <p className="text-[#0d6efd] text-xs font-bold">{websiteTitle}</p>
               </div>
             </div>
           </div>
         </div>
       </section>
+      )}
 
       {/* Stats Counter Band */}
+      {showAboutStats && (
       <section className="py-14 text-white bg-[#0d6efd]">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 text-center">
@@ -197,6 +217,7 @@ export default async function AboutPage({
           </div>
         </div>
       </section>
+      )}
     </WebsiteLayout>
   )
 }

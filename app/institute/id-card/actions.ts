@@ -22,14 +22,14 @@ export interface IdCardPerson {
   designation?: string
   department?: string
   avatar?: string
-  designId: 1 | 2
+  designId: 1 | 2 | 3 | 4 | number
   generatedAt: string
 }
 
 export interface IdCardSetupData {
   id?: string
   title: string
-  cardFor: 'Student' | 'Teacher' | 'Employee'
+  cardFor: 'Universal' | 'Student' | 'Teacher' | 'Employee' | string
   session: string
   designId: number
   tagline?: string
@@ -43,12 +43,21 @@ export interface IdCardSetupData {
   affiliationCode?: string
   showWatermark?: boolean
   showPrincipalSign?: boolean
+  showHolderSign?: boolean
+  showFatherName?: boolean
+  showDob?: boolean
+  showAdmNo?: boolean
+  showRollNo?: boolean
+  showContact?: boolean
+  holderSignName?: string
   showTopHeaderTagline?: boolean
   printQr?: boolean
   showBloodGroup?: boolean
   bottomNotes?: string
   themeColor?: string
   principalName?: string
+  principalSign?: string
+  schoolLogo?: string
   customLabels?: Record<string, string>
 }
 
@@ -82,11 +91,29 @@ async function ensureIdCardSetupColumns() {
         theme_color VARCHAR(50),
         principal_name VARCHAR(255),
         custom_labels JSONB,
+        show_holder_sign BOOLEAN DEFAULT TRUE,
+        show_father_name BOOLEAN DEFAULT TRUE,
+        show_dob BOOLEAN DEFAULT TRUE,
+        show_adm_no BOOLEAN DEFAULT TRUE,
+        show_roll_no BOOLEAN DEFAULT TRUE,
+        show_contact BOOLEAN DEFAULT TRUE,
+        holder_sign_name VARCHAR(255),
+        principal_sign TEXT,
+        school_logo TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       ALTER TABLE institute_id_card_setups ADD COLUMN IF NOT EXISTS theme_color VARCHAR(50);
       ALTER TABLE institute_id_card_setups ADD COLUMN IF NOT EXISTS principal_name VARCHAR(255);
       ALTER TABLE institute_id_card_setups ADD COLUMN IF NOT EXISTS custom_labels JSONB;
+      ALTER TABLE institute_id_card_setups ADD COLUMN IF NOT EXISTS show_holder_sign BOOLEAN DEFAULT TRUE;
+      ALTER TABLE institute_id_card_setups ADD COLUMN IF NOT EXISTS show_father_name BOOLEAN DEFAULT TRUE;
+      ALTER TABLE institute_id_card_setups ADD COLUMN IF NOT EXISTS show_dob BOOLEAN DEFAULT TRUE;
+      ALTER TABLE institute_id_card_setups ADD COLUMN IF NOT EXISTS show_adm_no BOOLEAN DEFAULT TRUE;
+      ALTER TABLE institute_id_card_setups ADD COLUMN IF NOT EXISTS show_roll_no BOOLEAN DEFAULT TRUE;
+      ALTER TABLE institute_id_card_setups ADD COLUMN IF NOT EXISTS show_contact BOOLEAN DEFAULT TRUE;
+      ALTER TABLE institute_id_card_setups ADD COLUMN IF NOT EXISTS holder_sign_name VARCHAR(255);
+      ALTER TABLE institute_id_card_setups ADD COLUMN IF NOT EXISTS principal_sign TEXT;
+      ALTER TABLE institute_id_card_setups ADD COLUMN IF NOT EXISTS school_logo TEXT;
     `)
     tableEnsured = true
   } catch (e) {
@@ -122,12 +149,21 @@ export async function fetchIdCardSetups() {
         affiliation_code as "affiliationCode", 
         show_watermark as "showWatermark", 
         show_principal_sign as "showPrincipalSign", 
+        show_holder_sign as "showHolderSign",
+        show_father_name as "showFatherName",
+        show_dob as "showDob",
+        show_adm_no as "showAdmNo",
+        show_roll_no as "showRollNo",
+        show_contact as "showContact",
+        holder_sign_name as "holderSignName",
         show_top_header_tagline as "showTopHeaderTagline", 
         print_qr as "printQr", 
         show_blood_group as "showBloodGroup", 
         bottom_notes as "bottomNotes", 
         theme_color as "themeColor",
         principal_name as "principalName",
+        principal_sign as "principalSign",
+        school_logo as "schoolLogo",
         custom_labels as "customLabels",
         TO_CHAR(created_at, 'DD/MM/YYYY') as "date",
         TO_CHAR(created_at, 'HH12:MI AM') as "time"
@@ -154,14 +190,15 @@ export async function saveIdCardSetup(data: IdCardSetupData) {
         institution_id, title, card_for, session, design_id, tagline,
         school_name, school_address, school_phone, school_email, udise_code,
         school_code, affiliated_to, affiliation_code, show_watermark,
-        show_principal_sign, show_top_header_tagline, print_qr, show_blood_group, bottom_notes,
-        theme_color, principal_name, custom_labels
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+        show_principal_sign, show_holder_sign, show_father_name, show_dob, show_adm_no, show_roll_no, show_contact,
+        holder_sign_name, show_top_header_tagline, print_qr, show_blood_group, bottom_notes,
+        theme_color, principal_name, custom_labels, principal_sign, school_logo
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
       RETURNING id, title, card_for as "for", session, design_id as "designId", theme_color as "themeColor"
     `, [
       institutionId,
       data.title || 'ID Card Design',
-      data.cardFor || 'Student',
+      data.cardFor || 'Universal',
       data.session || '2025-26',
       data.designId || 1,
       data.tagline || '',
@@ -175,18 +212,137 @@ export async function saveIdCardSetup(data: IdCardSetupData) {
       data.affiliationCode || '',
       data.showWatermark ?? true,
       data.showPrincipalSign ?? true,
+      data.showHolderSign ?? true,
+      data.showFatherName ?? true,
+      data.showDob ?? true,
+      data.showAdmNo ?? true,
+      data.showRollNo ?? true,
+      data.showContact ?? true,
+      data.holderSignName || 'Cardholder',
       data.showTopHeaderTagline ?? true,
       data.printQr ?? true,
       data.showBloodGroup ?? true,
       data.bottomNotes || '',
       data.themeColor || '#0284c7',
       data.principalName || 'K.Singhal',
-      JSON.stringify(data.customLabels || {})
+      JSON.stringify(data.customLabels || {}),
+      data.principalSign || null,
+      data.schoolLogo || null
     ])
 
     return { success: true, data: res.rows[0] }
   } catch (err: any) {
     return { success: false, error: err.message }
+  }
+}
+
+// -------------------------------------------------------------
+// INSTITUTION PROFILE DETAILS (Auto-fetch for Principal, Name, Sign, Logo)
+// -------------------------------------------------------------
+export async function fetchCurrentInstitutionDetails() {
+  const session = await getSession('institute_session')
+  const institutionId = session?.userId
+
+  try {
+    let res: any = null
+    if (institutionId && institutionId !== 'default_institution') {
+      res = await pool.query(`
+        SELECT 
+          id, 
+          name, 
+          code as "schoolCode",
+          affiliated_to as "affiliatedTo", 
+          affiliation_code as "affiliationCode", 
+          contact_person as "contactPerson", 
+          mobile_no as "mobileNo", 
+          email_id as "emailId", 
+          address, 
+          state, 
+          district, 
+          pincode, 
+          principal_name as "principalName", 
+          principal_sign as "principalSign",
+          principal_photo as "principalPhoto",
+          director_name as "directorName",
+          director_sign as "directorSign"
+        FROM institutions
+        WHERE id = $1
+      `, [institutionId])
+    }
+
+    if (!res || res.rows.length === 0) {
+      res = await pool.query(`
+        SELECT 
+          id, 
+          name, 
+          code as "schoolCode",
+          affiliated_to as "affiliatedTo", 
+          affiliation_code as "affiliationCode", 
+          contact_person as "contactPerson", 
+          mobile_no as "mobileNo", 
+          email_id as "emailId", 
+          address, 
+          state, 
+          district, 
+          pincode, 
+          principal_name as "principalName", 
+          principal_sign as "principalSign",
+          principal_photo as "principalPhoto",
+          director_name as "directorName",
+          director_sign as "directorSign"
+        FROM institutions
+        ORDER BY created_at ASC
+        LIMIT 1
+      `)
+    }
+
+    // Also look up latest saved ID card setup
+    let latestSetup: any = null
+    try {
+      const sRes = await pool.query(`
+        SELECT school_name, school_address, school_phone, school_email, principal_name, principal_sign, school_logo, affiliated_to, affiliation_code
+        FROM institute_id_card_setups
+        WHERE (institution_id = $1 OR institution_id = 'default_institution')
+        ORDER BY created_at DESC
+        LIMIT 1
+      `, [institutionId || 'default_institution'])
+      if (sRes.rows.length > 0) {
+        latestSetup = sRes.rows[0]
+      }
+    } catch (e) {}
+
+    let websiteLogo: string | null = null
+    try {
+      const wRes = await pool.query(`
+        SELECT logo_url FROM institute_website_settings 
+        WHERE (institution_id = $1 OR slug IS NOT NULL) AND logo_url IS NOT NULL AND logo_url != ''
+        ORDER BY updated_at DESC LIMIT 1
+      `, [institutionId || 'default_institution'])
+      if (wRes.rows.length > 0 && wRes.rows[0].logo_url) {
+        websiteLogo = wRes.rows[0].logo_url
+      }
+    } catch (e) {}
+
+    const row = (res && res.rows.length > 0) ? res.rows[0] : {}
+    const fullAddress = [row.address, row.district, row.state, row.pincode].filter(Boolean).join(', ')
+
+    return {
+      success: true,
+      data: {
+        principalName: row.principalName || latestSetup?.principal_name || 'K.Singhal',
+        principalSign: row.principalSign || latestSetup?.principal_sign || null,
+        schoolLogo: latestSetup?.school_logo || websiteLogo || null,
+        schoolName: row.name || latestSetup?.school_name || 'COSMOPOLITAN INTER COLLEGE',
+        schoolAddress: fullAddress || latestSetup?.school_address || 'Knowledge Park, Sector 62, New Delhi',
+        schoolPhone: row.mobileNo || latestSetup?.school_phone || '+91 11 2345 6789',
+        schoolEmail: row.emailId || latestSetup?.school_email || 'info@academy.edu',
+        affiliatedTo: row.affiliatedTo || latestSetup?.affiliated_to || 'CBSE, New Delhi',
+        affiliationCode: row.affiliationCode || latestSetup?.affiliation_code || 'CBSE-213089',
+        schoolCode: row.schoolCode || 'SCH-8841',
+      }
+    }
+  } catch (err: any) {
+    return { success: false, error: err.message, data: null }
   }
 }
 

@@ -77,39 +77,39 @@ export interface CertificateCustomProps {
   onUpdateLabel?: (key: string, value: string) => void
 }
 
-// Common Gold Seal with Ribbons (Themed ribbon support)
+// Common Gold Seal with Ribbons (Self-contained within bounding box so ribbons never get cut off)
 const GoldSeal = ({ text = "OFFICIAL SEAL", ribbonColor = "#1e3a8a", className = "" }: { text?: string; ribbonColor?: string; className?: string }) => (
-  <div className={`relative flex items-center justify-center select-none ${className}`}>
+  <div className={`relative flex items-center justify-center select-none w-20 h-22 shrink-0 ${className}`}>
+    {/* Ribbons */}
+    <div 
+      className="absolute bottom-0 left-[14px] w-5 h-9 -rotate-[28deg] z-0 shadow-xs" 
+      style={{ 
+        clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%)',
+        backgroundColor: ribbonColor
+      }}
+    ></div>
+    <div 
+      className="absolute bottom-0 right-[14px] w-5 h-9 rotate-[28deg] z-0 shadow-xs" 
+      style={{ 
+        clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%)',
+        backgroundColor: ribbonColor
+      }}
+    ></div>
     {/* Sunburst edges */}
     {[0, 30, 60, 90, 120, 150].map((deg) => (
       <div 
         key={deg} 
-        className="absolute w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-sm shadow-xs" 
+        className="absolute top-0 w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-sm shadow-xs" 
         style={{ transform: `rotate(${deg}deg)`, zIndex: 1 }}
       ></div>
     ))}
     {/* Inner golden disc */}
-    <div className="absolute w-16 h-16 bg-gradient-to-b from-amber-300 via-amber-200 to-yellow-500 rounded-full z-10 border-2 border-amber-600/40 shadow-inner flex flex-col items-center justify-center p-1 text-center">
+    <div className="absolute top-0 w-16 h-16 bg-gradient-to-b from-amber-300 via-amber-200 to-yellow-500 rounded-full z-10 border-2 border-amber-600/40 shadow-inner flex flex-col items-center justify-center p-1 text-center">
       <Award className="w-5 h-5 text-amber-900" />
       <span className="text-[6px] font-black text-amber-950 uppercase tracking-tighter leading-tight mt-0.5 px-0.5 line-clamp-1">
         {text}
       </span>
     </div>
-    {/* Ribbons */}
-    <div 
-      className="absolute bottom-[-18px] left-[12px] w-6 h-12 -rotate-[30deg] z-0 shadow-sm" 
-      style={{ 
-        clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%)',
-        backgroundColor: ribbonColor
-      }}
-    ></div>
-    <div 
-      className="absolute bottom-[-18px] right-[12px] w-6 h-12 rotate-[30deg] z-0 shadow-sm" 
-      style={{ 
-        clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%)',
-        backgroundColor: ribbonColor
-      }}
-    ></div>
   </div>
 )
 
@@ -185,18 +185,16 @@ export const CertificateStudentMetadata: React.FC<{
       ))}
     </div>
   )
-}
-
-// Shared Student Candidate Photo Badge
+}// Shared Student Candidate Photo Badge
 export const CertificateCandidatePhoto: React.FC<{
   studentPhoto?: string
   isHidden: (field: string) => boolean
   top?: string
   left?: string
-}> = ({ studentPhoto, isHidden, top = 'top-8', left = 'left-10' }) => {
+}> = ({ studentPhoto, isHidden, top = 'top-7', left = 'left-10' }) => {
   if (isHidden('Student Photo') || isHidden('Photo')) return null
   return (
-    <div className={`absolute ${top} ${left} z-20 flex flex-col items-center bg-white dark:bg-slate-900 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm pointer-events-none`}>
+    <div className={`absolute ${top} ${left} z-30 flex flex-col items-center bg-white dark:bg-slate-900 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm pointer-events-none`}>
       <div className="w-11 h-13 bg-slate-100 dark:bg-slate-800 rounded overflow-hidden flex items-center justify-center border border-slate-200 dark:border-slate-700">
         {studentPhoto ? (
           <img src={studentPhoto} alt="Student" className="w-full h-full object-cover" />
@@ -261,19 +259,19 @@ export const CertificateFooterSignatures: React.FC<{
   const fontStyle = fontFamily ? { fontFamily } : {}
 
   return (
-    <div className="relative z-20 flex flex-wrap justify-between items-end px-10 pb-7 mt-auto gap-3 w-full">
+    <div className="relative z-20 flex justify-between items-end px-12 pb-7 mt-auto gap-3 w-full">
       {/* 1. Date of Issue */}
       {!isHidden('Certificate Date') && !isHidden('Date of Issue') && (
-        <div className="flex flex-col items-center min-w-[85px] max-w-[125px] text-center">
+        <div className="flex flex-col items-center flex-1 min-w-[70px] max-w-[125px] text-center px-1 mb-1">
           <LiveEditableText
             tag="p"
             value={date || '15 October 2025'}
             editable={editable}
             onSave={(val) => onUpdateField?.('date', val)}
-            className="font-bold text-xs text-slate-800 mb-0.5 truncate"
+            className="font-bold text-xs text-slate-800 mb-0.5 truncate w-full"
           />
           <div className="w-full h-px bg-slate-300 mb-0.5"></div>
-          <p className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase">
+          <p className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase truncate max-w-full">
             {customLabels['date_label'] || 'Date of Issue'}
           </p>
         </div>
@@ -281,13 +279,13 @@ export const CertificateFooterSignatures: React.FC<{
 
       {/* 2. Class Teacher Sign */}
       {!isHidden('Teacher Sign') && !isHidden('Class Teacher Sign') && (
-        <div className="flex flex-col items-center min-w-[85px] max-w-[125px] text-center">
+        <div className="flex flex-col items-center flex-1 min-w-[70px] max-w-[125px] text-center px-1 mb-1">
           <LiveEditableText
             tag="p"
             value={teacherSignName || customLabels['teacherSignName'] || 'Mrs. Kavita Verma'}
             editable={editable}
             onSave={(val) => onUpdateField?.('teacherSignName', val)}
-            className="italic font-bold text-xs mb-0.5 truncate"
+            className="italic font-bold text-xs mb-0.5 truncate w-full"
             style={{ color: textColor, ...fontStyle }}
           />
           <div className="w-full h-px bg-slate-300 mb-0.5"></div>
@@ -296,20 +294,20 @@ export const CertificateFooterSignatures: React.FC<{
             value={teacherSignLabel || customLabels['teacherSignLabel'] || "Class Teacher's Sign"}
             editable={editable}
             onSave={(val) => onUpdateLabel?.('teacherSign', val)}
-            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase"
+            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase truncate max-w-full"
           />
         </div>
       )}
 
       {/* 3. Exam Controller Sign */}
       {!isHidden('Controller Sign') && !isHidden('Exam Controller Sign') && (
-        <div className="flex flex-col items-center min-w-[85px] max-w-[125px] text-center">
+        <div className="flex flex-col items-center flex-1 min-w-[70px] max-w-[125px] text-center px-1 mb-1">
           <LiveEditableText
             tag="p"
             value={controllerSignName || customLabels['controllerSignName'] || 'Mr. R. K. Saxena'}
             editable={editable}
             onSave={(val) => onUpdateField?.('controllerSignName', val)}
-            className="italic font-bold text-xs mb-0.5 truncate"
+            className="italic font-bold text-xs mb-0.5 truncate w-full"
             style={{ color: textColor, ...fontStyle }}
           />
           <div className="w-full h-px bg-slate-300 mb-0.5"></div>
@@ -318,20 +316,20 @@ export const CertificateFooterSignatures: React.FC<{
             value={controllerSignLabel || customLabels['controllerSignLabel'] || "Exam Controller"}
             editable={editable}
             onSave={(val) => onUpdateLabel?.('controllerSign', val)}
-            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase"
+            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase truncate max-w-full"
           />
         </div>
       )}
 
       {/* 4. Coordinator / In-Charge Sign */}
       {!isHidden('Secondary Sign') && !isHidden('Coordinator Sign') && !isHidden('Coordinator / In-Charge Sign') && (
-        <div className="flex flex-col items-center min-w-[85px] max-w-[125px] text-center">
+        <div className="flex flex-col items-center flex-1 min-w-[70px] max-w-[125px] text-center px-1 mb-1">
           <LiveEditableText
             tag="p"
             value={secondarySignName || customLabels['secondarySignName'] || 'Authorized Signatory'}
             editable={editable}
             onSave={(val) => onUpdateField?.('secondarySignName', val)}
-            className="italic font-bold text-xs mb-0.5 truncate"
+            className="italic font-bold text-xs mb-0.5 truncate w-full"
             style={{ color: textColor, ...fontStyle }}
           />
           <div className="w-full h-px bg-slate-300 mb-0.5"></div>
@@ -340,20 +338,20 @@ export const CertificateFooterSignatures: React.FC<{
             value={secondarySignLabel || customLabels['secondarySignLabel'] || 'Coordinator / In-Charge'}
             editable={editable}
             onSave={(val) => onUpdateLabel?.('secondarySign', val)}
-            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase"
+            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase truncate max-w-full"
           />
         </div>
       )}
 
       {/* 5. Parent / Guardian Sign */}
       {!isHidden('Parent Sign') && !isHidden('Parent / Guardian Sign') && (
-        <div className="flex flex-col items-center min-w-[85px] max-w-[125px] text-center">
+        <div className="flex flex-col items-center flex-1 min-w-[70px] max-w-[125px] text-center px-1 mb-1">
           <LiveEditableText
             tag="p"
             value={parentSignName || customLabels['parentSignName'] || 'Parent / Guardian'}
             editable={editable}
             onSave={(val) => onUpdateField?.('parentSignName', val)}
-            className="italic font-bold text-xs mb-0.5 truncate text-slate-500"
+            className="italic font-bold text-xs mb-0.5 truncate text-slate-500 w-full"
             style={fontStyle}
           />
           <div className="w-full h-px bg-slate-300 mb-0.5"></div>
@@ -362,15 +360,15 @@ export const CertificateFooterSignatures: React.FC<{
             value={parentSignLabel || customLabels['parentSignLabel'] || "Parent's Signature"}
             editable={editable}
             onSave={(val) => onUpdateLabel?.('parentSign', val)}
-            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase"
+            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase truncate max-w-full"
           />
         </div>
       )}
 
       {/* 6. Student Signature Line */}
       {!isHidden('Student Sign') && !isHidden('Student Signature Line') && (
-        <div className="flex flex-col items-center min-w-[85px] max-w-[125px] text-center">
-          <p className="italic font-bold text-xs mb-0.5 text-slate-400" style={fontStyle}>
+        <div className="flex flex-col items-center flex-1 min-w-[70px] max-w-[125px] text-center px-1 mb-1">
+          <p className="italic font-bold text-xs mb-0.5 text-slate-400 truncate w-full" style={fontStyle}>
             Candidate
           </p>
           <div className="w-full h-px bg-slate-300 mb-0.5"></div>
@@ -379,27 +377,27 @@ export const CertificateFooterSignatures: React.FC<{
             value={studentSignLabel || customLabels['studentSignLabel'] || "Student's Signature"}
             editable={editable}
             onSave={(val) => onUpdateLabel?.('studentSign', val)}
-            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase"
+            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase truncate max-w-full"
           />
         </div>
       )}
 
       {/* 7. Official Seal / Crest */}
       {showSeal && !isHidden('Official Seal') && !isHidden('Seal') && !isHidden('School Stamp') && !isHidden('Official Seal / Crest') && (
-        <div className="mb-1 shrink-0 flex items-center justify-center">
+        <div className="shrink-0 flex items-center justify-center w-20 h-22 mx-2">
           {sealComponent}
         </div>
       )}
 
       {/* 8. Principal / Director Sign */}
       {!isHidden('Principal Sign') && !isHidden('Principal / Director Sign') && (
-        <div className="flex flex-col items-center min-w-[85px] max-w-[125px] text-center">
+        <div className="flex flex-col items-center flex-1 min-w-[70px] max-w-[125px] text-center px-1 mb-1">
           <LiveEditableText
             tag="p"
             value={principalName || 'Dr. S. K. Sharma'}
             editable={editable}
             onSave={(val) => onUpdateField?.('principalName', val)}
-            className="italic font-bold text-xs mb-0.5 truncate"
+            className="italic font-bold text-xs mb-0.5 truncate w-full"
             style={{ color: textColor, ...fontStyle }}
           />
           <div className="w-full h-px bg-slate-300 mb-0.5"></div>
@@ -408,7 +406,7 @@ export const CertificateFooterSignatures: React.FC<{
             value={principalLabel || 'Principal & Director'}
             editable={editable}
             onSave={(val) => onUpdateLabel?.('principalSign', val)}
-            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase"
+            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase truncate max-w-full"
           />
         </div>
       )}
@@ -475,21 +473,21 @@ export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
 
   return (
     <div className="w-[800px] h-[580px] bg-white relative overflow-hidden flex flex-col font-sans shrink-0 border border-slate-300 shadow-2xl select-none text-slate-800">
-      {/* Decorative Gold & Primary Corners */}
-      <div className="absolute top-0 left-0 w-64 h-64 -translate-x-32 -translate-y-32 rotate-45 flex flex-col z-10 shadow-md pointer-events-none">
-        <div className="w-full h-8 bg-amber-400"></div>
-        <div className="w-full h-2 bg-white"></div>
-        <div className="w-full h-20" style={{ backgroundColor: primary }}></div>
+      {/* Decorative Gold & Primary Corner Accents (Proportionate size so they NEVER cut photo, QR, or signatures) */}
+      <div className="absolute top-0 left-0 w-24 h-24 -translate-x-12 -translate-y-12 rotate-45 flex flex-col z-0 pointer-events-none">
+        <div className="w-full h-3 bg-amber-400"></div>
+        <div className="w-full h-1 bg-white"></div>
+        <div className="w-full h-8" style={{ backgroundColor: primary }}></div>
       </div>
-      <div className="absolute bottom-0 right-0 w-64 h-64 translate-x-32 translate-y-32 rotate-45 flex flex-col z-10 shadow-md pointer-events-none">
-        <div className="w-full h-20" style={{ backgroundColor: primary }}></div>
-        <div className="w-full h-2 bg-white"></div>
-        <div className="w-full h-8 bg-amber-400"></div>
+      <div className="absolute bottom-0 right-0 w-24 h-24 translate-x-12 translate-y-12 rotate-45 flex flex-col z-0 pointer-events-none">
+        <div className="w-full h-8" style={{ backgroundColor: primary }}></div>
+        <div className="w-full h-1 bg-white"></div>
+        <div className="w-full h-3 bg-amber-400"></div>
       </div>
 
       {/* Thin Gold Frame */}
-      <div className="absolute inset-5 border-2 border-amber-300/80 z-0 rounded-sm pointer-events-none"></div>
-      <div className="absolute inset-7 border z-0 rounded-xs pointer-events-none" style={{ borderColor: borderTint }}></div>
+      <div className="absolute inset-4 border-2 border-amber-400/70 z-0 rounded-xs pointer-events-none"></div>
+      <div className="absolute inset-6 border z-0 rounded-2xs pointer-events-none" style={{ borderColor: borderTint }}></div>
 
       {/* Watermark */}
       {!isHidden('Water Mark') && (
@@ -500,17 +498,17 @@ export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
 
       {/* QR Code */}
       {showQr && !isHidden('QR Code') && (
-        <div className="absolute top-10 right-12 z-20 flex flex-col items-center bg-white p-1 rounded border border-slate-200 shadow-2xs">
-          <ProperQrCode className="w-12 h-12" color={primary} />
-          <span className="text-[7px] font-mono text-slate-400 mt-0.5">VERIFIED</span>
+        <div className="absolute top-7 right-10 z-30 flex flex-col items-center bg-white p-1 rounded border border-slate-200 shadow-2xs">
+          <ProperQrCode className="w-11 h-11" color={primary} />
+          <span className="text-[6.5px] font-mono text-slate-400 mt-0.5">VERIFIED</span>
         </div>
       )}
 
       {/* Student Candidate Photo */}
-      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-8" left="left-10" />
+      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-7" left="left-10" />
 
       {/* Header Info */}
-      <div className="relative z-10 flex flex-col items-center pt-7 px-20 text-center">
+      <div className="relative z-10 flex flex-col items-center pt-6 px-16 text-center flex-1 justify-center">
         {showLogo && !isHidden('Logo') && !isHidden('Institute Logo') && (
           <div 
             className="mb-1.5 shrink-0 flex items-center justify-center overflow-hidden"
@@ -682,6 +680,7 @@ export const CertificateDesign2: React.FC<CertificateCustomProps> = ({
   secondarySignName,
   secondarySignLabel,
   studentSignLabel,
+  showQr = true,
   showSeal = true,
   hiddenFields = [],
   editable = false,
@@ -733,10 +732,18 @@ export const CertificateDesign2: React.FC<CertificateCustomProps> = ({
         <div className="absolute -bottom-3.5 -right-3.5 w-10 h-10 bg-[#faf8f2] flex items-center justify-center text-2xl" style={{ color: primary }}>⚜</div>
       </div>
 
-      {/* Candidate Photo */}
-      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-8" left="left-10" />
+      {/* QR Code */}
+      {showQr && !isHidden('QR Code') && (
+        <div className="absolute top-7 right-10 z-30 flex flex-col items-center bg-white p-1 rounded border border-amber-300 shadow-2xs">
+          <ProperQrCode className="w-11 h-11" color={primary} />
+          <span className="text-[6.5px] font-mono text-slate-400 mt-0.5">VERIFIED</span>
+        </div>
+      )}
 
-      <div className="relative z-20 flex flex-col items-center pt-7 px-20 flex-1 text-center">
+      {/* Candidate Photo */}
+      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-7" left="left-10" />
+
+      <div className="relative z-20 flex flex-col items-center pt-6 px-16 flex-1 text-center justify-center">
         {showLogo && !isHidden('Logo') && !isHidden('Institute Logo') && (
           <div 
             className="mb-1.5 shrink-0 flex items-center justify-center overflow-hidden"
@@ -962,9 +969,9 @@ export const CertificateDesign3: React.FC<CertificateCustomProps> = ({
       style={{ border: `10px solid ${primary}` }}
     >
       {/* Decorative Gold & Primary Accent Bars */}
-      <div className="absolute top-0 right-0 w-44 h-44 bg-gradient-to-bl from-amber-400 to-amber-200 opacity-20 rounded-bl-full pointer-events-none"></div>
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-amber-400 to-amber-200 opacity-20 rounded-bl-full pointer-events-none"></div>
       <div 
-        className="absolute bottom-0 left-0 w-44 h-44 opacity-15 rounded-tr-full pointer-events-none"
+        className="absolute bottom-0 left-0 w-32 h-32 opacity-15 rounded-tr-full pointer-events-none"
         style={{ background: `linear-gradient(to top right, ${primary}, #38bdf8)` }}
       ></div>
 
@@ -972,17 +979,18 @@ export const CertificateDesign3: React.FC<CertificateCustomProps> = ({
 
       {showQr && !isHidden('QR Code') && (
         <div 
-          className="absolute top-8 right-8 z-20 p-1.5 rounded-lg border shadow-2xs"
-          style={{ backgroundColor: primaryLight, borderColor: hexToRgba(primary, 0.3) }}
+          className="absolute top-7 right-8 z-30 p-1 rounded-lg border shadow-2xs bg-white"
+          style={{ borderColor: hexToRgba(primary, 0.3) }}
         >
-          <ProperQrCode className="w-12 h-12" color={primary} />
+          <ProperQrCode className="w-11 h-11" color={primary} />
+          <span className="text-[6.5px] font-mono text-slate-400 mt-0.5 block text-center">VERIFIED</span>
         </div>
       )}
 
       {/* Candidate Photo */}
-      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-8" left="left-8" />
+      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-7" left="left-8" />
 
-      <div className="relative z-10 flex flex-col items-center pt-7 px-20 flex-1 text-center">
+      <div className="relative z-10 flex flex-col items-center pt-6 px-16 flex-1 text-center justify-center">
         {showLogo && !isHidden('Logo') && !isHidden('Institute Logo') && (
           <div 
             className="mb-1.5 shrink-0 flex items-center justify-center overflow-hidden"
@@ -1179,19 +1187,20 @@ export const CertificateDesign4: React.FC<CertificateCustomProps> = ({
   return (
     <div className="w-[800px] h-[580px] bg-white relative overflow-hidden flex flex-col font-sans shrink-0 border border-slate-300 shadow-2xl select-none text-slate-800">
       {/* Sleek Border Frames */}
-      <div className="absolute inset-5 border-2 pointer-events-none" style={{ borderColor: primary }}></div>
-      <div className="absolute inset-7 border pointer-events-none" style={{ borderColor: borderTint }}></div>
+      <div className="absolute inset-4 border-2 pointer-events-none" style={{ borderColor: primary }}></div>
+      <div className="absolute inset-6 border pointer-events-none" style={{ borderColor: borderTint }}></div>
 
       {showQr && !isHidden('QR Code') && (
-        <div className="absolute top-10 right-12 z-20 bg-slate-50 p-1 rounded border border-slate-200 shadow-2xs">
-          <ProperQrCode className="w-12 h-12" color={primary} />
+        <div className="absolute top-7 right-10 z-30 bg-white p-1 rounded border border-slate-200 shadow-2xs">
+          <ProperQrCode className="w-11 h-11" color={primary} />
+          <span className="text-[6.5px] font-mono text-slate-400 mt-0.5 block text-center">VERIFIED</span>
         </div>
       )}
 
       {/* Candidate Photo */}
-      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-8" left="left-10" />
+      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-7" left="left-10" />
 
-      <div className="relative z-10 flex flex-col items-center pt-8 px-20 flex-1 text-center">
+      <div className="relative z-10 flex flex-col items-center pt-6 px-16 flex-1 text-center justify-center">
         {!isHidden('School Name') && (
           <LiveEditableText
             tag="h4"

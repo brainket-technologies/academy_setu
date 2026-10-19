@@ -6,12 +6,7 @@ import {
   RotateCw, UserCheck, GraduationCap, Briefcase, FileSpreadsheet, Sparkles, RefreshCw
 } from 'lucide-react'
 import { 
-  StudentDesignVertical, 
-  StudentDesignHorizontal, 
-  TeacherDesignVertical, 
-  TeacherDesignHorizontal, 
-  EmployeeDesignVertical, 
-  EmployeeDesignHorizontal,
+  UniversalIdCardRender,
   IdCardBackDesign 
 } from '@/components/id-cards/IdCardTemplates'
 import { fetchIdCardPeople, IdCardPerson } from '../actions'
@@ -193,7 +188,7 @@ export default function IdCardDownloadPage() {
   // Modal Preview & Print State
   const [previewMember, setPreviewMember] = useState<IdCardPerson | null>(null)
   const [previewSide, setPreviewSide] = useState<'front' | 'back'>('front')
-  const [modalDesignId, setModalDesignId] = useState<1 | 2>(1)
+  const [modalDesignId, setModalDesignId] = useState<1 | 2 | 3 | 4>(1)
   const [isBulkPrinting, setIsBulkPrinting] = useState(false)
 
   // Load added records from server action and local storage
@@ -288,6 +283,8 @@ export default function IdCardDownloadPage() {
       // Design filter
       if (designFilter === 'Design 1 (Vertical)' && item.designId !== 1) return false
       if (designFilter === 'Design 2 (Horizontal)' && item.designId !== 2) return false
+      if (designFilter === 'Design 3 (Vertical)' && item.designId !== 3) return false
+      if (designFilter === 'Design 4 (Horizontal)' && item.designId !== 4) return false
 
       // Session filter
       if (sessionFilter !== 'All Sessions' && item.session !== sessionFilter) return false
@@ -335,11 +332,12 @@ export default function IdCardDownloadPage() {
     }
   }
 
-  // Toggle design per row (toggles 1 <-> 2)
+  // Toggle design per row (cycles 1 -> 2 -> 3 -> 4)
   const handleToggleDesign = (id: string) => {
     setMembers(prev => prev.map(m => {
       if (m.id === id) {
-        return { ...m, designId: (m.designId === 1 ? 2 : 1) as 1 | 2 }
+        const next = (((Number(m.designId) || 1) % 4) + 1) as 1 | 2 | 3 | 4
+        return { ...m, designId: next }
       }
       return m
     }))
@@ -349,13 +347,15 @@ export default function IdCardDownloadPage() {
   const handleOpenPreview = (person: IdCardPerson) => {
     setPreviewMember(person)
     setPreviewSide('front')
-    setModalDesignId(person.designId === 2 ? 2 : 1)
+    const dId = Number(person.designId)
+    setModalDesignId([1, 2, 3, 4].includes(dId) ? (dId as 1 | 2 | 3 | 4) : 1)
   }
 
   // Print Single Card
   const handlePrintSingle = (person: IdCardPerson) => {
     setPreviewMember(person)
-    setModalDesignId(person.designId === 2 ? 2 : 1)
+    const dId = Number(person.designId)
+    setModalDesignId([1, 2, 3, 4].includes(dId) ? (dId as 1 | 2 | 3 | 4) : 1)
     setTimeout(() => {
       window.print()
     }, 250)
@@ -429,50 +429,52 @@ export default function IdCardDownloadPage() {
           {isBulkPrinting ? (
             selectedMembers.map(item => (
               <div key={item.id} className="p-2 border border-dashed border-slate-300 rounded-xl mb-4 break-inside-avoid">
-                {item.role === 'Student' && item.designId === 1 && (
-                  <StudentDesignVertical data={{ name: item.name, class: item.className, rollNo: item.uniqueId, phone: item.contact, bloodGroup: item.bloodGroup }} />
-                )}
-                {item.role === 'Student' && item.designId === 2 && (
-                  <StudentDesignHorizontal data={{ name: item.name, class: item.className, rollNo: item.uniqueId, phone: item.contact, bloodGroup: item.bloodGroup }} />
-                )}
-
-                {item.role === 'Teacher' && item.designId === 1 && (
-                  <TeacherDesignVertical data={{ name: item.name, designation: item.className, department: item.section, empId: item.uniqueId, phone: item.contact, bloodGroup: item.bloodGroup }} />
-                )}
-                {item.role === 'Teacher' && item.designId === 2 && (
-                  <TeacherDesignHorizontal data={{ name: item.name, designation: item.className, department: item.section, empId: item.uniqueId, phone: item.contact, bloodGroup: item.bloodGroup }} />
-                )}
-
-                {item.role === 'Employee' && item.designId === 1 && (
-                  <EmployeeDesignVertical data={{ name: item.name, designation: item.className, department: item.section, empId: item.uniqueId, phone: item.contact, bloodGroup: item.bloodGroup }} />
-                )}
-                {item.role === 'Employee' && item.designId === 2 && (
-                  <EmployeeDesignHorizontal data={{ name: item.name, designation: item.className, department: item.section, empId: item.uniqueId, phone: item.contact, bloodGroup: item.bloodGroup }} />
-                )}
+                <UniversalIdCardRender
+                  designId={item.designId}
+                  data={{
+                    name: item.name,
+                    class: item.className,
+                    designation: item.className,
+                    rollNo: item.uniqueId.slice(-2),
+                    admNo: item.uniqueId,
+                    empId: item.uniqueId,
+                    department: item.section,
+                    fatherName: item.fatherName,
+                    dob: item.dob,
+                    joiningDate: item.joiningDate,
+                    bloodGroup: item.bloodGroup,
+                    phone: item.contact,
+                    contact: item.contact,
+                    email: item.email,
+                    photo: item.avatar,
+                    avatar: item.avatar
+                  }}
+                />
               </div>
             ))
           ) : previewMember ? (
             <div className="p-2 break-inside-avoid">
-              {previewMember.role === 'Student' && modalDesignId === 1 && (
-                <StudentDesignVertical data={{ name: previewMember.name, class: previewMember.className, rollNo: previewMember.uniqueId, phone: previewMember.contact, bloodGroup: previewMember.bloodGroup }} />
-              )}
-              {previewMember.role === 'Student' && modalDesignId === 2 && (
-                <StudentDesignHorizontal data={{ name: previewMember.name, class: previewMember.className, rollNo: previewMember.uniqueId, phone: previewMember.contact, bloodGroup: previewMember.bloodGroup }} />
-              )}
-
-              {previewMember.role === 'Teacher' && modalDesignId === 1 && (
-                <TeacherDesignVertical data={{ name: previewMember.name, designation: previewMember.className, department: previewMember.section, empId: previewMember.uniqueId, phone: previewMember.contact, bloodGroup: previewMember.bloodGroup }} />
-              )}
-              {previewMember.role === 'Teacher' && modalDesignId === 2 && (
-                <TeacherDesignHorizontal data={{ name: previewMember.name, designation: previewMember.className, department: previewMember.section, empId: previewMember.uniqueId, phone: previewMember.contact, bloodGroup: previewMember.bloodGroup }} />
-              )}
-
-              {previewMember.role === 'Employee' && modalDesignId === 1 && (
-                <EmployeeDesignVertical data={{ name: previewMember.name, designation: previewMember.className, department: previewMember.section, empId: previewMember.uniqueId, phone: previewMember.contact, bloodGroup: previewMember.bloodGroup }} />
-              )}
-              {previewMember.role === 'Employee' && modalDesignId === 2 && (
-                <EmployeeDesignHorizontal data={{ name: previewMember.name, designation: previewMember.className, department: previewMember.section, empId: previewMember.uniqueId, phone: previewMember.contact, bloodGroup: previewMember.bloodGroup }} />
-              )}
+              <UniversalIdCardRender
+                designId={modalDesignId}
+                data={{
+                  name: previewMember.name,
+                  class: previewMember.className,
+                  designation: previewMember.className,
+                  rollNo: previewMember.uniqueId.slice(-2),
+                  admNo: previewMember.uniqueId,
+                  empId: previewMember.uniqueId,
+                  department: previewMember.section,
+                  fatherName: previewMember.fatherName,
+                  dob: previewMember.dob,
+                  joiningDate: previewMember.joiningDate,
+                  bloodGroup: previewMember.bloodGroup,
+                  phone: previewMember.contact,
+                  contact: previewMember.contact,
+                  email: previewMember.email,
+                  photo: previewMember.avatar,
+                  avatar: previewMember.avatar
+                }}
+              />
             </div>
           ) : null}
         </div>
@@ -610,6 +612,8 @@ export default function IdCardDownloadPage() {
             <option>All Designs</option>
             <option>Design 1 (Vertical)</option>
             <option>Design 2 (Horizontal)</option>
+            <option>Design 3 (Vertical)</option>
+            <option>Design 4 (Horizontal)</option>
           </select>
 
           {/* Session Filter */}
@@ -807,14 +811,14 @@ export default function IdCardDownloadPage() {
                         <div className="flex justify-center">
                           <button
                             onClick={() => handleToggleDesign(item.id)}
-                            title="Click to toggle between Design 1 (Vertical) and Design 2 (Horizontal)"
+                            title="Click to switch between 4 designs"
                             className="group flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:border-teal-500 hover:bg-teal-50/50 transition-all shadow-xs"
                           >
                             <span className={`w-2 h-2 rounded-full ${
-                              item.designId === 1 ? 'bg-sky-500' : 'bg-emerald-500'
+                              item.designId === 1 ? 'bg-sky-500' : item.designId === 2 ? 'bg-emerald-500' : item.designId === 3 ? 'bg-purple-500' : 'bg-blue-600'
                             }`}></span>
                             <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-teal-600">
-                              Design {item.designId} ({item.designId === 1 ? 'Vertical' : 'Horizontal'})
+                              Design {item.designId} ({item.designId === 1 || item.designId === 3 ? 'Vertical' : 'Horizontal'})
                             </span>
                             <RotateCw className="w-2.5 h-2.5 text-slate-400 group-hover:text-teal-600 group-hover:rotate-180 transition-transform" />
                           </button>
@@ -920,29 +924,27 @@ export default function IdCardDownloadPage() {
             {/* Design Selector Toolbar */}
             <div className="bg-slate-100 dark:bg-slate-900/80 px-6 py-2.5 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="font-bold text-slate-600 dark:text-slate-300">
-                Choose Design Version for {previewMember.role}:
+                Choose Design Option:
               </span>
               <div className="flex flex-wrap items-center gap-1.5">
-                <button
-                  onClick={() => setModalDesignId(1)}
-                  className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-colors ${
-                    modalDesignId === 1 
-                      ? 'bg-teal-600 text-white shadow-xs' 
-                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200'
-                  }`}
-                >
-                  Design 1 (Vertical)
-                </button>
-                <button
-                  onClick={() => setModalDesignId(2)}
-                  className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-colors ${
-                    modalDesignId === 2 
-                      ? 'bg-teal-600 text-white shadow-xs' 
-                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200'
-                  }`}
-                >
-                  Design 2 (Horizontal)
-                </button>
+                {[
+                  { id: 1, label: 'Design 1 (Vertical)' },
+                  { id: 2, label: 'Design 2 (Horizontal)' },
+                  { id: 3, label: 'Design 3 (Vertical)' },
+                  { id: 4, label: 'Design 4 (Horizontal)' },
+                ].map((d) => (
+                  <button
+                    key={d.id}
+                    onClick={() => setModalDesignId(d.id as any)}
+                    className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-colors ${
+                      modalDesignId === d.id 
+                        ? 'bg-teal-600 text-white shadow-xs' 
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200'
+                    }`}
+                  >
+                    {d.label}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -957,103 +959,33 @@ export default function IdCardDownloadPage() {
               >
                 {previewSide === 'back' ? (
                   <IdCardBackDesign 
-                    orientation={modalDesignId === 2 ? 'landscape' : 'portrait'}
+                    orientation={modalDesignId === 2 || modalDesignId === 4 ? 'landscape' : 'portrait'}
                     schoolName="COSMOPOLITAN INTER COLLEGE"
                     schoolAddress="Knowledge Park, Sector 62, New Delhi"
                     schoolPhone="+91 11 2345 6789"
                   />
                 ) : (
-                  <>
-                    {/* Render matching design */}
-                    {previewMember.role === 'Student' && modalDesignId === 1 && (
-                      <StudentDesignVertical 
-                        data={{ 
-                          name: previewMember.name, 
-                          class: previewMember.className, 
-                          rollNo: previewMember.uniqueId.slice(-2),
-                          admNo: previewMember.uniqueId,
-                          fatherName: previewMember.fatherName || 'Rajesh Sharma',
-                          dob: previewMember.dob || '14/08/2010',
-                          bloodGroup: previewMember.bloodGroup || 'O+',
-                          phone: previewMember.contact,
-                          photo: previewMember.avatar
-                        }} 
-                      />
-                    )}
-                    {previewMember.role === 'Student' && modalDesignId === 2 && (
-                      <StudentDesignHorizontal 
-                        data={{ 
-                          name: previewMember.name, 
-                          class: previewMember.className, 
-                          rollNo: previewMember.uniqueId.slice(-2),
-                          admNo: previewMember.uniqueId,
-                          fatherName: previewMember.fatherName || 'Rajesh Sharma',
-                          dob: previewMember.dob || '14/08/2010',
-                          bloodGroup: previewMember.bloodGroup || 'O+',
-                          phone: previewMember.contact,
-                          photo: previewMember.avatar
-                        }} 
-                      />
-                    )}
-
-                    {previewMember.role === 'Teacher' && modalDesignId === 1 && (
-                      <TeacherDesignVertical 
-                        data={{ 
-                          name: previewMember.name, 
-                          designation: previewMember.className, 
-                          department: previewMember.section,
-                          empId: previewMember.uniqueId,
-                          qualification: previewMember.qualification || 'M.Sc, M.Phil, Ph.D, B.Ed',
-                          doj: previewMember.joiningDate || '12/07/2018',
-                          bloodGroup: previewMember.bloodGroup || 'AB+',
-                          phone: previewMember.contact,
-                          photo: previewMember.avatar
-                        }} 
-                      />
-                    )}
-                    {previewMember.role === 'Teacher' && modalDesignId === 2 && (
-                      <TeacherDesignHorizontal 
-                        data={{ 
-                          name: previewMember.name, 
-                          designation: previewMember.className, 
-                          department: previewMember.section,
-                          empId: previewMember.uniqueId,
-                          qualification: previewMember.qualification || 'M.A., M.Phil., UGC-NET, B.Ed',
-                          bloodGroup: previewMember.bloodGroup || 'A+',
-                          phone: previewMember.contact,
-                          photo: previewMember.avatar
-                        }} 
-                      />
-                    )}
-
-                    {previewMember.role === 'Employee' && modalDesignId === 1 && (
-                      <EmployeeDesignVertical 
-                        data={{ 
-                          name: previewMember.name, 
-                          designation: previewMember.className, 
-                          department: previewMember.section,
-                          empId: previewMember.uniqueId,
-                          doj: previewMember.joiningDate || '05/02/2020',
-                          bloodGroup: previewMember.bloodGroup || 'A+',
-                          phone: previewMember.contact,
-                          photo: previewMember.avatar
-                        }} 
-                      />
-                    )}
-                    {previewMember.role === 'Employee' && modalDesignId === 2 && (
-                      <EmployeeDesignHorizontal 
-                        data={{ 
-                          name: previewMember.name, 
-                          designation: previewMember.className, 
-                          department: previewMember.section,
-                          empId: previewMember.uniqueId,
-                          bloodGroup: previewMember.bloodGroup || 'O+',
-                          phone: previewMember.contact,
-                          photo: previewMember.avatar
-                        }} 
-                      />
-                    )}
-                  </>
+                  <UniversalIdCardRender
+                    designId={modalDesignId}
+                    data={{
+                      name: previewMember.name,
+                      class: previewMember.className,
+                      designation: previewMember.className,
+                      rollNo: previewMember.uniqueId.slice(-2),
+                      admNo: previewMember.uniqueId,
+                      empId: previewMember.uniqueId,
+                      department: previewMember.section,
+                      fatherName: previewMember.fatherName || 'Rajesh Sharma',
+                      dob: previewMember.dob || '14/08/2010',
+                      joiningDate: previewMember.joiningDate || '12/07/2018',
+                      bloodGroup: previewMember.bloodGroup || 'O+',
+                      phone: previewMember.contact,
+                      contact: previewMember.contact,
+                      email: previewMember.email,
+                      photo: previewMember.avatar,
+                      avatar: previewMember.avatar
+                    }}
+                  />
                 )}
               </div>
             </div>

@@ -20,6 +20,7 @@ import {
 } from '@/app/institute/exam-marksheet/setup/actions'
 import { MarksheetPreview, MarksheetMiniPreview } from '@/components/marksheets/MarksheetPreview'
 import { AdmitCardModalPreview, AdmitCardMiniPreview } from '@/components/admit-card/AdmitCardModalPreview'
+import { CertificatePaper } from '@/components/certificates/CertificateTemplates'
 import { getInstituteAddedClasses, MasterClassWithSections } from '@/lib/institute-classes'
 import {
   AdmitCardConfig,
@@ -69,6 +70,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
   const [editingSetup, setEditingSetup] = useState<ExamMarksheetSetupRecord | null>(null)
   const [previewSetup, setPreviewSetup] = useState<ExamMarksheetSetupRecord | null>(null)
   const [previewCard, setPreviewCard] = useState<AdmitCardConfig | null>(null)
+  const [previewCertSetup, setPreviewCertSetup] = useState<ExamMarksheetSetupRecord | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null)
 
@@ -538,6 +540,43 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
     return Array.from(set)
   }, [setups])
 
+  // Statistics for Overview Cards: Total, Upcoming, Result Pending, Fully Completed
+  const examStats = useMemo(() => {
+    const today = new Date().setHours(0, 0, 0, 0)
+    let upcoming = 0
+    let resultPending = 0
+    let fullyCompleted = 0
+
+    setups.forEach(s => {
+      if (s.lockExam || s.config?.status === 'Completed' || s.config?.status === 'Fully Completed') {
+        fullyCompleted++
+        return
+      }
+      const raw = s.examDate || s.config?.examDate || s.date
+      if (raw) {
+        try {
+          const d = new Date(raw)
+          if (!isNaN(d.getTime())) {
+            if (d.getTime() >= today) {
+              upcoming++
+            } else {
+              resultPending++
+            }
+            return
+          }
+        } catch (e) {}
+      }
+      upcoming++
+    })
+
+    return {
+      total: setups.length,
+      upcoming,
+      resultPending,
+      fullyCompleted
+    }
+  }, [setups])
+
   // Filtered Marksheets
   const filteredSetups = useMemo(() => {
     return setups.filter(item => {
@@ -668,16 +707,6 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
             <span>Simultaneous Sync</span>
           </button>
 
-          <button
-            type="button"
-            onClick={handleOpenAdd}
-            className="px-3.5 py-2.5 rounded-xl border border-teal-200 dark:border-teal-800/80 bg-teal-50 hover:bg-teal-100 text-teal-800 dark:bg-teal-950/40 dark:text-teal-300 text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs"
-            title="Fast single-class exam setup modal"
-          >
-            <Plus className="w-3.5 h-3.5 text-teal-600" />
-            <span>Quick Class Setup</span>
-          </button>
-
           <Link
             href="/institute/exam-marksheet/setup/create"
             className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white text-xs font-black transition-all flex items-center gap-2 shadow-md shadow-teal-600/25 active:scale-[0.98]"
@@ -688,97 +717,97 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
         </div>
       </div>
 
-      {/* Synchronized Metrics Summary */}
+      {/* Synchronized Metrics Summary: Total, Upcoming, Result Pending, Fully Completed */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1 */}
+        {/* Metric 1: Total */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 rounded-2xl shadow-2xs hover:shadow-xs transition-all relative overflow-hidden group">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-              Exam Marksheets
+              Total Exams
             </span>
             <div className="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <FileText className="w-4 h-4" />
+              <Layers className="w-4 h-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2 mt-2">
             <span className="text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tight">
-              {setups.length}
+              {examStats.total}
             </span>
             <span className="text-[11px] text-teal-600 dark:text-teal-400 font-bold">
-              Configured Exams
+              Total Setups
             </span>
           </div>
           <p className="text-[10.5px] text-slate-400 mt-1">
-            Official marksheet formats & grading criteria
+            All configured examination schemes
           </p>
         </div>
 
-        {/* Metric 2 */}
+        {/* Metric 2: Upcoming */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 rounded-2xl shadow-2xs hover:shadow-xs transition-all relative overflow-hidden group">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-              Admit Cards Ready
-            </span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <FileCheck className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-black text-emerald-600 tracking-tight">
-              {admitCards.length}
-            </span>
-            <span className="text-[11px] text-emerald-600 font-bold">
-              Synchronized
-            </span>
-          </div>
-          <p className="text-[10.5px] text-slate-400 mt-1">
-            Printable student hall tickets with QR verification
-          </p>
-        </div>
-
-        {/* Metric 3 */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 rounded-2xl shadow-2xs hover:shadow-xs transition-all relative overflow-hidden group">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-              Enrolled Classes
+              Upcoming Exams
             </span>
             <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <School className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-black text-blue-600 tracking-tight">
-              {uniqueClasses.length}
-            </span>
-            <span className="text-[11px] text-blue-600 font-bold">
-              Master Classes
-            </span>
-          </div>
-          <p className="text-[10.5px] text-slate-400 mt-1">
-            Configured sections & subject groups
-          </p>
-        </div>
-
-        {/* Metric 4 */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 rounded-2xl shadow-2xs hover:shadow-xs transition-all relative overflow-hidden group">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-              Exam Timetables
-            </span>
-            <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-105 transition-transform">
               <Calendar className="w-4 h-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-black text-purple-600 tracking-tight">
-              {timetables.length}
+            <span className="text-3xl font-black text-blue-600 tracking-tight">
+              {examStats.upcoming}
             </span>
-            <span className="text-[11px] text-purple-600 font-bold">
-              Active Schedules
+            <span className="text-[11px] text-blue-600 font-bold">
+              Upcoming
             </span>
           </div>
           <p className="text-[10.5px] text-slate-400 mt-1">
-            Subject dates, shifts & duration slots
+            Scheduled dates & admit cards ready
+          </p>
+        </div>
+
+        {/* Metric 3: Result Pending */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 rounded-2xl shadow-2xs hover:shadow-xs transition-all relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              Result Pending
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Clock className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2 mt-2">
+            <span className="text-3xl font-black text-amber-600 tracking-tight">
+              {examStats.resultPending}
+            </span>
+            <span className="text-[11px] text-amber-600 font-bold">
+              Result Pending
+            </span>
+          </div>
+          <p className="text-[10.5px] text-slate-400 mt-1">
+            Exams conducted, awaiting evaluation
+          </p>
+        </div>
+
+        {/* Metric 4: Fully Completed */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 rounded-2xl shadow-2xs hover:shadow-xs transition-all relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              Fully Completed
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2 mt-2">
+            <span className="text-3xl font-black text-emerald-600 tracking-tight">
+              {examStats.fullyCompleted}
+            </span>
+            <span className="text-[11px] text-emerald-600 font-bold">
+              Fully Completed
+            </span>
+          </div>
+          <p className="text-[10.5px] text-slate-400 mt-1">
+            Marksheets & certificates generated
           </p>
         </div>
       </div>
@@ -1016,15 +1045,6 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                   <Plus className="w-4 h-4" />
                   <span>Launch 5-Step Setup Wizard</span>
                 </Link>
-
-                <button
-                  type="button"
-                  onClick={handleOpenAdd}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750 font-bold text-xs flex items-center gap-1.5 transition-all shadow-2xs"
-                >
-                  <Plus className="w-3.5 h-3.5 text-teal-600" />
-                  <span>Quick Setup (Single Class)</span>
-                </button>
               </div>
             </div>
           ) : (
@@ -1035,17 +1055,14 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                     <th className="px-4 py-3.5 text-left">S. No.</th>
                     <th className="px-4 py-3.5 text-left">Group</th>
                     <th className="px-4 py-3.5 text-left">Exam Name</th>
-                    <th className="px-4 py-3.5">Class Grade</th>
-                    <th className="px-4 py-3.5">Exam Start Date</th>
-                    <th className="px-4 py-3.5">Marks Grade</th>
-                    <th className="px-4 py-3.5 text-left">Template Layout</th>
-                    <th className="px-4 py-3.5">Admit Card & Schedule</th>
+                    <th className="px-4 py-3.5 text-center">Class Grade</th>
+                    <th className="px-4 py-3.5 text-center">Exam Start Date</th>
+                    <th className="px-4 py-3.5 text-center">Preview Designs (Admit, Marksheet, Certificate)</th>
                     <th className="px-4 py-3.5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                   {filteredSetups.map((item, i) => {
-                    const badge = getTemplateBadge(item.templateName)
                     const linkedCard = getLinkedAdmitCard(item)
 
                     return (
@@ -1061,7 +1078,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
 
                         {/* Exam Name */}
                         <td className="px-4 py-3.5 text-left font-bold text-slate-800 dark:text-slate-100">
-                          <div>{item.exam}</div>
+                          <div className="text-sm font-black">{item.exam}</div>
                           <div className="flex items-center gap-2 text-[10px] text-slate-400 font-normal mt-0.5">
                             <span>Session: {item.session || '2025-2026'}</span>
                             {(item.examDate || item.config?.examDate) && (
@@ -1077,7 +1094,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                         </td>
 
                         {/* Class Grade */}
-                        <td className="px-4 py-3.5">
+                        <td className="px-4 py-3.5 text-center">
                           <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-md mx-auto">
                             {(item.classGrade || '').split(', ').map((cls, cIdx) => (
                               <span key={cIdx} className="px-2.5 py-1 rounded-md text-[10.5px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 shadow-2xs">
@@ -1088,7 +1105,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                         </td>
 
                         {/* Exam Start Date */}
-                        <td className="px-4 py-3.5">
+                        <td className="px-4 py-3.5 text-center">
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50/70 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/60 shadow-2xs">
                             <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                             <span>
@@ -1109,71 +1126,59 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                           </span>
                         </td>
 
-                        {/* Marks Grade */}
-                        <td className="px-4 py-3.5 font-semibold text-slate-600 dark:text-slate-300">
-                          {item.marksGrade}
-                        </td>
-
-                        {/* Template Layout */}
-                        <td className="px-4 py-3.5 text-left">
-                          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10.5px] font-bold border ${badge.bg}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`}></span>
-                            <span>{item.templateName}</span>
-                          </div>
-                        </td>
-
-                        {/* Simultaneous Admit Card Badge / Action */}
-                        <td className="px-4 py-3.5">
-                          {linkedCard ? (
+                        {/* Preview Designs (Admit, Marksheet, Certificate) with proper buttons */}
+                        <td className="px-4 py-3.5 text-center">
+                          <div className="inline-flex items-center justify-center gap-2">
+                            {/* Admit Card Preview Button */}
                             <button
                               type="button"
-                              onClick={() => setPreviewCard(linkedCard)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-extrabold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-all shadow-2xs"
-                              title="Click to View & Print Admit Card"
+                              onClick={() => {
+                                if (linkedCard) {
+                                  setPreviewCard(linkedCard)
+                                } else {
+                                  handleOpenAdmitCardForSetup(item)
+                                }
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 shadow-2xs transition-all active:scale-95"
+                              title="Preview Created Admit Card Design"
                             >
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>Admit Card Ready</span>
-                              <Eye className="w-3 h-3 text-emerald-600 ml-0.5" />
+                              <FileCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                              <span>Admit Card</span>
                             </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenAdmitCardForSetup(item)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 transition-all"
-                            >
-                              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                              <span>Generate Admit Card</span>
-                            </button>
-                          )}
-                        </td>
 
-                        {/* Actions: Preview Marksheet, Preview Admit Card, Edit in Full Wizard, Delete */}
-                        <td className="px-4 py-3.5 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
+                            {/* Marksheet Preview Button */}
                             <button
                               type="button"
                               onClick={() => setPreviewSetup(item)}
-                              title="Preview Marksheet Design"
-                              className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 hover:bg-purple-100 border border-purple-200/60 flex items-center justify-center transition-all"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-900/60 shadow-2xs transition-all active:scale-95"
+                              title="Preview Created Marksheet Design"
                             >
-                              <Eye className="w-3.5 h-3.5" />
+                              <Eye className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                              <span>Marksheet</span>
                             </button>
 
+                            {/* Certificate Preview Button */}
                             <button
                               type="button"
-                              onClick={() => handleOpenAdmitCardForSetup(item)}
-                              title="Preview & Print Admit Card"
-                              className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200/60 flex items-center justify-center transition-all"
+                              onClick={() => setPreviewCertSetup(item)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/60 shadow-2xs transition-all active:scale-95"
+                              title="Preview Created Certificate Design"
                             >
-                              <FileCheck className="w-3.5 h-3.5" />
+                              <Award className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                              <span>Certificate</span>
                             </button>
+                          </div>
+                        </td>
 
+                        {/* Actions */}
+                        <td className="px-4 py-3.5 text-right">
+                          <div className="flex items-center justify-end gap-2">
                             <Link
                               href={`/institute/exam-marksheet/setup/create?id=${item.id}`}
                               title="Edit Setup in Full Wizard"
-                              className="px-2.5 py-1 rounded bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 hover:bg-teal-100 border border-teal-200/60 flex items-center gap-1 font-bold text-[11px] transition-all"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/40 border border-teal-200 dark:border-teal-800 font-bold text-xs transition-all active:scale-95 shadow-2xs"
                             >
-                              <Pencil className="w-3 h-3 text-teal-600" />
+                              <Pencil className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
                               <span>Edit</span>
                             </Link>
 
@@ -1182,10 +1187,10 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                               onClick={() => handleDelete(item.id, item.exam)}
                               disabled={isDeletingId === item.id}
                               title="Delete Exam Setup"
-                              className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-950/50 text-red-600 hover:bg-red-100 border border-red-200/60 flex items-center justify-center transition-all disabled:opacity-50"
+                              className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800/60 flex items-center justify-center transition-all disabled:opacity-50 active:scale-95 shadow-2xs"
                             >
                               {isDeletingId === item.id ? (
-                                <RefreshCw className="w-3 h-3 animate-spin text-red-500" />
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin text-red-500" />
                               ) : (
                                 <Trash2 className="w-3.5 h-3.5" />
                               )}
@@ -2481,6 +2486,107 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* ============================================================== */}
+      {/* MODAL 5: LIVE CERTIFICATE PREVIEW MODAL                         */}
+      {/* ============================================================== */}
+      {previewCertSetup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto py-8">
+          <div className="w-full max-w-5xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 my-auto max-h-[94vh]">
+            
+            {/* Header */}
+            <div className="px-7 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-850">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
+                  <Award className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                    <span>Certificate Live Preview</span>
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                      {previewCertSetup.config?.certTemplate || 'Certificate Design 1'}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    {previewCertSetup.exam} • {previewCertSetup.classGrade} ({previewCertSetup.session || '2025-2026'})
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  Print / PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewCertSetup(null)}
+                  className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Viewport */}
+            <div className="p-6 overflow-auto flex items-center justify-center bg-slate-100 dark:bg-slate-950/60 min-h-[460px]">
+              <div 
+                className="transition-transform duration-200 flex items-center justify-center"
+                style={{ transform: 'scale(0.80)', transformOrigin: 'center' }}
+              >
+                <CertificatePaper 
+                  template={previewCertSetup.config?.certTemplate || 'Certificate Design 1'}
+                  themeColor={previewCertSetup.config?.certThemeColor || '#b45309'}
+                  schoolName={previewCertSetup.config?.schoolDetails?.schoolName || 'COSMOPOLITAN INTER COLLEGE'}
+                  schoolLogo={previewCertSetup.config?.schoolDetails?.logo || ''}
+                  logoWidth={60}
+                  showLogo={true}
+                  title={previewCertSetup.config?.certTitle || 'CERTIFICATE OF ACHIEVEMENT'}
+                  subtitle={previewCertSetup.config?.certSubtitle || 'Excellence in Academics & Co-Curriculars'}
+                  presentedTo={previewCertSetup.config?.certPresentedTo || 'THIS CERTIFICATE IS PROUDLY PRESENTED TO'}
+                  content={previewCertSetup.config?.certDescription || 'This certificate is proudly awarded in recognition of outstanding performance, exemplary dedication, and commendable achievement during the academic session.'}
+                  editable={false}
+                  studentName="Aarav Sharma"
+                  fatherName="Rajesh Sharma"
+                  motherName="Sunita Sharma"
+                  rollNo="24"
+                  admissionNo="ADM-2025-108"
+                  className={previewCertSetup.classGrade || 'Class X'}
+                  section={(previewCertSetup.config?.sections?.[0]) || 'Section A'}
+                  dob="15/08/2010"
+                  gender="Male"
+                  studentPhoto=""
+                  examName={previewCertSetup.exam}
+                  session={previewCertSetup.session || '2025-2026'}
+                  date={previewCertSetup.examDate || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  principalName={previewCertSetup.config?.schoolDetails?.principalName || 'Dr. S. K. Sharma'}
+                  principalLabel="Principal & Director"
+                  showSeal={true}
+                  showQr={true}
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500 font-semibold">
+                Landscape A4 / Letter Print Ready • 300 DPI Vector Crest
+              </span>
+              <button
+                type="button"
+                onClick={() => setPreviewCertSetup(null)}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              >
+                Close Preview
+              </button>
+            </div>
+
           </div>
         </div>
       )}

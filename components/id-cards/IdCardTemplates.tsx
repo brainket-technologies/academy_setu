@@ -37,6 +37,8 @@ export interface IdCardCustomProps {
   tagline?: string
   session?: string
   principalName?: string
+  principalSign?: string
+  schoolLogo?: string
   themeColor?: string
   editable?: boolean
   customLabels?: Record<string, string>
@@ -45,9 +47,16 @@ export interface IdCardCustomProps {
   showQr?: boolean
   showWatermark?: boolean
   showPrincipalSign?: boolean
+  showHolderSign?: boolean
+  showFatherName?: boolean
+  showDob?: boolean
+  showAdmNo?: boolean
+  showRollNo?: boolean
+  showContact?: boolean
   showBloodGroup?: boolean
   showTopHeaderTagline?: boolean
   showWatermarkStamp?: boolean
+  holderSignName?: string
   bottomNotes?: string
   data?: any
 }
@@ -64,6 +73,8 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
   tagline = 'Affiliated to CBSE, New Delhi',
   affiliationCode = 'CBSE-213089',
   principalName = 'M.Sharma',
+  principalSign,
+  schoolLogo,
   themeColor,
   editable = false,
   customLabels = {},
@@ -72,6 +83,13 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
   showQr = true,
   showWatermark = true,
   showPrincipalSign = true,
+  showHolderSign = true,
+  holderSignName = 'Aarav S.',
+  showFatherName = true,
+  showDob = true,
+  showAdmNo = true,
+  showRollNo = true,
+  showContact = true,
   showBloodGroup = true,
   showTopHeaderTagline = true,
   data
@@ -86,72 +104,84 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
   const tintLight = hexToRgba(primary, 0.08)
   const borderTint = hexToRgba(primary, 0.3)
 
+  const role = data?.role || 'Student'
   const student = {
     name: data?.name || 'AARAV SHARMA',
-    class: data?.class || 'Class 10 - A',
-    rollNo: data?.rollNo || '24',
-    admNo: data?.admNo || 'AS-2024-1048',
-    fatherName: data?.fatherName || 'Rajesh Sharma',
-    dob: data?.dob || '14/08/2010',
+    role,
+    class: data?.class || data?.className || data?.designation || 'Class 10 - A',
+    rollNo: data?.rollNo || data?.uniqueId || '24',
+    admNo: data?.admNo || data?.empId || data?.uniqueId || 'AS-2024-1048',
+    fatherName: data?.fatherName || data?.qualification || data?.workStation || data?.department || 'Rajesh Sharma',
+    dob: data?.dob || data?.doj || data?.joiningDate || '14/08/2010',
     bloodGroup: data?.bloodGroup || 'O+',
-    phone: data?.phone || '+91 98765 43210',
-    photo: data?.photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+    phone: data?.phone || data?.contact || '+91 98765 43210',
+    photo: data?.photo || data?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
   }
 
   return (
     <div className="w-[280px] h-[450px] bg-white rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border shrink-0 text-slate-800 select-none" style={{ borderColor: borderTint }}>
-      {/* Decorative Top Wave Header */}
+      {/* Decorative Top Wave Header with High-Contrast Emblem Logo */}
       <div 
-        className="relative text-white pt-3 pb-7 px-3 text-center shadow-md transition-colors"
+        className="relative text-white pt-2.5 pb-7 px-3 text-center shadow-md transition-colors"
         style={{ background: `linear-gradient(135deg, ${darkTone}, ${primary}, ${lightTone})` }}
       >
         {/* Lanyard Hole Graphic Simulation */}
-        <div className="w-12 h-2.5 bg-black/25 rounded-full mx-auto mb-1 border border-white/20"></div>
+        <div className="w-12 h-2 bg-black/25 rounded-full mx-auto mb-1.5 border border-white/20"></div>
 
-        <div className="flex items-center justify-center gap-1.5 mb-0.5">
-          <div className="w-5 h-5 rounded-full bg-amber-400 text-slate-900 flex items-center justify-center font-black text-[10px] shadow-sm shrink-0">
-            <Award className="w-3.5 h-3.5" />
-          </div>
-          <h2 className="font-black text-[13px] tracking-tight uppercase leading-tight line-clamp-1 drop-shadow-sm">
-            <LiveEditableText
-              tag="span"
-              value={schoolName}
-              editable={editable}
-              onSave={val => onUpdateField?.('schoolName', val)}
-              className="inline-block"
-            />
-          </h2>
-        </div>
-
-        {showTopHeaderTagline && (
-          <p className="text-[8px] text-white/90 font-medium tracking-wide">
-            <LiveEditableText
-              value={tagline}
-              editable={editable}
-              onSave={val => onUpdateField?.('tagline', val)}
-              className="inline-block mr-1"
-            />
-            {affiliationCode && (
-              <>
-                • Affil:{' '}
-                <LiveEditableText
-                  value={affiliationCode}
-                  editable={editable}
-                  onSave={val => onUpdateField?.('affiliationCode', val)}
-                  className="inline-block"
-                />
-              </>
+        {/* Prominent, Clearly Legible Emblem Badge & School Title Header */}
+        <div className="flex items-center gap-2.5 mb-1 px-0.5 text-left">
+          {/* High-Contrast Pure White Emblem Bay */}
+          <div className="w-12 h-12 rounded-xl bg-white p-1 shadow-lg border-2 border-amber-400 ring-2 ring-white/70 flex items-center justify-center shrink-0 overflow-hidden">
+            {schoolLogo ? (
+              <img src={schoolLogo} alt="Institute Logo" className="w-full h-full object-contain filter drop-shadow-2xs" />
+            ) : (
+              <div className="w-full h-full rounded-lg bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex flex-col items-center justify-center text-slate-900 shadow-inner p-0.5">
+                <Building2 className="w-5 h-5 text-slate-900" />
+                <span className="text-[5px] font-black uppercase tracking-tighter">LOGO</span>
+              </div>
             )}
-          </p>
-        )}
-        <p className="text-[7.5px] text-white/80 truncate">
-          <LiveEditableText
-            value={schoolAddress}
-            editable={editable}
-            onSave={val => onUpdateField?.('schoolAddress', val)}
-            className="inline-block"
-          />
-        </p>
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="font-black text-[12px] tracking-tight uppercase leading-tight line-clamp-1 drop-shadow-sm text-white">
+              <LiveEditableText
+                tag="span"
+                value={schoolName}
+                editable={editable}
+                onSave={val => onUpdateField?.('schoolName', val)}
+                className="inline-block"
+              />
+            </h2>
+            {showTopHeaderTagline && (
+              <p className="text-[7.5px] text-white/90 font-medium tracking-wide truncate">
+                <LiveEditableText
+                  value={tagline}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('tagline', val)}
+                  className="inline-block mr-1"
+                />
+                {affiliationCode && (
+                  <>
+                    • Affil:{' '}
+                    <LiveEditableText
+                      value={affiliationCode}
+                      editable={editable}
+                      onSave={val => onUpdateField?.('affiliationCode', val)}
+                      className="inline-block"
+                    />
+                  </>
+                )}
+              </p>
+            )}
+            <p className="text-[7px] text-white/80 truncate">
+              <LiveEditableText
+                value={schoolAddress}
+                editable={editable}
+                onSave={val => onUpdateField?.('schoolAddress', val)}
+                className="inline-block"
+              />
+            </p>
+          </div>
+        </div>
 
         {/* Role Pill */}
         <div 
@@ -174,7 +204,7 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
       </div>
 
       {/* Card Body */}
-      <div className="flex-1 flex flex-col items-center pt-5 px-4 relative">
+      <div className="flex-1 flex flex-col items-center pt-3.5 px-3.5 relative overflow-hidden">
         {/* Subtle Watermark */}
         {showWatermark && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.04]">
@@ -183,9 +213,9 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
         )}
 
         {/* Student Photo */}
-        <div className="relative mb-2 mt-1">
+        <div className="relative mb-1.5 mt-0.5">
           <div 
-            className="w-24 h-24 rounded-xl border-[2.5px] bg-slate-100 overflow-hidden shadow-md relative"
+            className="w-20 h-20 rounded-xl border-[2.5px] bg-slate-100 overflow-hidden shadow-md relative"
             style={{ borderColor: primary }}
           >
             <img 
@@ -197,10 +227,10 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
               }}
             />
             <div className="absolute inset-0 flex items-center justify-center text-slate-400 -z-10">
-              <User className="w-10 h-10" />
+              <User className="w-8 h-8" />
             </div>
           </div>
-          <div className="absolute -bottom-2 -right-2 bg-emerald-500 text-white rounded-full p-0.5 border-2 border-white shadow-sm">
+          <div className="absolute -bottom-1.5 -right-1.5 bg-emerald-500 text-white rounded-full p-0.5 border-2 border-white shadow-sm">
             <ShieldCheck className="w-3 h-3" />
           </div>
         </div>
@@ -214,53 +244,63 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
           style={{ backgroundColor: tintLight, borderColor: borderTint, color: primary }}
         >
           <span>{student.class}</span>
-          <span>•</span>
-          <span>
-            <LiveEditableText
-              value={labels.rollNoLabel || 'Roll No:'}
-              editable={editable}
-              onSave={val => updateLabel('rollNoLabel', val)}
-              className="inline-block mr-0.5"
-            />
-            {student.rollNo}
-          </span>
+          {showRollNo && (
+            <>
+              <span>•</span>
+              <span>
+                <LiveEditableText
+                  value={labels.rollNoLabel || (student.role === 'Teacher' || student.role === 'Employee' ? 'Dept:' : 'Roll No:')}
+                  editable={editable}
+                  onSave={val => updateLabel('rollNoLabel', val)}
+                  className="inline-block mr-0.5"
+                />
+                {student.rollNo}
+              </span>
+            </>
+          )}
         </div>
 
         {/* Details Grid */}
         <div className="w-full text-[10px] space-y-1 bg-slate-50/80 p-2 rounded-lg border border-slate-200/70 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
-          <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">
-              <LiveEditableText
-                value={labels.admNoLabel || 'Adm No:'}
-                editable={editable}
-                onSave={val => updateLabel('admNoLabel', val)}
-                className="inline-block"
-              />
-            </span>
-            <span className="font-bold text-slate-800 font-mono">{student.admNo}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">
-              <LiveEditableText
-                value={labels.fatherNameLabel || "Father's Name:"}
-                editable={editable}
-                onSave={val => updateLabel('fatherNameLabel', val)}
-                className="inline-block"
-              />
-            </span>
-            <span className="font-bold text-slate-800 truncate max-w-[120px]">{student.fatherName}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">
-              <LiveEditableText
-                value={labels.dobLabel || 'D.O.B:'}
-                editable={editable}
-                onSave={val => updateLabel('dobLabel', val)}
-                className="inline-block"
-              />
-            </span>
-            <span className="font-bold text-slate-800">{student.dob}</span>
-          </div>
+          {showAdmNo && (
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500 font-semibold">
+                <LiveEditableText
+                  value={labels.admNoLabel || (student.role === 'Teacher' ? 'Faculty ID:' : student.role === 'Employee' ? 'Staff ID:' : 'Adm No:')}
+                  editable={editable}
+                  onSave={val => updateLabel('admNoLabel', val)}
+                  className="inline-block"
+                />
+              </span>
+              <span className="font-bold text-slate-800 font-mono">{student.admNo}</span>
+            </div>
+          )}
+          {showFatherName && (
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500 font-semibold">
+                <LiveEditableText
+                  value={labels.fatherNameLabel || (student.role === 'Teacher' ? 'Qualification:' : student.role === 'Employee' ? 'Work Station:' : "Father's Name:")}
+                  editable={editable}
+                  onSave={val => updateLabel('fatherNameLabel', val)}
+                  className="inline-block"
+                />
+              </span>
+              <span className="font-bold text-slate-800 truncate max-w-[120px]">{student.fatherName}</span>
+            </div>
+          )}
+          {showDob && (
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500 font-semibold">
+                <LiveEditableText
+                  value={labels.dobLabel || (student.role === 'Teacher' || student.role === 'Employee' ? 'Joining Date:' : 'D.O.B:')}
+                  editable={editable}
+                  onSave={val => updateLabel('dobLabel', val)}
+                  className="inline-block"
+                />
+              </span>
+              <span className="font-bold text-slate-800">{student.dob}</span>
+            </div>
+          )}
           {showBloodGroup && (
             <div className="flex items-center justify-between">
               <span className="text-slate-500 font-semibold">
@@ -274,24 +314,26 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
               <span className="font-bold text-red-600 bg-red-50 px-1 rounded text-[9px]">{student.bloodGroup}</span>
             </div>
           )}
-          <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">
-              <LiveEditableText
-                value={labels.emergencyNoLabel || 'Emergency No:'}
-                editable={editable}
-                onSave={val => updateLabel('emergencyNoLabel', val)}
-                className="inline-block"
-              />
-            </span>
-            <span className="font-bold text-slate-800">{student.phone}</span>
-          </div>
+          {showContact && (
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500 font-semibold">
+                <LiveEditableText
+                  value={labels.emergencyNoLabel || (student.role === 'Teacher' || student.role === 'Employee' ? 'Official Phone:' : 'Emergency No:')}
+                  editable={editable}
+                  onSave={val => updateLabel('emergencyNoLabel', val)}
+                  className="inline-block"
+                />
+              </span>
+              <span className="font-bold text-slate-800">{student.phone}</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Footer Strip */}
-      <div className="bg-slate-100/90 border-t border-slate-200 px-3 py-2 flex items-center justify-between mt-auto relative z-10">
+      {/* Footer Strip with Separate Signatures */}
+      <div className="bg-slate-100/90 border-t border-slate-200 px-2.5 py-1.5 flex items-center justify-between mt-auto relative z-10 gap-2">
         {showQr ? (
-          <div className="bg-white p-1 rounded-md border border-slate-200 shadow-xs flex items-center gap-1">
+          <div className="bg-white p-1 rounded-md border border-slate-200 shadow-xs flex items-center gap-1 shrink-0">
             <ProperQrCode className="w-8 h-8" color={primary} />
             <div className="text-[6.5px] text-slate-400 font-mono leading-none">
               <p>VERIFIED</p>
@@ -300,30 +342,59 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
           </div>
         ) : <div />}
 
-        {showPrincipalSign && (
-          <div className="text-right flex flex-col items-end">
-            {/* Stamp simulation */}
-            <div className="h-6 w-16 relative flex items-center justify-center">
-              <span className="font-serif italic font-black text-[11px] rotate-[-5deg] tracking-tight" style={{ color: primary }}>
+        <div className="flex items-center gap-2 ml-auto">
+          {/* Cardholder / Student Separate Signature */}
+          {showHolderSign && (
+            <div className="text-center flex flex-col items-center">
+              <div className="h-5 w-14 relative flex items-center justify-center">
+                <span className="font-serif italic font-semibold text-[10px] text-slate-700 rotate-[-2deg]">
+                  <LiveEditableText
+                    value={holderSignName || student.name.split(' ')[0]}
+                    editable={editable}
+                    onSave={val => onUpdateField?.('holderSignName', val)}
+                    className="inline-block"
+                  />
+                </span>
+              </div>
+              <p className="text-[6.5px] font-black text-slate-600 uppercase tracking-tighter border-t border-slate-300 pt-0.5 w-14 text-center">
                 <LiveEditableText
-                  value={principalName || 'M.Sharma'}
+                  value={labels.holderSignLabel || (student.role === 'Teacher' ? 'Teacher Sign' : student.role === 'Employee' ? 'Staff Sign' : 'Holder Sign')}
                   editable={editable}
-                  onSave={val => onUpdateField?.('principalName', val)}
+                  onSave={val => updateLabel('holderSignLabel', val)}
                   className="inline-block"
                 />
-              </span>
-              <div className="absolute inset-0 border rounded-full rotate-[-12deg] pointer-events-none" style={{ borderColor: borderTint }}></div>
+              </p>
             </div>
-            <p className="text-[7.5px] font-black text-slate-600 uppercase tracking-tighter">
-              <LiveEditableText
-                value={labels.principalSignLabel || 'Principal Signature'}
-                editable={editable}
-                onSave={val => updateLabel('principalSignLabel', val)}
-                className="inline-block"
-              />
-            </p>
-          </div>
-        )}
+          )}
+
+          {/* Authority / Principal Signature */}
+          {showPrincipalSign && (
+            <div className="text-right flex flex-col items-end">
+              <div className="h-5 w-16 relative flex items-center justify-center">
+                {principalSign ? (
+                  <img src={principalSign} alt="Principal Signature" className="max-h-5 max-w-full object-contain drop-shadow-xs" />
+                ) : (
+                  <span className="font-serif italic font-black text-[10.5px] rotate-[-5deg] tracking-tight" style={{ color: primary }}>
+                    <LiveEditableText
+                      value={principalName || 'M.Sharma'}
+                      editable={editable}
+                      onSave={val => onUpdateField?.('principalName', val)}
+                      className="inline-block"
+                    />
+                  </span>
+                )}
+              </div>
+              <p className="text-[6.5px] font-black text-slate-600 uppercase tracking-tighter border-t border-slate-300 pt-0.5 w-16 text-center">
+                <LiveEditableText
+                  value={labels.principalSignLabel || 'Principal Sign'}
+                  editable={editable}
+                  onSave={val => updateLabel('principalSignLabel', val)}
+                  className="inline-block"
+                />
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Contact line */}
@@ -364,6 +435,9 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
   tagline = 'Excellence in Education',
   affiliationCode = 'CBSE AFFIL NO. 1730452',
   principalName = 'K.Singhal',
+  principalSign,
+  schoolLogo,
+  holderSignName = 'Ananya V.',
   themeColor,
   editable = false,
   customLabels = {},
@@ -372,6 +446,12 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
   showQr = true,
   showWatermark = true,
   showPrincipalSign = true,
+  showHolderSign = true,
+  showFatherName = true,
+  showDob = true,
+  showAdmNo = true,
+  showRollNo = true,
+  showContact = true,
   showBloodGroup = true,
   data
 }) => {
@@ -387,20 +467,20 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
 
   const student = {
     name: data?.name || 'ANANYA VERMA',
-    class: data?.class || 'Class VIII - Sec B',
-    rollNo: data?.rollNo || '18',
-    admNo: data?.admNo || 'GHA-2024-8842',
-    fatherName: data?.fatherName || 'Vikram Verma',
-    motherName: data?.motherName || 'Sunita Verma',
-    dob: data?.dob || '22/11/2011',
+    class: data?.class || data?.className || data?.designation || 'Class VIII - Sec B',
+    rollNo: data?.rollNo || data?.uniqueId || '18',
+    admNo: data?.admNo || data?.uniqueId || 'GHA-2024-8842',
+    fatherName: data?.fatherName || data?.department || 'Vikram Verma',
+    motherName: data?.motherName || data?.qualification || 'Sunita Verma',
+    dob: data?.dob || data?.joiningDate || '22/11/2011',
     bloodGroup: data?.bloodGroup || 'B+',
-    phone: data?.phone || '+91 98101 23456',
-    photo: data?.photo || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
+    phone: data?.phone || data?.contact || '+91 98101 23456',
+    photo: data?.photo || data?.avatar || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
   }
 
   return (
     <div className="w-[450px] h-[280px] bg-white rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border shrink-0 select-none" style={{ borderColor: borderTint }}>
-      {/* Top Banner */}
+      {/* Top Banner with Distinct, Clearly Legible Emblem Badge */}
       <div 
         className="text-white px-4 py-2 flex items-center justify-between border-b-2"
         style={{ 
@@ -408,12 +488,20 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
           borderColor: borderTint
         }}
       >
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-amber-400 text-slate-900 flex items-center justify-center font-black shadow-sm shrink-0">
-            <Award className="w-4 h-4" />
+        <div className="flex items-center gap-3">
+          {/* Distinct Architectural Logo Showcase Bay */}
+          <div className="w-14 h-13 rounded-2xl bg-white p-1.5 shadow-lg border-2 border-amber-400 ring-2 ring-white/70 flex items-center justify-center shrink-0 overflow-hidden">
+            {schoolLogo ? (
+              <img src={schoolLogo} alt="Institute Logo" className="w-full h-full object-contain filter drop-shadow-2xs" />
+            ) : (
+              <div className="w-full h-full rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex flex-col items-center justify-center text-slate-900 shadow-inner">
+                <Building2 className="w-6 h-6 text-slate-900" />
+                <span className="text-[6px] font-black uppercase tracking-tighter mt-0.5">LOGO</span>
+              </div>
+            )}
           </div>
-          <div>
-            <h2 className="font-black text-sm uppercase tracking-wide leading-tight drop-shadow-sm">
+          <div className="text-left">
+            <h2 className="font-black text-[13px] uppercase tracking-wide leading-tight drop-shadow-sm text-white">
               <LiveEditableText
                 tag="span"
                 value={schoolName}
@@ -422,7 +510,7 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
                 className="inline-block"
               />
             </h2>
-            <p className="text-[8px] text-white/90 font-medium">
+            <p className="text-[8px] text-white/90 font-medium truncate max-w-[210px]">
               <LiveEditableText
                 value={tagline}
                 editable={editable}
@@ -469,9 +557,9 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
         )}
 
         {/* Left: Photo & Identification */}
-        <div className="w-28 flex flex-col items-center justify-between shrink-0">
+        <div className="w-26 flex flex-col items-center justify-between shrink-0 py-0.5">
           <div 
-            className="w-24 h-28 rounded-xl border-2 p-0.5 bg-white shadow-md relative"
+            className="w-22 h-26 rounded-xl border-2 p-0.5 bg-white shadow-md relative"
             style={{ borderColor: primary }}
           >
             <img 
@@ -519,53 +607,61 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
                   {student.class}
                 </span>
               </div>
-              <div className="text-right">
-                <span className="text-[9px] text-slate-500 font-semibold mr-1">
-                  <LiveEditableText
-                    value={labels.rollNoLabel || 'Roll No:'}
-                    editable={editable}
-                    onSave={val => updateLabel('rollNoLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-                <span className="font-black text-sm" style={{ color: primary }}>{student.rollNo}</span>
-              </div>
+              {showRollNo && (
+                <div className="text-right">
+                  <span className="text-[9px] text-slate-500 font-semibold mr-1">
+                    <LiveEditableText
+                      value={labels.rollNoLabel || 'Roll No:'}
+                      editable={editable}
+                      onSave={val => updateLabel('rollNoLabel', val)}
+                      className="inline-block"
+                    />
+                  </span>
+                  <span className="font-black text-sm" style={{ color: primary }}>{student.rollNo}</span>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9.5px]">
-              <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">
-                  <LiveEditableText
-                    value={labels.admNoLabel || 'ADMISSION NO'}
-                    editable={editable}
-                    onSave={val => updateLabel('admNoLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-                <span className="font-bold text-slate-800 font-mono">{student.admNo}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">
-                  <LiveEditableText
-                    value={labels.fatherNameLabel || "FATHER'S NAME"}
-                    editable={editable}
-                    onSave={val => updateLabel('fatherNameLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-                <span className="font-bold text-slate-800 truncate block">{student.fatherName}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">
-                  <LiveEditableText
-                    value={labels.dobLabel || 'DATE OF BIRTH'}
-                    editable={editable}
-                    onSave={val => updateLabel('dobLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-                <span className="font-bold text-slate-800">{student.dob}</span>
-              </div>
+              {showAdmNo && (
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[8px]">
+                    <LiveEditableText
+                      value={labels.admNoLabel || 'ADMISSION NO'}
+                      editable={editable}
+                      onSave={val => updateLabel('admNoLabel', val)}
+                      className="inline-block"
+                    />
+                  </span>
+                  <span className="font-bold text-slate-800 font-mono">{student.admNo}</span>
+                </div>
+              )}
+              {showFatherName && (
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[8px]">
+                    <LiveEditableText
+                      value={labels.fatherNameLabel || "FATHER'S NAME"}
+                      editable={editable}
+                      onSave={val => updateLabel('fatherNameLabel', val)}
+                      className="inline-block"
+                    />
+                  </span>
+                  <span className="font-bold text-slate-800 truncate block">{student.fatherName}</span>
+                </div>
+              )}
+              {showDob && (
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[8px]">
+                    <LiveEditableText
+                      value={labels.dobLabel || 'DATE OF BIRTH'}
+                      editable={editable}
+                      onSave={val => updateLabel('dobLabel', val)}
+                      className="inline-block"
+                    />
+                  </span>
+                  <span className="font-bold text-slate-800">{student.dob}</span>
+                </div>
+              )}
               {showBloodGroup && (
                 <div>
                   <span className="text-slate-400 font-semibold block text-[8px]">
@@ -579,54 +675,81 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
                   <span className="font-black text-red-600 bg-red-50 px-1.5 py-0.2 rounded text-[9px]">{student.bloodGroup}</span>
                 </div>
               )}
-              <div className="col-span-2">
-                <span className="text-slate-400 font-semibold block text-[8px]">
-                  <LiveEditableText
-                    value={labels.emergencyNoLabel || 'EMERGENCY CONTACT'}
-                    editable={editable}
-                    onSave={val => updateLabel('emergencyNoLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-                <span className="font-bold text-slate-800">{student.phone}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Row */}
-          <div className="flex items-end justify-between pt-1 border-t border-slate-100 mt-1">
-            <div className="flex items-center gap-2">
-              {/* Simulated Barcode */}
-              <div className="h-6 flex items-end gap-[1.5px] px-1 bg-white border border-slate-200 rounded">
-                {[1,2,1,3,1,2,1,1,3,2,1,2,3,1,2,1,3,1].map((w, idx) => (
-                  <div key={idx} className="h-full" style={{ width: `${w * 1.2}px`, backgroundColor: primary }}></div>
-                ))}
-              </div>
-              <span className="text-[7.5px] font-mono text-slate-400">{student.admNo}</span>
-            </div>
-
-            {showPrincipalSign && (
-              <div className="text-right">
-                <div className="h-5 flex items-center justify-end">
-                  <span className="font-serif italic font-black text-xs rotate-[-4deg]" style={{ color: primary }}>
+              {showContact && (
+                <div className="col-span-2">
+                  <span className="text-slate-400 font-semibold block text-[8px]">
                     <LiveEditableText
-                      value={principalName || 'K.Singhal'}
+                      value={labels.emergencyNoLabel || 'EMERGENCY CONTACT'}
                       editable={editable}
-                      onSave={val => onUpdateField?.('principalName', val)}
+                      onSave={val => updateLabel('emergencyNoLabel', val)}
                       className="inline-block"
                     />
                   </span>
+                  <span className="font-bold text-slate-800">{student.phone}</span>
                 </div>
-                <p className="text-[7px] font-black text-slate-500 uppercase tracking-tighter">
-                  <LiveEditableText
-                    value={labels.principalSignLabel || 'Principal Signature'}
-                    editable={editable}
-                    onSave={val => updateLabel('principalSignLabel', val)}
-                    className="inline-block"
-                  />
-                </p>
-              </div>
-            )}
+              )}
+            </div>
+          </div>
+
+          {/* Bottom Row with Separate Signatures */}
+          <div className="flex items-end justify-between pt-1 border-t border-slate-100 mt-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[7.5px] font-mono text-slate-400 uppercase tracking-wider font-semibold">ID: {student.admNo}</span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {/* Separate Holder Signature */}
+              {showHolderSign && (
+                <div className="text-center">
+                  <div className="h-5 flex items-center justify-center">
+                    <span className="font-serif italic font-semibold text-[10px] rotate-[-2deg] text-slate-700">
+                      <LiveEditableText
+                        value={holderSignName || student.name.split(' ')[0]}
+                        editable={editable}
+                        onSave={val => onUpdateField?.('holderSignName', val)}
+                        className="inline-block"
+                      />
+                    </span>
+                  </div>
+                  <p className="text-[6.5px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 w-14 text-center">
+                    <LiveEditableText
+                      value={labels.holderSignLabel || 'Holder Sign'}
+                      editable={editable}
+                      onSave={val => updateLabel('holderSignLabel', val)}
+                      className="inline-block"
+                    />
+                  </p>
+                </div>
+              )}
+
+              {/* Authority Signature */}
+              {showPrincipalSign && (
+                <div className="text-right">
+                  <div className="h-5 flex items-center justify-end">
+                    {principalSign ? (
+                      <img src={principalSign} alt="Principal Signature" className="max-h-5 max-w-full object-contain drop-shadow-xs" />
+                    ) : (
+                      <span className="font-serif italic font-black text-xs rotate-[-4deg]" style={{ color: primary }}>
+                        <LiveEditableText
+                          value={principalName || 'K.Singhal'}
+                          editable={editable}
+                          onSave={val => onUpdateField?.('principalName', val)}
+                          className="inline-block"
+                        />
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[6.5px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 w-16 text-center">
+                    <LiveEditableText
+                      value={labels.principalSignLabel || 'Principal Sign'}
+                      editable={editable}
+                      onSave={val => updateLabel('principalSignLabel', val)}
+                      className="inline-block"
+                    />
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -669,10 +792,19 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
   showQr = true,
   showWatermark = true,
   showPrincipalSign = true,
+  showHolderSign = false,
+  holderSignName = 'Cardholder',
+  showFatherName = true,
+  showDob = true,
+  showAdmNo = true,
+  showRollNo = true,
+  showContact = true,
   showBloodGroup = true,
   showTopHeaderTagline = true,
   themeColor,
   principalName,
+  principalSign,
+  schoolLogo,
   editable = false,
   customLabels = {},
   onUpdateField,
@@ -692,81 +824,98 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
 
   const teacher = {
     name: data?.name || 'DR. MEENAKSHI SUNDARAM',
-    designation: data?.designation || 'Senior PGT Mathematics & HOD',
-    department: data?.department || 'Science & Mathematics',
-    empId: data?.empId || 'FAC-MATH-042',
-    qualification: data?.qualification || 'M.Sc, M.Phil, Ph.D, B.Ed',
-    doj: data?.doj || '12-07-2018',
+    designation: data?.designation || data?.class || data?.className || 'Senior PGT Mathematics & HOD',
+    department: data?.department || data?.section || 'Science & Mathematics',
+    empId: data?.empId || data?.uniqueId || data?.admNo || 'FAC-MATH-042',
+    qualification: data?.qualification || (data?.fatherName ? 'Father: ' + data?.fatherName : 'M.Sc, M.Phil, Ph.D, B.Ed'),
+    doj: data?.doj || data?.joiningDate || data?.dob || '12-07-2018',
     bloodGroup: data?.bloodGroup || 'AB+',
-    phone: data?.phone || '+91 98112 34567',
+    phone: data?.phone || data?.contact || '+91 98112 34567',
     email: data?.email || 'meenakshi@academy.edu',
-    photo: data?.photo || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80',
+    photo: data?.photo || data?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80',
   }
 
   return (
     <div className="w-[280px] h-[450px] bg-white rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border border-slate-200 shrink-0 text-slate-800 select-none">
-      {/* Luxury Royal Header */}
-      <div 
-        className="relative text-white pt-3 pb-8 px-3 text-center shadow-md"
-        style={{
-          background: `linear-gradient(135deg, ${darkTone} 0%, ${primary} 55%, ${lightTone} 100%)`
-        }}
-      >
-        {/* Lanyard Hole Clip */}
-        <div className="w-12 h-2.5 bg-black/25 rounded-full mx-auto mb-1 border border-white/20"></div>
-
-        <div className="flex items-center justify-center gap-1.5 mb-0.5">
-          <div 
-            className="w-5 h-5 rounded-full bg-white flex items-center justify-center font-black text-[10px] shadow-sm"
-            style={{ color: primary }}
-          >
-            <Building2 className="w-3.5 h-3.5" />
-          </div>
-          <h2 className="font-black text-[13px] tracking-tight uppercase leading-tight line-clamp-1 drop-shadow-sm">
-            <LiveEditableText
-              value={schoolName}
-              editable={editable}
-              onSave={val => onUpdateField?.('schoolName', val)}
-              className="inline-block"
-            />
-          </h2>
+      {/* Luxury Royal Two-Tone Header with Dedicated White Logo Canvas */}
+      <div className="relative shadow-md shrink-0">
+        {/* Royal Crown Strip with Lanyard Slot */}
+        <div 
+          className="pt-2 pb-1.5 px-3 text-center relative"
+          style={{ background: `linear-gradient(90deg, ${darkTone}, ${primary}, ${darkTone})` }}
+        >
+          <div className="w-12 h-2 bg-black/35 rounded-full mx-auto border border-white/20"></div>
         </div>
 
-        {showTopHeaderTagline && (
-          <p className="text-[8px] text-white/90 font-semibold tracking-wider uppercase">
+        {/* Pristine Pure White Brand Canvas for 100% Logo Legibility */}
+        <div className="bg-white px-3 py-2 flex items-center gap-2.5 border-b-2 border-amber-400">
+          <div className="w-12 h-12 rounded-full bg-white p-1 shadow-md border-2 border-amber-400 ring-2 ring-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+            {schoolLogo ? (
+              <img src={schoolLogo} alt="Institute Logo" className="w-full h-full object-contain filter drop-shadow-2xs" />
+            ) : (
+              <div className="w-full h-full rounded-full bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex flex-col items-center justify-center text-slate-900 shadow-inner">
+                <Award className="w-5 h-5 text-slate-900" />
+                <span className="text-[5px] font-black uppercase">LOGO</span>
+              </div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0 text-left">
+            <h2 className="font-black text-[12px] tracking-tight uppercase leading-tight line-clamp-1 text-slate-900">
+              <LiveEditableText
+                value={schoolName}
+                editable={editable}
+                onSave={val => onUpdateField?.('schoolName', val)}
+                className="inline-block"
+              />
+            </h2>
+            {showTopHeaderTagline && (
+              <p className="text-[7.5px] font-bold tracking-wider uppercase truncate" style={{ color: primary }}>
+                <LiveEditableText
+                  value={tagline}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('tagline', val)}
+                  className="inline-block mr-1"
+                />
+                {affiliationCode && `• ${affiliationCode}`}
+              </p>
+            )}
+            <p className="text-[7px] text-slate-500 truncate">
+              <LiveEditableText
+                value={schoolAddress}
+                editable={editable}
+                onSave={val => onUpdateField?.('schoolAddress', val)}
+                className="inline-block"
+              />
+            </p>
+          </div>
+        </div>
+
+        {/* Role Belt */}
+        <div 
+          className="text-white text-[8px] font-black tracking-wider uppercase py-1 px-3 text-center flex items-center justify-between shadow-xs"
+          style={{ background: `linear-gradient(90deg, ${primary}, ${lightTone})` }}
+        >
+          <span>
             <LiveEditableText
-              value={tagline}
+              value={title}
               editable={editable}
-              onSave={val => onUpdateField?.('tagline', val)}
+              onSave={val => onUpdateField?.('title', val)}
               className="inline-block"
             />
-          </p>
-        )}
-        <p className="text-[7.5px] text-white/80 truncate">
-          <LiveEditableText
-            value={schoolAddress}
-            editable={editable}
-            onSave={val => onUpdateField?.('schoolAddress', val)}
-            className="inline-block"
-          />
-        </p>
-
-        {/* Badge Pill */}
-        <div 
-          className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-white font-black text-[9px] px-3.5 py-0.5 rounded-full shadow-md tracking-wider uppercase border border-white"
-          style={{ backgroundColor: primary }}
-        >
-          <LiveEditableText
-            value={title}
-            editable={editable}
-            onSave={val => onUpdateField?.('title', val)}
-            className="inline-block"
-          />
+          </span>
+          <span className="bg-white/20 px-2 py-0.5 rounded text-[7px] font-mono">
+            <LiveEditableText
+              value={session}
+              editable={editable}
+              onSave={val => onUpdateField?.('session', val)}
+              className="inline-block"
+            />
+          </span>
         </div>
       </div>
 
       {/* Main Body */}
-      <div className="flex-1 flex flex-col items-center pt-5 px-4 relative">
+      <div className="flex-1 flex flex-col items-center pt-3 px-3.5 relative overflow-hidden">
         {showWatermark && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.035]">
             <Award className="w-48 h-48 text-slate-900" />
@@ -774,9 +923,9 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
         )}
 
         {/* Faculty Photo */}
-        <div className="relative mb-2 mt-1">
+        <div className="relative mb-1.5 mt-0.5">
           <div 
-            className="w-24 h-24 rounded-full border-[3px] bg-slate-50 p-0.5 shadow-md relative overflow-hidden"
+            className="w-20 h-20 rounded-full border-[3px] bg-slate-50 p-0.5 shadow-md relative overflow-hidden"
             style={{ borderColor: primary }}
           >
             <img 
@@ -788,7 +937,7 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
               }}
             />
             <div className="absolute inset-0 flex items-center justify-center text-slate-400 -z-10">
-              <User className="w-10 h-10" />
+              <User className="w-8 h-8" />
             </div>
           </div>
           <div 
@@ -812,50 +961,58 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
           className="w-full text-[9.5px] space-y-1 p-2.5 rounded-xl border shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
           style={{ backgroundColor: tintLight, borderColor: borderTint }}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">
-              <LiveEditableText
-                value={labels.facultyIdLabel || 'Faculty ID:'}
-                editable={editable}
-                onSave={val => updateLabel('facultyIdLabel', val)}
-                className="inline-block"
-              />
-            </span>
-            <span className="font-bold font-mono" style={{ color: primary }}>{teacher.empId}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">
-              <LiveEditableText
-                value={labels.departmentLabel || 'Department:'}
-                editable={editable}
-                onSave={val => updateLabel('departmentLabel', val)}
-                className="inline-block"
-              />
-            </span>
-            <span className="font-bold text-slate-800 truncate max-w-[125px]">{teacher.department}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">
-              <LiveEditableText
-                value={labels.qualificationLabel || 'Qualification:'}
-                editable={editable}
-                onSave={val => updateLabel('qualificationLabel', val)}
-                className="inline-block"
-              />
-            </span>
-            <span className="font-bold text-slate-800 text-[8.5px] truncate max-w-[125px]">{teacher.qualification}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">
-              <LiveEditableText
-                value={labels.dojLabel || 'Date of Joining:'}
-                editable={editable}
-                onSave={val => updateLabel('dojLabel', val)}
-                className="inline-block"
-              />
-            </span>
-            <span className="font-bold text-slate-800">{teacher.doj}</span>
-          </div>
+          {showAdmNo && (
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500 font-semibold">
+                <LiveEditableText
+                  value={labels.facultyIdLabel || 'Faculty ID:'}
+                  editable={editable}
+                  onSave={val => updateLabel('facultyIdLabel', val)}
+                  className="inline-block"
+                />
+              </span>
+              <span className="font-bold font-mono" style={{ color: primary }}>{teacher.empId}</span>
+            </div>
+          )}
+          {showRollNo && (
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500 font-semibold">
+                <LiveEditableText
+                  value={labels.departmentLabel || 'Department:'}
+                  editable={editable}
+                  onSave={val => updateLabel('departmentLabel', val)}
+                  className="inline-block"
+                />
+              </span>
+              <span className="font-bold text-slate-800 truncate max-w-[125px]">{teacher.department}</span>
+            </div>
+          )}
+          {showFatherName && (
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500 font-semibold">
+                <LiveEditableText
+                  value={labels.qualificationLabel || 'Qualification:'}
+                  editable={editable}
+                  onSave={val => updateLabel('qualificationLabel', val)}
+                  className="inline-block"
+                />
+              </span>
+              <span className="font-bold text-slate-800 text-[8.5px] truncate max-w-[125px]">{teacher.qualification}</span>
+            </div>
+          )}
+          {showDob && (
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500 font-semibold">
+                <LiveEditableText
+                  value={labels.dojLabel || 'Date of Joining:'}
+                  editable={editable}
+                  onSave={val => updateLabel('dojLabel', val)}
+                  className="inline-block"
+                />
+              </span>
+              <span className="font-bold text-slate-800">{teacher.doj}</span>
+            </div>
+          )}
           {showBloodGroup && (
             <div className="flex items-center justify-between">
               <span className="text-slate-500 font-semibold">
@@ -869,24 +1026,26 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
               <span className="font-bold text-red-600 bg-red-50 px-1 rounded text-[9px]">{teacher.bloodGroup}</span>
             </div>
           )}
-          <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold">
-              <LiveEditableText
-                value={labels.phoneLabel || 'Official Phone:'}
-                editable={editable}
-                onSave={val => updateLabel('phoneLabel', val)}
-                className="inline-block"
-              />
-            </span>
-            <span className="font-bold text-slate-800">{teacher.phone}</span>
-          </div>
+          {showContact && (
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500 font-semibold">
+                <LiveEditableText
+                  value={labels.phoneLabel || 'Official Phone:'}
+                  editable={editable}
+                  onSave={val => updateLabel('phoneLabel', val)}
+                  className="inline-block"
+                />
+              </span>
+              <span className="font-bold text-slate-800">{teacher.phone}</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="bg-slate-50 border-t border-slate-200 px-3 py-2 flex items-center justify-between mt-auto relative z-10">
+      {/* Footer with Separate Signatures */}
+      <div className="bg-slate-50 border-t border-slate-200 px-2.5 py-1.5 flex items-center justify-between mt-auto relative z-10 gap-2">
         {showQr ? (
-          <div className="bg-white p-1 rounded-md border border-slate-200 shadow-xs flex items-center gap-1.5">
+          <div className="bg-white p-1 rounded-md border border-slate-200 shadow-xs flex items-center gap-1 shrink-0">
             <ProperQrCode className="w-8 h-8" color={primary} />
             <div className="text-[6.5px] font-mono leading-none" style={{ color: primary }}>
               <p>BIOMETRIC</p>
@@ -895,32 +1054,59 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
           </div>
         ) : <div />}
 
-        {showPrincipalSign && (
-          <div className="text-right flex flex-col items-end">
-            <div className="h-6 w-20 relative flex items-center justify-center">
-              <span className="font-serif italic font-black text-[12px] rotate-[-4deg]" style={{ color: primary }}>
+        <div className="flex items-center gap-2 ml-auto">
+          {/* Separate Holder Signature */}
+          {showHolderSign && (
+            <div className="text-center flex flex-col items-center">
+              <div className="h-5 w-14 relative flex items-center justify-center">
+                <span className="font-serif italic font-semibold text-[10px] text-slate-700 rotate-[-2deg]">
+                  <LiveEditableText
+                    value={holderSignName || teacher.name.split(' ')[0]}
+                    editable={editable}
+                    onSave={val => onUpdateField?.('holderSignName', val)}
+                    className="inline-block"
+                  />
+                </span>
+              </div>
+              <p className="text-[6.5px] font-black text-slate-600 uppercase tracking-tighter border-t border-slate-300 pt-0.5 w-14 text-center">
                 <LiveEditableText
-                  value={principalName || 'Director.A'}
+                  value={labels.holderSignLabel || 'Holder Sign'}
                   editable={editable}
-                  onSave={val => onUpdateField?.('principalName', val)}
+                  onSave={val => updateLabel('holderSignLabel', val)}
                   className="inline-block"
                 />
-              </span>
-              <div 
-                className="absolute inset-0 border rounded-full rotate-[6deg] pointer-events-none opacity-40"
-                style={{ borderColor: primary }}
-              ></div>
+              </p>
             </div>
-            <p className="text-[7px] font-black text-slate-600 uppercase tracking-tighter">
-              <LiveEditableText
-                value={labels.principalSignLabel || 'Authorized Signatory'}
-                editable={editable}
-                onSave={val => updateLabel('principalSignLabel', val)}
-                className="inline-block"
-              />
-            </p>
-          </div>
-        )}
+          )}
+
+          {/* Authority / Principal Signature */}
+          {showPrincipalSign && (
+            <div className="text-right flex flex-col items-end">
+              <div className="h-5 w-16 relative flex items-center justify-center">
+                {principalSign ? (
+                  <img src={principalSign} alt="Authority Signature" className="max-h-5 max-w-full object-contain drop-shadow-xs" />
+                ) : (
+                  <span className="font-serif italic font-black text-[11px] rotate-[-4deg]" style={{ color: primary }}>
+                    <LiveEditableText
+                      value={principalName || 'Director.A'}
+                      editable={editable}
+                      onSave={val => onUpdateField?.('principalName', val)}
+                      className="inline-block"
+                    />
+                  </span>
+                )}
+              </div>
+              <p className="text-[6.5px] font-black text-slate-600 uppercase tracking-tighter">
+                <LiveEditableText
+                  value={labels.principalSignLabel || 'Authorized Signatory'}
+                  editable={editable}
+                  onSave={val => updateLabel('principalSignLabel', val)}
+                  className="inline-block"
+                />
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Security strip */}
@@ -1536,9 +1722,18 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
   showQr = true,
   showWatermark = true,
   showPrincipalSign = true,
+  showHolderSign = false,
+  holderSignName = 'Cardholder',
+  showFatherName = true,
+  showDob = true,
+  showAdmNo = true,
+  showRollNo = true,
+  showContact = true,
   showBloodGroup = true,
   themeColor,
   principalName,
+  principalSign,
+  schoolLogo,
   editable = false,
   customLabels = {},
   onUpdateField,
@@ -1557,20 +1752,20 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
   }
 
   const staff = {
-    name: data?.name || 'SURESH KUMAR YADAV',
-    designation: data?.designation || 'Senior Lab & Systems Incharge',
-    department: data?.department || 'IT & Campus Infrastructure',
-    empId: data?.empId || 'EMP-TECH-055',
-    workStation: data?.workStation || 'Central Computer Lab - Block B',
-    bloodGroup: data?.bloodGroup || 'O+',
-    phone: data?.phone || '+91 96543 21098',
-    emergencyContact: data?.emergencyContact || '+91 96543 21099',
-    photo: data?.photo || 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=300&q=80',
+    name: data?.name || 'VIKRAM SINGH RATHORE',
+    designation: data?.designation || data?.class || data?.className || 'Administrative Officer',
+    department: data?.department || data?.section || 'Operations & Administration',
+    empId: data?.empId || data?.uniqueId || data?.admNo || 'EMP-ADM-019',
+    workStation: data?.workStation || (data?.fatherName ? 'Guardian: ' + data?.fatherName : 'Central Administration Block'),
+    bloodGroup: data?.bloodGroup || 'A+',
+    phone: data?.phone || data?.contact || '+91 97123 45678',
+    emergencyContact: data?.emergencyContact || data?.contact || '+91 97123 99999',
+    photo: data?.photo || data?.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
   }
 
   return (
     <div className="w-[450px] h-[280px] bg-white rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border border-slate-200 shrink-0 select-none">
-      {/* Top Banner */}
+      {/* Top Banner with Distinct High-Contrast Emblem Logo */}
       <div 
         className="text-white px-4 py-2 flex items-center justify-between border-b-2"
         style={{
@@ -1578,15 +1773,20 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
           borderBottomColor: lightTone
         }}
       >
-        <div className="flex items-center gap-2">
-          <div 
-            className="w-7 h-7 rounded-lg bg-white flex items-center justify-center font-black shadow-sm"
-            style={{ color: primary }}
-          >
-            <ShieldCheck className="w-4 h-4" />
+        <div className="flex items-center gap-3">
+          {/* Distinct High-Contrast Modern Tech Logo Pod */}
+          <div className="w-14 h-13 rounded-xl bg-white p-1.5 shadow-lg border-2 border-cyan-400 ring-2 ring-white/70 flex items-center justify-center shrink-0 overflow-hidden">
+            {schoolLogo ? (
+              <img src={schoolLogo} alt="Institute Logo" className="w-full h-full object-contain filter drop-shadow-2xs" />
+            ) : (
+              <div className="w-full h-full rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex flex-col items-center justify-center text-white shadow-inner">
+                <ShieldCheck className="w-6 h-6 text-white" />
+                <span className="text-[6px] font-black uppercase tracking-tighter mt-0.5">LOGO</span>
+              </div>
+            )}
           </div>
           <div>
-            <h2 className="font-black text-sm uppercase tracking-wide leading-tight drop-shadow-sm">
+            <h2 className="font-black text-[13px] uppercase tracking-wide leading-tight drop-shadow-sm text-white">
               <LiveEditableText
                 value={schoolName}
                 editable={editable}
@@ -1632,9 +1832,9 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
         )}
 
         {/* Left Column: Photo & Security QR */}
-        <div className="w-28 flex flex-col items-center justify-between shrink-0">
+        <div className="w-26 flex flex-col items-center justify-between shrink-0 py-0.5">
           <div 
-            className="w-24 h-28 rounded-xl border-2 p-0.5 bg-white shadow-md relative"
+            className="w-22 h-26 rounded-xl border-2 p-0.5 bg-white shadow-md relative"
             style={{ borderColor: primary }}
           >
             <img 
@@ -1685,42 +1885,48 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
                   {staff.designation}
                 </span>
               </div>
-              <div className="text-right">
-                <span className="text-[8px] text-slate-400 font-semibold block">
-                  <LiveEditableText
-                    value={labels.staffIdLabel || 'STAFF ID'}
-                    editable={editable}
-                    onSave={val => updateLabel('staffIdLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-                <span className="font-black text-sm font-mono" style={{ color: primary }}>{staff.empId}</span>
-              </div>
+              {showAdmNo && (
+                <div className="text-right">
+                  <span className="text-[8px] text-slate-400 font-semibold block">
+                    <LiveEditableText
+                      value={labels.staffIdLabel || 'STAFF ID'}
+                      editable={editable}
+                      onSave={val => updateLabel('staffIdLabel', val)}
+                      className="inline-block"
+                    />
+                  </span>
+                  <span className="font-black text-sm font-mono" style={{ color: primary }}>{staff.empId}</span>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9.5px]">
-              <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">
-                  <LiveEditableText
-                    value={labels.departmentLabel || 'DEPARTMENT'}
-                    editable={editable}
-                    onSave={val => updateLabel('departmentLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-                <span className="font-bold text-slate-800 truncate block">{staff.department}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">
-                  <LiveEditableText
-                    value={labels.workStationLabel || 'WORK STATION'}
-                    editable={editable}
-                    onSave={val => updateLabel('workStationLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-                <span className="font-bold text-slate-800 truncate block">{staff.workStation}</span>
-              </div>
+              {showRollNo && (
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[8px]">
+                    <LiveEditableText
+                      value={labels.departmentLabel || 'DEPARTMENT'}
+                      editable={editable}
+                      onSave={val => updateLabel('departmentLabel', val)}
+                      className="inline-block"
+                    />
+                  </span>
+                  <span className="font-bold text-slate-800 truncate block">{staff.department}</span>
+                </div>
+              )}
+              {showFatherName && (
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[8px]">
+                    <LiveEditableText
+                      value={labels.workStationLabel || 'WORK STATION'}
+                      editable={editable}
+                      onSave={val => updateLabel('workStationLabel', val)}
+                      className="inline-block"
+                    />
+                  </span>
+                  <span className="font-bold text-slate-800 truncate block">{staff.workStation}</span>
+                </div>
+              )}
               {showBloodGroup && (
                 <div>
                   <span className="text-slate-400 font-semibold block text-[8px]">
@@ -1734,64 +1940,94 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
                   <span className="font-black text-red-600 bg-red-50 px-1.5 py-0.2 rounded text-[9px]">{staff.bloodGroup}</span>
                 </div>
               )}
-              <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">
-                  <LiveEditableText
-                    value={labels.phoneLabel || 'OFFICIAL CONTACT'}
-                    editable={editable}
-                    onSave={val => updateLabel('phoneLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-                <span className="font-bold text-slate-800">{staff.phone}</span>
-              </div>
-              <div className="col-span-2">
-                <span className="text-slate-400 font-semibold block text-[8px]">
-                  <LiveEditableText
-                    value={labels.emergencyNoLabel || 'EMERGENCY CONTACT'}
-                    editable={editable}
-                    onSave={val => updateLabel('emergencyNoLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-                <span className="font-bold text-slate-800">{staff.emergencyContact}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Row */}
-          <div className="flex items-end justify-between pt-1 border-t border-slate-100 mt-1">
-            <div className="flex items-center gap-2">
-              <div className="h-6 flex items-end gap-[1.5px] px-1 bg-white border border-slate-200 rounded">
-                {[1,3,1,2,2,1,3,1,2,1,1,3,2,1].map((w, idx) => (
-                  <div key={idx} className="h-full" style={{ width: `${w * 1.3}px`, backgroundColor: primary }}></div>
-                ))}
-              </div>
-              <span className="text-[7.5px] font-mono text-slate-400">{staff.empId}</span>
-            </div>
-
-            {showPrincipalSign && (
-              <div className="text-right">
-                <div className="h-5 flex items-center justify-end">
-                  <span className="font-serif italic font-black text-xs rotate-[-4deg]" style={{ color: primary }}>
+              {showContact && (
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[8px]">
                     <LiveEditableText
-                      value={principalName || 'Registrar.S'}
+                      value={labels.phoneLabel || 'OFFICIAL CONTACT'}
                       editable={editable}
-                      onSave={val => onUpdateField?.('principalName', val)}
+                      onSave={val => updateLabel('phoneLabel', val)}
                       className="inline-block"
                     />
                   </span>
+                  <span className="font-bold text-slate-800">{staff.phone}</span>
                 </div>
-                <p className="text-[7px] font-black text-slate-500 uppercase tracking-tighter">
-                  <LiveEditableText
-                    value={labels.principalSignLabel || 'Registrar / Principal'}
-                    editable={editable}
-                    onSave={val => updateLabel('principalSignLabel', val)}
-                    className="inline-block"
-                  />
-                </p>
-              </div>
-            )}
+              )}
+              {showContact && (
+                <div className="col-span-2">
+                  <span className="text-slate-400 font-semibold block text-[8px]">
+                    <LiveEditableText
+                      value={labels.emergencyNoLabel || 'EMERGENCY CONTACT'}
+                      editable={editable}
+                      onSave={val => updateLabel('emergencyNoLabel', val)}
+                      className="inline-block"
+                    />
+                  </span>
+                  <span className="font-bold text-slate-800">{staff.emergencyContact}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Bottom Row with Separate Signatures */}
+          <div className="flex items-end justify-between pt-1 border-t border-slate-100 mt-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[7.5px] font-mono text-slate-400 font-semibold uppercase tracking-wider">STAFF ID: {staff.empId}</span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {/* Separate Holder Signature */}
+              {showHolderSign && (
+                <div className="text-center">
+                  <div className="h-5 flex items-center justify-center">
+                    <span className="font-serif italic font-semibold text-[10px] rotate-[-2deg] text-slate-700">
+                      <LiveEditableText
+                        value={holderSignName || staff.name.split(' ')[0]}
+                        editable={editable}
+                        onSave={val => onUpdateField?.('holderSignName', val)}
+                        className="inline-block"
+                      />
+                    </span>
+                  </div>
+                  <p className="text-[6.5px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 w-14 text-center">
+                    <LiveEditableText
+                      value={labels.holderSignLabel || 'Holder Sign'}
+                      editable={editable}
+                      onSave={val => updateLabel('holderSignLabel', val)}
+                      className="inline-block"
+                    />
+                  </p>
+                </div>
+              )}
+
+              {/* Authority Signature */}
+              {showPrincipalSign && (
+                <div className="text-right">
+                  <div className="h-5 flex items-center justify-end">
+                    {principalSign ? (
+                      <img src={principalSign} alt="Authority Signature" className="max-h-5 max-w-full object-contain drop-shadow-xs" />
+                    ) : (
+                      <span className="font-serif italic font-black text-xs rotate-[-4deg]" style={{ color: primary }}>
+                        <LiveEditableText
+                          value={principalName || 'Registrar.S'}
+                          editable={editable}
+                          onSave={val => onUpdateField?.('principalName', val)}
+                          className="inline-block"
+                        />
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[6.5px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 w-16 text-center">
+                    <LiveEditableText
+                      value={labels.principalSignLabel || 'Registrar / Principal'}
+                      editable={editable}
+                      onSave={val => updateLabel('principalSignLabel', val)}
+                      className="inline-block"
+                    />
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -2001,11 +2237,198 @@ export const IdCardBackDesign: React.FC<{
 }
 
 // -------------------------------------------------------------
-// BACKWARDS-COMPATIBILITY EXPORTS
+// 4 UNIFIED ID CARD DESIGNS (UNIVERSAL FOR STUDENTS, TEACHERS & EMPLOYEES)
 // -------------------------------------------------------------
+export const IdCardDesign1Vertical = StudentDesignVertical
+export const IdCardDesign2Horizontal = StudentDesignHorizontal
+export const IdCardDesign3Vertical = TeacherDesignVertical
+export const IdCardDesign4Horizontal = EmployeeDesignHorizontal
+
+// Backwards-compatibility exports
 export const IdCardDesignBlue = StudentDesignVertical
 export const IdCardDesignPink = TeacherDesignVertical
 export const IdCardDesignPurple = StudentDesignHorizontal
+
+export type IdCardRole = 'Student' | 'Teacher' | 'Employee' | 'Universal'
+
+export interface RolePersona {
+  name: string
+  role: IdCardRole
+  class: string
+  designation?: string
+  department?: string
+  rollNo?: string
+  admNo?: string
+  empId?: string
+  uniqueId?: string
+  fatherName?: string
+  qualification?: string
+  workStation?: string
+  dob?: string
+  doj?: string
+  bloodGroup: string
+  phone: string
+  emergencyContact?: string
+  photo: string
+  defaultTitle: string
+  defaultTagline: string
+  holderSignLabel: string
+  holderSignName: string
+}
+
+export const ID_CARD_ROLE_PREVIEWS: Record<IdCardRole, RolePersona> = {
+  Student: {
+    name: 'AARAV SHARMA',
+    role: 'Student',
+    class: 'Class 10 - Sec A',
+    rollNo: '24',
+    admNo: 'AS-2024-1048',
+    uniqueId: 'AS-2024-1048',
+    fatherName: 'Rajesh Sharma',
+    dob: '14/08/2010',
+    bloodGroup: 'O+',
+    phone: '+91 98765 43210',
+    photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+    defaultTitle: 'STUDENT IDENTITY CARD',
+    defaultTagline: 'Center of Academic Excellence',
+    holderSignLabel: 'Student Sign',
+    holderSignName: 'Aarav S.'
+  },
+  Teacher: {
+    name: 'DR. MEENAKSHI SUNDARAM',
+    role: 'Teacher',
+    class: 'Senior PGT Mathematics & HOD',
+    designation: 'Senior PGT Mathematics & HOD',
+    department: 'Science & Mathematics',
+    empId: 'FAC-MATH-042',
+    admNo: 'FAC-MATH-042',
+    uniqueId: 'FAC-MATH-042',
+    rollNo: 'Science & Math',
+    qualification: 'M.Sc, M.Phil, Ph.D, B.Ed',
+    fatherName: 'M.Sc, Ph.D, B.Ed',
+    doj: '12-07-2018',
+    dob: '12-07-2018',
+    bloodGroup: 'AB+',
+    phone: '+91 98112 34567',
+    photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80',
+    defaultTitle: 'FACULTY IDENTITY CARD',
+    defaultTagline: 'Faculty of Senior Academics',
+    holderSignLabel: 'Teacher Sign',
+    holderSignName: 'Dr. Meenakshi'
+  },
+  Employee: {
+    name: 'VIKRAM SINGH RATHORE',
+    role: 'Employee',
+    class: 'Administrative Officer',
+    designation: 'Administrative Officer',
+    department: 'Operations & Administration',
+    empId: 'EMP-ADM-019',
+    admNo: 'EMP-ADM-019',
+    uniqueId: 'EMP-ADM-019',
+    rollNo: 'Admin Block',
+    workStation: 'Central Administration Block',
+    fatherName: 'Central Admin Block',
+    doj: '05-03-2020',
+    dob: '05-03-2020',
+    bloodGroup: 'A+',
+    phone: '+91 97123 45678',
+    emergencyContact: '+91 97123 99999',
+    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
+    defaultTitle: 'STAFF IDENTITY CARD',
+    defaultTagline: 'Campus Operations & Staff',
+    holderSignLabel: 'Staff Sign',
+    holderSignName: 'V.S. Rathore'
+  },
+  Universal: {
+    name: 'AARAV SHARMA',
+    role: 'Universal',
+    class: 'Class 10 - A / Campus Staff',
+    rollNo: '24',
+    admNo: 'CIC-2025-1048',
+    uniqueId: 'CIC-2025-1048',
+    fatherName: 'Rajesh Sharma',
+    dob: '14/08/2010',
+    bloodGroup: 'O+',
+    phone: '+91 98765 43210',
+    photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+    defaultTitle: 'INSTITUTE IDENTITY CARD',
+    defaultTagline: 'Center of Academic Excellence',
+    holderSignLabel: 'Holder Sign',
+    holderSignName: 'Cardholder'
+  }
+}
+
+export interface IdCardDesignOption {
+  id: 1 | 2 | 3 | 4
+  name: string
+  tagline: string
+  orientation: 'Vertical' | 'Horizontal'
+  dimensions: string
+  badge: string
+  description: string
+  accentColor: string
+}
+
+export const ID_CARD_DESIGNS: IdCardDesignOption[] = [
+  {
+    id: 1,
+    name: 'Design 1: Modern Smart ID Card',
+    tagline: 'Modern Smart ID Badge (Vertical)',
+    orientation: 'Vertical',
+    dimensions: '280 × 450 px',
+    badge: 'Vertical Format',
+    description: 'Clean curved header with institute emblem, portrait photo, admission/identity grid, QR code & signature',
+    accentColor: '#0284c7',
+  },
+  {
+    id: 2,
+    name: 'Design 2: Academic Campus RFID Card',
+    tagline: 'Academic Campus RFID Card (Horizontal)',
+    orientation: 'Horizontal',
+    dimensions: '450 × 280 px',
+    badge: 'Horizontal Format',
+    description: 'Full-width institute brand banner, photo on left, multi-column identity layout, RFID badge simulation & barcode',
+    accentColor: '#047857',
+  },
+  {
+    id: 3,
+    name: 'Design 3: Executive Prestige ID Pass',
+    tagline: 'Executive Prestige ID Pass (Vertical)',
+    orientation: 'Vertical',
+    dimensions: '280 × 450 px',
+    badge: 'Vertical Format',
+    description: 'Luxury gradient header with lanyard clip slot, royal circular gold-accented photo frame, structured high-contrast info & official stamp',
+    accentColor: '#701a75',
+  },
+  {
+    id: 4,
+    name: 'Design 4: Corporate High-Tech Card',
+    tagline: 'Corporate High-Tech Card (Horizontal)',
+    orientation: 'Horizontal',
+    dimensions: '450 × 280 px',
+    badge: 'Horizontal Format',
+    description: 'Modern tech dual-tone header, horizontal badge with gold microchip / RFID graphic, clean typography & verification QR',
+    accentColor: '#2563eb',
+  },
+]
+
+export const UniversalIdCardRender: React.FC<IdCardCustomProps & { designId?: number; cardFor?: IdCardRole | string }> = ({
+  designId = 1,
+  cardFor,
+  ...props
+}) => {
+  const roleKey = (cardFor && cardFor in ID_CARD_ROLE_PREVIEWS ? cardFor : 'Student') as IdCardRole
+  const personaData = ID_CARD_ROLE_PREVIEWS[roleKey]
+  const mergedProps = {
+    ...props,
+    data: props.data || personaData
+  }
+  if (designId === 1) return <IdCardDesign1Vertical {...mergedProps} />
+  if (designId === 2) return <IdCardDesign2Horizontal {...mergedProps} />
+  if (designId === 3) return <IdCardDesign3Vertical {...mergedProps} />
+  if (designId === 4) return <IdCardDesign4Horizontal {...mergedProps} />
+  return <IdCardDesign1Vertical {...mergedProps} />
+}
 
 // =============================================================
 // WEB & PINTEREST DESIGN 3: MINIMALIST GRADIENT SMART BADGE (VERTICAL)
