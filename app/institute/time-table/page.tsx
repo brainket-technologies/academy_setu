@@ -752,8 +752,64 @@ export default function TimeTablePage() {
   const handleOpenSetupModal = () => {
     setModalClass(selectedClass)
     setModalSection(selectedSection)
-    setModalSlots(activeSchedule || DEFAULT_SCHEDULE)
-    setModalOffDays(activeOffDays || ['Sunday'])
+
+    if (activeRecord) {
+      setModalSlots(JSON.parse(JSON.stringify(activeRecord.schedule)))
+      setModalOffDays(activeRecord.offDays || ['Sunday'])
+    } else {
+      // Build fresh initial slots using ONLY this class's actual subjects from masters
+      const classSubs = getSubjectsForClass(selectedClass)
+      const initialSlots: Record<string, TimeSlot[]> = {
+        'Sunday': [],
+        'Monday': [],
+        'Tuesday': [],
+        'Wednesday': [],
+        'Thursday': [],
+        'Friday': [],
+        'Saturday': []
+      }
+
+      const formatSlotTime = (h: number, m: number) => {
+        const mer = h >= 12 ? 'PM' : 'AM'
+        const h12 = h % 12 || 12
+        return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${mer}`
+      }
+
+      const basePeriods: TimeSlot[] = classSubs.length > 0
+        ? classSubs.map((subName, i) => {
+            const startHour = 9 + Math.floor((i * 45) / 60)
+            const startMin = (i * 45) % 60
+            const endTotalMin = (i + 1) * 45
+            const endHour = 9 + Math.floor(endTotalMin / 60)
+            const endMin = endTotalMin % 60
+
+            return {
+              id: Date.now() + i,
+              timeFrom: formatSlotTime(startHour, startMin),
+              timeTo: formatSlotTime(endHour, endMin),
+              subject: subName,
+              teacher: teachersList[i % teachersList.length] || ''
+            }
+          })
+        : [
+            { id: Date.now(), timeFrom: '09:00 AM', timeTo: '09:45 AM', subject: '', teacher: teachersList[0] || '' }
+          ]
+
+      ALL_WEEK_DAYS.forEach(day => {
+        if (day === 'Sunday') {
+          initialSlots[day] = []
+        } else {
+          initialSlots[day] = JSON.parse(JSON.stringify(basePeriods)).map((s: TimeSlot, idx: number) => ({
+            ...s,
+            id: Date.now() + idx + Math.floor(Math.random() * 1000)
+          }))
+        }
+      })
+
+      setModalSlots(initialSlots)
+      setModalOffDays(['Sunday'])
+    }
+
     setAddModalOpen(true)
   }
 
@@ -1375,15 +1431,12 @@ export default function TimeTablePage() {
                                 </button>
                               </div>
                               <select 
-                                value={slot.subject} 
+                                value={modalAvailableSubjects.includes(slot.subject) ? slot.subject : ''} 
                                 onChange={e => handleSlotFieldChange(idx, 'subject', e.target.value)} 
                                 className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none font-bold text-xs" 
                                 required 
                               >
                                 <option value="">Select Subject</option>
-                                {slot.subject && !modalAvailableSubjects.includes(slot.subject) && (
-                                  <option value={slot.subject}>{slot.subject}</option>
-                                )}
                                 {modalAvailableSubjects.map((sName) => (
                                   <option key={sName} value={sName}>{sName}</option>
                                 ))}
