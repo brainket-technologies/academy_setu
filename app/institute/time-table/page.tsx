@@ -241,8 +241,8 @@ export default function TimeTablePage() {
   const rawSubjectsData = useSubjects()
   
   const [records, setRecords] = useState<TimetableRecord[]>([])
-  const [selectedClass, setSelectedClass] = useState('Class V')
-  const [selectedSection, setSelectedSection] = useState('Section A')
+  const [selectedClass, setSelectedClass] = useState('')
+  const [selectedSection, setSelectedSection] = useState('')
 
   // Dynamic teachers and subjects from database & masters
   const [teachersList, setTeachersList] = useState<string[]>(DEFAULT_TEACHERS)
@@ -433,8 +433,10 @@ export default function TimeTablePage() {
     return getSectionsForClass(modalClass)
   }, [modalClass, classesData, sectionsData])
 
-  // Find active schedule
-  const activeRecord = records.find(r => r.classes === selectedClass && r.section === selectedSection)
+  // Find active schedule (only when both class and section are selected)
+  const activeRecord = (selectedClass && selectedSection)
+    ? records.find(r => r.classes === selectedClass && r.section === selectedSection)
+    : undefined
   const activeSchedule = activeRecord ? activeRecord.schedule : DEFAULT_SCHEDULE
   const activeOffDays = activeRecord?.offDays || ['Sunday']
 
@@ -728,180 +730,224 @@ export default function TimeTablePage() {
           </div>
         </div>
 
-        {/* Status badges and unified single action or Edit/Delete buttons */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 text-xs font-bold">
-            <Calendar className="w-3.5 h-3.5 text-teal-600" />
-            <span>Weekly Off:</span>
-            <span className="text-amber-600 dark:text-amber-400 font-black">
-              {activeOffDays.length > 0 ? activeOffDays.join(', ') : 'None'}
-            </span>
-          </div>
+        {/* Status badges and unified single action or Edit/Delete buttons (only when class & section are selected) */}
+        {selectedClass && selectedSection && (
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 text-xs font-bold">
+              <Calendar className="w-3.5 h-3.5 text-teal-600" />
+              <span>Weekly Off:</span>
+              <span className="text-amber-600 dark:text-amber-400 font-black">
+                {activeOffDays.length > 0 ? activeOffDays.join(', ') : 'None'}
+              </span>
+            </div>
 
-          <button 
-            type="button"
-            onClick={handleOpenSetupModal}
-            className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-2 whitespace-nowrap"
-          >
-            {activeRecord ? (
-              <>
-                <Pencil className="w-3.5 h-3.5" />
-                <span>Edit Time Table</span>
-              </>
-            ) : (
-              <>
-                <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                <span>Setup Time Table</span>
-              </>
-            )}
-          </button>
-
-          {activeRecord && (
             <button 
               type="button"
-              onClick={handleDeleteTimetable}
-              className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/40 dark:hover:bg-red-900/60 dark:text-red-300 border border-red-200 dark:border-red-800 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap"
-              title="Delete timetable for this class and section"
+              onClick={handleOpenSetupModal}
+              className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-2 whitespace-nowrap"
             >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete Time Table</span>
+              {activeRecord ? (
+                <>
+                  <Pencil className="w-3.5 h-3.5" />
+                  <span>Edit Time Table</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                  <span>Setup Time Table</span>
+                </>
+              )}
             </button>
-          )}
-        </div>
+
+            {activeRecord && (
+              <button 
+                type="button"
+                onClick={handleDeleteTimetable}
+                className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/40 dark:hover:bg-red-900/60 dark:text-red-300 border border-red-200 dark:border-red-800 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap"
+                title="Delete timetable for this class and section"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Time Table</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* ─── Weekly Schedule Grid ─── */}
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-6 shadow-sm overflow-x-auto">
-        <div className="min-w-[1100px] grid grid-cols-7 gap-3.5 text-xs font-semibold">
-          
-          {/* Day Headers */}
-          {ALL_WEEK_DAYS.map(day => {
-            const isDayOff = activeOffDays.includes(day)
-            return (
-              <div 
-                key={day} 
-                className={`p-3 rounded-2xl border text-center transition-all ${
-                  isDayOff 
-                    ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200' 
-                    : 'bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-700 text-[#1b3a60] dark:text-slate-100 font-black'
-                }`}
-              >
-                <div className="flex items-center justify-center gap-1.5 font-black text-xs">
-                  <span>{day}</span>
-                  {isDayOff && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 uppercase font-black tracking-wider">
-                      Off
-                    </span>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-
-          {/* Slots Dynamic Grid row logic */}
-          {Array.from({ length: maxSlotsCount }).map((_, slotIdx) => {
+      {/* ─── Timetable Display Area ─── */}
+      {!selectedClass || !selectedSection ? (
+        /* State 1: When class or section has not been selected yet */
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-16 text-center shadow-sm space-y-4">
+          <div className="w-16 h-16 rounded-3xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 flex items-center justify-center mx-auto text-2xl shadow-xs">
+            <Calendar className="w-8 h-8" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-black text-slate-800 dark:text-slate-100">
+              Select Class &amp; Section to View Time Table
+            </h3>
+            <p className="text-xs text-slate-400 max-w-md mx-auto">
+              Please choose a Class and Section from the selectors above to view or configure their weekly timetable schedule.
+            </p>
+          </div>
+        </div>
+      ) : !activeRecord ? (
+        /* State 2: When class & section selected, but no timetable exists yet */
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-16 text-center shadow-sm space-y-4">
+          <div className="w-16 h-16 rounded-3xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center mx-auto text-2xl shadow-xs">
+            <Clock className="w-8 h-8" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-black text-slate-800 dark:text-slate-100">
+              No Time Table Set Up Yet for {selectedClass} ({selectedSection})
+            </h3>
+            <p className="text-xs text-slate-400 max-w-md mx-auto">
+              This class and section does not have an active timetable schedule yet. Click below to configure daily lecture periods and weekly off days.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleOpenSetupModal}
+            className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-md transition-all inline-flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Setup Time Table</span>
+          </button>
+        </div>
+      ) : (
+        /* State 3: When class & section selected AND timetable exists */
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-6 shadow-sm overflow-x-auto">
+          <div className="min-w-[1100px] grid grid-cols-7 gap-3.5 text-xs font-semibold">
             
-            // Check if ANY day at this slotIdx is a Lunch Break
-            const isRowLunchBreak = ALL_WEEK_DAYS.some(day => {
-              if (activeOffDays.includes(day)) return false
-              const slot = (activeSchedule[day] || [])[slotIdx]
-              return slot && slot.isLunchBreak
-            })
-
-            if (isRowLunchBreak) {
-              const lunchSlot = ALL_WEEK_DAYS.map(d => (activeSchedule[d] || [])[slotIdx]).find(s => s && s.isLunchBreak)
-              const timeRange = lunchSlot ? `${lunchSlot.timeFrom} - ${lunchSlot.timeTo}` : '11:15 AM - 12:00 PM'
-
+            {/* Day Headers */}
+            {ALL_WEEK_DAYS.map(day => {
+              const isDayOff = activeOffDays.includes(day)
               return (
                 <div 
-                  key={`lunch-${slotIdx}`} 
-                  className="col-span-7 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 rounded-2xl p-3 text-white font-black flex items-center justify-between shadow-xs relative overflow-hidden"
+                  key={day} 
+                  className={`p-3 rounded-2xl border text-center transition-all ${
+                    isDayOff 
+                      ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200' 
+                      : 'bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-700 text-[#1b3a60] dark:text-slate-100 font-black'
+                  }`}
                 >
-                  <div className="flex items-center gap-2 z-10 px-2 text-xs">
-                    <Coffee className="w-4 h-4 text-white/90" />
-                    <span>Lunch Break ({timeRange})</span>
-                  </div>
-                  <div className="flex-1 text-center select-none tracking-widest text-[10px] z-10 opacity-80 uppercase font-mono">
-                    • SCHOOL LUNCH RECESS &amp; MEAL BREAK •
+                  <div className="flex items-center justify-center gap-1.5 font-black text-xs">
+                    <span>{day}</span>
+                    {isDayOff && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 uppercase font-black tracking-wider">
+                        Off
+                      </span>
+                    )}
                   </div>
                 </div>
               )
-            }
+            })}
 
-            return (
-              <React.Fragment key={`slot-row-${slotIdx}`}>
-                {ALL_WEEK_DAYS.map(day => {
-                  const isDayOff = activeOffDays.includes(day)
-                  
-                  // If it's an off day:
-                  if (isDayOff) {
-                    if (slotIdx === 0) {
+            {/* Slots Dynamic Grid row logic */}
+            {Array.from({ length: maxSlotsCount }).map((_, slotIdx) => {
+              
+              // Check if ANY day at this slotIdx is a Lunch Break
+              const isRowLunchBreak = ALL_WEEK_DAYS.some(day => {
+                if (activeOffDays.includes(day)) return false
+                const slot = (activeSchedule[day] || [])[slotIdx]
+                return slot && slot.isLunchBreak
+              })
+
+              if (isRowLunchBreak) {
+                const lunchSlot = ALL_WEEK_DAYS.map(d => (activeSchedule[d] || [])[slotIdx]).find(s => s && s.isLunchBreak)
+                const timeRange = lunchSlot ? `${lunchSlot.timeFrom} - ${lunchSlot.timeTo}` : '11:15 AM - 12:00 PM'
+
+                return (
+                  <div 
+                    key={`lunch-${slotIdx}`} 
+                    className="col-span-7 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 rounded-2xl p-3 text-white font-black flex items-center justify-between shadow-xs relative overflow-hidden"
+                  >
+                    <div className="flex items-center gap-2 z-10 px-2 text-xs">
+                      <Coffee className="w-4 h-4 text-white/90" />
+                      <span>Lunch Break ({timeRange})</span>
+                    </div>
+                    <div className="flex-1 text-center select-none tracking-widest text-[10px] z-10 opacity-80 uppercase font-mono">
+                      • SCHOOL LUNCH RECESS &amp; MEAL BREAK •
+                    </div>
+                  </div>
+                )
+              }
+
+              return (
+                <React.Fragment key={`slot-row-${slotIdx}`}>
+                  {ALL_WEEK_DAYS.map(day => {
+                    const isDayOff = activeOffDays.includes(day)
+                    
+                    // If it's an off day:
+                    if (isDayOff) {
+                      if (slotIdx === 0) {
+                        return (
+                          <div 
+                            key={`${day}-${slotIdx}`} 
+                            className="min-h-[100px] border border-dashed border-amber-300 dark:border-amber-800 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 p-4 flex flex-col items-center justify-center text-center select-none"
+                          >
+                            <span className="text-xl mb-1">🏖️</span>
+                            <span className="text-[10px] font-black text-amber-900 dark:text-amber-200 uppercase tracking-wider">
+                              Weekly Off
+                            </span>
+                            <span className="text-[9px] text-amber-700/80 dark:text-amber-400/80 mt-0.5">
+                              No Classes
+                            </span>
+                          </div>
+                        )
+                      }
                       return (
                         <div 
                           key={`${day}-${slotIdx}`} 
-                          className="min-h-[100px] border border-dashed border-amber-300 dark:border-amber-800 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 p-4 flex flex-col items-center justify-center text-center select-none"
+                          className="min-h-[100px] border border-dashed border-amber-100/60 dark:border-amber-900/20 rounded-2xl bg-amber-50/15 dark:bg-amber-950/10 flex items-center justify-center text-amber-300/40 text-[11px]"
                         >
-                          <span className="text-xl mb-1">🏖️</span>
-                          <span className="text-[10px] font-black text-amber-900 dark:text-amber-200 uppercase tracking-wider">
-                            Weekly Off
-                          </span>
-                          <span className="text-[9px] text-amber-700/80 dark:text-amber-400/80 mt-0.5">
-                            No Classes
-                          </span>
+                          -
                         </div>
                       )
                     }
+
+                    const slot = (activeSchedule[day] || [])[slotIdx]
+                    if (!slot) {
+                      return (
+                        <div 
+                          key={`${day}-${slotIdx}`} 
+                          className="min-h-[100px] border border-dashed border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50/30 dark:bg-slate-800/30 flex items-center justify-center text-slate-300 text-[10px]"
+                        >
+                          Free Slot
+                        </div>
+                      )
+                    }
+
+                    const colorClass = PASTEL_COLORS[slotIdx % PASTEL_COLORS.length]
+
                     return (
                       <div 
                         key={`${day}-${slotIdx}`} 
-                        className="min-h-[100px] border border-dashed border-amber-100/60 dark:border-amber-900/20 rounded-2xl bg-amber-50/15 dark:bg-amber-950/10 flex items-center justify-center text-amber-300/40 text-[11px]"
+                        className={`border rounded-2xl p-3.5 space-y-2 shadow-2xs transition-all hover:shadow-md ${colorClass}`}
                       >
-                        -
+                        <div className="flex items-center gap-1.5 text-[9.5px] font-black tracking-wider uppercase opacity-80">
+                          <Clock className="w-3 h-3" />
+                          <span>{slot.timeFrom} - {slot.timeTo}</span>
+                        </div>
+                        <div className="space-y-0.5">
+                          <h4 className="font-extrabold text-[11.5px] leading-tight">
+                            {slot.subject}
+                          </h4>
+                          <p className="text-[10px] opacity-80 flex items-center gap-1">
+                            <User className="w-2.5 h-2.5 opacity-60" />
+                            <span>{slot.teacher || 'Unassigned'}</span>
+                          </p>
+                        </div>
                       </div>
                     )
-                  }
+                  })}
+                </React.Fragment>
+              )
+            })}
 
-                  const slot = (activeSchedule[day] || [])[slotIdx]
-                  if (!slot) {
-                    return (
-                      <div 
-                        key={`${day}-${slotIdx}`} 
-                        className="min-h-[100px] border border-dashed border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50/30 dark:bg-slate-800/30 flex items-center justify-center text-slate-300 text-[10px]"
-                      >
-                        Free Slot
-                      </div>
-                    )
-                  }
-
-                  const colorClass = PASTEL_COLORS[slotIdx % PASTEL_COLORS.length]
-
-                  return (
-                    <div 
-                      key={`${day}-${slotIdx}`} 
-                      className={`border rounded-2xl p-3.5 space-y-2 shadow-2xs transition-all hover:shadow-md ${colorClass}`}
-                    >
-                      <div className="flex items-center gap-1.5 text-[9.5px] font-black tracking-wider uppercase opacity-80">
-                        <Clock className="w-3 h-3" />
-                        <span>{slot.timeFrom} - {slot.timeTo}</span>
-                      </div>
-                      <div className="space-y-0.5">
-                        <h4 className="font-extrabold text-[11.5px] leading-tight">
-                          {slot.subject}
-                        </h4>
-                        <p className="text-[10px] opacity-80 flex items-center gap-1">
-                          <User className="w-2.5 h-2.5 opacity-60" />
-                          <span>{slot.teacher || 'Unassigned'}</span>
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </React.Fragment>
-            )
-          })}
-
+          </div>
         </div>
-      </div>
+      )}
+
 
       {/* ─── ADD / EDIT TIME TABLE MODAL ─── */}
       {addModalOpen && (
