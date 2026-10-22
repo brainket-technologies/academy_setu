@@ -280,7 +280,7 @@ export default function TimeTablePage() {
   const [selectedSection, setSelectedSection] = useState('')
 
   // Dynamic teachers and subjects from database & masters
-  const [teachersList, setTeachersList] = useState<string[]>(DEFAULT_TEACHERS)
+  const [teachersList, setTeachersList] = useState<string[]>([])
   const [subjectsList, setSubjectsList] = useState<string[]>(DEFAULT_SUBJECTS)
   const [allSubjectsRecords, setAllSubjectsRecords] = useState<any[]>([])
 
@@ -319,17 +319,34 @@ export default function TimeTablePage() {
   // ─── 1. Load Teachers from Setup and DB ───
   useEffect(() => {
     async function loadTeachersData() {
-      const namesSet = new Set<string>(DEFAULT_TEACHERS)
+      const realTeachers: string[] = []
 
-      // A. Check localStorage masters
+      // 1. Fetch official added teachers from institute_teachers table
+      try {
+        const res = await fetchTeachers()
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          res.data.forEach((t: any) => {
+            const name = t.name?.trim()
+            if (name && !realTeachers.includes(name)) {
+              realTeachers.push(name)
+            }
+          })
+        }
+      } catch (e) {
+        console.log('fetchTeachers note:', e)
+      }
+
+      // 2. Also check custom teachers added via "+ New" in time-table
       try {
         const savedMastersTeachers = localStorage.getItem('school_masters_teachers')
         if (savedMastersTeachers) {
           const parsed = JSON.parse(savedMastersTeachers)
           if (Array.isArray(parsed)) {
             parsed.forEach((t: any) => {
-              const name = typeof t === 'string' ? t : (t.name || t.teacherName)
-              if (name && typeof name === 'string') namesSet.add(name.trim())
+              const name = (typeof t === 'string' ? t : (t.name || t.teacherName))?.trim()
+              if (name && !realTeachers.includes(name)) {
+                realTeachers.push(name)
+              }
             })
           }
         }
@@ -337,31 +354,12 @@ export default function TimeTablePage() {
         console.error('Error reading localStorage teachers:', e)
       }
 
-      // B. Fetch added teachers from institute_teachers table
-      try {
-        const res = await fetchTeachers()
-        if (res?.success && Array.isArray(res.data)) {
-          res.data.forEach((t: any) => {
-            if (t.name) namesSet.add(t.name.trim())
-          })
-        }
-      } catch (e) {
-        console.log('fetchTeachers note:', e)
+      // 3. If real teachers exist, use ONLY them! Otherwise fallback to defaults for empty demo
+      if (realTeachers.length > 0) {
+        setTeachersList(realTeachers)
+      } else {
+        setTeachersList(DEFAULT_TEACHERS)
       }
-
-      // C. Fetch employees from institute_staff_members
-      try {
-        const empRes = await fetchEmployees()
-        if (empRes?.success && Array.isArray(empRes.data)) {
-          empRes.data.forEach((e: any) => {
-            if (e.name) namesSet.add(e.name.trim())
-          })
-        }
-      } catch (e) {
-        console.log('fetchEmployees note:', e)
-      }
-
-      setTeachersList(Array.from(namesSet))
     }
 
     loadTeachersData()
@@ -1457,7 +1455,7 @@ export default function TimeTablePage() {
                                 </button>
                               </div>
                               <select 
-                                value={slot.teacher} 
+                                value={teachersList.includes(slot.teacher) ? slot.teacher : ''} 
                                 onChange={e => handleSlotFieldChange(idx, 'teacher', e.target.value)} 
                                 className={`w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none font-bold text-xs ${
                                   conflict 
