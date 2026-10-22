@@ -140,6 +140,41 @@ const PASTEL_COLORS = [
 
 const ALL_WEEK_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
+// Helper to convert stored 12-hour (e.g. "09:00 AM", "01:30 PM") to 24-hour "HH:mm" for <input type="time">
+function formatTimeTo24Hour(timeStr?: string): string {
+  if (!timeStr) return ''
+  const cleaned = timeStr.trim().toUpperCase()
+  if (/^\d{2}:\d{2}$/.test(cleaned)) return cleaned
+
+  const match = cleaned.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/)
+  if (!match) return ''
+  let hours = parseInt(match[1], 10)
+  const minutes = match[2]
+  const meridian = match[3]
+
+  if (meridian === 'PM' && hours < 12) hours += 12
+  if (meridian === 'AM' && hours === 12) hours = 0
+
+  return `${String(hours).padStart(2, '0')}:${minutes}`
+}
+
+// Helper to convert 24-hour "HH:mm" from <input type="time"> back to 12-hour "hh:mm AM/PM"
+function formatTimeTo12Hour(time24?: string): string {
+  if (!time24) return ''
+  const cleaned = time24.trim()
+  if (/AM|PM/i.test(cleaned)) return cleaned
+
+  const parts = cleaned.split(':')
+  if (parts.length < 2) return cleaned
+  let hours = parseInt(parts[0], 10)
+  const minutes = parts[1]
+  if (isNaN(hours)) return cleaned
+
+  const meridian = hours >= 12 ? 'PM' : 'AM'
+  hours = hours % 12 || 12
+  return `${String(hours).padStart(2, '0')}:${minutes} ${meridian}`
+}
+
 // Convert 12-hour "HH:MM AM/PM" to minutes from midnight
 function parseTimeToMinutes(timeStr?: string): number | null {
   if (!timeStr) return null
@@ -1161,28 +1196,38 @@ export default function TimeTablePage() {
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div className="flex flex-col gap-1.5">
-                                <label className="text-slate-500 font-bold text-[11px]">Time From *</label>
-                                <select 
-                                  value={slot.timeFrom} 
-                                  onChange={e => handleSlotFieldChange(idx, 'timeFrom', e.target.value)} 
-                                  className="w-full px-3.5 py-2 border rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 outline-none font-bold text-xs"
-                                >
-                                  {TIME_OPTIONS.map(t => (
-                                    <option key={t} value={t}>{t}</option>
-                                  ))}
-                                </select>
+                                <label className="text-slate-500 font-bold text-[11px] flex items-center justify-between">
+                                  <span>Time From *</span>
+                                  <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">{slot.timeFrom}</span>
+                                </label>
+                                <input 
+                                  type="time"
+                                  value={formatTimeTo24Hour(slot.timeFrom)} 
+                                  onChange={e => {
+                                    if (e.target.value) {
+                                      handleSlotFieldChange(idx, 'timeFrom', formatTimeTo12Hour(e.target.value))
+                                    }
+                                  }} 
+                                  className="w-full px-3.5 py-2 border rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 outline-none font-bold text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer shadow-2xs"
+                                  required
+                                />
                               </div>
                               <div className="flex flex-col gap-1.5">
-                                <label className="text-slate-500 font-bold text-[11px]">Time To *</label>
-                                <select 
-                                  value={slot.timeTo} 
-                                  onChange={e => handleSlotFieldChange(idx, 'timeTo', e.target.value)} 
-                                  className="w-full px-3.5 py-2 border rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 outline-none font-bold text-xs"
-                                >
-                                  {TIME_OPTIONS.map(t => (
-                                    <option key={t} value={t}>{t}</option>
-                                  ))}
-                                </select>
+                                <label className="text-slate-500 font-bold text-[11px] flex items-center justify-between">
+                                  <span>Time To *</span>
+                                  <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">{slot.timeTo}</span>
+                                </label>
+                                <input 
+                                  type="time"
+                                  value={formatTimeTo24Hour(slot.timeTo)} 
+                                  onChange={e => {
+                                    if (e.target.value) {
+                                      handleSlotFieldChange(idx, 'timeTo', formatTimeTo12Hour(e.target.value))
+                                    }
+                                  }} 
+                                  className="w-full px-3.5 py-2 border rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 outline-none font-bold text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer shadow-2xs"
+                                  required
+                                />
                               </div>
                             </div>
                           </div>
@@ -1288,32 +1333,40 @@ export default function TimeTablePage() {
 
                             {/* Time From */}
                             <div className="flex flex-col gap-1.5">
-                              <label className="text-slate-500 font-bold text-[11px]">Time From *</label>
-                              <select 
-                                value={slot.timeFrom} 
-                                onChange={e => handleSlotFieldChange(idx, 'timeFrom', e.target.value)} 
-                                className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none font-bold text-xs" 
+                              <label className="text-slate-500 dark:text-slate-400 font-bold text-[11px] flex items-center justify-between">
+                                <span>Time From *</span>
+                                <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold">{slot.timeFrom}</span>
+                              </label>
+                              <input 
+                                type="time"
+                                value={formatTimeTo24Hour(slot.timeFrom)} 
+                                onChange={e => {
+                                  if (e.target.value) {
+                                    handleSlotFieldChange(idx, 'timeFrom', formatTimeTo12Hour(e.target.value))
+                                  }
+                                }} 
+                                className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none font-bold text-xs focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 cursor-pointer shadow-2xs" 
                                 required
-                              >
-                                {TIME_OPTIONS.map(t => (
-                                  <option key={t} value={t}>{t}</option>
-                                ))}
-                              </select>
+                              />
                             </div>
 
                             {/* Time To */}
                             <div className="flex flex-col gap-1.5">
-                              <label className="text-slate-500 font-bold text-[11px]">Time To *</label>
-                              <select 
-                                value={slot.timeTo} 
-                                onChange={e => handleSlotFieldChange(idx, 'timeTo', e.target.value)} 
-                                className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none font-bold text-xs" 
+                              <label className="text-slate-500 dark:text-slate-400 font-bold text-[11px] flex items-center justify-between">
+                                <span>Time To *</span>
+                                <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold">{slot.timeTo}</span>
+                              </label>
+                              <input 
+                                type="time"
+                                value={formatTimeTo24Hour(slot.timeTo)} 
+                                onChange={e => {
+                                  if (e.target.value) {
+                                    handleSlotFieldChange(idx, 'timeTo', formatTimeTo12Hour(e.target.value))
+                                  }
+                                }} 
+                                className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none font-bold text-xs focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 cursor-pointer shadow-2xs" 
                                 required
-                              >
-                                {TIME_OPTIONS.map(t => (
-                                  <option key={t} value={t}>{t}</option>
-                                ))}
-                              </select>
+                              />
                             </div>
 
                             {/* Remove button */}
