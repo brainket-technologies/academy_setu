@@ -7,8 +7,7 @@ import {
   User, BookOpen, Coffee, Sun, Check, ArrowRight, Pencil
 } from 'lucide-react'
 import { useClasses, useSections, useSubjects } from '@/lib/mastersData'
-import { fetchTeachers } from '@/app/institute/teachers/actions'
-import { fetchEmployees } from '@/app/institute/employees/actions'
+import { fetchTeachers, createTeacher } from '@/app/institute/teachers/actions'
 
 interface TimeSlot {
   id: number
@@ -44,72 +43,15 @@ interface TeacherConflictInfo {
 
 const DEFAULT_SCHEDULE: DaySchedule = {
   'Sunday': [],
-  'Monday': [
-    { id: 1, timeFrom: '09:00 AM', timeTo: '09:45 AM', subject: 'Maths', teacher: 'Dr. S. K. Sharma' },
-    { id: 2, timeFrom: '09:45 AM', timeTo: '10:30 AM', subject: 'English', teacher: 'Mrs. Kavita Verma' },
-    { id: 3, timeFrom: '10:30 AM', timeTo: '11:15 AM', subject: 'Hindi', teacher: 'Mrs. Pooja Sen' },
-    { id: 4, timeFrom: '11:15 AM', timeTo: '12:00 PM', subject: 'Lunch Break', teacher: '', isLunchBreak: true },
-    { id: 5, timeFrom: '12:00 PM', timeTo: '12:45 PM', subject: 'Science', teacher: 'Mr. R. K. Saxena' },
-    { id: 6, timeFrom: '12:45 PM', timeTo: '01:30 PM', subject: 'GK', teacher: 'Mr. Rajesh Kumar' },
-    { id: 7, timeFrom: '01:30 PM', timeTo: '02:15 PM', subject: 'Computer', teacher: 'Ms. Neha Gupta' },
-  ],
-  'Tuesday': [
-    { id: 1, timeFrom: '09:00 AM', timeTo: '09:45 AM', subject: 'English', teacher: 'Mrs. Kavita Verma' },
-    { id: 2, timeFrom: '09:45 AM', timeTo: '10:30 AM', subject: 'Hindi', teacher: 'Mrs. Pooja Sen' },
-    { id: 3, timeFrom: '10:30 AM', timeTo: '11:15 AM', subject: 'Science', teacher: 'Mr. R. K. Saxena' },
-    { id: 4, timeFrom: '11:15 AM', timeTo: '12:00 PM', subject: 'Lunch Break', teacher: '', isLunchBreak: true },
-    { id: 5, timeFrom: '12:00 PM', timeTo: '12:45 PM', subject: 'GK', teacher: 'Mr. Rajesh Kumar' },
-    { id: 6, timeFrom: '12:45 PM', timeTo: '01:30 PM', subject: 'Computer', teacher: 'Ms. Neha Gupta' },
-    { id: 7, timeFrom: '01:30 PM', timeTo: '02:15 PM', subject: 'Maths', teacher: 'Dr. S. K. Sharma' },
-  ],
-  'Wednesday': [
-    { id: 1, timeFrom: '09:00 AM', timeTo: '09:45 AM', subject: 'Hindi', teacher: 'Mrs. Pooja Sen' },
-    { id: 2, timeFrom: '09:45 AM', timeTo: '10:30 AM', subject: 'GK', teacher: 'Mr. Rajesh Kumar' },
-    { id: 3, timeFrom: '10:30 AM', timeTo: '11:15 AM', subject: 'Maths', teacher: 'Dr. S. K. Sharma' },
-    { id: 4, timeFrom: '11:15 AM', timeTo: '12:00 PM', subject: 'Lunch Break', teacher: '', isLunchBreak: true },
-    { id: 5, timeFrom: '12:00 PM', timeTo: '12:45 PM', subject: 'Computer', teacher: 'Ms. Neha Gupta' },
-    { id: 6, timeFrom: '12:45 PM', timeTo: '01:30 PM', subject: 'Science', teacher: 'Mr. R. K. Saxena' },
-    { id: 7, timeFrom: '01:30 PM', timeTo: '02:15 PM', subject: 'English', teacher: 'Mrs. Kavita Verma' },
-  ],
-  'Thursday': [
-    { id: 1, timeFrom: '09:00 AM', timeTo: '09:45 AM', subject: 'Maths', teacher: 'Dr. S. K. Sharma' },
-    { id: 2, timeFrom: '09:45 AM', timeTo: '10:30 AM', subject: 'English', teacher: 'Mrs. Kavita Verma' },
-    { id: 3, timeFrom: '10:30 AM', timeTo: '11:15 AM', subject: 'Hindi', teacher: 'Mrs. Pooja Sen' },
-    { id: 4, timeFrom: '11:15 AM', timeTo: '12:00 PM', subject: 'Lunch Break', teacher: '', isLunchBreak: true },
-    { id: 5, timeFrom: '12:00 PM', timeTo: '12:45 PM', subject: 'Science', teacher: 'Mr. R. K. Saxena' },
-    { id: 6, timeFrom: '12:45 PM', timeTo: '01:30 PM', subject: 'GK', teacher: 'Mr. Rajesh Kumar' },
-    { id: 7, timeFrom: '01:30 PM', timeTo: '02:15 PM', subject: 'Computer', teacher: 'Ms. Neha Gupta' },
-  ],
-  'Friday': [
-    { id: 1, timeFrom: '09:00 AM', timeTo: '09:45 AM', subject: 'English', teacher: 'Mrs. Kavita Verma' },
-    { id: 2, timeFrom: '09:45 AM', timeTo: '10:30 AM', subject: 'Hindi', teacher: 'Mrs. Pooja Sen' },
-    { id: 3, timeFrom: '10:30 AM', timeTo: '11:15 AM', subject: 'Science', teacher: 'Mr. R. K. Saxena' },
-    { id: 4, timeFrom: '11:15 AM', timeTo: '12:00 PM', subject: 'Lunch Break', teacher: '', isLunchBreak: true },
-    { id: 5, timeFrom: '12:00 PM', timeTo: '12:45 PM', subject: 'GK', teacher: 'Mr. Rajesh Kumar' },
-    { id: 6, timeFrom: '12:45 PM', timeTo: '01:30 PM', subject: 'Computer', teacher: 'Ms. Neha Gupta' },
-    { id: 7, timeFrom: '01:30 PM', timeTo: '02:15 PM', subject: 'Maths', teacher: 'Dr. S. K. Sharma' },
-  ],
-  'Saturday': [
-    { id: 1, timeFrom: '09:00 AM', timeTo: '09:45 AM', subject: 'Hindi', teacher: 'Mrs. Pooja Sen' },
-    { id: 2, timeFrom: '09:45 AM', timeTo: '10:30 AM', subject: 'GK', teacher: 'Mr. Rajesh Kumar' },
-    { id: 3, timeFrom: '10:30 AM', timeTo: '11:15 AM', subject: 'Maths', teacher: 'Dr. S. K. Sharma' },
-    { id: 4, timeFrom: '11:15 AM', timeTo: '12:00 PM', subject: 'Lunch Break', teacher: '', isLunchBreak: true },
-    { id: 5, timeFrom: '12:00 PM', timeTo: '12:45 PM', subject: 'Computer', teacher: 'Ms. Neha Gupta' },
-    { id: 6, timeFrom: '12:45 PM', timeTo: '01:30 PM', subject: 'Science', teacher: 'Mr. R. K. Saxena' },
-    { id: 7, timeFrom: '01:30 PM', timeTo: '02:15 PM', subject: 'English', teacher: 'Mrs. Kavita Verma' },
-  ],
+  'Monday': [],
+  'Tuesday': [],
+  'Wednesday': [],
+  'Thursday': [],
+  'Friday': [],
+  'Saturday': []
 }
 
-const DEFAULT_TEACHERS = [
-  'Dr. S. K. Sharma',
-  'Mrs. Kavita Verma',
-  'Mr. R. K. Saxena',
-  'Mrs. Pooja Sen',
-  'Mr. Rajesh Kumar',
-  'Ms. Neha Gupta',
-  'Mr. Amit Patel',
-  'Mrs. Sunita Mishra'
-]
+const DEFAULT_TEACHERS: string[] = []
 
 const DEFAULT_SUBJECTS = [
   'Maths', 'English', 'Hindi', 'Science', 'Social Science',
@@ -316,52 +258,25 @@ export default function TimeTablePage() {
   const [toastMsg, setToastMsg] = useState('')
   const [toastOpen, setToastOpen] = useState(false)
 
-  // ─── 1. Load Teachers from Setup and DB ───
-  useEffect(() => {
-    async function loadTeachersData() {
-      const realTeachers: string[] = []
-
-      // 1. Fetch official added teachers from institute_teachers table
-      try {
-        const res = await fetchTeachers()
-        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-          res.data.forEach((t: any) => {
-            const name = t.name?.trim()
-            if (name && !realTeachers.includes(name)) {
-              realTeachers.push(name)
-            }
-          })
-        }
-      } catch (e) {
-        console.log('fetchTeachers note:', e)
+  // ─── 1. Load Teachers strictly from institute_teachers Database ───
+  const loadTeachersData = async () => {
+    try {
+      const res = await fetchTeachers()
+      if (res?.success && Array.isArray(res.data)) {
+        const names = res.data
+          .map((t: any) => t.name?.trim())
+          .filter(Boolean)
+        const uniqueNames = Array.from(new Set(names))
+        setTeachersList(uniqueNames)
+        return
       }
-
-      // 2. Also check custom teachers added via "+ New" in time-table
-      try {
-        const savedMastersTeachers = localStorage.getItem('school_masters_teachers')
-        if (savedMastersTeachers) {
-          const parsed = JSON.parse(savedMastersTeachers)
-          if (Array.isArray(parsed)) {
-            parsed.forEach((t: any) => {
-              const name = (typeof t === 'string' ? t : (t.name || t.teacherName))?.trim()
-              if (name && !realTeachers.includes(name)) {
-                realTeachers.push(name)
-              }
-            })
-          }
-        }
-      } catch (e) {
-        console.error('Error reading localStorage teachers:', e)
-      }
-
-      // 3. If real teachers exist, use ONLY them! Otherwise fallback to defaults for empty demo
-      if (realTeachers.length > 0) {
-        setTeachersList(realTeachers)
-      } else {
-        setTeachersList(DEFAULT_TEACHERS)
-      }
+    } catch (e) {
+      console.log('fetchTeachers note:', e)
     }
+    setTeachersList([])
+  }
 
+  useEffect(() => {
     loadTeachersData()
   }, [])
 
@@ -619,17 +534,14 @@ export default function TimeTablePage() {
   }
 
   // Quick add teacher
-  const handleAddQuickTeacher = (e: React.FormEvent) => {
+  const handleAddQuickTeacher = async (e: React.FormEvent) => {
     e.preventDefault()
     const trimmed = newTeacherNameInput.trim()
     if (!trimmed) return
     if (!teachersList.includes(trimmed)) {
-      setTeachersList(prev => [trimmed, ...prev])
+      setTeachersList(prev => [...prev, trimmed])
       try {
-        const saved = localStorage.getItem('school_masters_teachers')
-        const arr = saved ? JSON.parse(saved) : []
-        arr.push({ teacherName: trimmed, name: trimmed })
-        localStorage.setItem('school_masters_teachers', JSON.stringify(arr))
+        await createTeacher({ name: trimmed, status: 'Active' })
       } catch (err) {
         console.error(err)
       }
@@ -752,7 +664,15 @@ export default function TimeTablePage() {
     setModalSection(selectedSection)
 
     if (activeRecord) {
-      setModalSlots(JSON.parse(JSON.stringify(activeRecord.schedule)))
+      // Clean any stale or dummy teachers from previous saves that are not in teachersList
+      const cleanedSchedule: DaySchedule = {}
+      ALL_WEEK_DAYS.forEach(day => {
+        cleanedSchedule[day] = (activeRecord.schedule[day] || []).map(slot => ({
+          ...slot,
+          teacher: teachersList.includes(slot.teacher) ? slot.teacher : ''
+        }))
+      })
+      setModalSlots(cleanedSchedule)
       setModalOffDays(activeRecord.offDays || ['Sunday'])
     } else {
       // Build fresh initial slots using ONLY this class's actual subjects from masters
