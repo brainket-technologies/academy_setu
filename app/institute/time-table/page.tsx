@@ -282,6 +282,7 @@ export default function TimeTablePage() {
   // Dynamic teachers and subjects from database & masters
   const [teachersList, setTeachersList] = useState<string[]>(DEFAULT_TEACHERS)
   const [subjectsList, setSubjectsList] = useState<string[]>(DEFAULT_SUBJECTS)
+  const [allSubjectsRecords, setAllSubjectsRecords] = useState<any[]>([])
 
   // Custom teacher/subject inline add modal
   const [quickAddTeacherModal, setQuickAddTeacherModal] = useState(false)
@@ -367,34 +368,61 @@ export default function TimeTablePage() {
   }, [])
 
   // ─── 2. Load Subjects from Setup & Masters ───
-  useEffect(() => {
-    const subjectsSet = new Set<string>(DEFAULT_SUBJECTS)
+  const loadAllSubjects = () => {
+    let combined: any[] = []
 
-    // A. Check hook masters data
-    if (Array.isArray(rawSubjectsData)) {
-      rawSubjectsData.forEach((s: any) => {
-        const name = typeof s === 'string' ? s : (s.subjectName || s.name)
-        if (name && typeof name === 'string') subjectsSet.add(name.trim())
-      })
-    }
-
-    // B. Check localStorage school_masters_subjects
+    // 1. Check localStorage 'school_masters_subjects'
     try {
       const savedSubs = localStorage.getItem('school_masters_subjects')
       if (savedSubs) {
         const parsed = JSON.parse(savedSubs)
         if (Array.isArray(parsed)) {
-          parsed.forEach((s: any) => {
-            const name = typeof s === 'string' ? s : (s.subjectName || s.name)
-            if (name && typeof name === 'string') subjectsSet.add(name.trim())
-          })
+          combined = [...parsed]
         }
       }
     } catch (e) {
       console.error('Error reading school_masters_subjects:', e)
     }
 
+    // 2. Also incorporate from rawSubjectsData (useSubjects hook)
+    if (Array.isArray(rawSubjectsData)) {
+      rawSubjectsData.forEach((s: any) => {
+        const sName = typeof s === 'string' ? s : (s.subjectName || s.name)
+        if (!sName) return
+        const exists = combined.some(item => {
+          const itemName = typeof item === 'string' ? item : (item.subjectName || item.name)
+          return itemName && itemName.trim().toLowerCase() === sName.trim().toLowerCase()
+        })
+        if (!exists) {
+          combined.push(typeof s === 'string' ? { subjectName: s, className: '' } : s)
+        }
+      })
+    }
+
+    setAllSubjectsRecords(combined)
+
+    const subjectsSet = new Set<string>(DEFAULT_SUBJECTS)
+    combined.forEach((s: any) => {
+      const name = typeof s === 'string' ? s : (s.subjectName || s.name)
+      if (name && typeof name === 'string' && !s.deleted) subjectsSet.add(name.trim())
+    })
     setSubjectsList(Array.from(subjectsSet))
+  }
+
+  useEffect(() => {
+    loadAllSubjects()
+  }, [rawSubjectsData])
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      loadAllSubjects()
+    }
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('focus', handleStorageChange)
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('focus', handleStorageChange)
+    }
   }, [rawSubjectsData])
 
   // ─── 3. Load Timetables ───
@@ -460,6 +488,56 @@ export default function TimeTablePage() {
     return Array.from(sectionsSet)
   }
 
+  // ─── Filter subjects class-wise from masters ───
+  const getSubjectsForClass = (targetClass: string): string[] => {
+    if (!targetClass) return []
+    const norm = (val?: string) => (val || '').toLowerCase().replace(/[\s\-_]/g, '')
+    const targetNorm = norm(targetClass)
+
+    // A. Filter subjects explicitly mapped to this class in masters
+    const matchedClassSubjects: string[] = []
+
+    allSubjectsRecords.forEach(s => {
+      if (s.deleted) return
+      const sName = (s.subjectName || s.name || '').trim()
+      if (!sName) return
+
+      const sClass = (s.className || s.class || s.classes || '').trim()
+      const classNorm = norm(sClass)
+
+      if (classNorm && (classNorm === targetNorm || classNorm === 'all' || classNorm === 'allclasses' || classNorm === 'allclass')) {
+        if (!matchedClassSubjects.includes(sName)) {
+          matchedClassSubjects.push(sName)
+        }
+      }
+    })
+
+    if (matchedClassSubjects.length > 0) {
+      return matchedClassSubjects
+    }
+
+    // B. Fallback: check unassigned subjects in masters
+    const unassigned: string[] = []
+    allSubjectsRecords.forEach(s => {
+      if (s.deleted) return
+      const sName = (s.subjectName || s.name || '').trim()
+      if (!sName) return
+      const sClass = (s.className || s.class || s.classes || '').trim()
+      if (!sClass) {
+        if (!unassigned.includes(sName)) {
+          unassigned.push(sName)
+        }
+      }
+    })
+
+    if (unassigned.length > 0) {
+      return unassigned
+    }
+
+    // C. Default fallback if no subjects exist
+    return DEFAULT_SUBJECTS
+  }
+
   const availableViewSections = useMemo(() => {
     return getSectionsForClass(selectedClass)
   }, [selectedClass, classesData, sectionsData])
@@ -467,6 +545,10 @@ export default function TimeTablePage() {
   const availableModalSections = useMemo(() => {
     return getSectionsForClass(modalClass)
   }, [modalClass, classesData, sectionsData])
+
+  const modalAvailableSubjects = useMemo(() => {
+    return getSubjectsForClass(modalClass || selectedClass)
+  }, [modalClass, selectedClass, allSubjectsRecords])
 
   // Find active schedule (only when both class and section are selected)
   const activeRecord = (selectedClass && selectedSection)
@@ -479,6 +561,7 @@ export default function TimeTablePage() {
   const addSubjectRow = () => {
     const current = [...(modalSlots[activeModalDay] || [])]
     const nextId = Date.now()
+    const availableSubs = getSubjectsForClass(modalClass || selectedClass)
     setModalSlots({
       ...modalSlots,
       [activeModalDay]: [
@@ -487,7 +570,7 @@ export default function TimeTablePage() {
           id: nextId, 
           timeFrom: '09:00 AM', 
           timeTo: '09:45 AM', 
-          subject: subjectsList[0] || 'Maths', 
+          subject: availableSubs[0] || 'English', 
           teacher: teachersList[0] || 'Dr. S. K. Sharma' 
         }
       ]
@@ -565,20 +648,32 @@ export default function TimeTablePage() {
     e.preventDefault()
     const trimmed = newSubjectNameInput.trim()
     if (!trimmed) return
-    if (!subjectsList.includes(trimmed)) {
-      setSubjectsList(prev => [trimmed, ...prev])
-      try {
-        const saved = localStorage.getItem('school_masters_subjects')
-        const arr = saved ? JSON.parse(saved) : []
-        arr.push({ subjectName: trimmed, name: trimmed, type: 'Marks' })
-        localStorage.setItem('school_masters_subjects', JSON.stringify(arr))
-      } catch (err) {
-        console.error(err)
-      }
+    const activeClass = modalClass || selectedClass
+
+    const newRecord = {
+      id: Date.now(),
+      subjectName: trimmed,
+      name: trimmed,
+      className: activeClass,
+      type: 'Marks',
+      deleted: false
     }
+
+    setAllSubjectsRecords(prev => [newRecord, ...prev])
+    setSubjectsList(prev => [trimmed, ...prev])
+
+    try {
+      const saved = localStorage.getItem('school_masters_subjects')
+      const arr = saved ? JSON.parse(saved) : []
+      arr.unshift(newRecord)
+      localStorage.setItem('school_masters_subjects', JSON.stringify(arr))
+    } catch (err) {
+      console.error(err)
+    }
+
     setNewSubjectNameInput('')
     setQuickAddSubjectModal(false)
-    setToastMsg(`Subject "${trimmed}" added!`)
+    setToastMsg(`Subject "${trimmed}" added for ${activeClass || 'all classes'}!`)
     setToastOpen(true)
     setTimeout(() => setToastOpen(false), 2500)
   }
@@ -1259,15 +1354,22 @@ export default function TimeTablePage() {
                         >
                           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3.5 items-end">
                             
-                            {/* Subject Picker */}
+                            {/* Subject Picker (Filtered Class-Wise) */}
                             <div className="flex flex-col gap-1.5">
                               <div className="flex items-center justify-between">
-                                <label className="text-slate-500 font-bold text-[11px]">Subject *</label>
+                                <label className="text-slate-500 font-bold text-[11px] flex items-center gap-1">
+                                  <span>Subject *</span>
+                                  {modalClass && (
+                                    <span className="text-[9.5px] text-teal-600 dark:text-teal-400 font-semibold">
+                                      ({modalClass})
+                                    </span>
+                                  )}
+                                </label>
                                 <button
                                   type="button"
                                   onClick={() => setQuickAddSubjectModal(true)}
                                   className="text-[10px] text-teal-600 hover:underline font-bold"
-                                  title="Add a new subject to list"
+                                  title={`Add a new subject for ${modalClass || 'all classes'}`}
                                 >
                                   + New
                                 </button>
@@ -1279,7 +1381,10 @@ export default function TimeTablePage() {
                                 required 
                               >
                                 <option value="">Select Subject</option>
-                                {subjectsList.map((sName) => (
+                                {slot.subject && !modalAvailableSubjects.includes(slot.subject) && (
+                                  <option value={slot.subject}>{slot.subject}</option>
+                                )}
+                                {modalAvailableSubjects.map((sName) => (
                                   <option key={sName} value={sName}>{sName}</option>
                                 ))}
                               </select>
