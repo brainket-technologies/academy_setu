@@ -18,9 +18,136 @@ import {
   FileText,
   MapPin,
   Check,
-  Edit3
+  Edit3,
+  Upload,
+  Move,
+  RotateCcw,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Type,
+  Palette,
+  Layers,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  Sliders,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  MousePointer,
+  GripVertical
 } from 'lucide-react'
 import { AdmitCardConfig, getStoredTimetables } from '@/lib/admit-card-sync'
+
+export interface CanvaElementWrapperProps {
+  id: string
+  label: string
+  isSelected: boolean
+  isCanvaMode: boolean
+  offset: { x: number; y: number }
+  scale?: number
+  onSelect: (id: string, e: React.MouseEvent) => void
+  onStartDrag: (id: string, e: React.MouseEvent) => void
+  onNudge?: (dx: number, dy: number) => void
+  onReset?: () => void
+  children: React.ReactNode
+  className?: string
+  style?: React.CSSProperties
+  isDragging?: boolean
+}
+
+export const CanvaElementWrapper: React.FC<CanvaElementWrapperProps> = ({
+  id,
+  label,
+  isSelected,
+  isCanvaMode,
+  offset,
+  scale = 1,
+  onSelect,
+  onStartDrag,
+  onNudge,
+  onReset,
+  children,
+  className = '',
+  style = {},
+  isDragging = false
+}) => {
+  if (!isCanvaMode) {
+    return (
+      <div
+        className={className}
+        style={{
+          transform: (offset.x !== 0 || offset.y !== 0 || scale !== 1)
+            ? `translate(${offset.x}px, ${offset.y}px) scale(${scale})`
+            : undefined,
+          ...style
+        }}
+      >
+        {children}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      onClick={(e) => {
+        e.stopPropagation()
+        onSelect(id, e)
+      }}
+      className={`relative group transition-shadow ${className} ${
+        isSelected
+          ? 'ring-2 ring-blue-500 rounded-md z-30 shadow-lg'
+          : 'hover:ring-1 hover:ring-dashed hover:ring-blue-400 cursor-pointer'
+      }`}
+      style={{
+        transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+        transition: isDragging ? 'none' : 'transform 0.12s cubic-bezier(0.2, 0, 0, 1)',
+        ...style
+      }}
+    >
+      {/* Canva Floating Selection Indicator & Drag Handle Pill */}
+      {isSelected && (
+        <>
+          {/* Top Pill Handle */}
+          <div
+            onMouseDown={(e) => onStartDrag(id, e)}
+            className="absolute -top-7 left-0 z-40 bg-blue-600 hover:bg-blue-700 text-white px-2 py-0.5 rounded-t-md text-[9.5px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md cursor-grab active:cursor-grabbing select-none print:hidden"
+            title="Drag with mouse or use arrow keys to reposition"
+          >
+            <Move className="w-3 h-3 text-white/90" />
+            <span>{label}</span>
+            <span className="text-[8px] opacity-75 font-mono">
+              ({offset.x > 0 ? `+${offset.x}` : offset.x}, {offset.y > 0 ? `+${offset.y}` : offset.y})
+            </span>
+            {(offset.x !== 0 || offset.y !== 0) && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onReset?.()
+                }}
+                title="Reset element to original position"
+                className="hover:bg-blue-800 p-0.5 rounded text-white/90 hover:text-white"
+              >
+                <RotateCcw className="w-2.5 h-2.5" />
+              </button>
+            )}
+          </div>
+
+          {/* 4 Corner Resize / Anchor Points (Canva Signature Look) */}
+          <div className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-blue-600 rounded-sm shadow-2xs pointer-events-none z-40 print:hidden" />
+          <div className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-blue-600 rounded-sm shadow-2xs pointer-events-none z-40 print:hidden" />
+          <div className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-blue-600 rounded-sm shadow-2xs pointer-events-none z-40 print:hidden" />
+          <div className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-blue-600 rounded-sm shadow-2xs pointer-events-none z-40 print:hidden" />
+        </>
+      )}
+
+      {children}
+    </div>
+  )
+}
 
 interface AdmitCardModalPreviewProps {
   card: AdmitCardConfig | null
@@ -36,6 +163,7 @@ export interface AdmitCardPaperProps {
   customSubjects?: { subjectName: string; date: string; fromTime: string; toTime: string }[]
   className?: string
   editable?: boolean
+  canvaMode?: boolean
   onUpdateField?: (field: string, value: any) => void
   onUpdateSubject?: (idx: number, key: string, value: string) => void
 }
@@ -58,7 +186,9 @@ export function hexToRgba(hex?: string, alpha: number = 1): string {
 export const ProperQrCode: React.FC<{
   className?: string
   color?: string
-}> = ({ className = 'w-20 h-20', color = '#0f172a' }) => {
+  size?: number
+  style?: React.CSSProperties
+}> = ({ className = 'w-20 h-20', color = '#0f172a', size, style }) => {
   const isFinder = (r: number, c: number) => {
     if (r <= 6 && c <= 6) return true
     if (r <= 6 && c >= 18) return true
@@ -96,6 +226,7 @@ export const ProperQrCode: React.FC<{
     <svg
       viewBox="0 0 25 25"
       className={className}
+      style={size ? { width: `${size}px`, height: `${size}px`, ...style } : style}
       shapeRendering="crispEdges"
       xmlns="http://www.w3.org/2000/svg"
     >
@@ -202,6 +333,12 @@ export interface LiveEditableTextProps {
   placeholder?: string
   editable?: boolean
   title?: string
+  tooltipPosition?: 'top' | 'bottom' | 'auto'
+  fontSizeControl?: {
+    value: string | number
+    onChange: (newValue: string) => void
+    label?: string
+  }
 }
 
 export const LiveEditableText: React.FC<LiveEditableTextProps> = ({
@@ -213,11 +350,28 @@ export const LiveEditableText: React.FC<LiveEditableTextProps> = ({
   multiline = false,
   placeholder = 'Click to edit...',
   editable = true,
-  title = 'Click to edit text live'
+  title = 'Click to edit text live',
+  tooltipPosition = 'bottom',
+  fontSizeControl
 }) => {
   const [currentVal, setCurrentVal] = useState(value || '')
+  const [showSizeTooltip, setShowSizeTooltip] = useState(false)
   const elRef = useRef<HTMLElement | null>(null)
   const isFocused = useRef(false)
+
+  // Track dynamic font size from style or control
+  const parsedStyleSize = style?.fontSize ? parseFloat(String(style.fontSize)) : undefined
+  const [internalSize, setInternalSize] = useState<number | undefined>(parsedStyleSize)
+
+  useEffect(() => {
+    if (fontSizeControl?.value !== undefined) {
+      const parsed = parseFloat(String(fontSizeControl.value))
+      if (!isNaN(parsed) && parsed > 0) setInternalSize(parsed)
+    } else if (style?.fontSize) {
+      const parsed = parseFloat(String(style.fontSize))
+      if (!isNaN(parsed) && parsed > 0) setInternalSize(parsed)
+    }
+  }, [fontSizeControl?.value, style?.fontSize])
 
   useEffect(() => {
     if (!isFocused.current) {
@@ -234,36 +388,121 @@ export const LiveEditableText: React.FC<LiveEditableTextProps> = ({
   }
 
   const Tag = tag as any
+  const isBlock = ['h1', 'h2', 'h3', 'h4', 'p', 'div'].includes(tag) || (className.split(/\s+/).includes('block') && !className.split(/\s+/).includes('inline-block'))
+
+  const currentFontSize = fontSizeControl?.value !== undefined
+    ? (parseFloat(String(fontSizeControl.value)) || 14)
+    : (internalSize || parsedStyleSize || 13)
+
+  const handleSizeChange = (delta: number) => {
+    const nextSize = Math.max(6, Math.min(48, Math.round((currentFontSize + delta) * 2) / 2))
+    if (fontSizeControl?.onChange) {
+      fontSizeControl.onChange(String(nextSize))
+    } else {
+      setInternalSize(nextSize)
+    }
+  }
+
+  const mergedStyle: React.CSSProperties = {
+    ...style,
+    ...(internalSize && !fontSizeControl ? { fontSize: `${internalSize}px` } : {})
+  }
 
   return (
-    <Tag
-      ref={elRef}
-      contentEditable
-      suppressContentEditableWarning
-      spellCheck={false}
-      title={title}
-      className={`${className} outline-none cursor-pointer transition-all rounded-xs hover:outline hover:outline-1 hover:outline-dashed hover:outline-amber-500/80 hover:bg-amber-50/60 dark:hover:bg-amber-950/30 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white focus:text-slate-900 print:outline-none print:ring-0 print:bg-transparent`}
-      style={style}
-      onFocus={() => {
-        isFocused.current = true
-      }}
-      onBlur={(e: React.FocusEvent<HTMLElement>) => {
-        isFocused.current = false
-        const text = (e.currentTarget.innerText || '').trim()
-        setCurrentVal(text)
-        if (text !== value) {
-          onSave?.(text)
-        }
-      }}
-      onKeyDown={(e: React.KeyboardEvent<HTMLElement>) => {
-        if (e.key === 'Enter' && !multiline) {
-          e.preventDefault()
-          e.currentTarget.blur()
-        }
-      }}
-    >
-      {currentVal || placeholder}
-    </Tag>
+    <span className={`relative group/live-text max-w-full ${isBlock ? 'block w-full' : 'inline-block'}`}>
+      <Tag
+        ref={elRef}
+        contentEditable
+        suppressContentEditableWarning
+        spellCheck={false}
+        title={title}
+        className={`${className} outline-none cursor-pointer transition-all rounded-xs hover:outline hover:outline-1 hover:outline-dashed hover:outline-amber-500/80 hover:bg-amber-50/60 dark:hover:bg-amber-950/30 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white focus:text-slate-900 print:outline-none print:ring-0 print:bg-transparent`}
+        style={mergedStyle}
+        onClick={() => {
+          setShowSizeTooltip(true)
+        }}
+        onFocus={() => {
+          isFocused.current = true
+          setShowSizeTooltip(true)
+        }}
+        onBlur={(e: React.FocusEvent<HTMLElement>) => {
+          isFocused.current = false
+          setTimeout(() => setShowSizeTooltip(false), 250)
+          const text = (e.currentTarget.innerText || '').trim()
+          setCurrentVal(text)
+          if (text !== value) {
+            onSave?.(text)
+          }
+        }}
+        onKeyDown={(e: React.KeyboardEvent<HTMLElement>) => {
+          if (e.key === 'Enter' && !multiline) {
+            e.preventDefault()
+            e.currentTarget.blur()
+          }
+        }}
+      >
+        {currentVal || placeholder}
+      </Tag>
+
+      {/* Floating Font Size (A- / A+) Toolbar on Click/Focus */}
+      {editable && showSizeTooltip && (
+        <span
+          contentEditable={false}
+          onMouseDown={e => {
+            e.preventDefault()
+            e.stopPropagation()
+          }}
+          className={`absolute z-50 inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-900/95 text-white rounded-lg shadow-2xl text-xs whitespace-nowrap border border-slate-700 pointer-events-auto print:hidden select-none animate-in fade-in zoom-in-95 ${
+            tooltipPosition === 'top'
+              ? '-top-9 left-1/2 -translate-x-1/2'
+              : 'top-full mt-1.5 left-1/2 -translate-x-1/2'
+          }`}
+        >
+          <span className="text-[9.5px] text-slate-300 font-bold uppercase tracking-wider">
+            {fontSizeControl?.label || 'Font'}:
+          </span>
+          <button
+            type="button"
+            title="Make font smaller (A-)"
+            onMouseDown={e => {
+              e.preventDefault()
+              e.stopPropagation()
+              handleSizeChange(-1)
+            }}
+            className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 text-amber-300 font-black text-xs flex items-center justify-center border border-slate-700 transition-all cursor-pointer"
+          >
+            A-
+          </button>
+          <span className="font-mono font-black text-emerald-400 text-xs px-1 min-w-[32px] text-center">
+            {currentFontSize}px
+          </span>
+          <button
+            type="button"
+            title="Make font bigger (A+)"
+            onMouseDown={e => {
+              e.preventDefault()
+              e.stopPropagation()
+              handleSizeChange(1)
+            }}
+            className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 text-amber-300 font-black text-xs flex items-center justify-center border border-slate-700 transition-all cursor-pointer"
+          >
+            A+
+          </button>
+          <button
+            type="button"
+            title="Close"
+            onMouseDown={e => {
+              e.preventDefault()
+              e.stopPropagation()
+              setShowSizeTooltip(false)
+            }}
+            className="w-4 h-4 ml-0.5 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-[10px] cursor-pointer"
+          >
+            ×
+          </button>
+        </span>
+      )}
+    </span>
   )
 }
 
@@ -314,11 +553,20 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
       section: true,
       photo: true,
       logo: true,
+      qrCode: true,
       studentSign: true,
       teacherSign: true,
       principalSign: true,
       parentSign: true,
-      schoolStamp: false
+      schoolStamp: false,
+      affiliationDetails: true,
+      boardFormat: true,
+      verifiedPass: true,
+      centerCode: true,
+      helpline: true,
+      mottoQuote: true,
+      reportingTime: true,
+      gateClosure: true
     }
     return defaults[key] ?? true
   }
@@ -449,13 +697,74 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
     centerName: 'Cosmopolitan Examination Center'
   }
 
-  const photoWidth = card.studentPhotoWidth ? Number(card.studentPhotoWidth) : (card.studentPhotoSize ? Number(card.studentPhotoSize) : 96)
+  const logoPosition: 'left' | 'center' | 'right' = (card.logoPosition as any) || 'left'
+  const contentPosition: 'left' | 'center' | 'right' = (card.contentPosition as any) || 'left'
+  const photoPosition: 'right' | 'left' = (card.photoPosition as any) || 'right'
+
+  const photoWidth = card.studentPhotoWidth ? Number(card.studentPhotoWidth) : (card.studentPhotoSize ? Number(card.studentPhotoSize) : 88)
   const photoHeight = card.studentPhotoHeight ? Number(card.studentPhotoHeight) : Math.round(photoWidth * 1.25)
   const stampSize = card.schoolStampWidth ? Number(card.schoolStampWidth) : 56
-  const logoWidth = card.schoolLogoWidth ? Number(card.schoolLogoWidth) : 60
+  const logoWidth = card.schoolLogoWidth ? Number(card.schoolLogoWidth) : 54
   const logoHeight = card.schoolLogoHeight ? Number(card.schoolLogoHeight) : logoWidth
   const schoolLogo = card.schoolLogo || ''
-  const showLogo = isFieldVisible('logo')
+  const showLogo = card.displayFields?.logo !== false
+  const reportingTimeValue = card.reportingTimeValue || '09:30 AM IST'
+  const gateClosureValue = card.gateClosureValue || '09:50 AM (Sharp)'
+
+  const qrCodeSize = card.qrCodeSize ? Number(card.qrCodeSize) : 68
+  const signatureWidth = card.signatureWidth ? Number(card.signatureWidth) : 95
+  const signatureFontSize = card.signatureFontSize
+    ? (card.signatureFontSize.toString().endsWith('px') ? card.signatureFontSize : `${card.signatureFontSize}px`)
+    : undefined
+
+  // Intelligent scaling helper that prevents legacy 30px address or 18px instructions from distorting any template
+  const parseSizeWithClamp = (val: any, defaultVal: number, min: number, max: number): string => {
+    if (!val) return `${defaultVal}px`
+    const num = parseFloat(val.toString())
+    if (isNaN(num)) return `${defaultVal}px`
+    if (num > max) return `${defaultVal}px`
+    if (num < min) return `${min}px`
+    return `${num}px`
+  }
+
+  const headerNameFontSize = parseSizeWithClamp(card.headerNameFontSize, 22, 14, 32)
+  const headerDetailsFontSize = parseSizeWithClamp(card.headerDetailsFontSize, 10, 8, 16)
+  const headingFontSize = parseSizeWithClamp(card.headingFontSize, 13, 10, 20)
+  const studentDetailsFontSize = parseSizeWithClamp(card.studentDetailsFontSize, 11, 8.5, 15)
+  const timetableDetailsFontSize = parseSizeWithClamp(card.timetableDetailsFontSize, 11, 8.5, 15)
+  const instructionsFontSize = parseSizeWithClamp(card.defaultFontSize, 8.5, 7, 13)
+
+  const renderInteractiveLogo = (customClass?: string) => {
+    if (!showLogo) return null
+    return (
+      <div
+        onClick={() => {
+          if (editable) onUpdateField?.('triggerLogoUpload', true)
+        }}
+        title={editable ? 'Click to upload or change institute logo' : undefined}
+        className={`shrink-0 flex items-center justify-center relative group ${customClass || ''} ${
+          editable ? 'cursor-pointer hover:ring-2 hover:ring-teal-500 rounded-lg p-0.5 transition-all' : ''
+        }`}
+      >
+        {schoolLogo ? (
+          <img
+            src={schoolLogo}
+            alt="School Logo"
+            style={{ width: `${logoWidth}px`, height: `${logoHeight}px`, objectFit: 'contain' }}
+            className="rounded-lg object-contain shadow-2xs"
+          />
+        ) : (
+          <SampleSchoolLogo width={logoWidth} height={logoHeight} color={primaryColor} />
+        )}
+        {editable && (
+          <div className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 rounded-lg flex flex-col items-center justify-center text-[7.5px] font-bold transition-opacity">
+            <Upload className="w-3.5 h-3.5 mb-0.5" />
+            <span>Change</span>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const orderList = Array.isArray(card.signatureOrder) && card.signatureOrder.length > 0
     ? card.signatureOrder
@@ -498,31 +807,42 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
           }}
         >
           {/* Header */}
-          <div className="flex justify-between items-center border-b-2 pb-3 mb-3" style={{ borderColor: borderTintStrong }}>
-            <div className="flex items-center gap-3.5">
-              {showLogo && (
-                <div className="shrink-0 flex items-center justify-center">
-                  {schoolLogo ? (
-                    <img
-                      src={schoolLogo}
-                      alt="School Logo"
-                      style={{ width: `${logoWidth}px`, height: `${logoHeight}px`, objectFit: 'contain' }}
-                      className="rounded-lg object-contain shadow-2xs"
-                    />
-                  ) : (
-                    <SampleSchoolLogo width={logoWidth} height={logoHeight} color={primaryColor} />
-                  )}
-                </div>
-              )}
+          <div
+            className={`flex ${
+              logoPosition === 'center'
+                ? 'flex-col items-center text-center'
+                : logoPosition === 'right'
+                ? 'flex-row-reverse justify-between items-center'
+                : 'flex-row justify-between items-center'
+            } border-b-2 pb-3 mb-3 gap-3.5`}
+            style={{ borderColor: borderTintStrong }}
+          >
+            <div
+              className={`flex items-center gap-3.5 ${
+                logoPosition === 'right' ? 'flex-row-reverse' : ''
+              } ${
+                contentPosition === 'center'
+                  ? 'items-center text-center'
+                  : contentPosition === 'right'
+                  ? 'items-end text-right'
+                  : 'items-start text-left'
+              }`}
+            >
+              {renderInteractiveLogo()}
 
-              <div>
+              <div className={contentPosition === 'center' ? 'text-center' : contentPosition === 'right' ? 'text-right' : 'text-left'}>
                 <LiveEditableText
                   tag="h1"
                   value={schoolName}
                   editable={editable}
                   onSave={val => onUpdateField?.('schoolName', val)}
-                  className="text-xl sm:text-2xl font-black uppercase tracking-wide inline-block"
-                  style={{ color: primaryColor }}
+                  className="text-xl sm:text-2xl font-black uppercase tracking-wide block leading-snug"
+                  style={{ color: primaryColor, fontSize: headerNameFontSize }}
+                  fontSizeControl={{
+                    label: 'School Heading',
+                    value: headerNameFontSize ? parseInt(headerNameFontSize) : 24,
+                    onChange: val => onUpdateField?.('headerNameFontSize', val)
+                  }}
                 />
                 <LiveEditableText
                   tag="p"
@@ -530,61 +850,79 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                   editable={editable}
                   onSave={val => onUpdateField?.('schoolAddress', val)}
                   className="text-[10.5px] font-semibold text-slate-600 leading-tight block mt-0.5"
+                  style={{ fontSize: headerDetailsFontSize }}
+                  fontSizeControl={{
+                    label: 'Address',
+                    value: headerDetailsFontSize ? parseFloat(headerDetailsFontSize) : 10.5,
+                    onChange: val => onUpdateField?.('headerDetailsFontSize', val)
+                  }}
                 />
 
-                <div className="grid grid-cols-2 gap-x-5 gap-y-0.5 text-[9px] font-bold text-slate-700 mt-1.5">
-                  <div>
-                    <LiveEditableText value={labels.affTo || 'Aff. To :'} editable={editable} onSave={val => updateLabel('affTo', val)} className="inline-block" />{' '}
-                    <span className="text-slate-800 font-semibold">{specimenStudent.affiliateTo}</span>
+                {isFieldVisible('affiliationDetails') && (
+                  <div className={`grid grid-cols-2 gap-x-5 gap-y-0.5 text-[9px] font-bold text-slate-700 mt-1.5 ${contentPosition === 'center' ? 'text-center' : contentPosition === 'right' ? 'text-right' : 'text-left'}`}>
+                    <div className="flex items-center gap-1 whitespace-nowrap">
+                      <LiveEditableText value={labels.affTo || 'Aff. To :'} editable={editable} onSave={val => updateLabel('affTo', val)} className="inline-block shrink-0" />{' '}
+                      <span className="text-slate-800 font-semibold">{specimenStudent.affiliateTo}</span>
+                    </div>
+                    <div className="flex items-center gap-1 whitespace-nowrap">
+                      <LiveEditableText value={labels.schoolCode || 'School Code :'} editable={editable} onSave={val => updateLabel('schoolCode', val)} className="inline-block shrink-0" />{' '}
+                      <span className="text-slate-800 font-semibold">{specimenStudent.schoolCode}</span>
+                    </div>
+                    <div className="flex items-center gap-1 whitespace-nowrap">
+                      <LiveEditableText value={labels.affNo || 'Aff. No. :'} editable={editable} onSave={val => updateLabel('affNo', val)} className="inline-block shrink-0" />{' '}
+                      <span className="text-slate-800 font-semibold">{specimenStudent.affNo}</span>
+                    </div>
+                    <div className="flex items-center gap-1 whitespace-nowrap">
+                      <LiveEditableText value={labels.udiseCode || 'UDISE Code :'} editable={editable} onSave={val => updateLabel('udiseCode', val)} className="inline-block shrink-0" />{' '}
+                      <span className="text-slate-800 font-semibold">{specimenStudent.udiseCode}</span>
+                    </div>
                   </div>
-                  <div>
-                    <LiveEditableText value={labels.schoolCode || 'School Code :'} editable={editable} onSave={val => updateLabel('schoolCode', val)} className="inline-block" />{' '}
-                    <span className="text-slate-800 font-semibold">{specimenStudent.schoolCode}</span>
-                  </div>
-                  <div>
-                    <LiveEditableText value={labels.affNo || 'Aff. No. :'} editable={editable} onSave={val => updateLabel('affNo', val)} className="inline-block" />{' '}
-                    <span className="text-slate-800 font-semibold">{specimenStudent.affNo}</span>
-                  </div>
-                  <div>
-                    <LiveEditableText value={labels.udiseCode || 'UDISE Code :'} editable={editable} onSave={val => updateLabel('udiseCode', val)} className="inline-block" />{' '}
-                    <span className="text-slate-800 font-semibold">{specimenStudent.udiseCode}</span>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
 
             <div className="flex flex-col items-end gap-1 shrink-0">
-              <LiveEditableText
-                value={labels.boardFormat || 'Board Format'}
-                editable={editable}
-                onSave={val => updateLabel('boardFormat', val)}
-                className="px-2.5 py-0.5 rounded text-[8px] font-black uppercase text-white shadow-xs inline-block"
-                style={{ backgroundColor: primaryColor }}
-              />
-              <div className="bg-white p-1 rounded-md border border-slate-300 shadow-2xs flex flex-col items-center">
-                <ProperQrCode className="w-20 h-20" color={primaryColor} />
+              {isFieldVisible('boardFormat') && (
                 <LiveEditableText
-                  value={labels.qrCodeText || 'CODE: 123456'}
+                  value={labels.boardFormat || 'Board Format'}
                   editable={editable}
-                  onSave={val => updateLabel('qrCodeText', val)}
-                  className="text-[7.5px] text-slate-500 font-bold font-mono tracking-wider inline-block mt-0.5"
+                  onSave={val => updateLabel('boardFormat', val)}
+                  className="px-2.5 py-0.5 rounded text-[8px] font-black uppercase text-white shadow-xs inline-block"
+                  style={{ backgroundColor: primaryColor }}
                 />
-              </div>
+              )}
+              {isFieldVisible('qrCode') && (
+                <div className="bg-white p-1 rounded-md border border-slate-300 shadow-2xs flex flex-col items-center">
+                  <ProperQrCode size={qrCodeSize} color={primaryColor} />
+                  <LiveEditableText
+                    value={labels.qrCodeText || 'CODE: 123456'}
+                    editable={editable}
+                    onSave={val => updateLabel('qrCodeText', val)}
+                    className="text-[7.5px] text-slate-500 font-bold font-mono tracking-wider inline-block mt-0.5"
+                  />
+                </div>
+              )}
             </div>
           </div>
 
           {/* Sub Header Contact */}
-          <div className="flex justify-center gap-6 text-[9.5px] font-bold text-slate-600 border-b pb-1.5 mb-3" style={{ borderColor: borderTint }}>
-            <span>
-              <LiveEditableText value={labels.email || 'Email :'} editable={editable} onSave={val => updateLabel('email', val)} className="inline-block" />{' '}
-              <span className="font-normal text-slate-700">{specimenStudent.email}</span>
-            </span>
-            <span>•</span>
-            <span>
-              <LiveEditableText value={labels.helpline || 'Helpline :'} editable={editable} onSave={val => updateLabel('helpline', val)} className="inline-block" />{' '}
-              <span className="font-normal text-slate-700">{specimenStudent.phone}</span>
-            </span>
-          </div>
+          {(isFieldVisible('email') || isFieldVisible('helpline') || isFieldVisible('mobileNo')) && (
+            <div className="flex justify-center gap-6 text-[9.5px] font-bold text-slate-600 border-b pb-1.5 mb-3" style={{ borderColor: borderTint }}>
+              {isFieldVisible('email') && (
+                <span>
+                  <LiveEditableText value={labels.email || 'Email :'} editable={editable} onSave={val => updateLabel('email', val)} className="inline-block" />{' '}
+                  <span className="font-normal text-slate-700">{specimenStudent.email}</span>
+                </span>
+              )}
+              {isFieldVisible('email') && (isFieldVisible('helpline') || isFieldVisible('mobileNo')) && <span>•</span>}
+              {(isFieldVisible('helpline') || isFieldVisible('mobileNo')) && (
+                <span>
+                  <LiveEditableText value={labels.helpline || 'Helpline :'} editable={editable} onSave={val => updateLabel('helpline', val)} className="inline-block" />{' '}
+                  <span className="font-normal text-slate-700">{specimenStudent.phone}</span>
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Title Banner */}
           <div className="text-center my-1.5">
@@ -598,13 +936,19 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                 editable={editable}
                 onSave={val => onUpdateField?.('admitCardLabel', val)}
                 className="text-sm sm:text-base font-black tracking-widest uppercase text-white inline-block"
+                style={{ fontSize: headingFontSize }}
+                fontSizeControl={{
+                  label: 'Admit Title',
+                  value: headingFontSize ? parseInt(headingFontSize) : 14,
+                  onChange: val => onUpdateField?.('headingFontSize', val)
+                }}
               />
             </div>
           </div>
 
           {/* Term & Session info bar (LABELS AND EXAM/SESSION ARE EDITABLE) */}
           <div
-            className="flex justify-between items-center text-[11px] font-black uppercase mb-3.5 px-3 py-1.5 rounded-lg border"
+            className="flex flex-wrap justify-between items-center text-[11px] font-black uppercase mb-3.5 px-3 py-1.5 rounded-lg border gap-2"
             style={{
               backgroundColor: bgTintLight,
               borderColor: borderTint,
@@ -615,6 +959,18 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
               <LiveEditableText value={labels.examTitle || 'EXAMINATION :'} editable={editable} onSave={val => updateLabel('examTitle', val)} className="inline-block" />{' '}
               <LiveEditableText value={examName} editable={editable} onSave={val => onUpdateField?.('examName', val)} className="inline-block ml-1" />
             </span>
+            {isFieldVisible('reportingTime') && (
+              <span className="flex items-center gap-1">
+                <LiveEditableText value={labels.reportingTime || 'Reporting :'} editable={editable} onSave={val => updateLabel('reportingTime', val)} className="inline-block text-slate-500 font-bold" />{' '}
+                <LiveEditableText value={reportingTimeValue} editable={editable} onSave={val => onUpdateField?.('reportingTimeValue', val)} className="inline-block font-extrabold text-slate-900" />
+              </span>
+            )}
+            {isFieldVisible('gateClosure') && (
+              <span className="flex items-center gap-1">
+                <LiveEditableText value={labels.gateClosure || 'Gate Closure :'} editable={editable} onSave={val => updateLabel('gateClosure', val)} className="inline-block text-rose-500 font-bold" />{' '}
+                <LiveEditableText value={gateClosureValue} editable={editable} onSave={val => onUpdateField?.('gateClosureValue', val)} className="inline-block font-extrabold text-rose-700" />
+              </span>
+            )}
             <span>
               <LiveEditableText value={labels.sessionTitle || 'ACADEMIC SESSION :'} editable={editable} onSave={val => updateLabel('sessionTitle', val)} className="inline-block" />{' '}
               <LiveEditableText value={session} editable={editable} onSave={val => onUpdateField?.('session', val)} className="inline-block ml-1" />
@@ -622,171 +978,171 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
           </div>
 
           {/* Student Details (PRIMARY LABELS ARE EDITABLE, DUMMY SPECIMEN DATA IS STATIC) */}
-          <div className="flex gap-4 items-start mb-4">
-            <div className="flex-1 grid grid-cols-2 gap-x-5 gap-y-2 text-xs text-slate-800">
+          <div className={`flex gap-4 items-start mb-4 ${photoPosition === 'left' ? 'flex-row-reverse' : ''}`}>
+            <div className="flex-1 grid grid-cols-2 gap-x-5 gap-y-2 text-xs text-slate-800" style={{ fontSize: studentDetailsFontSize }}>
               {isFieldVisible('admissionNo') && (
-                <div className="flex items-center">
+                <div className="flex items-center min-w-0">
                   <LiveEditableText
                     value={labels.admissionNo || 'Admission No. :'}
                     editable={editable}
                     onSave={val => updateLabel('admissionNo', val)}
-                    className="font-extrabold whitespace-nowrap inline-block"
+                    className="font-extrabold whitespace-nowrap inline-block shrink-0"
                   />
-                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-900 px-1">
+                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-900 px-1 whitespace-nowrap">
                     {specimenStudent.admissionNo}
                   </span>
                 </div>
               )}
 
               {isFieldVisible('registrationNo') && (
-                <div className="flex items-center">
+                <div className="flex items-center min-w-0">
                   <LiveEditableText
                     value={labels.registrationNo || 'Registration No. :'}
                     editable={editable}
                     onSave={val => updateLabel('registrationNo', val)}
-                    className="font-extrabold whitespace-nowrap inline-block"
+                    className="font-extrabold whitespace-nowrap inline-block shrink-0"
                   />
-                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-900 px-1">
+                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-900 px-1 whitespace-nowrap">
                     {specimenStudent.registrationNo}
                   </span>
                 </div>
               )}
 
               {isFieldVisible('rollNo') && (
-                <div className="flex items-center">
+                <div className="flex items-center min-w-0">
                   <LiveEditableText
                     value={labels.rollNo || 'Roll No. :'}
                     editable={editable}
                     onSave={val => updateLabel('rollNo', val)}
-                    className="font-extrabold whitespace-nowrap inline-block"
+                    className="font-extrabold whitespace-nowrap inline-block shrink-0"
                   />
-                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-black text-slate-900 px-1" style={{ color: primaryColor }}>
+                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-black text-slate-900 px-1 whitespace-nowrap" style={{ color: primaryColor }}>
                     {specimenStudent.rollNo}
                   </span>
                 </div>
               )}
 
               {isFieldVisible('enrollmentNo') && (
-                <div className="flex items-center">
+                <div className="flex items-center min-w-0">
                   <LiveEditableText
                     value={labels.enrollmentNo || 'Enrollment No. :'}
                     editable={editable}
                     onSave={val => updateLabel('enrollmentNo', val)}
-                    className="font-extrabold whitespace-nowrap inline-block"
+                    className="font-extrabold whitespace-nowrap inline-block shrink-0"
                   />
-                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-900 px-1">
+                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-900 px-1 whitespace-nowrap">
                     {specimenStudent.enrollmentNo}
                   </span>
                 </div>
               )}
 
               {isFieldVisible('name') && (
-                <div className="flex items-center col-span-2">
+                <div className="flex items-center col-span-2 min-w-0">
                   <LiveEditableText
                     value={labels.name || 'Candidate Name :'}
                     editable={editable}
                     onSave={val => updateLabel('name', val)}
-                    className="font-extrabold whitespace-nowrap inline-block"
+                    className="font-extrabold whitespace-nowrap inline-block shrink-0"
                   />
-                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-black text-sm px-1" style={{ color: primaryColor }}>
+                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-black text-sm px-1 truncate" style={{ color: primaryColor }}>
                     {specimenStudent.name}
                   </span>
                 </div>
               )}
 
               {isFieldVisible('fatherName') && (
-                <div className="flex items-center">
+                <div className="flex items-center min-w-0">
                   <LiveEditableText
                     value={labels.fatherName || 'Father Name :'}
                     editable={editable}
                     onSave={val => updateLabel('fatherName', val)}
-                    className="font-extrabold whitespace-nowrap inline-block"
+                    className="font-extrabold whitespace-nowrap inline-block shrink-0"
                   />
-                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-700 px-1">
+                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-700 px-1 truncate">
                     {specimenStudent.fatherName}
                   </span>
                 </div>
               )}
 
               {isFieldVisible('motherName') && (
-                <div className="flex items-center">
+                <div className="flex items-center min-w-0">
                   <LiveEditableText
                     value={labels.motherName || 'Mother Name :'}
                     editable={editable}
                     onSave={val => updateLabel('motherName', val)}
-                    className="font-extrabold whitespace-nowrap inline-block"
+                    className="font-extrabold whitespace-nowrap inline-block shrink-0"
                   />
-                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-700 px-1">
+                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-700 px-1 truncate">
                     {specimenStudent.motherName}
                   </span>
                 </div>
               )}
 
               {isFieldVisible('class') && (
-                <div className="flex items-center">
+                <div className="flex items-center min-w-0">
                   <LiveEditableText
                     value={labels.class || 'Class :'}
                     editable={editable}
                     onSave={val => updateLabel('class', val)}
-                    className="font-extrabold whitespace-nowrap inline-block"
+                    className="font-extrabold whitespace-nowrap inline-block shrink-0"
                   />
-                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-black text-slate-900 px-1">
+                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-black text-slate-900 px-1 whitespace-nowrap">
                     {classNameStr}
                   </span>
                 </div>
               )}
 
               {isFieldVisible('section') && (
-                <div className="flex items-center">
+                <div className="flex items-center min-w-0">
                   <LiveEditableText
                     value={labels.section || 'Section :'}
                     editable={editable}
                     onSave={val => updateLabel('section', val)}
-                    className="font-extrabold whitespace-nowrap inline-block"
+                    className="font-extrabold whitespace-nowrap inline-block shrink-0"
                   />
-                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-black text-slate-900 px-1">
+                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-black text-slate-900 px-1 whitespace-nowrap">
                     {specimenStudent.section}
                   </span>
                 </div>
               )}
 
               {isFieldVisible('dob') && (
-                <div className="flex items-center">
+                <div className="flex items-center min-w-0">
                   <LiveEditableText
                     value={labels.dob || 'Date of Birth :'}
                     editable={editable}
                     onSave={val => updateLabel('dob', val)}
-                    className="font-extrabold whitespace-nowrap inline-block"
+                    className="font-extrabold whitespace-nowrap inline-block shrink-0"
                   />
-                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-700 px-1">
+                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-700 px-1 whitespace-nowrap">
                     {specimenStudent.dob}
                   </span>
                 </div>
               )}
 
               {isFieldVisible('mobileNo') && (
-                <div className="flex items-center">
+                <div className="flex items-center min-w-0">
                   <LiveEditableText
                     value={labels.mobileNo || 'Mobile No. :'}
                     editable={editable}
                     onSave={val => updateLabel('mobileNo', val)}
-                    className="font-extrabold whitespace-nowrap inline-block"
+                    className="font-extrabold whitespace-nowrap inline-block shrink-0"
                   />
-                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-700 px-1">
+                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 font-bold text-slate-700 px-1 whitespace-nowrap">
                     {specimenStudent.mobileNo}
                   </span>
                 </div>
               )}
 
               {isFieldVisible('address') && (
-                <div className="flex items-center col-span-2">
+                <div className="flex items-center col-span-2 min-w-0">
                   <LiveEditableText
                     value={labels.address || 'Address :'}
                     editable={editable}
                     onSave={val => updateLabel('address', val)}
-                    className="font-extrabold whitespace-nowrap inline-block"
+                    className="font-extrabold whitespace-nowrap inline-block shrink-0"
                   />
-                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 text-[11px] text-slate-600 px-1">
+                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 text-[11px] text-slate-600 px-1 truncate">
                     {specimenStudent.address}
                   </span>
                 </div>
@@ -847,9 +1203,9 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
               </div>
 
               <div className="border rounded-lg overflow-hidden" style={{ borderColor: borderTintStrong }}>
-                <table className="w-full text-xs text-center border-collapse">
+                <table className="w-full text-xs text-center border-collapse" style={{ fontSize: timetableDetailsFontSize }}>
                   <thead>
-                    <tr className="font-black text-white text-[11px]" style={{ backgroundColor: primaryColor }}>
+                    <tr className="font-black text-white text-[11px]" style={{ backgroundColor: primaryColor, fontSize: timetableDetailsFontSize }}>
                       <th className="py-2 px-2 border-r border-white/20 w-12">
                         <LiveEditableText value={labels.thSNo || 'S.No.'} editable={editable} onSave={val => updateLabel('thSNo', val)} />
                       </th>
@@ -874,7 +1230,8 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                         className="border-b font-semibold text-slate-700"
                         style={{
                           borderColor: borderTint,
-                          backgroundColor: sidx % 2 === 0 ? 'transparent' : bgTintSubtle
+                          backgroundColor: sidx % 2 === 0 ? 'transparent' : bgTintSubtle,
+                          fontSize: timetableDetailsFontSize
                         }}
                       >
                         <td className="py-1.5 border-r font-bold" style={{ borderColor: borderTint }}>{sidx + 1}.</td>
@@ -900,14 +1257,14 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
           {instructions && (
             <div
               className="mt-3 p-2.5 rounded-lg border text-[9px] text-slate-700 leading-relaxed"
-              style={{ backgroundColor: bgTintSubtle, borderColor: borderTint }}
+              style={{ backgroundColor: bgTintSubtle, borderColor: borderTint, fontSize: instructionsFontSize }}
             >
               <LiveEditableText
                 value={labels.instructionsHeading || 'Important Candidate Instructions:'}
                 editable={editable}
                 onSave={val => updateLabel('instructionsHeading', val)}
                 className="font-black uppercase inline-block"
-                style={{ color: primaryColor }}
+                style={{ color: primaryColor, fontSize: instructionsFontSize }}
               />
               <LiveEditableText
                 tag="p"
@@ -916,13 +1273,17 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                 editable={editable}
                 onSave={val => onUpdateField?.('instructions', val)}
                 className="mt-0.5 whitespace-pre-line text-slate-600 block"
+                style={{ fontSize: instructionsFontSize }}
               />
             </div>
           )}
 
           {/* Dynamic Signatures & Stamp */}
           {activeSigns.length > 0 && (
-            <div className="flex justify-between items-end gap-3 text-center mt-7 pb-1 text-[8.5px] font-black uppercase text-slate-700">
+            <div
+              className="flex justify-between items-end gap-3 text-center mt-7 pb-1 text-[8.5px] font-black uppercase text-slate-700"
+              style={{ fontSize: signatureFontSize }}
+            >
               {activeSigns.map(s => (
                 <div key={s.key} className="flex-1 flex flex-col items-center min-w-[70px]">
                   {s.type === 'stamp' ? (
@@ -940,13 +1301,14 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                       <span className="font-extrabold text-[6.5px]">SCHOOL STAMP</span>
                     </div>
                   ) : (
-                    <div className="w-[85%] mb-1.5 min-h-[30px] flex flex-col items-center justify-end">
+                    <div className="mb-1.5 min-h-[30px] flex flex-col items-center justify-end" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
                       {s.key === 'principalSign' && (s.name || principalName) && (
                         <LiveEditableText
                           value={s.name || principalName}
                           editable={editable}
                           onSave={val => onUpdateField?.('principalName', val)}
                           className="font-serif italic font-bold text-[11px] text-slate-800 tracking-wider capitalize leading-tight mb-0.5 inline-block"
+                          style={{ fontSize: signatureFontSize }}
                         />
                       )}
                       <div className="w-full h-0.5 border-t border-dashed border-slate-400" />
@@ -957,6 +1319,7 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                     editable={editable}
                     onSave={val => onUpdateField?.(s.key + 'Label', val)}
                     className="truncate max-w-[130px] inline-block"
+                    style={{ fontSize: signatureFontSize }}
                   />
                 </div>
               ))}
@@ -981,13 +1344,15 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
             <div className="space-y-4">
               {/* Badge */}
               <div className="flex items-center justify-between">
-                <LiveEditableText
-                  value={labels.verifiedPass || 'Verified Pass'}
-                  editable={editable}
-                  onSave={val => updateLabel('verifiedPass', val)}
-                  className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase text-white shadow-xs inline-block"
-                  style={{ backgroundColor: primaryColor }}
-                />
+                {isFieldVisible('verifiedPass') && (
+                  <LiveEditableText
+                    value={labels.verifiedPass || 'Verified Pass'}
+                    editable={editable}
+                    onSave={val => updateLabel('verifiedPass', val)}
+                    className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase text-white shadow-xs inline-block"
+                    style={{ backgroundColor: primaryColor }}
+                  />
+                )}
                 {isFieldVisible('admissionNo') && (
                   <span className="text-[9px] font-black text-slate-500 font-mono">
                     #{specimenStudent.admissionNo}
@@ -1053,33 +1418,39 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
               )}
 
               {/* QR Code Verification */}
-              <div className="bg-white p-2.5 rounded-xl border flex flex-col items-center gap-1.5 shadow-xs" style={{ borderColor: borderTint }}>
-                <ProperQrCode className="w-22 h-22" color={primaryColor} />
-                <span className="text-[7.5px] font-black uppercase tracking-wider text-slate-600 text-center">Scan to Verify Candidate Record</span>
-                <LiveEditableText
-                  value={labels.qrCodeText || 'CODE: 123456'}
-                  editable={editable}
-                  onSave={val => updateLabel('qrCodeText', val)}
-                  className="text-[7px] text-slate-400 font-bold font-mono inline-block"
-                />
-              </div>
-            </div>
-
-            {/* Candidate Specimen Signature */}
-            {isFieldVisible('studentSign') && (
-              <div className="pt-3 border-t mt-4" style={{ borderColor: borderTint }}>
-                <div className="h-9 border border-dashed rounded-lg bg-white/70 flex items-center justify-center text-[8px] font-bold text-slate-400" style={{ borderColor: borderTintStrong }}>
+              {isFieldVisible('qrCode') && (
+                <div className="bg-white p-2.5 rounded-xl border flex flex-col items-center gap-1.5 shadow-xs" style={{ borderColor: borderTint }}>
+                  <ProperQrCode size={qrCodeSize} color={primaryColor} />
+                  <span className="text-[7.5px] font-black uppercase tracking-wider text-slate-600 text-center">Scan to Verify Candidate Record</span>
                   <LiveEditableText
-                    value={labels.specimenSign || 'Specimen Sign'}
+                    value={labels.qrCodeText || 'CODE: 123456'}
                     editable={editable}
-                    onSave={val => updateLabel('specimenSign', val)}
-                    className="inline-block"
+                    onSave={val => updateLabel('qrCodeText', val)}
+                    className="text-[7px] text-slate-400 font-bold font-mono inline-block"
                   />
                 </div>
-                <div className="text-[7.5px] font-semibold text-slate-500 text-center mt-1">
-                  <LiveEditableText value={labels.helpline || 'Helpline :'} editable={editable} onSave={val => updateLabel('helpline', val)} className="inline-block" />{' '}
-                  <span>{specimenStudent.phone}</span>
-                </div>
+              )}
+            </div>
+
+            {/* Candidate Specimen Signature & Helpline */}
+            {(isFieldVisible('studentSign') || isFieldVisible('helpline')) && (
+              <div className="pt-3 border-t mt-4" style={{ borderColor: borderTint }}>
+                {isFieldVisible('studentSign') && (
+                  <div className="h-9 border border-dashed rounded-lg bg-white/70 flex items-center justify-center text-[8px] font-bold text-slate-400" style={{ borderColor: borderTintStrong }}>
+                    <LiveEditableText
+                      value={labels.specimenSign || 'Specimen Sign'}
+                      editable={editable}
+                      onSave={val => updateLabel('specimenSign', val)}
+                      className="inline-block"
+                    />
+                  </div>
+                )}
+                {isFieldVisible('helpline') && (
+                  <div className="text-[7.5px] font-semibold text-slate-500 text-center mt-1">
+                    <LiveEditableText value={labels.helpline || 'Helpline :'} editable={editable} onSave={val => updateLabel('helpline', val)} className="inline-block" />{' '}
+                    <span>{specimenStudent.phone}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1089,30 +1460,40 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
             <div>
               {/* Header */}
               <div className="border-b pb-3 mb-3" style={{ borderColor: borderTint }}>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    {showLogo && (
-                      <div className="shrink-0 flex items-center justify-center">
-                        {schoolLogo ? (
-                          <img
-                            src={schoolLogo}
-                            alt="School Logo"
-                            style={{ width: `${logoWidth}px`, height: `${logoHeight}px`, objectFit: 'contain' }}
-                            className="rounded-lg object-contain shadow-2xs"
-                          />
-                        ) : (
-                          <SampleSchoolLogo width={logoWidth} height={logoHeight} color={primaryColor} />
-                        )}
-                      </div>
-                    )}
-                    <div>
+                <div
+                  className={`flex items-center justify-between gap-3 ${
+                    logoPosition === 'right' ? 'flex-row-reverse' : ''
+                  } ${
+                    contentPosition === 'center' || logoPosition === 'center'
+                      ? 'flex-col sm:flex-row justify-center'
+                      : ''
+                  }`}
+                >
+                  <div
+                    className={`flex items-center gap-3 ${
+                      logoPosition === 'right' ? 'flex-row-reverse' : ''
+                    } ${
+                      contentPosition === 'center'
+                        ? 'text-center items-center'
+                        : contentPosition === 'right'
+                        ? 'text-right items-end'
+                        : 'text-left items-start'
+                    }`}
+                  >
+                    {renderInteractiveLogo()}
+                    <div className={contentPosition === 'center' ? 'text-center' : contentPosition === 'right' ? 'text-right' : 'text-left'}>
                       <LiveEditableText
                         tag="h1"
                         value={schoolName}
                         editable={editable}
                         onSave={val => onUpdateField?.('schoolName', val)}
                         className="text-lg sm:text-xl font-black uppercase tracking-tight block"
-                        style={{ color: primaryColor }}
+                        style={{ color: primaryColor, fontSize: headerNameFontSize }}
+                        fontSizeControl={{
+                          label: 'School Heading',
+                          value: headerNameFontSize ? parseInt(headerNameFontSize) : 22,
+                          onChange: val => onUpdateField?.('headerNameFontSize', val)
+                        }}
                       />
                       <LiveEditableText
                         tag="p"
@@ -1120,18 +1501,30 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                         editable={editable}
                         onSave={val => onUpdateField?.('schoolAddress', val)}
                         className="text-[10px] text-slate-500 font-semibold block mt-0.5"
+                        style={{ fontSize: headerDetailsFontSize }}
+                        fontSizeControl={{
+                          label: 'Address',
+                          value: headerDetailsFontSize ? parseFloat(headerDetailsFontSize) : 10,
+                          onChange: val => onUpdateField?.('headerDetailsFontSize', val)
+                        }}
                       />
                     </div>
                   </div>
                   <div className="text-right shrink-0">
                     <span
                       className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase text-white tracking-wider inline-block"
-                      style={{ backgroundColor: primaryColor }}
+                      style={{ backgroundColor: primaryColor, fontSize: headingFontSize }}
                     >
                       <LiveEditableText
                         value={admitLabel}
                         editable={editable}
                         onSave={val => onUpdateField?.('admitCardLabel', val)}
+                        style={{ fontSize: headingFontSize }}
+                        fontSizeControl={{
+                          label: 'Admit Title',
+                          value: headingFontSize ? parseInt(headingFontSize) : 13,
+                          onChange: val => onUpdateField?.('headingFontSize', val)
+                        }}
                       />
                     </span>
                     <div className="text-[9px] font-bold text-slate-500 mt-1">
@@ -1142,22 +1535,36 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                 </div>
 
                 <div
-                  className="mt-2.5 px-3 py-1 rounded-md text-[10.5px] font-black uppercase flex items-center justify-between"
+                  className="mt-2.5 px-3 py-1.5 rounded-md text-[10.5px] font-black uppercase flex flex-wrap items-center justify-between gap-2"
                   style={{ backgroundColor: bgTintMedium, color: primaryColor }}
                 >
                   <span>
                     <LiveEditableText value={labels.examTitle || 'EXAM :'} editable={editable} onSave={val => updateLabel('examTitle', val)} className="inline-block" />{' '}
                     <LiveEditableText value={examName} editable={editable} onSave={val => onUpdateField?.('examName', val)} className="inline-block ml-1" />
                   </span>
-                  <span>
-                    <LiveEditableText value={labels.centerCode || 'CENTER :'} editable={editable} onSave={val => updateLabel('centerCode', val)} className="inline-block" />{' '}
-                    <span>{specimenStudent.centerCode}</span>
-                  </span>
+                  {isFieldVisible('reportingTime') && (
+                    <span className="flex items-center gap-1">
+                      <LiveEditableText value={labels.reportingTime || 'Reporting :'} editable={editable} onSave={val => updateLabel('reportingTime', val)} className="inline-block text-slate-500 font-bold" />{' '}
+                      <LiveEditableText value={reportingTimeValue} editable={editable} onSave={val => onUpdateField?.('reportingTimeValue', val)} className="inline-block font-extrabold text-slate-900" />
+                    </span>
+                  )}
+                  {isFieldVisible('gateClosure') && (
+                    <span className="flex items-center gap-1">
+                      <LiveEditableText value={labels.gateClosure || 'Gate Closure :'} editable={editable} onSave={val => updateLabel('gateClosure', val)} className="inline-block text-rose-500 font-bold" />{' '}
+                      <LiveEditableText value={gateClosureValue} editable={editable} onSave={val => onUpdateField?.('gateClosureValue', val)} className="inline-block font-extrabold text-rose-700" />
+                    </span>
+                  )}
+                  {isFieldVisible('centerCode') && (
+                    <span>
+                      <LiveEditableText value={labels.centerCode || 'CENTER :'} editable={editable} onSave={val => updateLabel('centerCode', val)} className="inline-block" />{' '}
+                      <span>{specimenStudent.centerCode}</span>
+                    </span>
+                  )}
                 </div>
               </div>
 
               {/* Student Details Grid (PRIMARY LABELS ARE EDITABLE, DATA IS STATIC) */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs mb-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs mb-4" style={{ fontSize: studentDetailsFontSize }}>
                 {isFieldVisible('name') && (
                   <div className="p-2 rounded-lg border bg-slate-50/70" style={{ borderColor: borderTint }}>
                     <div className="text-[8.5px] font-bold text-slate-400 uppercase">
@@ -1292,10 +1699,10 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                     />
                     <span className="text-[8.5px] text-slate-400 font-bold">{subjects.length} Subjects Scheduled</span>
                   </div>
-                  <div className="border rounded-xl overflow-hidden" style={{ borderColor: borderTintStrong }}>
-                    <table className="w-full text-xs text-left border-collapse">
+                  <div className="border rounded-xl overflow-hidden" style={{ borderColor: borderTintStrong, fontSize: timetableDetailsFontSize }}>
+                    <table className="w-full text-xs text-left border-collapse" style={{ fontSize: timetableDetailsFontSize }}>
                       <thead>
-                        <tr className="text-white text-[10px] font-black" style={{ backgroundColor: primaryColor }}>
+                        <tr className="text-white text-[10px] font-black" style={{ backgroundColor: primaryColor, fontSize: timetableDetailsFontSize }}>
                           <th className="py-1.5 px-2.5">
                             <LiveEditableText value={labels.thDate || 'Date'} editable={editable} onSave={val => updateLabel('thDate', val)} />
                           </th>
@@ -1312,7 +1719,7 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                       </thead>
                       <tbody className="divide-y" style={{ borderColor: borderTint }}>
                         {subjects.map((sub: any, sidx: number) => (
-                          <tr key={sidx} className="text-[11px] font-semibold text-slate-700">
+                          <tr key={sidx} className="text-[11px] font-semibold text-slate-700" style={{ fontSize: timetableDetailsFontSize }}>
                             <td className="py-1 px-2.5 font-bold text-slate-900">{sub.date}</td>
                             <td className="py-1 px-2.5 text-slate-600">{sub.fromTime} - {sub.toTime || '13:00'}</td>
                             <td className="py-1 px-2.5 font-bold" style={{ color: primaryColor }}>{sub.subjectName}</td>
@@ -1330,14 +1737,14 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
               {instructions && (
                 <div
                   className="mt-2.5 p-2 rounded-lg border text-[8.5px] leading-relaxed"
-                  style={{ backgroundColor: bgTintSubtle, borderColor: borderTint }}
+                  style={{ backgroundColor: bgTintSubtle, borderColor: borderTint, fontSize: instructionsFontSize }}
                 >
                   <LiveEditableText
                     value={labels.instructionsHeading || 'Candidate Instructions:'}
                     editable={editable}
                     onSave={val => updateLabel('instructionsHeading', val)}
                     className="font-black uppercase inline-block text-[8px]"
-                    style={{ color: primaryColor }}
+                    style={{ color: primaryColor, fontSize: instructionsFontSize }}
                   />
                   <LiveEditableText
                     tag="p"
@@ -1346,18 +1753,19 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                     editable={editable}
                     onSave={val => onUpdateField?.('instructions', val)}
                     className="mt-0.5 whitespace-pre-line text-slate-600 block text-[8px]"
+                    style={{ fontSize: instructionsFontSize }}
                   />
                 </div>
               )}
             </div>
 
             {/* Bottom Signatures & Stamp */}
-            <div className="pt-3 border-t mt-3 flex items-end justify-between" style={{ borderColor: borderTint }}>
+            <div className="pt-3 border-t mt-3 flex items-end justify-between" style={{ borderColor: borderTint, fontSize: signatureFontSize }}>
               <div className="text-[8px] text-slate-400 font-semibold italic">
                 Official Examination Admit Card
               </div>
               <div className="flex items-end gap-4 text-center">
-                {activeSigns.map(s => (
+                {activeSigns.filter(s => s.key !== 'studentSign').map(s => (
                   <div key={s.key} className="flex flex-col items-center">
                     {s.type === 'stamp' ? (
                       <div
@@ -1374,21 +1782,23 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                         <span>SEAL</span>
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center">
+                      <div className="flex flex-col items-center" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
                         {s.key === 'principalSign' && (s.name || principalName) && (
                           <LiveEditableText
                             value={s.name || principalName}
                             editable={editable}
                             onSave={val => onUpdateField?.('principalName', val)}
                             className="font-serif italic font-bold text-[10.5px] text-slate-800 tracking-wider block leading-none mb-0.5 capitalize"
+                            style={{ fontSize: signatureFontSize }}
                           />
                         )}
-                        <div className="w-20 h-0.5 border-t border-dashed border-slate-400 mb-1" />
+                        <div className="w-full h-0.5 border-t border-dashed border-slate-400 mb-1" />
                         <LiveEditableText
                           value={s.label}
                           editable={editable}
                           onSave={val => onUpdateField?.(s.key + 'Label', val)}
                           className="text-[8px] font-black uppercase text-slate-700 block truncate max-w-[120px]"
+                          style={{ fontSize: signatureFontSize }}
                         />
                       </div>
                     )}
@@ -1417,12 +1827,35 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
           <div className="absolute bottom-2 left-2 text-[10px] font-serif font-black" style={{ color: primaryColor }}>◆ ❖ ◆</div>
           <div className="absolute bottom-2 right-2 text-[10px] font-serif font-black" style={{ color: primaryColor }}>◆ ❖ ◆</div>
 
-          {/* Centered Crest Header */}
-          <div className="text-center pb-3 border-b-2" style={{ borderColor: borderTintStrong }}>
+          {/* Crest Header */}
+          <div
+            className={`pb-3 border-b-2 ${
+              contentPosition === 'center'
+                ? 'text-center'
+                : contentPosition === 'right'
+                ? 'text-right'
+                : 'text-left'
+            }`}
+            style={{ borderColor: borderTintStrong }}
+          >
             {showLogo && (
-              <div className="flex justify-center mb-1.5">
+              <div
+                className={`flex mb-2 ${
+                  logoPosition === 'center'
+                    ? 'justify-center'
+                    : logoPosition === 'right'
+                    ? 'justify-end'
+                    : 'justify-start'
+                }`}
+              >
                 <div
-                  className="rounded-full border-2 flex items-center justify-center shadow-xs overflow-hidden p-1"
+                  onClick={() => {
+                    if (editable) onUpdateField?.('triggerLogoUpload', true)
+                  }}
+                  title={editable ? 'Click to upload or change institute logo' : undefined}
+                  className={`rounded-full border-2 flex items-center justify-center shadow-xs overflow-hidden p-1 relative group ${
+                    editable ? 'cursor-pointer hover:ring-2 hover:ring-teal-500' : ''
+                  }`}
                   style={{
                     width: `${Math.max(logoWidth + 12, 56)}px`,
                     height: `${Math.max(logoHeight + 12, 56)}px`,
@@ -1441,6 +1874,12 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                   ) : (
                     <SampleSchoolLogo width={logoWidth} height={logoHeight} color={primaryColor} />
                   )}
+                  {editable && (
+                    <div className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 rounded-full flex flex-col items-center justify-center text-[7.5px] font-bold transition-opacity">
+                      <Upload className="w-3 h-3" />
+                      <span>Change</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1450,208 +1889,323 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
               editable={editable}
               onSave={val => onUpdateField?.('schoolName', val)}
               className="text-2xl font-black uppercase tracking-wider font-serif block"
-              style={{ color: primaryColor }}
+              style={{ color: primaryColor, fontSize: headerNameFontSize }}
+              fontSizeControl={{
+                label: 'School Heading',
+                value: headerNameFontSize ? parseInt(headerNameFontSize) : 24,
+                onChange: val => onUpdateField?.('headerNameFontSize', val)
+              }}
             />
-            <p className="text-[10px] font-serif text-slate-600 font-semibold tracking-wide mt-0.5">
-              An Autonomous Institution Committed to Academic Excellence
-            </p>
+            {isFieldVisible('mottoQuote') && (
+              <p className="text-[10px] font-serif text-slate-600 font-semibold tracking-wide mt-0.5">
+                <LiveEditableText
+                  value={labels.mottoQuote || 'An Autonomous Institution Committed to Academic Excellence'}
+                  editable={editable}
+                  onSave={val => updateLabel('mottoQuote', val)}
+                  className="inline-block"
+                />
+              </p>
+            )}
             <LiveEditableText
               tag="p"
               value={schoolAddress}
               editable={editable}
               onSave={val => onUpdateField?.('schoolAddress', val)}
-              className="text-[9px] text-slate-500 font-semibold mt-0.5 block"
+              className="text-[10px] text-slate-600 font-serif font-medium mt-0.5 block"
+              style={{ fontSize: headerDetailsFontSize }}
+              fontSizeControl={{
+                label: 'Address',
+                value: headerDetailsFontSize ? parseFloat(headerDetailsFontSize) : 10,
+                onChange: val => onUpdateField?.('headerDetailsFontSize', val)
+              }}
             />
 
             {/* Official Title Ribbon */}
             <div className="mt-3 flex justify-center">
               <div
                 className="px-6 py-1.5 rounded-full border text-white font-serif uppercase tracking-widest text-xs font-black shadow-xs"
-                style={{ backgroundColor: primaryColor, borderColor: primaryColor }}
+                style={{ backgroundColor: primaryColor, borderColor: primaryColor, fontSize: headingFontSize }}
               >
-                <LiveEditableText value={admitLabel} editable={editable} onSave={val => onUpdateField?.('admitCardLabel', val)} /> • SESSION <LiveEditableText value={session} editable={editable} onSave={val => onUpdateField?.('session', val)} />
+                <LiveEditableText
+                  value={admitLabel}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('admitCardLabel', val)}
+                  style={{ fontSize: headingFontSize }}
+                  fontSizeControl={{
+                    label: 'Admit Title',
+                    value: headingFontSize ? parseInt(headingFontSize) : 12,
+                    onChange: val => onUpdateField?.('headingFontSize', val)
+                  }}
+                /> • SESSION <LiveEditableText value={session} editable={editable} onSave={val => onUpdateField?.('session', val)} />
               </div>
             </div>
-            <div className="text-[11px] font-serif font-black uppercase mt-1.5" style={{ color: primaryColor }}>
-              <LiveEditableText value={examName} editable={editable} onSave={val => onUpdateField?.('examName', val)} />
+            <div className="text-[11px] font-serif font-black uppercase mt-1.5 flex flex-wrap justify-center items-center gap-3" style={{ color: primaryColor }}>
+              <span><LiveEditableText value={examName} editable={editable} onSave={val => onUpdateField?.('examName', val)} /></span>
+              {isFieldVisible('reportingTime') && (
+                <span className="text-[10px] text-slate-700 font-sans font-bold flex items-center gap-1">
+                  <LiveEditableText value={labels.reportingTime || 'Reporting :'} editable={editable} onSave={val => updateLabel('reportingTime', val)} className="inline-block text-slate-500" />{' '}
+                  <LiveEditableText value={reportingTimeValue} editable={editable} onSave={val => onUpdateField?.('reportingTimeValue', val)} className="inline-block font-extrabold text-slate-900" />
+                </span>
+              )}
+              {isFieldVisible('gateClosure') && (
+                <span className="text-[10px] text-rose-700 font-sans font-bold flex items-center gap-1">
+                  <LiveEditableText value={labels.gateClosure || 'Gate Closure :'} editable={editable} onSave={val => updateLabel('gateClosure', val)} className="inline-block text-rose-500" />{' '}
+                  <LiveEditableText value={gateClosureValue} editable={editable} onSave={val => onUpdateField?.('gateClosureValue', val)} className="inline-block font-extrabold text-rose-700" />
+                </span>
+              )}
             </div>
           </div>
 
           {/* Candidate Profile Block (PRIMARY LABELS ARE EDITABLE, DATA IS STATIC) */}
-          <div className="my-4 flex gap-5 items-center bg-slate-50/60 p-3.5 rounded-xl border" style={{ borderColor: borderTint }}>
-            <div className="flex-1 grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
-              {isFieldVisible('rollNo') && (
-                <div className="flex items-center">
-                  <LiveEditableText
-                    value={labels.rollNo || 'Roll Number:'}
-                    editable={editable}
-                    onSave={val => updateLabel('rollNo', val)}
-                    className="font-serif font-bold text-slate-600 w-28 inline-block"
-                  />
-                  <span className="font-black text-slate-900" style={{ color: primaryColor }}>{specimenStudent.rollNo}</span>
-                </div>
-              )}
-              {isFieldVisible('admissionNo') && (
-                <div className="flex items-center">
-                  <LiveEditableText
-                    value={labels.admissionNo || 'Admission No.:'}
-                    editable={editable}
-                    onSave={val => updateLabel('admissionNo', val)}
-                    className="font-serif font-bold text-slate-600 w-28 inline-block"
-                  />
-                  <span className="font-bold text-slate-800">{specimenStudent.admissionNo}</span>
-                </div>
-              )}
-              {isFieldVisible('registrationNo') && (
-                <div className="flex items-center">
-                  <LiveEditableText
-                    value={labels.registrationNo || 'Registration No.:'}
-                    editable={editable}
-                    onSave={val => updateLabel('registrationNo', val)}
-                    className="font-serif font-bold text-slate-600 w-28 inline-block"
-                  />
-                  <span className="font-bold text-slate-800">{specimenStudent.registrationNo}</span>
-                </div>
-              )}
-              {isFieldVisible('enrollmentNo') && (
-                <div className="flex items-center">
-                  <LiveEditableText
-                    value={labels.enrollmentNo || 'Enrollment No.:'}
-                    editable={editable}
-                    onSave={val => updateLabel('enrollmentNo', val)}
-                    className="font-serif font-bold text-slate-600 w-28 inline-block"
-                  />
-                  <span className="font-bold text-slate-800">{specimenStudent.enrollmentNo}</span>
-                </div>
-              )}
+          <div
+            className={`my-4 flex gap-5 items-center bg-slate-50/60 p-3.5 rounded-xl border ${
+              photoPosition === 'left' ? 'flex-row-reverse' : ''
+            }`}
+            style={{ borderColor: borderTint }}
+          >
+            <div className={`flex-1 grid ${(!isFieldVisible('photo') && !isFieldVisible('qrCode')) ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2'} gap-x-6 gap-y-2 text-xs`} style={{ fontSize: studentDetailsFontSize }}>
+              {/* Row 1: Candidate Name Full Width Headline */}
               {isFieldVisible('name') && (
-                <div className="flex items-center col-span-2">
+                <div className="flex items-center col-span-2 min-w-0 border-b pb-1 mb-0.5" style={{ borderColor: borderTint }}>
                   <LiveEditableText
-                    value={labels.name || 'Candidate Name:'}
+                    value={labels.name || 'Candidate Name :'}
                     editable={editable}
                     onSave={val => updateLabel('name', val)}
-                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                    className="font-serif font-bold text-slate-600 whitespace-nowrap min-w-[110px] shrink-0 inline-block text-[10.5px]"
                   />
-                  <span className="font-black text-slate-900 text-sm font-serif" style={{ color: primaryColor }}>{specimenStudent.name}</span>
+                  <span className="font-serif font-black text-sm tracking-wide truncate ml-1" style={{ color: primaryColor }}>
+                    {specimenStudent.name}
+                  </span>
                 </div>
               )}
-              {isFieldVisible('class') && (
-                <div className="flex items-center">
+
+              {/* Row 2: Roll No. & Admission No. */}
+              {isFieldVisible('rollNo') && (
+                <div className="flex items-center min-w-0">
                   <LiveEditableText
-                    value={labels.class || 'Class:'}
+                    value={labels.rollNo || 'Roll No. :'}
                     editable={editable}
-                    onSave={val => updateLabel('class', val)}
-                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                    onSave={val => updateLabel('rollNo', val)}
+                    className="font-serif font-bold text-slate-600 whitespace-nowrap min-w-[110px] shrink-0 inline-block text-[10.5px]"
                   />
-                  <span className="font-bold text-slate-800">{classNameStr}</span>
+                  <span className="font-serif font-black text-slate-900 whitespace-nowrap ml-1" style={{ color: primaryColor }}>
+                    {specimenStudent.rollNo}
+                  </span>
                 </div>
               )}
-              {isFieldVisible('section') && (
-                <div className="flex items-center">
+
+              {isFieldVisible('admissionNo') && (
+                <div className="flex items-center min-w-0">
                   <LiveEditableText
-                    value={labels.section || 'Section:'}
+                    value={labels.admissionNo || 'Admission No. :'}
                     editable={editable}
-                    onSave={val => updateLabel('section', val)}
-                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                    onSave={val => updateLabel('admissionNo', val)}
+                    className="font-serif font-bold text-slate-600 whitespace-nowrap min-w-[110px] shrink-0 inline-block text-[10.5px]"
                   />
-                  <span className="font-bold text-slate-800">{specimenStudent.section}</span>
+                  <span className="font-serif font-bold text-slate-800 whitespace-nowrap ml-1">
+                    {specimenStudent.admissionNo}
+                  </span>
                 </div>
               )}
-              {isFieldVisible('dob') && (
-                <div className="flex items-center">
+
+              {/* Row 3: Registration No. & Date of Birth */}
+              {isFieldVisible('registrationNo') && (
+                <div className="flex items-center min-w-0">
                   <LiveEditableText
-                    value={labels.dob || 'Date of Birth:'}
+                    value={labels.registrationNo || 'Registration No. :'}
+                    editable={editable}
+                    onSave={val => updateLabel('registrationNo', val)}
+                    className="font-serif font-bold text-slate-600 whitespace-nowrap min-w-[110px] shrink-0 inline-block text-[10.5px]"
+                  />
+                  <span className="font-serif font-bold text-slate-800 whitespace-nowrap ml-1">
+                    {specimenStudent.registrationNo}
+                  </span>
+                </div>
+              )}
+
+              {isFieldVisible('dob') ? (
+                <div className="flex items-center min-w-0">
+                  <LiveEditableText
+                    value={labels.dob || 'Date of Birth :'}
                     editable={editable}
                     onSave={val => updateLabel('dob', val)}
-                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                    className="font-serif font-bold text-slate-600 whitespace-nowrap min-w-[110px] shrink-0 inline-block text-[10.5px]"
                   />
-                  <span className="font-bold text-slate-800">{specimenStudent.dob}</span>
+                  <span className="font-serif font-bold text-slate-800 whitespace-nowrap ml-1">
+                    {specimenStudent.dob}
+                  </span>
+                </div>
+              ) : isFieldVisible('enrollmentNo') ? (
+                <div className="flex items-center min-w-0">
+                  <LiveEditableText
+                    value={labels.enrollmentNo || 'Enrollment No. :'}
+                    editable={editable}
+                    onSave={val => updateLabel('enrollmentNo', val)}
+                    className="font-serif font-bold text-slate-600 whitespace-nowrap min-w-[110px] shrink-0 inline-block text-[10.5px]"
+                  />
+                  <span className="font-serif font-bold text-slate-800 whitespace-nowrap ml-1">
+                    {specimenStudent.enrollmentNo}
+                  </span>
+                </div>
+              ) : null}
+
+              {/* Row 4: Class & Section */}
+              {isFieldVisible('class') && (
+                <div className="flex items-center min-w-0">
+                  <LiveEditableText
+                    value={labels.class || 'Class :'}
+                    editable={editable}
+                    onSave={val => updateLabel('class', val)}
+                    className="font-serif font-bold text-slate-600 whitespace-nowrap min-w-[110px] shrink-0 inline-block text-[10.5px]"
+                  />
+                  <span className="font-serif font-bold text-slate-800 whitespace-nowrap ml-1">
+                    {classNameStr}
+                  </span>
                 </div>
               )}
-              {isFieldVisible('fatherName') && (
-                <div className="flex items-center">
+
+              {isFieldVisible('section') && (
+                <div className="flex items-center min-w-0">
                   <LiveEditableText
-                    value={labels.fatherName || "Father's Name:"}
+                    value={labels.section || 'Section :'}
+                    editable={editable}
+                    onSave={val => updateLabel('section', val)}
+                    className="font-serif font-bold text-slate-600 whitespace-nowrap min-w-[110px] shrink-0 inline-block text-[10.5px]"
+                  />
+                  <span className="font-serif font-bold text-slate-800 whitespace-nowrap ml-1">
+                    {specimenStudent.section}
+                  </span>
+                </div>
+              )}
+
+              {/* Row 5: Father's Name & Mother's Name */}
+              {isFieldVisible('fatherName') && (
+                <div className="flex items-center min-w-0">
+                  <LiveEditableText
+                    value={labels.fatherName || "Father's Name :"}
                     editable={editable}
                     onSave={val => updateLabel('fatherName', val)}
-                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                    className="font-serif font-bold text-slate-600 whitespace-nowrap min-w-[110px] shrink-0 inline-block text-[10.5px]"
                   />
-                  <span className="font-bold text-slate-800">{specimenStudent.fatherName}</span>
+                  <span className="font-serif font-bold text-slate-800 truncate ml-1">
+                    {specimenStudent.fatherName}
+                  </span>
                 </div>
               )}
+
               {isFieldVisible('motherName') && (
-                <div className="flex items-center">
+                <div className="flex items-center min-w-0">
                   <LiveEditableText
-                    value={labels.motherName || "Mother's Name:"}
+                    value={labels.motherName || "Mother's Name :"}
                     editable={editable}
                     onSave={val => updateLabel('motherName', val)}
-                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                    className="font-serif font-bold text-slate-600 whitespace-nowrap min-w-[110px] shrink-0 inline-block text-[10.5px]"
                   />
-                  <span className="font-bold text-slate-800">{specimenStudent.motherName}</span>
+                  <span className="font-serif font-bold text-slate-800 truncate ml-1">
+                    {specimenStudent.motherName}
+                  </span>
                 </div>
               )}
-              {isFieldVisible('mobileNo') && (
-                <div className="flex items-center">
+
+              {/* Additional optional fields if enabled */}
+              {isFieldVisible('enrollmentNo') && isFieldVisible('dob') && (
+                <div className="flex items-center min-w-0">
                   <LiveEditableText
-                    value={labels.mobileNo || 'Mobile No.:'}
+                    value={labels.enrollmentNo || 'Enrollment No. :'}
+                    editable={editable}
+                    onSave={val => updateLabel('enrollmentNo', val)}
+                    className="font-serif font-bold text-slate-600 whitespace-nowrap min-w-[110px] shrink-0 inline-block text-[10.5px]"
+                  />
+                  <span className="font-serif font-bold text-slate-800 whitespace-nowrap ml-1">
+                    {specimenStudent.enrollmentNo}
+                  </span>
+                </div>
+              )}
+
+              {isFieldVisible('mobileNo') && (
+                <div className="flex items-center min-w-0">
+                  <LiveEditableText
+                    value={labels.mobileNo || 'Mobile No. :'}
                     editable={editable}
                     onSave={val => updateLabel('mobileNo', val)}
-                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                    className="font-serif font-bold text-slate-600 whitespace-nowrap min-w-[110px] shrink-0 inline-block text-[10.5px]"
                   />
-                  <span className="font-bold text-slate-800">{specimenStudent.mobileNo}</span>
+                  <span className="font-serif font-bold text-slate-800 whitespace-nowrap ml-1">
+                    {specimenStudent.mobileNo}
+                  </span>
                 </div>
               )}
+
+              {/* Row 6: Address Spanning Full Width */}
               {isFieldVisible('address') && (
-                <div className="flex items-center col-span-2">
+                <div className="flex items-center col-span-2 min-w-0 pt-0.5">
                   <LiveEditableText
-                    value={labels.address || 'Address:'}
+                    value={labels.address || 'Address :'}
                     editable={editable}
                     onSave={val => updateLabel('address', val)}
-                    className="font-serif font-bold text-slate-600 w-28 inline-block"
+                    className="font-serif font-bold text-slate-600 whitespace-nowrap min-w-[110px] shrink-0 inline-block text-[10.5px]"
                   />
-                  <span className="font-medium text-slate-700 text-[11px]">{specimenStudent.address}</span>
+                  <span className="font-serif font-medium text-slate-700 text-[11px] truncate ml-1">
+                    {specimenStudent.address}
+                  </span>
                 </div>
               )}
             </div>
 
             {/* Photo, Proper QR & Verified Seal */}
-            <div className="flex items-center gap-2.5 shrink-0">
-              {isFieldVisible('photo') && (
-                <div
-                  className="border-2 rounded-lg bg-white flex flex-col items-center justify-center p-1 shadow-sm"
-                  style={{
-                    width: `${photoWidth}px`,
-                    height: `${photoHeight}px`,
-                    borderColor: primaryColor
-                  }}
-                >
-                  <div className="w-full h-full border border-dashed border-slate-300 rounded flex flex-col items-center justify-center text-center p-1">
-                    <User className="w-6 h-6 text-slate-400 mb-0.5" />
+            {(isFieldVisible('photo') || isFieldVisible('qrCode')) && (
+              <div className="flex items-center gap-2.5 shrink-0">
+                {isFieldVisible('photo') && (
+                  <div className="flex flex-col items-center gap-1 shrink-0">
+                    <div
+                      className="border-2 rounded-lg bg-white flex flex-col items-center justify-center p-1 shadow-sm"
+                      style={{
+                        width: `${photoWidth}px`,
+                        height: `${photoHeight}px`,
+                        borderColor: primaryColor
+                      }}
+                    >
+                      <div className="w-full h-full border border-dashed border-slate-300 rounded flex flex-col items-center justify-center text-center p-1">
+                        <User className="w-6 h-6 text-slate-400 mb-0.5" />
+                        <LiveEditableText
+                          value={labels.studentPhoto || 'Candidate Photo'}
+                          editable={editable}
+                          onSave={val => updateLabel('studentPhoto', val)}
+                          className="text-[7px] uppercase font-bold text-slate-500 font-serif inline-block"
+                        />
+                      </div>
+                    </div>
+                    {isFieldVisible('studentSign') && (
+                      <div className="border border-dashed border-slate-400 rounded px-2 py-0.5 text-center bg-white/60" style={{ width: `${photoWidth}px` }}>
+                        <LiveEditableText
+                          value={labels.specimenSign || 'Specimen Sign'}
+                          editable={editable}
+                          onSave={val => updateLabel('specimenSign', val)}
+                          className="text-[7px] uppercase font-bold text-slate-500 font-serif inline-block"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Official Verification QR Code */}
+                {isFieldVisible('qrCode') && (
+                  <div
+                    className="border-2 rounded-lg bg-white flex flex-col items-center justify-between p-1.5 shadow-sm text-center shrink-0"
+                    style={{ borderColor: borderTintStrong }}
+                  >
+                    <span className="text-[6.5px] font-serif font-black uppercase text-slate-600 tracking-wider">OFFICIAL QR</span>
+                    <ProperQrCode size={qrCodeSize} color={primaryColor} />
                     <LiveEditableText
-                      value={labels.studentPhoto || 'Candidate Photo'}
+                      value={labels.qrCodeText || 'CODE: 123456'}
                       editable={editable}
-                      onSave={val => updateLabel('studentPhoto', val)}
-                      className="text-[7px] uppercase font-bold text-slate-500 font-serif inline-block"
+                      onSave={val => updateLabel('qrCodeText', val)}
+                      className="text-[6.5px] font-mono font-bold text-slate-600 inline-block"
                     />
                   </div>
-                </div>
-              )}
-
-              {/* Official Verification QR Code */}
-              <div
-                className="w-20 h-28 border-2 rounded-lg bg-white flex flex-col items-center justify-between p-1.5 shadow-sm text-center"
-                style={{ borderColor: borderTintStrong }}
-              >
-                <span className="text-[6.5px] font-serif font-black uppercase text-slate-600 tracking-wider">OFFICIAL QR</span>
-                <ProperQrCode className="w-16 h-16" color={primaryColor} />
-                <LiveEditableText
-                  value={labels.qrCodeText || 'CODE: 123456'}
-                  editable={editable}
-                  onSave={val => updateLabel('qrCodeText', val)}
-                  className="text-[6.5px] font-mono font-bold text-slate-600 inline-block"
-                />
+                )}
               </div>
-            </div>
+            )}
           </div>
 
           {/* Timetable Ledger (HEADERS ARE EDITABLE LABELS, DATA IS STATIC) */}
@@ -1665,10 +2219,10 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                   className="inline-block"
                 />
               </div>
-              <div className="border rounded-lg overflow-hidden" style={{ borderColor: borderTintStrong }}>
-                <table className="w-full text-xs text-center border-collapse">
+              <div className="border rounded-lg overflow-hidden" style={{ borderColor: borderTintStrong, fontSize: timetableDetailsFontSize }}>
+                <table className="w-full text-xs text-center border-collapse" style={{ fontSize: timetableDetailsFontSize }}>
                   <thead>
-                    <tr className="text-white text-[10.5px] font-serif font-bold" style={{ backgroundColor: primaryColor }}>
+                    <tr className="text-white text-[10.5px] font-serif font-bold" style={{ backgroundColor: primaryColor, fontSize: timetableDetailsFontSize }}>
                       <th className="py-1.5 px-2 border-r border-white/20 w-12">
                         <LiveEditableText value={labels.thSNo || 'No.'} editable={editable} onSave={val => updateLabel('thSNo', val)} />
                       </th>
@@ -1693,7 +2247,8 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                         className="border-b font-serif text-slate-800 text-[11px]"
                         style={{
                           borderColor: borderTint,
-                          backgroundColor: sidx % 2 === 0 ? 'transparent' : bgTintSubtle
+                          backgroundColor: sidx % 2 === 0 ? 'transparent' : bgTintSubtle,
+                          fontSize: timetableDetailsFontSize
                         }}
                       >
                         <td className="py-1.5 border-r" style={{ borderColor: borderTint }}>{sidx + 1}</td>
@@ -1713,14 +2268,15 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
           {instructions && (
             <div
               className="mt-3 p-2.5 rounded-lg border text-[9px] text-slate-700 font-serif leading-relaxed"
-              style={{ backgroundColor: bgTintSubtle, borderColor: borderTint }}
+              style={{ backgroundColor: bgTintSubtle, borderColor: borderTint, fontSize: instructionsFontSize }}
             >
-              <div className="font-serif font-black uppercase text-[9.5px] mb-0.5" style={{ color: primaryColor }}>
+              <div className="font-serif font-black uppercase text-[9.5px] mb-0.5" style={{ color: primaryColor, fontSize: instructionsFontSize }}>
                 <LiveEditableText
                   value={labels.instructionsHeading || 'Important Candidate Instructions:'}
                   editable={editable}
                   onSave={val => updateLabel('instructionsHeading', val)}
                   className="inline-block"
+                  style={{ fontSize: instructionsFontSize }}
                 />
               </div>
               <LiveEditableText
@@ -1730,13 +2286,14 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                 editable={editable}
                 onSave={val => onUpdateField?.('instructions', val)}
                 className="whitespace-pre-line text-slate-600 block"
+                style={{ fontSize: instructionsFontSize }}
               />
             </div>
           )}
 
           {/* Signatures */}
           {activeSigns.length > 0 && (
-            <div className="flex justify-around items-end gap-4 text-center mt-7 pt-2 text-[8.5px] font-serif font-black uppercase text-slate-700">
+            <div className="flex justify-around items-end gap-4 text-center mt-7 pt-2 text-[8.5px] font-serif font-black uppercase text-slate-700" style={{ fontSize: signatureFontSize }}>
               {activeSigns.map(s => (
                 <div key={s.key} className="flex-1 flex flex-col items-center">
                   {s.type === 'stamp' ? (
@@ -1754,13 +2311,14 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                       <span>STAMP</span>
                     </div>
                   ) : (
-                    <div className="w-[80%] mx-auto mb-1 min-h-[28px] flex flex-col items-center justify-end">
+                    <div className="mx-auto mb-1 min-h-[28px] flex flex-col items-center justify-end" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
                       {s.key === 'principalSign' && (s.name || principalName) && (
                         <LiveEditableText
                           value={s.name || principalName}
                           editable={editable}
                           onSave={val => onUpdateField?.('principalName', val)}
                           className="font-serif italic font-bold text-[11px] text-slate-800 tracking-wider capitalize leading-tight mb-0.5 inline-block"
+                          style={{ fontSize: signatureFontSize }}
                         />
                       )}
                       <div className="w-full h-0.5 border-t border-dashed border-slate-400" />
@@ -1771,6 +2329,7 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                     editable={editable}
                     onSave={val => onUpdateField?.(s.key + 'Label', val)}
                     className="inline-block"
+                    style={{ fontSize: signatureFontSize }}
                   />
                 </div>
               ))}
@@ -1786,30 +2345,37 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
         <div className="p-5 border-2 flex flex-col justify-between text-slate-900" style={{ borderColor: primaryColor }}>
           {/* Top Barcode Header */}
           <div>
-            <div className="flex justify-between items-start pb-2 border-b" style={{ borderColor: borderTintStrong }}>
-              <div className="flex items-start gap-3">
-                {showLogo && (
-                  <div className="shrink-0 flex items-center justify-center">
-                    {schoolLogo ? (
-                      <img
-                        src={schoolLogo}
-                        alt="School Logo"
-                        style={{ width: `${logoWidth}px`, height: `${logoHeight}px`, objectFit: 'contain' }}
-                        className="rounded-lg object-contain shadow-2xs"
-                      />
-                    ) : (
-                      <SampleSchoolLogo width={logoWidth} height={logoHeight} color={primaryColor} />
-                    )}
-                  </div>
-                )}
-                <div>
+            <div
+              className={`flex justify-between items-start pb-2 border-b gap-3 ${
+                logoPosition === 'right' ? 'flex-row-reverse' : ''
+              }`}
+              style={{ borderColor: borderTintStrong }}
+            >
+              <div
+                className={`flex items-start gap-3 ${
+                  logoPosition === 'right' ? 'flex-row-reverse' : ''
+                } ${
+                  contentPosition === 'center'
+                    ? 'text-center'
+                    : contentPosition === 'right'
+                    ? 'text-right'
+                    : 'text-left'
+                }`}
+              >
+                {renderInteractiveLogo()}
+                <div className={contentPosition === 'center' ? 'text-center' : contentPosition === 'right' ? 'text-right' : 'text-left'}>
                   <LiveEditableText
                     tag="h1"
                     value={schoolName}
                     editable={editable}
                     onSave={val => onUpdateField?.('schoolName', val)}
                     className="text-base sm:text-lg font-black uppercase tracking-tight block"
-                    style={{ color: primaryColor }}
+                    style={{ color: primaryColor, fontSize: headerNameFontSize }}
+                    fontSizeControl={{
+                      label: 'School Heading',
+                      value: headerNameFontSize ? parseInt(headerNameFontSize) : 20,
+                      onChange: val => onUpdateField?.('headerNameFontSize', val)
+                    }}
                   />
                   <LiveEditableText
                     tag="p"
@@ -1817,34 +2383,54 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                     editable={editable}
                     onSave={val => onUpdateField?.('schoolAddress', val)}
                     className="text-[9.5px] text-slate-600 font-semibold block"
+                    style={{ fontSize: headerDetailsFontSize }}
+                    fontSizeControl={{
+                      label: 'Address',
+                      value: headerDetailsFontSize ? parseFloat(headerDetailsFontSize) : 9.5,
+                      onChange: val => onUpdateField?.('headerDetailsFontSize', val)
+                    }}
                   />
-                  <div className="text-[9px] font-bold text-slate-700 mt-0.5">
-                    <LiveEditableText value={labels.centerCode || 'Center :'} editable={editable} onSave={val => updateLabel('centerCode', val)} className="inline-block" />{' '}
-                    <span>Cosmopolitan Examination Center (Code: 104)</span>
-                  </div>
+                  {isFieldVisible('centerCode') && (
+                    <div className="text-[9px] font-bold text-slate-700 mt-0.5">
+                      <LiveEditableText value={labels.centerCode || 'Center :'} editable={editable} onSave={val => updateLabel('centerCode', val)} className="inline-block" />{' '}
+                      <span>Cosmopolitan Examination Center (Code: 104)</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="text-right flex items-center gap-3 shrink-0">
-                <div className="bg-white p-1 rounded-md border border-slate-300 shadow-2xs flex flex-col items-center">
-                  <ProperQrCode className="w-18 h-18" color={primaryColor} />
-                  <LiveEditableText
-                    value={labels.qrCodeText || 'CODE: 10104-ADM'}
-                    editable={editable}
-                    onSave={val => updateLabel('qrCodeText', val)}
-                    className="text-[7px] text-slate-500 font-mono font-bold tracking-wider mt-0.5 inline-block"
-                  />
+              {isFieldVisible('qrCode') && (
+                <div className="text-right flex items-center gap-3 shrink-0">
+                  <div className="bg-white p-1 rounded-md border border-slate-300 shadow-2xs flex flex-col items-center">
+                    <ProperQrCode size={qrCodeSize} color={primaryColor} />
+                    <LiveEditableText
+                      value={labels.qrCodeText || 'CODE: 10104-ADM'}
+                      editable={editable}
+                      onSave={val => updateLabel('qrCodeText', val)}
+                      className="text-[7px] text-slate-500 font-mono font-bold tracking-wider mt-0.5 inline-block"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Title Bar */}
             <div
               className="my-2 px-3 py-1 text-white text-[10.5px] font-black uppercase flex items-center justify-between rounded"
-              style={{ backgroundColor: primaryColor }}
+              style={{ backgroundColor: primaryColor, fontSize: headingFontSize }}
             >
               <span>
-                <LiveEditableText value={admitLabel} editable={editable} onSave={val => onUpdateField?.('admitCardLabel', val)} /> // <LiveEditableText value={examName} editable={editable} onSave={val => onUpdateField?.('examName', val)} />
+                <LiveEditableText
+                  value={admitLabel}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('admitCardLabel', val)}
+                  style={{ fontSize: headingFontSize }}
+                  fontSizeControl={{
+                    label: 'Admit Title',
+                    value: headingFontSize ? parseInt(headingFontSize) : 11,
+                    onChange: val => onUpdateField?.('headingFontSize', val)
+                  }}
+                /> // <LiveEditableText value={examName} editable={editable} onSave={val => onUpdateField?.('examName', val)} />
               </span>
               <span>
                 <LiveEditableText value={labels.sessionTitle || 'SESSION :'} editable={editable} onSave={val => updateLabel('sessionTitle', val)} className="inline-block mr-1" />
@@ -1853,170 +2439,10 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
             </div>
 
             {/* Candidate Card Info (PRIMARY LABELS ARE EDITABLE, DATA IS STATIC) */}
-            <div className="grid grid-cols-12 gap-3 p-2.5 rounded-lg border bg-slate-50/70 text-xs mb-3" style={{ borderColor: borderTint }}>
-              {/* Left Info */}
-              <div className="col-span-5 space-y-1">
-                {isFieldVisible('name') && (
-                  <div>
-                    <LiveEditableText
-                      value={labels.name || 'Candidate Name'}
-                      editable={editable}
-                      onSave={val => updateLabel('name', val)}
-                      className="text-[9px] text-slate-500 font-bold uppercase block"
-                    />
-                    <span className="font-black text-slate-900 truncate block" style={{ color: primaryColor }}>{specimenStudent.name}</span>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-1 text-[11px]">
-                  {isFieldVisible('rollNo') && (
-                    <div>
-                      <LiveEditableText
-                        value={labels.rollNo || 'Roll No.'}
-                        editable={editable}
-                        onSave={val => updateLabel('rollNo', val)}
-                        className="text-[8.5px] text-slate-500 font-bold uppercase block"
-                      />
-                      <span className="font-black text-slate-900">{specimenStudent.rollNo}</span>
-                    </div>
-                  )}
-                  {isFieldVisible('admissionNo') && (
-                    <div>
-                      <LiveEditableText
-                        value={labels.admissionNo || 'Adm No.'}
-                        editable={editable}
-                        onSave={val => updateLabel('admissionNo', val)}
-                        className="text-[8.5px] text-slate-500 font-bold uppercase block"
-                      />
-                      <span className="font-bold text-slate-800">{specimenStudent.admissionNo}</span>
-                    </div>
-                  )}
-                </div>
-                {isFieldVisible('class') && (
-                  <div>
-                    <LiveEditableText
-                      value={labels.class || 'Class'}
-                      editable={editable}
-                      onSave={val => updateLabel('class', val)}
-                      className="text-[8.5px] text-slate-500 font-bold uppercase block"
-                    />
-                    <span className="font-bold text-slate-800">{classNameStr}</span>
-                  </div>
-                )}
-                {isFieldVisible('section') && (
-                  <div>
-                    <LiveEditableText
-                      value={labels.section || 'Section'}
-                      editable={editable}
-                      onSave={val => updateLabel('section', val)}
-                      className="text-[8.5px] text-slate-500 font-bold uppercase block"
-                    />
-                    <span className="font-bold text-slate-800">{specimenStudent.section}</span>
-                  </div>
-                )}
-                {isFieldVisible('registrationNo') && (
-                  <div>
-                    <LiveEditableText
-                      value={labels.registrationNo || 'Reg No.'}
-                      editable={editable}
-                      onSave={val => updateLabel('registrationNo', val)}
-                      className="text-[8.5px] text-slate-500 font-bold uppercase block"
-                    />
-                    <span className="font-semibold text-slate-800">{specimenStudent.registrationNo}</span>
-                  </div>
-                )}
-                {isFieldVisible('enrollmentNo') && (
-                  <div>
-                    <LiveEditableText
-                      value={labels.enrollmentNo || 'Enrollment'}
-                      editable={editable}
-                      onSave={val => updateLabel('enrollmentNo', val)}
-                      className="text-[8.5px] text-slate-500 font-bold uppercase block"
-                    />
-                    <span className="font-semibold text-slate-800">{specimenStudent.enrollmentNo}</span>
-                  </div>
-                )}
-                {isFieldVisible('fatherName') && (
-                  <div>
-                    <LiveEditableText
-                      value={labels.fatherName || "Father's Name"}
-                      editable={editable}
-                      onSave={val => updateLabel('fatherName', val)}
-                      className="text-[8.5px] text-slate-500 font-bold uppercase block"
-                    />
-                    <span className="font-semibold text-slate-800 truncate block">{specimenStudent.fatherName}</span>
-                  </div>
-                )}
-                {isFieldVisible('motherName') && (
-                  <div>
-                    <LiveEditableText
-                      value={labels.motherName || "Mother's Name"}
-                      editable={editable}
-                      onSave={val => updateLabel('motherName', val)}
-                      className="text-[8.5px] text-slate-500 font-bold uppercase block"
-                    />
-                    <span className="font-semibold text-slate-800 truncate block">{specimenStudent.motherName}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Middle Venue Info & other fields */}
-              <div className="col-span-4 border-l pl-3 space-y-1">
-                {isFieldVisible('dob') && (
-                  <div>
-                    <LiveEditableText
-                      value={labels.dob || 'DOB'}
-                      editable={editable}
-                      onSave={val => updateLabel('dob', val)}
-                      className="text-[8.5px] text-slate-500 font-bold uppercase block"
-                    />
-                    <span className="font-bold text-slate-900">{specimenStudent.dob}</span>
-                  </div>
-                )}
-                {isFieldVisible('mobileNo') && (
-                  <div>
-                    <LiveEditableText
-                      value={labels.mobileNo || 'Mobile'}
-                      editable={editable}
-                      onSave={val => updateLabel('mobileNo', val)}
-                      className="text-[8.5px] text-slate-500 font-bold uppercase block"
-                    />
-                    <span className="font-bold text-slate-900">{specimenStudent.mobileNo}</span>
-                  </div>
-                )}
-                {isFieldVisible('address') && (
-                  <div>
-                    <LiveEditableText
-                      value={labels.address || 'Address'}
-                      editable={editable}
-                      onSave={val => updateLabel('address', val)}
-                      className="text-[8.5px] text-slate-500 font-bold uppercase block"
-                    />
-                    <span className="font-medium text-slate-700 text-[10px] truncate block">{specimenStudent.address}</span>
-                  </div>
-                )}
-                <div>
-                  <LiveEditableText
-                    value={labels.reportingTime || 'Reporting Time'}
-                    editable={editable}
-                    onSave={val => updateLabel('reportingTime', val)}
-                    className="text-[8.5px] text-slate-500 font-bold uppercase block"
-                  />
-                  <span className="font-bold text-slate-900">09:30 AM IST</span>
-                </div>
-                <div>
-                  <LiveEditableText
-                    value={labels.gateClosure || 'Gate Closure'}
-                    editable={editable}
-                    onSave={val => updateLabel('gateClosure', val)}
-                    className="text-[8.5px] text-slate-500 font-bold uppercase block"
-                  />
-                  <span className="font-bold text-rose-700">09:50 AM (Sharp)</span>
-                </div>
-              </div>
-
-              {/* Right Photo */}
-              <div className="col-span-3 flex flex-col items-center justify-center border-l pl-3" style={{ borderColor: borderTint }}>
-                {isFieldVisible('photo') ? (
+            <div className="grid grid-cols-12 gap-3 p-3 rounded-lg border bg-slate-50/80 mb-3" style={{ borderColor: borderTint, fontSize: studentDetailsFontSize }}>
+              {/* Photo Column (if left positioned) */}
+              {isFieldVisible('photo') && photoPosition === 'left' && (
+                <div className="col-span-3 flex flex-col items-center justify-center pr-3 border-r" style={{ borderColor: borderTint }}>
                   <div
                     className="border rounded bg-white flex flex-col items-center justify-center text-center p-1 shadow-2xs"
                     style={{
@@ -2030,31 +2456,232 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                       value={labels.studentPhoto || 'Student Photo'}
                       editable={editable}
                       onSave={val => updateLabel('studentPhoto', val)}
-                      className="text-[7px] uppercase font-bold text-slate-500 inline-block"
+                      className="text-[7.5px] uppercase font-bold text-slate-500 inline-block"
                     />
                   </div>
-                ) : (
-                  <div className="text-[8px] text-slate-400 font-bold uppercase text-center">
-                    Official Hall Ticket
-                  </div>
-                )}
-                {isFieldVisible('studentSign') && (
-                  <LiveEditableText
-                    value={labels.specimenSign || 'Specimen ID'}
-                    editable={editable}
-                    onSave={val => updateLabel('specimenSign', val)}
-                    className="text-[7px] font-bold text-slate-400 mt-1 uppercase inline-block"
-                  />
-                )}
+                  {isFieldVisible('studentSign') && (
+                    <LiveEditableText
+                      value={labels.specimenSign || 'Specimen ID'}
+                      editable={editable}
+                      onSave={val => updateLabel('specimenSign', val)}
+                      className="text-[7.5px] font-bold text-slate-400 mt-1 uppercase inline-block"
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* Main Candidate Details Ledger */}
+              <div className={`${isFieldVisible('photo') ? 'col-span-9' : 'col-span-12'} grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs`}>
+                {/* Left Column */}
+                <div className="space-y-1.5">
+                  {isFieldVisible('name') && (
+                    <div className="flex items-baseline gap-1 text-[11px]">
+                      <LiveEditableText
+                        value={labels.name || 'Candidate Name :'}
+                        editable={editable}
+                        onSave={val => updateLabel('name', val)}
+                        className="text-[9.5px] text-slate-500 font-bold uppercase whitespace-nowrap inline-block"
+                      />
+                      <span className="font-black text-slate-900 truncate" style={{ color: primaryColor }}>{specimenStudent.name}</span>
+                    </div>
+                  )}
+                  {isFieldVisible('rollNo') && (
+                    <div className="flex items-baseline gap-1 text-[11px]">
+                      <LiveEditableText
+                        value={labels.rollNo || 'Roll No. :'}
+                        editable={editable}
+                        onSave={val => updateLabel('rollNo', val)}
+                        className="text-[9.5px] text-slate-500 font-bold uppercase whitespace-nowrap inline-block"
+                      />
+                      <span className="font-black text-slate-900">{specimenStudent.rollNo}</span>
+                    </div>
+                  )}
+                  {isFieldVisible('admissionNo') && (
+                    <div className="flex items-baseline gap-1 text-[11px]">
+                      <LiveEditableText
+                        value={labels.admissionNo || 'Admission No. :'}
+                        editable={editable}
+                        onSave={val => updateLabel('admissionNo', val)}
+                        className="text-[9.5px] text-slate-500 font-bold uppercase whitespace-nowrap inline-block"
+                      />
+                      <span className="font-bold text-slate-800 whitespace-nowrap">{specimenStudent.admissionNo}</span>
+                    </div>
+                  )}
+                  {isFieldVisible('registrationNo') && (
+                    <div className="flex items-baseline gap-1 text-[11px]">
+                      <LiveEditableText
+                        value={labels.registrationNo || 'Reg. No. :'}
+                        editable={editable}
+                        onSave={val => updateLabel('registrationNo', val)}
+                        className="text-[9.5px] text-slate-500 font-bold uppercase whitespace-nowrap inline-block"
+                      />
+                      <span className="font-bold text-slate-800 whitespace-nowrap">{specimenStudent.registrationNo}</span>
+                    </div>
+                  )}
+                  {isFieldVisible('dob') && (
+                    <div className="flex items-baseline gap-1 text-[11px]">
+                      <LiveEditableText
+                        value={labels.dob || 'Date of Birth :'}
+                        editable={editable}
+                        onSave={val => updateLabel('dob', val)}
+                        className="text-[9.5px] text-slate-500 font-bold uppercase whitespace-nowrap inline-block"
+                      />
+                      <span className="font-bold text-slate-900 whitespace-nowrap">{specimenStudent.dob}</span>
+                    </div>
+                  )}
+                  {isFieldVisible('mobileNo') && (
+                    <div className="flex items-baseline gap-1 text-[11px]">
+                      <LiveEditableText
+                        value={labels.mobileNo || 'Mobile No. :'}
+                        editable={editable}
+                        onSave={val => updateLabel('mobileNo', val)}
+                        className="text-[9.5px] text-slate-500 font-bold uppercase whitespace-nowrap inline-block"
+                      />
+                      <span className="font-bold text-slate-900 whitespace-nowrap">{specimenStudent.mobileNo}</span>
+                    </div>
+                  )}
+                  {isFieldVisible('address') && (
+                    <div className="text-[10px] text-slate-600 pt-0.5 leading-snug">
+                      <LiveEditableText
+                        value={labels.address || 'Address :'}
+                        editable={editable}
+                        onSave={val => updateLabel('address', val)}
+                        className="text-[9.5px] text-slate-500 font-bold uppercase mr-1 inline-block"
+                      />
+                      <span className="font-medium text-slate-700">{specimenStudent.address}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-1.5 border-l pl-3" style={{ borderColor: borderTint }}>
+                  {isFieldVisible('class') && (
+                    <div className="flex items-baseline gap-1 text-[11px]">
+                      <LiveEditableText
+                        value={labels.class || 'Class :'}
+                        editable={editable}
+                        onSave={val => updateLabel('class', val)}
+                        className="text-[9.5px] text-slate-500 font-bold uppercase whitespace-nowrap inline-block"
+                      />
+                      <span className="font-bold text-slate-800">{classNameStr}</span>
+                    </div>
+                  )}
+                  {isFieldVisible('section') && (
+                    <div className="flex items-baseline gap-1 text-[11px]">
+                      <LiveEditableText
+                        value={labels.section || 'Section :'}
+                        editable={editable}
+                        onSave={val => updateLabel('section', val)}
+                        className="text-[9.5px] text-slate-500 font-bold uppercase whitespace-nowrap inline-block"
+                      />
+                      <span className="font-bold text-slate-800">{specimenStudent.section}</span>
+                    </div>
+                  )}
+                  {isFieldVisible('fatherName') && (
+                    <div className="flex items-baseline gap-1 text-[11px]">
+                      <LiveEditableText
+                        value={labels.fatherName || "Father's Name :"}
+                        editable={editable}
+                        onSave={val => updateLabel('fatherName', val)}
+                        className="text-[9.5px] text-slate-500 font-bold uppercase whitespace-nowrap inline-block"
+                      />
+                      <span className="font-semibold text-slate-800 truncate">{specimenStudent.fatherName}</span>
+                    </div>
+                  )}
+                  {isFieldVisible('motherName') && (
+                    <div className="flex items-baseline gap-1 text-[11px]">
+                      <LiveEditableText
+                        value={labels.motherName || "Mother's Name :"}
+                        editable={editable}
+                        onSave={val => updateLabel('motherName', val)}
+                        className="text-[9.5px] text-slate-500 font-bold uppercase whitespace-nowrap inline-block"
+                      />
+                      <span className="font-semibold text-slate-800 truncate">{specimenStudent.motherName}</span>
+                    </div>
+                  )}
+                  {isFieldVisible('enrollmentNo') && (
+                    <div className="flex items-baseline gap-1 text-[11px]">
+                      <LiveEditableText
+                        value={labels.enrollmentNo || 'Enrollment :'}
+                        editable={editable}
+                        onSave={val => updateLabel('enrollmentNo', val)}
+                        className="text-[9.5px] text-slate-500 font-bold uppercase whitespace-nowrap inline-block"
+                      />
+                      <span className="font-semibold text-slate-800 whitespace-nowrap">{specimenStudent.enrollmentNo}</span>
+                    </div>
+                  )}
+                  {isFieldVisible('reportingTime') && (
+                    <div className="flex items-baseline gap-1 text-[11px]">
+                      <LiveEditableText
+                        value={labels.reportingTime || 'Reporting Time :'}
+                        editable={editable}
+                        onSave={val => updateLabel('reportingTime', val)}
+                        className="text-[9.5px] text-slate-500 font-bold uppercase whitespace-nowrap inline-block"
+                      />
+                      <LiveEditableText
+                        value={reportingTimeValue}
+                        editable={editable}
+                        onSave={val => onUpdateField?.('reportingTimeValue', val)}
+                        className="font-bold text-slate-900 whitespace-nowrap ml-1 inline-block"
+                      />
+                    </div>
+                  )}
+                  {isFieldVisible('gateClosure') && (
+                    <div className="flex items-baseline gap-1 text-[11px]">
+                      <LiveEditableText
+                        value={labels.gateClosure || 'Gate Closure :'}
+                        editable={editable}
+                        onSave={val => updateLabel('gateClosure', val)}
+                        className="text-[9.5px] text-slate-500 font-bold uppercase whitespace-nowrap inline-block"
+                      />
+                      <LiveEditableText
+                        value={gateClosureValue}
+                        editable={editable}
+                        onSave={val => onUpdateField?.('gateClosureValue', val)}
+                        className="font-bold text-rose-700 whitespace-nowrap ml-1 inline-block"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* Photo Column (if right positioned or default) */}
+              {isFieldVisible('photo') && photoPosition !== 'left' && (
+                <div className="col-span-3 flex flex-col items-center justify-center border-l pl-3" style={{ borderColor: borderTint }}>
+                  <div
+                    className="border rounded bg-white flex flex-col items-center justify-center text-center p-1 shadow-2xs"
+                    style={{
+                      width: `${photoWidth}px`,
+                      height: `${photoHeight}px`,
+                      borderColor: primaryColor
+                    }}
+                  >
+                    <User className="w-6 h-6 text-slate-400 mb-0.5" />
+                    <LiveEditableText
+                      value={labels.studentPhoto || 'Student Photo'}
+                      editable={editable}
+                      onSave={val => updateLabel('studentPhoto', val)}
+                      className="text-[7.5px] uppercase font-bold text-slate-500 inline-block"
+                    />
+                  </div>
+                  {isFieldVisible('studentSign') && (
+                    <LiveEditableText
+                      value={labels.specimenSign || 'Specimen ID'}
+                      editable={editable}
+                      onSave={val => updateLabel('specimenSign', val)}
+                      className="text-[7.5px] font-bold text-slate-400 mt-1 uppercase inline-block"
+                    />
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Timetable Matrix (HEADERS ARE EDITABLE LABELS, DATA IS STATIC) */}
             {showTimetable && (
-              <div className="border rounded overflow-hidden" style={{ borderColor: borderTintStrong }}>
-                <table className="w-full text-xs text-left border-collapse">
+              <div className="border rounded overflow-hidden" style={{ borderColor: borderTintStrong, fontSize: timetableDetailsFontSize }}>
+                <table className="w-full text-xs text-left border-collapse" style={{ fontSize: timetableDetailsFontSize }}>
                   <thead>
-                    <tr className="text-white text-[9.5px] font-black uppercase" style={{ backgroundColor: primaryColor }}>
+                    <tr className="text-white text-[9.5px] font-black uppercase" style={{ backgroundColor: primaryColor, fontSize: timetableDetailsFontSize }}>
                       <th className="py-1 px-2">
                         <LiveEditableText value={labels.thSNo || '#'} editable={editable} onSave={val => updateLabel('thSNo', val)} />
                       </th>
@@ -2074,7 +2701,7 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                   </thead>
                   <tbody className="divide-y" style={{ borderColor: borderTint }}>
                     {subjects.map((sub: any, sidx: number) => (
-                      <tr key={sidx} className="text-[10.5px] font-semibold text-slate-800">
+                      <tr key={sidx} className="text-[10.5px] font-semibold text-slate-800" style={{ fontSize: timetableDetailsFontSize }}>
                         <td className="py-1 px-2 text-slate-500">{sidx + 1}</td>
                         <td className="py-1 px-2 font-bold">{sub.date}</td>
                         <td className="py-1 px-2 text-slate-600">{sub.fromTime} - {sub.toTime || '13:00'}</td>
@@ -2093,14 +2720,14 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
             {instructions && (
               <div
                 className="mt-3 p-2.5 rounded-lg border text-[9px] text-slate-700 leading-relaxed"
-                style={{ backgroundColor: bgTintSubtle, borderColor: borderTint }}
+                style={{ backgroundColor: bgTintSubtle, borderColor: borderTint, fontSize: instructionsFontSize }}
               >
                 <LiveEditableText
                   value={labels.instructionsHeading || 'Important Candidate Instructions:'}
                   editable={editable}
                   onSave={val => updateLabel('instructionsHeading', val)}
                   className="font-black uppercase inline-block"
-                  style={{ color: primaryColor }}
+                  style={{ color: primaryColor, fontSize: instructionsFontSize }}
                 />
                 <LiveEditableText
                   tag="p"
@@ -2109,13 +2736,14 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                   editable={editable}
                   onSave={val => onUpdateField?.('instructions', val)}
                   className="mt-0.5 whitespace-pre-line text-slate-600 block"
+                  style={{ fontSize: instructionsFontSize }}
                 />
               </div>
             )}
 
             {/* Dynamic Signatures & Stamp (Same format as other templates) */}
             {activeSigns.length > 0 && (
-              <div className="flex justify-between items-end gap-3 text-center mt-6 pt-2 pb-1 text-[8.5px] font-black uppercase text-slate-700">
+              <div className="flex justify-between items-end gap-3 text-center mt-6 pt-2 pb-1 text-[8.5px] font-black uppercase text-slate-700" style={{ fontSize: signatureFontSize }}>
                 {activeSigns.map(s => (
                   <div key={s.key} className="flex-1 flex flex-col items-center min-w-[70px]">
                     {s.type === 'stamp' ? (
@@ -2133,13 +2761,14 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                         <span className="font-extrabold text-[6.5px]">SCHOOL STAMP</span>
                       </div>
                     ) : (
-                      <div className="w-[85%] mb-1.5 min-h-[30px] flex flex-col items-center justify-end">
+                      <div className="mb-1.5 min-h-[30px] flex flex-col items-center justify-end" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
                         {s.key === 'principalSign' && (s.name || principalName) && (
                           <LiveEditableText
                             value={s.name || principalName}
                             editable={editable}
                             onSave={val => onUpdateField?.('principalName', val)}
                             className="font-serif italic font-bold text-[11px] text-slate-800 tracking-wider capitalize leading-tight mb-0.5 inline-block"
+                            style={{ fontSize: signatureFontSize }}
                           />
                         )}
                         <div className="w-full h-0.5 border-t border-dashed border-slate-400" />
@@ -2150,6 +2779,7 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                       editable={editable}
                       onSave={val => onUpdateField?.(s.key + 'Label', val)}
                       className="inline-block"
+                      style={{ fontSize: signatureFontSize }}
                     />
                   </div>
                 ))}
@@ -2298,6 +2928,9 @@ export interface AdmitCardMiniPreviewProps {
   displayFields?: { [key: string]: boolean }
   showExamTimeTable?: boolean
   schoolLogo?: string
+  logoPosition?: 'left' | 'center' | 'right' | string
+  contentPosition?: 'left' | 'center' | 'right' | string
+  photoPosition?: 'right' | 'left' | string
 }
 
 export const AdmitCardMiniPreview: React.FC<AdmitCardMiniPreviewProps> = ({
@@ -2312,7 +2945,10 @@ export const AdmitCardMiniPreview: React.FC<AdmitCardMiniPreviewProps> = ({
   isSelected = false,
   displayFields,
   showExamTimeTable = true,
-  schoolLogo
+  schoolLogo,
+  logoPosition = 'left',
+  contentPosition = 'left',
+  photoPosition = 'right'
 }) => {
   const isMiniFieldVisible = (key: string): boolean => {
     if (displayFields && typeof displayFields[key] === 'boolean') {
@@ -2337,7 +2973,16 @@ export const AdmitCardMiniPreview: React.FC<AdmitCardMiniPreviewProps> = ({
       teacherSign: true,
       principalSign: true,
       parentSign: true,
-      schoolStamp: false
+      schoolStamp: false,
+      qrCode: true,
+      affiliationDetails: true,
+      boardFormat: true,
+      verifiedPass: true,
+      centerCode: true,
+      helpline: true,
+      mottoQuote: true,
+      reportingTime: true,
+      gateClosure: true
     }
     return defaults[key] ?? true
   }

@@ -121,8 +121,8 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
     { 
       icon: Award, label: 'Certificate', href: '#',
       subItems: [
-        { label: 'All Certificate', href: '/institute/certificate' },
-        { label: 'Certificate Type', href: '/institute/certificate/type' },
+        { label: 'Setup Certificate', href: '/institute/certificate/type' },
+        { label: 'Generate Certificate', href: '/institute/certificate' },
       ]
     },
     { 

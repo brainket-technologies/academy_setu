@@ -73,12 +73,12 @@ function CreateAdmitCardForm() {
   // Custom Sizing details
   const [instructions, setInstructions] = useState('')
   const [noOfPrintPerPage, setNoOfPrintPerPage] = useState('1')
-  const [headerNameFontSize, setHeaderNameFontSize] = useState('30')
-  const [headerDetailsFontSize, setHeaderDetailsFontSize] = useState('30')
-  const [studentDetailsFontSize, setStudentDetailsFontSize] = useState('14')
-  const [timetableDetailsFontSize, setTimetableDetailsFontSize] = useState('14')
-  const [headingFontSize, setHeadingFontSize] = useState('18')
-  const [defaultFontSize, setDefaultFontSize] = useState('18')
+  const [headerNameFontSize, setHeaderNameFontSize] = useState('22')
+  const [headerDetailsFontSize, setHeaderDetailsFontSize] = useState('10')
+  const [studentDetailsFontSize, setStudentDetailsFontSize] = useState('11')
+  const [timetableDetailsFontSize, setTimetableDetailsFontSize] = useState('11')
+  const [headingFontSize, setHeadingFontSize] = useState('13')
+  const [defaultFontSize, setDefaultFontSize] = useState('9')
   const [spacing, setSpacing] = useState('20')
   const [studentPhotoSize, setStudentPhotoSize] = useState('100')
   

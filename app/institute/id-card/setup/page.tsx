@@ -15,12 +15,18 @@ import {
   RotateCw,
   Sparkles,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Upload,
+  Type,
+  Building2,
+  FileText,
+  ListOrdered
 } from 'lucide-react'
 import Link from 'next/link'
 import { 
   UniversalIdCardRender,
   IdCardBackDesign,
+  DEFAULT_ID_CARD_GUIDELINES,
   ID_CARD_COLOR_PRESETS,
   ID_CARD_DESIGNS
 } from '@/components/id-cards/IdCardTemplates'
@@ -129,6 +135,17 @@ export default function IdCardSetupPage() {
   const [modalTitle, setModalTitle] = useState('INSTITUTE IDENTITY CARD')
   const [modalPrincipalName, setModalPrincipalName] = useState('K.Singhal')
   const [modalCustomLabels, setModalCustomLabels] = useState<Record<string, string>>({})
+  const [modalSchoolLogo, setModalSchoolLogo] = useState<string | null>(null)
+  const [modalShowLogo, setModalShowLogo] = useState(true)
+  const [modalLogoWidth, setModalLogoWidth] = useState('48')
+  const [modalSchoolNameFontSize, setModalSchoolNameFontSize] = useState('13')
+  const [modalTitleFontSize, setModalTitleFontSize] = useState('9')
+  const [modalTaglineFontSize, setModalTaglineFontSize] = useState('8')
+  const [modalTermsTitle, setModalTermsTitle] = useState('Terms & Campus Guidelines')
+  const [modalTermsGuidelines, setModalTermsGuidelines] = useState(
+    DEFAULT_ID_CARD_GUIDELINES.map(g => '• ' + g).join('\n')
+  )
+  const modalLogoFileInputRef = React.useRef<HTMLInputElement | null>(null)
 
   // Load from PostgreSQL
   useEffect(() => {
@@ -191,7 +208,20 @@ export default function IdCardSetupPage() {
     setModalSchoolPhone(item.schoolPhone || '+91 11 2345 6789')
     setModalSchoolEmail(item.schoolEmail || 'info@academy.edu')
     setModalPrincipalName(item.principalName || 'K.Singhal')
+    setModalSchoolLogo(item.schoolLogo || null)
     setModalCustomLabels(item.customLabels || {})
+    if (item.customLabels?.termsTitle) setModalTermsTitle(item.customLabels.termsTitle)
+    else setModalTermsTitle('Terms & Campus Guidelines')
+    if (item.customLabels?.termsGuidelines) setModalTermsGuidelines(item.customLabels.termsGuidelines)
+    else setModalTermsGuidelines(DEFAULT_ID_CARD_GUIDELINES.map(g => '• ' + g).join('\n'))
+
+    if (item.customLabels) {
+      if (item.customLabels.showLogo !== undefined) setModalShowLogo(item.customLabels.showLogo !== 'false')
+      if (item.customLabels.logoWidth) setModalLogoWidth(item.customLabels.logoWidth)
+      if (item.customLabels.schoolNameFontSize) setModalSchoolNameFontSize(item.customLabels.schoolNameFontSize)
+      if (item.customLabels.titleFontSize) setModalTitleFontSize(item.customLabels.titleFontSize)
+      if (item.customLabels.taglineFontSize) setModalTaglineFontSize(item.customLabels.taglineFontSize)
+    }
   }
 
   const handleUpdateLiveField = (field: string, value: any) => {
@@ -203,6 +233,13 @@ export default function IdCardSetupPage() {
     else if (field === 'session') setModalSession(value)
     else if (field === 'title') setModalTitle(value)
     else if (field === 'principalName') setModalPrincipalName(value)
+    else if (field === 'termsTitle') setModalTermsTitle(value)
+    else if (field === 'termsGuidelines') setModalTermsGuidelines(value)
+    else if (field === 'triggerLogoUpload') modalLogoFileInputRef.current?.click()
+    else if (field === 'schoolNameFontSize') setModalSchoolNameFontSize(String(value))
+    else if (field === 'titleFontSize') setModalTitleFontSize(String(value))
+    else if (field === 'taglineFontSize') setModalTaglineFontSize(String(value))
+    else if (field === 'logoWidth') setModalLogoWidth(String(value))
   }
 
   const handleUpdateLiveLabel = (key: string, value: string) => {
@@ -217,6 +254,17 @@ export default function IdCardSetupPage() {
     if (!previewItem) return
     setIsSavingLive(true)
     try {
+      const mergedLabels = {
+        ...modalCustomLabels,
+        showLogo: String(modalShowLogo),
+        logoWidth: String(modalLogoWidth),
+        schoolNameFontSize: String(modalSchoolNameFontSize),
+        titleFontSize: String(modalTitleFontSize),
+        taglineFontSize: String(modalTaglineFontSize),
+        termsTitle: modalTermsTitle,
+        termsGuidelines: modalTermsGuidelines
+      }
+
       await saveIdCardSetup({
         title: modalTitle,
         cardFor: 'Universal',
@@ -229,7 +277,8 @@ export default function IdCardSetupPage() {
         schoolEmail: modalSchoolEmail,
         themeColor: themeColor,
         principalName: modalPrincipalName,
-        customLabels: modalCustomLabels
+        schoolLogo: modalSchoolLogo || undefined,
+        customLabels: mergedLabels
       })
 
       // Update local item
@@ -245,14 +294,15 @@ export default function IdCardSetupPage() {
             schoolPhone: modalSchoolPhone,
             schoolEmail: modalSchoolEmail,
             principalName: modalPrincipalName,
+            schoolLogo: modalSchoolLogo || undefined,
             themeColor: themeColor,
-            customLabels: modalCustomLabels
+            customLabels: mergedLabels
           }
         }
         return it
       }))
 
-      setToastMessage('ID Card changes & custom text saved successfully!')
+      setToastMessage('ID Card changes, logo & custom typography saved successfully!')
       setTimeout(() => setToastMessage(null), 3000)
     } catch (e: any) {
       console.error(e)
@@ -689,6 +739,189 @@ export default function IdCardSetupPage() {
               </div>
             </div>
 
+            {/* Hidden logo file input for modal */}
+            <input
+              type="file"
+              ref={modalLogoFileInputRef}
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) {
+                  const reader = new FileReader()
+                  reader.onload = (ev) => {
+                    setModalSchoolLogo(ev.target?.result as string)
+                  }
+                  reader.readAsDataURL(file)
+                }
+              }}
+              className="hidden"
+            />
+
+            {/* Modal Quick Logo & Typography Toolbar */}
+            <div className="px-6 py-2.5 bg-slate-50 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-700/80 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+              {previewSide === 'back' ? (
+                /* Back Side Controls */
+                <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-700 dark:text-slate-200 text-[11px] flex items-center gap-1">
+                      <FileText className="w-3 h-3 text-teal-600" />
+                      Heading:
+                    </span>
+                    <input
+                      type="text"
+                      value={modalTermsTitle}
+                      onChange={e => setModalTermsTitle(e.target.value)}
+                      placeholder="TERMS & CAMPUS GUIDELINES"
+                      className="px-2 py-0.5 rounded text-[11px] font-bold border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 w-52"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-slate-400 font-semibold">Presets:</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModalTermsTitle('Terms & Campus Guidelines')
+                        setModalTermsGuidelines(DEFAULT_ID_CARD_GUIDELINES.map(g => '• ' + g).join('\n'))
+                      }}
+                      className="px-2 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 text-[10px] font-bold text-slate-700 hover:text-teal-600 shadow-2xs"
+                    >
+                      Student Rules
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModalTermsTitle('Staff Guidelines & Campus Code')
+                        setModalTermsGuidelines(`• Official faculty/staff identification card. Must be displayed on duty.\n• Property of the institution, to be surrendered upon separation.\n• Grants authorized access to faculty lounges, labs, and staff parking.\n• Report lost or misplaced card immediately to HR/Security.\n• Card abuse or transfer constitutes a disciplinary violation.`)
+                      }}
+                      className="px-2 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 text-[10px] font-bold text-slate-700 hover:text-teal-600 shadow-2xs"
+                    >
+                      Staff Rules
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModalTermsTitle('Examination & Campus Regulations')
+                        setModalTermsGuidelines(`• Mandatory identification pass for campus entry and examination centers.\n• Must be presented on demand to invigilators and campus security.\n• Possession of unauthorized items or mobile devices in exam halls is prohibited.\n• Any mutilation or unauthorized alteration renders this credential invalid.\n• If found, return to the nearest campus reception or security control room.`)
+                      }}
+                      className="px-2 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 text-[10px] font-bold text-slate-700 hover:text-teal-600 shadow-2xs"
+                    >
+                      Exam Rules
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Front Side Logo & Typography Controls */
+                <>
+                  {/* Logo controls */}
+                  <div className="flex items-center gap-2.5">
+                    <div 
+                      onClick={() => modalLogoFileInputRef.current?.click()}
+                      title="Click to select or change institute logo"
+                      className="w-8 h-8 rounded-lg bg-white p-0.5 border border-amber-400 flex items-center justify-center shrink-0 cursor-pointer shadow-2xs relative group overflow-hidden"
+                    >
+                      {modalSchoolLogo ? (
+                        <img src={modalSchoolLogo} alt="Logo" className="w-full h-full object-contain" />
+                      ) : (
+                        <Building2 className="w-4 h-4 text-slate-800" />
+                      )}
+                      <div className="absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center text-[6px] font-bold">
+                        Edit
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-slate-700 dark:text-slate-200 text-[11px]">Logo:</span>
+                      <button
+                        type="button"
+                        onClick={() => setModalShowLogo(!modalShowLogo)}
+                        className={`text-[9.5px] font-bold px-1.5 py-0.2 rounded border transition-all ${
+                          modalShowLogo 
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-300' 
+                            : 'bg-slate-100 text-slate-500 border-slate-300'
+                        }`}
+                      >
+                        {modalShowLogo ? 'ON' : 'OFF'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => modalLogoFileInputRef.current?.click()}
+                        className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-teal-600 hover:bg-teal-700 text-white flex items-center gap-1"
+                      >
+                        <Upload className="w-2.5 h-2.5" />
+                        <span>Upload</span>
+                      </button>
+                      {modalSchoolLogo && (
+                        <button
+                          type="button"
+                          onClick={() => setModalSchoolLogo(null)}
+                          className="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-300"
+                        >
+                          Sample
+                        </button>
+                      )}
+                      <div className="flex items-center gap-1 pl-1.5 border-l border-slate-200">
+                        <span className="text-[10px] text-slate-500">Size:</span>
+                        <input
+                          type="range"
+                          min="28"
+                          max="76"
+                          step="2"
+                          value={Number(modalLogoWidth) || 48}
+                          onChange={e => setModalLogoWidth(e.target.value)}
+                          className="w-14 accent-teal-600 h-1 bg-slate-200 rounded cursor-pointer"
+                        />
+                        <span className="font-mono text-[9px] font-bold text-teal-600">{modalLogoWidth}px</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Typography Font Sizes */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-bold text-slate-600">Inst:</span>
+                      <input
+                        type="range"
+                        min="9"
+                        max="20"
+                        step="0.5"
+                        value={Number(modalSchoolNameFontSize) || 13}
+                        onChange={e => setModalSchoolNameFontSize(e.target.value)}
+                        className="w-12 accent-teal-600 h-1 bg-slate-200 rounded cursor-pointer"
+                      />
+                      <span className="font-mono text-[9px] font-bold text-teal-600">{modalSchoolNameFontSize}px</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-bold text-slate-600">Title:</span>
+                      <input
+                        type="range"
+                        min="7"
+                        max="16"
+                        step="0.5"
+                        value={Number(modalTitleFontSize) || 9}
+                        onChange={e => setModalTitleFontSize(e.target.value)}
+                        className="w-12 accent-teal-600 h-1 bg-slate-200 rounded cursor-pointer"
+                      />
+                      <span className="font-mono text-[9px] font-bold text-teal-600">{modalTitleFontSize}px</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-bold text-slate-600">Tag:</span>
+                      <input
+                        type="range"
+                        min="6"
+                        max="14"
+                        step="0.5"
+                        value={Number(modalTaglineFontSize) || 8}
+                        onChange={e => setModalTaglineFontSize(e.target.value)}
+                        className="w-12 accent-teal-600 h-1 bg-slate-200 rounded cursor-pointer"
+                      />
+                      <span className="font-mono text-[9px] font-bold text-teal-600">{modalTaglineFontSize}px</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
             {/* Modal Body / Rendered Card with Live Inline Editing */}
             <div className="p-8 flex items-center justify-center bg-slate-100/70 dark:bg-slate-900/60 overflow-y-auto flex-1 min-h-[480px]">
               <div 
@@ -706,6 +939,8 @@ export default function IdCardSetupPage() {
                     schoolPhone={modalSchoolPhone}
                     schoolEmail={modalSchoolEmail}
                     themeColor={themeColor}
+                    termsTitle={modalTermsTitle}
+                    termsGuidelines={modalTermsGuidelines}
                     editable={true}
                     onUpdateField={handleUpdateLiveField}
                   />
@@ -721,7 +956,12 @@ export default function IdCardSetupPage() {
                     title={modalTitle}
                     principalName={modalPrincipalName}
                     principalSign={previewItem.principalSign}
-                    schoolLogo={previewItem.schoolLogo}
+                    schoolLogo={modalSchoolLogo || undefined}
+                    showLogo={modalShowLogo}
+                    logoWidth={modalLogoWidth}
+                    schoolNameFontSize={modalSchoolNameFontSize}
+                    titleFontSize={modalTitleFontSize}
+                    taglineFontSize={modalTaglineFontSize}
                     editable={true}
                     customLabels={modalCustomLabels}
                     onUpdateField={handleUpdateLiveField}

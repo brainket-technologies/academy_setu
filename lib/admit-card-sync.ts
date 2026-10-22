@@ -31,14 +31,23 @@ export interface AdmitCardConfig {
   principalSignLabel?: string
   principalName?: string
   signatureWidth?: string
+  signatureFontSize?: string
   schoolStampWidth?: string
   schoolLogo?: string
   schoolLogoWidth?: string
   schoolLogoHeight?: string
+  qrCodeSize?: string
+  logoPosition?: 'left' | 'center' | 'right' | string
+  contentPosition?: 'left' | 'center' | 'right' | string
+  photoPosition?: 'right' | 'left' | string
   signatureOrder?: string[]
   templateStyle?: string
   themeColor?: string
+  reportingTimeValue?: string
+  gateClosureValue?: string
   customLabels?: Record<string, string>
+  elementOffsets?: Record<string, { x: number; y: number }>
+  elementScales?: Record<string, number>
   dateCreated: string
   timeCreated: string
 }
@@ -231,6 +240,8 @@ export function generateAdmitCardAndTimetableForSetup(setup: {
     admitCardLabel: customAdmit.admitLabel || existingCard?.admitCardLabel || 'Admit Card',
     templateStyle: setup.config?.admitTemplateStyle || customAdmit.templateStyle || existingCard?.templateStyle || 'Classic Board',
     themeColor: setup.config?.admitThemeColor || customAdmit.themeColor || existingCard?.themeColor || '#1e3a8a',
+    reportingTimeValue: customAdmit.reportingTimeValue || existingCard?.reportingTimeValue || '09:30 AM IST',
+    gateClosureValue: customAdmit.gateClosureValue || existingCard?.gateClosureValue || '09:50 AM (Sharp)',
     timeTableId: timetableId,
     session: sessionStr,
     schoolName,
@@ -242,12 +253,12 @@ export function generateAdmitCardAndTimetableForSetup(setup: {
     instructions: customAdmit.instructions || existingCard?.instructions || DEFAULT_INSTRUCTIONS,
     showExamTimeTable: customAdmit.showExamTimeTable ?? existingCard?.showExamTimeTable ?? true,
     noOfPrintPerPage: customAdmit.noOfPrintPerPage || existingCard?.noOfPrintPerPage || '1',
-    headerNameFontSize: customAdmit.headerNameFontSize || existingCard?.headerNameFontSize || '30',
-    headerDetailsFontSize: customAdmit.headerDetailsFontSize || existingCard?.headerDetailsFontSize || '30',
-    studentDetailsFontSize: customAdmit.studentDetailsFontSize || existingCard?.studentDetailsFontSize || '14',
-    timetableDetailsFontSize: customAdmit.timetableDetailsFontSize || existingCard?.timetableDetailsFontSize || '14',
-    headingFontSize: customAdmit.headingFontSize || existingCard?.headingFontSize || '18',
-    defaultFontSize: customAdmit.defaultFontSize || existingCard?.defaultFontSize || '18',
+    headerNameFontSize: customAdmit.headerNameFontSize || existingCard?.headerNameFontSize || '22',
+    headerDetailsFontSize: customAdmit.headerDetailsFontSize || existingCard?.headerDetailsFontSize || '10',
+    studentDetailsFontSize: customAdmit.studentDetailsFontSize || existingCard?.studentDetailsFontSize || '11',
+    timetableDetailsFontSize: customAdmit.timetableDetailsFontSize || existingCard?.timetableDetailsFontSize || '11',
+    headingFontSize: customAdmit.headingFontSize || existingCard?.headingFontSize || '13',
+    defaultFontSize: customAdmit.defaultFontSize || existingCard?.defaultFontSize || '9',
     spacing: customAdmit.spacing || existingCard?.spacing || '20',
     studentPhotoSize: customAdmit.studentPhotoSize || existingCard?.studentPhotoSize || '100',
     teacherSignLabel: customAdmit.teacherSignLabel || existingCard?.teacherSignLabel || "Class Teacher's Sign.",
@@ -255,8 +266,10 @@ export function generateAdmitCardAndTimetableForSetup(setup: {
     parentSignLabel: customAdmit.parentSignLabel || existingCard?.parentSignLabel || "Parent's Sign.",
     principalSignLabel: customAdmit.principalSignLabel || existingCard?.principalSignLabel || "Principal's Sign.",
     principalName: setup.config?.schoolDetails?.principalName || customAdmit.principalName || existingCard?.principalName || 'fahad',
-    signatureWidth: customAdmit.signatureWidth || existingCard?.signatureWidth || '30',
-    schoolStampWidth: customAdmit.schoolStampWidth || existingCard?.schoolStampWidth || '30',
+    signatureWidth: customAdmit.signatureWidth || existingCard?.signatureWidth || '100',
+    signatureFontSize: customAdmit.signatureFontSize || existingCard?.signatureFontSize || '9',
+    schoolStampWidth: customAdmit.schoolStampWidth || existingCard?.schoolStampWidth || '56',
+    qrCodeSize: customAdmit.qrCodeSize || existingCard?.qrCodeSize || '72',
     dateCreated: existingCard ? existingCard.dateCreated : dateStr,
     timeCreated: existingCard ? existingCard.timeCreated : timeStr
   }

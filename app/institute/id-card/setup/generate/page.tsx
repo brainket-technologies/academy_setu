@@ -23,6 +23,9 @@ import {
   Briefcase,
   Globe,
   Upload,
+  Type,
+  BookOpen,
+  ListOrdered,
   Image as ImageIcon
 } from 'lucide-react'
 import Link from 'next/link'
@@ -30,12 +33,43 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { 
   UniversalIdCardRender,
   IdCardBackDesign,
+  DEFAULT_ID_CARD_GUIDELINES,
   ID_CARD_COLOR_PRESETS,
   ID_CARD_DESIGNS,
   IdCardRole,
   ID_CARD_ROLE_PREVIEWS
 } from '@/components/id-cards/IdCardTemplates'
-import { saveIdCardSetup, fetchCurrentInstitutionDetails } from '../../actions'
+import { saveIdCardSetup, fetchCurrentInstitutionDetails, fetchIdCardSetups } from '../../actions'
+
+export const ID_CARD_GUIDELINE_PRESETS = [
+  {
+    name: 'Student Rules',
+    title: 'Terms & Campus Guidelines',
+    guidelines: `• This card is non-transferable and remains the property of the institute.
+• Must be worn visibly during school/campus hours.
+• Loss of this card should be reported to the office immediately.
+• Damage or misuse of the card is strictly prohibited.
+• Valid only for authorized campus access and library services.`
+  },
+  {
+    name: 'Faculty & Staff Rules',
+    title: 'Staff Guidelines & Campus Code',
+    guidelines: `• Official faculty/staff identification card. Must be displayed on duty.
+• Property of the institution, to be surrendered upon separation.
+• Grants authorized access to faculty lounges, labs, and staff parking.
+• Report lost or misplaced card immediately to HR/Security.
+• Card abuse or transfer constitutes a disciplinary violation.`
+  },
+  {
+    name: 'Examination & Security Rules',
+    title: 'Examination & Campus Regulations',
+    guidelines: `• Mandatory identification pass for campus entry and examination centers.
+• Must be presented on demand to invigilators and campus security.
+• Possession of unauthorized items or mobile devices in exam halls is prohibited.
+• Any mutilation or unauthorized alteration renders this credential invalid.
+• If found, return to the nearest campus reception or security control room.`
+  }
+]
 
 function GenerateIdCardContent() {
   const router = useRouter()
@@ -58,6 +92,12 @@ function GenerateIdCardContent() {
   const [principalName, setPrincipalName] = useState('K.Singhal')
   const [principalSign, setPrincipalSign] = useState<string | null>(null)
   const [schoolLogo, setSchoolLogo] = useState<string | null>(null)
+  const [showLogo, setShowLogo] = useState(true)
+  const [logoWidth, setLogoWidth] = useState('48')
+  const [schoolNameFontSize, setSchoolNameFontSize] = useState('13')
+  const [titleFontSize, setTitleFontSize] = useState('9')
+  const [taglineFontSize, setTaglineFontSize] = useState('8')
+  const logoFileInputRef = React.useRef<HTMLInputElement | null>(null)
   const [isAutoFetching, setIsAutoFetching] = useState(false)
   const [autoFetchNotice, setAutoFetchNotice] = useState<string | null>(null)
   const [holderSignName, setHolderSignName] = useState(ID_CARD_ROLE_PREVIEWS[initialRole].holderSignName)
@@ -94,6 +134,10 @@ function GenerateIdCardContent() {
   const [bottomNotes, setBottomNotes] = useState(
     'This card belongs to the institute. If found, please return to the institute authorities.'
   )
+  const [termsTitle, setTermsTitle] = useState('Terms & Campus Guidelines')
+  const [termsGuidelines, setTermsGuidelines] = useState(
+    DEFAULT_ID_CARD_GUIDELINES.map(g => '• ' + g).join('\n')
+  )
 
   const activeDesignMeta = ID_CARD_DESIGNS.find(d => d.id === selectedDesign) || ID_CARD_DESIGNS[0]
   const isLandscape = activeDesignMeta.orientation === 'Horizontal'
@@ -118,6 +162,26 @@ function GenerateIdCardContent() {
           setAutoFetchNotice('Auto-fetched institution details & official signature')
           setTimeout(() => setAutoFetchNotice(null), 4000)
         }
+
+        // Also auto-load saved setup for this design if any
+        try {
+          const setupsRes = await fetchIdCardSetups()
+          if (isMounted && setupsRes.success && Array.isArray(setupsRes.data)) {
+            const match = setupsRes.data.find((s: any) => s.designId === selectedDesign)
+            if (match) {
+              if (match.customLabels?.termsTitle) setTermsTitle(match.customLabels.termsTitle)
+              if (match.customLabels?.termsGuidelines) setTermsGuidelines(match.customLabels.termsGuidelines)
+              if (match.bottomNotes) setBottomNotes(match.bottomNotes)
+              if (match.customLabels?.schoolNameFontSize) setSchoolNameFontSize(match.customLabels.schoolNameFontSize)
+              if (match.customLabels?.titleFontSize) setTitleFontSize(match.customLabels.titleFontSize)
+              if (match.customLabels?.taglineFontSize) setTaglineFontSize(match.customLabels.taglineFontSize)
+              if (match.customLabels?.logoWidth) setLogoWidth(match.customLabels.logoWidth)
+              if (match.customLabels?.showLogo !== undefined) setShowLogo(match.customLabels.showLogo !== 'false')
+            }
+          }
+        } catch (err) {
+          // Ignore
+        }
       } catch (e) {
         console.error('Failed to auto-fetch institution details', e)
       } finally {
@@ -126,7 +190,7 @@ function GenerateIdCardContent() {
     }
     loadInstData()
     return () => { isMounted = false }
-  }, [])
+  }, [selectedDesign])
 
   const handleManualAutoFetch = async () => {
     setIsAutoFetching(true)
@@ -197,6 +261,13 @@ function GenerateIdCardContent() {
     else if (field === 'principalName') setPrincipalName(val)
     else if (field === 'holderSignName') setHolderSignName(val)
     else if (field === 'bottomNotes') setBottomNotes(val)
+    else if (field === 'termsTitle') setTermsTitle(val)
+    else if (field === 'termsGuidelines') setTermsGuidelines(val)
+    else if (field === 'triggerLogoUpload') logoFileInputRef.current?.click()
+    else if (field === 'schoolNameFontSize') setSchoolNameFontSize(String(val))
+    else if (field === 'titleFontSize') setTitleFontSize(String(val))
+    else if (field === 'taglineFontSize') setTaglineFontSize(String(val))
+    else if (field === 'logoWidth') setLogoWidth(String(val))
   }
 
   const handleSave = async () => {
@@ -232,7 +303,16 @@ function GenerateIdCardContent() {
         principalName,
         principalSign: principalSign || undefined,
         schoolLogo: schoolLogo || undefined,
-        customLabels
+        customLabels: {
+          ...customLabels,
+          showLogo: String(showLogo),
+          logoWidth: String(logoWidth),
+          schoolNameFontSize: String(schoolNameFontSize),
+          titleFontSize: String(titleFontSize),
+          taglineFontSize: String(taglineFontSize),
+          termsTitle,
+          termsGuidelines
+        }
       })
     } catch (e) {
       console.error(e)
@@ -639,6 +719,335 @@ function GenerateIdCardContent() {
             </div>
           </div>
 
+          {activeSide === 'back' ? (
+            /* ─── CARD BACK SIDE: TERMS & CAMPUS GUIDELINES WRITING STUDIO ─── */
+            <div className="border border-teal-500/40 rounded-2xl bg-white dark:bg-slate-800 p-4 shadow-sm space-y-3.5">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-700/80">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-teal-50 dark:bg-teal-950/60 text-teal-600 flex items-center justify-center">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide flex items-center gap-2">
+                      <span>Terms & Campus Guidelines Studio</span>
+                      <span className="text-[10px] bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 font-bold px-2 py-0.5 rounded-full">
+                        Card Back Canvas
+                      </span>
+                    </h3>
+                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400">
+                      Write campus rules, disciplinary guidelines & return notes. Changes update the card back canvas immediately.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">
+                    Presets:
+                  </span>
+                  {ID_CARD_GUIDELINE_PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => {
+                        setTermsTitle(preset.title)
+                        setTermsGuidelines(preset.guidelines)
+                      }}
+                      className="px-2.5 py-1 rounded-lg text-[10.5px] font-bold bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 hover:text-teal-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors shadow-2xs"
+                    >
+                      {preset.name}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTermsTitle('Terms & Campus Guidelines')
+                      setTermsGuidelines(DEFAULT_ID_CARD_GUIDELINES.map(g => '• ' + g).join('\n'))
+                    }}
+                    className="text-[10px] font-bold text-teal-600 hover:text-teal-700 underline ml-1"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+
+              {/* Title Input & Bottom Disclaimer Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span>Guidelines Heading / Title</span>
+                    <span className="text-[9.5px] font-normal text-slate-400">Printed at top of back side</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={termsTitle}
+                    onChange={(e) => setTermsTitle(e.target.value)}
+                    placeholder="e.g. TERMS & CAMPUS GUIDELINES"
+                    className="w-full px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 transition-all"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span>Bottom Return Note / Notice</span>
+                    <span className="text-[9.5px] font-normal text-slate-400">Printed below campus return address</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={bottomNotes}
+                    onChange={(e) => setBottomNotes(e.target.value)}
+                    placeholder="This card belongs to the institute. If found, please return..."
+                    className="w-full px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Multi-line Guidelines Textarea */}
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <ListOrdered className="w-3.5 h-3.5 text-teal-600" />
+                    <span>Campus Rules & Guidelines (Multi-line Writing Box)</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    Each line becomes a bullet point rule on the card canvas • Click any bullet on card to edit directly
+                  </span>
+                </div>
+                <textarea
+                  rows={4}
+                  value={termsGuidelines}
+                  onChange={(e) => setTermsGuidelines(e.target.value)}
+                  placeholder="• This card is non-transferable...&#10;• Must be worn visibly during school hours...&#10;• Loss must be reported immediately..."
+                  className="w-full p-2.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 font-sans leading-relaxed transition-all resize-y"
+                />
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* ─── QUICK LOGO SELECTION & SIZING CONTROLS STUDIO ─── */}
+              <div className="border border-teal-500/30 rounded-2xl bg-white dark:bg-slate-800 p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  {/* Logo Preview Emblem Thumbnail */}
+                  <div 
+                    onClick={() => logoFileInputRef.current?.click()}
+                    title="Click to select or change institute logo"
+                    className="w-12 h-12 rounded-xl bg-white p-1 border-2 border-amber-400 ring-2 ring-slate-100 flex items-center justify-center shrink-0 overflow-hidden cursor-pointer shadow-xs relative group"
+                  >
+                    {schoolLogo ? (
+                      <img src={schoolLogo} alt="Logo" className="w-full h-full object-contain filter drop-shadow-2xs" />
+                    ) : (
+                      <div className="w-full h-full rounded-lg bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex flex-col items-center justify-center text-slate-900 shadow-inner p-0.5">
+                        <Building2 className="w-5 h-5 text-slate-900" />
+                        <span className="text-[5px] font-black uppercase tracking-tighter">LOGO</span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 rounded-lg flex flex-col items-center justify-center text-[7px] font-black transition-opacity">
+                      <Upload className="w-3 h-3 mb-0.5" />
+                      <span>Change</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                        Institute Logo:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowLogo(!showLogo)}
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-all border ${
+                          showLogo 
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700' 
+                            : 'bg-slate-100 dark:bg-slate-700 text-slate-500 border-slate-300 dark:border-slate-600'
+                        }`}
+                      >
+                        {showLogo ? '● Visible (ON)' : '○ Hidden (OFF)'}
+                      </button>
+                    </div>
+                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      {schoolLogo ? 'Custom institute logo active • Live updates across all 4 ID card designs' : 'Official sample emblem active • Click logo on card or button to upload'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <input
+                    type="file"
+                    ref={logoFileInputRef}
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => logoFileInputRef.current?.click()}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white transition-all shadow-sm flex items-center gap-1.5"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>{schoolLogo ? 'Change Logo' : 'Select / Upload Logo'}</span>
+                  </button>
+                  {schoolLogo && (
+                    <button
+                      type="button"
+                      onClick={() => setSchoolLogo(null)}
+                      className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 text-slate-600 dark:text-slate-300 shadow-2xs"
+                    >
+                      Use Sample
+                    </button>
+                  )}
+                  <div className="flex items-center gap-1.5 pl-2.5 border-l border-slate-200 dark:border-slate-700">
+                    <span className="text-[10.5px] font-bold text-slate-600 dark:text-slate-300">Logo Size:</span>
+                    <input
+                      type="range"
+                      min="28"
+                      max="76"
+                      step="2"
+                      value={Number(logoWidth) || 48}
+                      onChange={e => setLogoWidth(e.target.value)}
+                      className="w-16 sm:w-20 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                    />
+                    <span className="font-mono font-bold text-teal-600 dark:text-teal-400 text-[10.5px] bg-teal-50 dark:bg-teal-950/60 px-1 py-0.5 rounded border border-teal-200 dark:border-teal-800">{logoWidth}px</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── QUICK TYPOGRAPHY & FONT SIZING CONTROLS FOR ID CARD ─── */}
+              <div className="border border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-800 p-4 shadow-2xs space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/80">
+                  <div className="flex items-center gap-2">
+                    <Type className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                      Quick Typography & Font Sizing Controls
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 font-semibold hidden md:inline-block">
+                      Customize institute name, card title, and tagline font sizes in real time
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSchoolNameFontSize('13')
+                        setTitleFontSize('9')
+                        setTaglineFontSize('8')
+                      }}
+                      className="text-[10px] font-bold text-teal-600 hover:text-teal-700 underline"
+                    >
+                      Reset Defaults
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* 1. School / Institute Name Font Size */}
+                  <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-900/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Institute Name:</span>
+                      <span className="font-mono font-black text-teal-600 dark:text-teal-400 text-[10.5px] bg-teal-50 dark:bg-teal-950/60 px-1 rounded">{schoolNameFontSize}px</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        title="Make Institute Name smaller"
+                        onClick={() => setSchoolNameFontSize(prev => String(Math.max(9, Number(prev) - 1)))}
+                        className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                      >
+                        A-
+                      </button>
+                      <input
+                        type="range"
+                        min="9"
+                        max="20"
+                        step="0.5"
+                        value={Number(schoolNameFontSize) || 13}
+                        onChange={e => setSchoolNameFontSize(e.target.value)}
+                        className="w-14 sm:w-16 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                      />
+                      <button
+                        type="button"
+                        title="Make Institute Name bigger"
+                        onClick={() => setSchoolNameFontSize(prev => String(Math.min(24, Number(prev) + 1)))}
+                        className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                      >
+                        A+
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. Card Title Font Size */}
+                  <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-900/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Card Title:</span>
+                      <span className="font-mono font-black text-teal-600 dark:text-teal-400 text-[10.5px] bg-teal-50 dark:bg-teal-950/60 px-1 rounded">{titleFontSize}px</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        title="Make Card Title smaller"
+                        onClick={() => setTitleFontSize(prev => String(Math.max(7, Number(prev) - 0.5)))}
+                        className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                      >
+                        A-
+                      </button>
+                      <input
+                        type="range"
+                        min="7"
+                        max="16"
+                        step="0.5"
+                        value={Number(titleFontSize) || 9}
+                        onChange={e => setTitleFontSize(e.target.value)}
+                        className="w-14 sm:w-16 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                      />
+                      <button
+                        type="button"
+                        title="Make Card Title bigger"
+                        onClick={() => setTitleFontSize(prev => String(Math.min(20, Number(prev) + 0.5)))}
+                        className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                      >
+                        A+
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3. Subtitle / Tagline Font Size */}
+                  <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-900/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Tagline:</span>
+                      <span className="font-mono font-black text-teal-600 dark:text-teal-400 text-[10.5px] bg-teal-50 dark:bg-teal-950/60 px-1 rounded">{taglineFontSize}px</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        title="Make Tagline smaller"
+                        onClick={() => setTaglineFontSize(prev => String(Math.max(6, Number(prev) - 0.5)))}
+                        className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                      >
+                        A-
+                      </button>
+                      <input
+                        type="range"
+                        min="6"
+                        max="14"
+                        step="0.5"
+                        value={Number(taglineFontSize) || 8}
+                        onChange={e => setTaglineFontSize(e.target.value)}
+                        className="w-14 sm:w-16 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                      />
+                      <button
+                        type="button"
+                        title="Make Tagline bigger"
+                        onClick={() => setTaglineFontSize(prev => String(Math.min(18, Number(prev) + 0.5)))}
+                        className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                      >
+                        A+
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
           {/* Centered Large Interactive Preview */}
           <div className="w-full min-h-[490px] bg-slate-200/50 dark:bg-slate-800/50 rounded-2xl p-6 flex flex-col items-center justify-center overflow-hidden border border-slate-200/80 dark:border-slate-700 relative">
             <div 
@@ -657,6 +1066,8 @@ function GenerateIdCardContent() {
                   schoolEmail={schoolEmail}
                   bottomNotes={bottomNotes}
                   themeColor={themeColor}
+                  termsTitle={termsTitle}
+                  termsGuidelines={termsGuidelines}
                   editable={true}
                   onUpdateField={handleUpdateLiveField}
                 />
@@ -689,6 +1100,11 @@ function GenerateIdCardContent() {
                   principalName={principalName}
                   principalSign={principalSign || undefined}
                   schoolLogo={schoolLogo || undefined}
+                  showLogo={showLogo}
+                  logoWidth={logoWidth}
+                  schoolNameFontSize={schoolNameFontSize}
+                  titleFontSize={titleFontSize}
+                  taglineFontSize={taglineFontSize}
                   editable={true}
                   customLabels={customLabels}
                   onUpdateField={handleUpdateLiveField}
@@ -1127,18 +1543,89 @@ function GenerateIdCardContent() {
             </div>
           </div>
 
-          {/* Bottom Notes for Back Side */}
-          <div className="flex flex-col gap-2 mt-6">
-            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-              Card Terms & Bottom Note <span className="text-[10px] text-slate-400 font-normal">(Printed on Back Side)</span>
-            </label>
-            <textarea 
-              rows={2}
-              value={bottomNotes}
-              onChange={(e) => setBottomNotes(e.target.value)}
-              placeholder="This card belongs to the institute. If found, please return..."
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs outline-none focus:border-teal-500 transition-all text-slate-700 dark:text-slate-300 resize-none"
-            ></textarea>
+          {/* ─── CARD BACK SIDE: TERMS, CAMPUS GUIDELINES & RETURN NOTE ─── */}
+          <div className="mt-8 p-5 rounded-2xl border border-teal-500/30 bg-teal-50/20 dark:bg-slate-800/80 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-teal-100 dark:bg-teal-950/60 text-teal-600 flex items-center justify-center">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                    Card Back Side: Terms & Campus Guidelines Writing Suite
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Custom rules, regulations and property ownership notice printed on the reverse side of all ID cards
+                  </p>
+                </div>
+              </div>
+
+              {/* Presets */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">
+                  Preset Templates:
+                </span>
+                {ID_CARD_GUIDELINE_PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    onClick={() => {
+                      setTermsTitle(preset.title)
+                      setTermsGuidelines(preset.guidelines)
+                    }}
+                    className="px-2.5 py-1 rounded-lg text-[10.5px] font-bold bg-white dark:bg-slate-700 hover:bg-teal-50 hover:text-teal-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors shadow-2xs"
+                  >
+                    {preset.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Guidelines Heading Title
+                </label>
+                <input
+                  type="text"
+                  value={termsTitle}
+                  onChange={(e) => setTermsTitle(e.target.value)}
+                  placeholder="e.g. TERMS & CAMPUS GUIDELINES"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-bold outline-none focus:border-teal-500 transition-all text-slate-700 dark:text-slate-200"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Card Return / Ownership Bottom Note
+                </label>
+                <input
+                  type="text"
+                  value={bottomNotes}
+                  onChange={(e) => setBottomNotes(e.target.value)}
+                  placeholder="This card belongs to the institute. If found, please return..."
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs outline-none focus:border-teal-500 transition-all text-slate-700 dark:text-slate-200"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Campus Guidelines & Instructions (Lines)
+                </label>
+                <span className="text-[10.5px] text-slate-400 font-medium">
+                  Separate each rule onto a new line (bullets • optional)
+                </span>
+              </div>
+              <textarea
+                rows={5}
+                value={termsGuidelines}
+                onChange={(e) => setTermsGuidelines(e.target.value)}
+                placeholder="Enter rules, one per line..."
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs outline-none focus:border-teal-500 transition-all text-slate-700 dark:text-slate-200 leading-relaxed resize-y"
+              ></textarea>
+            </div>
           </div>
         </section>
 

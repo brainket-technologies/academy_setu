@@ -551,7 +551,7 @@ export default function AllCertificatePage() {
           </div>
           <div>
             <h1 className="text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2.5">
-              <span>Student Certificates</span>
+              <span>Generate Certificates</span>
               <span className="text-xs bg-teal-50 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 px-2.5 py-0.5 rounded-full font-bold">
                 {certificates.length} Issued
               </span>
@@ -568,7 +568,7 @@ export default function AllCertificatePage() {
             className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1.5"
           >
             <Layers className="w-4 h-4 text-slate-500" />
-            <span>Manage Types</span>
+            <span>Setup Certificate</span>
           </Link>
 
           <button

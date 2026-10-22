@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, Suspense } from 'react'
+import React, { useState, useEffect, useRef, Suspense } from 'react'
 import { 
   X, 
   Check, 
@@ -25,10 +25,14 @@ import {
   GraduationCap,
   Calendar,
   QrCode,
-  PenTool
+  PenTool,
+  Type,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { SampleSchoolLogo } from '@/components/admit-card/AdmitCardModalPreview'
 import { 
   CertificateDesign1, 
   CertificateDesign2, 
@@ -119,9 +123,7 @@ const TITLE_SUGGESTIONS = [
 
 const HIDDEN_FIELDS_LIST = [
   'Title', 'School Name', 'Tagline', 'School Address',
-  'Water Mark', 'Student Name', 'Certificate Date', 
-  'Principal Sign', 'Teacher Sign', 'Controller Sign', 
-  'Coordinator Sign', 'Parent Sign', 'Student Sign', 'Official Seal', 'QR Code'
+  'Water Mark', 'Student Name'
 ]
 
 function CertificateTypeCreateContent() {
@@ -201,6 +203,28 @@ function CertificateTypeCreateContent() {
     'Student Sign'
   ])
 
+  // ─── Brand Logo & Typography Studio State ───
+  const [schoolLogo, setSchoolLogo] = useState<string>('')
+  const [showLogo, setShowLogo] = useState<boolean>(true)
+  const [logoWidth, setLogoWidth] = useState<string>('60')
+  const [schoolNameFontSize, setSchoolNameFontSize] = useState<string>('14')
+  const [titleFontSize, setTitleFontSize] = useState<string>('30')
+  const [subtitleFontSize, setSubtitleFontSize] = useState<string>('11')
+  const logoFileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const b64 = reader.result as string
+      setSchoolLogo(b64)
+      setToastMessage('Certificate Brand Logo updated!')
+      setTimeout(() => setToastMessage(null), 3000)
+    }
+    reader.readAsDataURL(file)
+  }
+
   // Preview Scale / Zoom
   const [previewScale, setPreviewScale] = useState<number>(0.68)
   const [isSaving, setIsSaving] = useState(false)
@@ -270,6 +294,12 @@ function CertificateTypeCreateContent() {
             if (found.customLabels.studentSignLabel) setStudentSignLabel(found.customLabels.studentSignLabel)
             if (found.customLabels.date_label) setDateLabel(found.customLabels.date_label)
             if (found.customLabels.date) setIssueDate(found.customLabels.date)
+            if (found.customLabels.schoolLogo) setSchoolLogo(found.customLabels.schoolLogo)
+            if (found.customLabels.showLogo !== undefined) setShowLogo(found.customLabels.showLogo === 'true')
+            if (found.customLabels.logoWidth) setLogoWidth(found.customLabels.logoWidth)
+            if (found.customLabels.schoolNameFontSize) setSchoolNameFontSize(found.customLabels.schoolNameFontSize)
+            if (found.customLabels.titleFontSize) setTitleFontSize(found.customLabels.titleFontSize)
+            if (found.customLabels.subtitleFontSize) setSubtitleFontSize(found.customLabels.subtitleFontSize)
           }
         }
       }
@@ -387,58 +417,31 @@ function CertificateTypeCreateContent() {
     const isCurrentlyVisible = !hiddenFields.includes(field)
     if (isCurrentlyVisible) {
       // User unchecked -> HIDE the field (add to hiddenFields)
-      setHiddenFields(prev => prev.includes(field) ? prev : [...prev, field])
-      if (field === 'Principal Sign') setShowPrincipalSign(false)
-      if (field === 'Teacher Sign') setShowTeacherSign(false)
-      if (field === 'Controller Sign') setShowControllerSign(false)
-      if (field === 'Coordinator Sign') setShowCoordinatorSign(false)
-      if (field === 'Parent Sign') setShowParentSign(false)
-      if (field === 'Student Sign') setShowStudentSign(false)
-      if (field === 'Certificate Date') setShowIssueDate(false)
-      if (field === 'Official Seal' || field === 'Water Mark') setShowSeal(false)
-      if (field === 'QR Code') setShowQr(false)
+      setHiddenFields(prev => {
+        const next = prev.includes(field) ? [...prev] : [...prev, field]
+        if (field === 'Tagline' && !next.includes('Subtitle')) next.push('Subtitle')
+        return next
+      })
     } else {
       // User checked -> SHOW the field (remove from hiddenFields)
-      setHiddenFields(prev => prev.filter(f => f !== field))
-      if (field === 'Principal Sign') setShowPrincipalSign(true)
-      if (field === 'Teacher Sign') setShowTeacherSign(true)
-      if (field === 'Controller Sign') setShowControllerSign(true)
-      if (field === 'Coordinator Sign') setShowCoordinatorSign(true)
-      if (field === 'Parent Sign') setShowParentSign(true)
-      if (field === 'Student Sign') setShowStudentSign(true)
-      if (field === 'Certificate Date') setShowIssueDate(true)
-      if (field === 'Official Seal' || field === 'Water Mark') setShowSeal(true)
-      if (field === 'QR Code') setShowQr(true)
+      setHiddenFields(prev => {
+        let next = prev.filter(f => f !== field)
+        if (field === 'Tagline') next = next.filter(f => f !== 'Subtitle')
+        return next
+      })
     }
   }
 
   const handleToggleHiddenField = handleToggleFieldVisibility
 
   const handleToggleAllVisibility = () => {
-    if (hiddenFields.length === 0) {
-      // Uncheck all -> hide all
-      setHiddenFields([...HIDDEN_FIELDS_LIST])
-      setShowPrincipalSign(false)
-      setShowTeacherSign(false)
-      setShowControllerSign(false)
-      setShowCoordinatorSign(false)
-      setShowParentSign(false)
-      setShowStudentSign(false)
-      setShowIssueDate(false)
-      setShowSeal(false)
-      setShowQr(false)
+    const anyVisible = HIDDEN_FIELDS_LIST.some(f => !hiddenFields.includes(f))
+    if (anyVisible) {
+      // Uncheck all -> hide all in HIDDEN_FIELDS_LIST
+      setHiddenFields(prev => Array.from(new Set([...prev, ...HIDDEN_FIELDS_LIST, 'Subtitle'])))
     } else {
-      // Check all -> show all
-      setHiddenFields([])
-      setShowPrincipalSign(true)
-      setShowTeacherSign(true)
-      setShowControllerSign(true)
-      setShowCoordinatorSign(true)
-      setShowParentSign(true)
-      setShowStudentSign(true)
-      setShowIssueDate(true)
-      setShowSeal(true)
-      setShowQr(true)
+      // Check all -> show all in HIDDEN_FIELDS_LIST
+      setHiddenFields(prev => prev.filter(f => !HIDDEN_FIELDS_LIST.includes(f) && f !== 'Subtitle'))
     }
   }
 
@@ -463,6 +466,12 @@ function CertificateTypeCreateContent() {
     else if (field === 'controllerSignName') setControllerSignName(val)
     else if (field === 'secondarySignName') setCoordinatorSignName(val)
     else if (field === 'parentSignName') setParentSignName(val)
+    else if (field === 'schoolNameFontSize') setSchoolNameFontSize(String(val))
+    else if (field === 'titleFontSize') setTitleFontSize(String(val))
+    else if (field === 'subtitleFontSize') setSubtitleFontSize(String(val))
+    else if (field === 'logoWidth') setLogoWidth(String(val))
+    else if (field === 'schoolLogo') setSchoolLogo(String(val))
+    else if (field === 'triggerLogoUpload') logoFileInputRef.current?.click()
   }
 
   const handleCanvasUpdateLabel = (key: string, val: string) => {
@@ -516,7 +525,13 @@ function CertificateTypeCreateContent() {
         parentSignLabel,
         studentSignLabel,
         date_label: dateLabel,
-        date: issueDate
+        date: issueDate,
+        schoolLogo,
+        showLogo: String(showLogo),
+        logoWidth: String(logoWidth),
+        schoolNameFontSize: String(schoolNameFontSize),
+        titleFontSize: String(titleFontSize),
+        subtitleFontSize: String(subtitleFontSize)
       }
 
       const res = await saveCertificateType({
@@ -951,6 +966,219 @@ function CertificateTypeCreateContent() {
             </div>
           </div>
 
+          {/* ─── CERTIFICATE BRAND LOGO STUDIO ─── */}
+          <div className="border border-slate-200/90 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-850 p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
+            <input 
+              ref={logoFileInputRef}
+              type="file" 
+              accept="image/*" 
+              className="hidden" 
+              onChange={handleLogoUpload} 
+            />
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-white dark:bg-slate-800 border border-dashed border-teal-300 dark:border-teal-700 flex items-center justify-center p-1 shrink-0 overflow-hidden shadow-2xs">
+                {schoolLogo ? (
+                  <img src={schoolLogo} alt="Logo" className="w-full h-full object-contain rounded" />
+                ) : (
+                  <SampleSchoolLogo width={34} height={34} color={themeColor} />
+                )}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                    Certificate Brand Logo
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowLogo(prev => !prev)}
+                    className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase transition-all shadow-2xs ${
+                      showLogo
+                        ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                        : 'bg-slate-200 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700'
+                    }`}
+                  >
+                    {showLogo ? '● Visible (ON)' : '○ Hidden (OFF)'}
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  {schoolLogo ? 'Custom brand logo active • Updates all certificate styles live' : 'Official sample emblem active • Click logo on template or button to upload'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => logoFileInputRef.current?.click()}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white transition-all shadow-sm flex items-center gap-1.5"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>{schoolLogo ? 'Change Logo' : 'Select / Upload Logo'}</span>
+              </button>
+              {schoolLogo && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSchoolLogo('')
+                    setToastMessage('Reverted to Sample Academy Crest')
+                    setTimeout(() => setToastMessage(null), 3000)
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 text-slate-600 dark:text-slate-300 shadow-2xs"
+                >
+                  Use Sample
+                </button>
+              )}
+              <div className="flex items-center gap-1.5 pl-2.5 border-l border-slate-200 dark:border-slate-700">
+                <span className="text-[10.5px] font-bold text-slate-600 dark:text-slate-300">Logo Size:</span>
+                <input
+                  type="range"
+                  min="32"
+                  max="140"
+                  step="2"
+                  value={Number(logoWidth) || 60}
+                  onChange={e => setLogoWidth(e.target.value)}
+                  className="w-16 sm:w-20 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                />
+                <span className="font-mono font-bold text-teal-600 dark:text-teal-400 text-[10.5px] bg-white dark:bg-slate-800 px-1 py-0.5 rounded border border-teal-200 dark:border-teal-800">{logoWidth}px</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ─── QUICK TYPOGRAPHY & FONT SIZING CONTROLS ─── */}
+          <div className="border border-slate-200/90 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-850 p-4 shadow-xs space-y-3 mb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Type className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                  Quick Typography & Font Sizing Controls
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-slate-400 font-semibold">
+                  Customize institute name, certificate title, and subtitle font sizes in real time
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSchoolNameFontSize('14')
+                    setTitleFontSize('30')
+                    setSubtitleFontSize('11')
+                  }}
+                  className="text-[10px] font-bold text-teal-600 hover:text-teal-700 underline ml-2"
+                >
+                  Reset Defaults
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* 1. School / Institute Name Font Size */}
+              <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Institute Name:</span>
+                  <span className="font-mono font-black text-teal-600 dark:text-teal-400 text-[10.5px] bg-teal-50 dark:bg-teal-950/60 px-1 rounded">{schoolNameFontSize}px</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    title="Make Institute Name smaller"
+                    onClick={() => setSchoolNameFontSize(prev => String(Math.max(10, Number(prev) - 1)))}
+                    className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                  >
+                    A-
+                  </button>
+                  <input
+                    type="range"
+                    min="10"
+                    max="36"
+                    step="1"
+                    value={Number(schoolNameFontSize) || 14}
+                    onChange={e => setSchoolNameFontSize(e.target.value)}
+                    className="w-14 sm:w-16 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                  />
+                  <button
+                    type="button"
+                    title="Make Institute Name bigger"
+                    onClick={() => setSchoolNameFontSize(prev => String(Math.min(36, Number(prev) + 1)))}
+                    className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                  >
+                    A+
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. Certificate Title Font Size */}
+              <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Certificate Title:</span>
+                  <span className="font-mono font-black text-teal-600 dark:text-teal-400 text-[10.5px] bg-teal-50 dark:bg-teal-950/60 px-1 rounded">{titleFontSize}px</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    title="Make Certificate Title smaller"
+                    onClick={() => setTitleFontSize(prev => String(Math.max(16, Number(prev) - 2)))}
+                    className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                  >
+                    A-
+                  </button>
+                  <input
+                    type="range"
+                    min="16"
+                    max="48"
+                    step="1"
+                    value={Number(titleFontSize) || 30}
+                    onChange={e => setTitleFontSize(e.target.value)}
+                    className="w-14 sm:w-16 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                  />
+                  <button
+                    type="button"
+                    title="Make Certificate Title bigger"
+                    onClick={() => setTitleFontSize(prev => String(Math.min(48, Number(prev) + 2)))}
+                    className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                  >
+                    A+
+                  </button>
+                </div>
+              </div>
+
+              {/* 3. Certificate Subtitle Font Size */}
+              <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Subtitle / Tagline:</span>
+                  <span className="font-mono font-black text-teal-600 dark:text-teal-400 text-[10.5px] bg-teal-50 dark:bg-teal-950/60 px-1 rounded">{subtitleFontSize}px</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    title="Make Subtitle smaller"
+                    onClick={() => setSubtitleFontSize(prev => String(Math.max(8, Number(prev) - 1)))}
+                    className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                  >
+                    A-
+                  </button>
+                  <input
+                    type="range"
+                    min="8"
+                    max="24"
+                    step="1"
+                    value={Number(subtitleFontSize) || 11}
+                    onChange={e => setSubtitleFontSize(e.target.value)}
+                    className="w-14 sm:w-16 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                  />
+                  <button
+                    type="button"
+                    title="Make Subtitle bigger"
+                    onClick={() => setSubtitleFontSize(prev => String(Math.min(24, Number(prev) + 1)))}
+                    className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                  >
+                    A+
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="p-3 bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200/80 dark:border-teal-800/80 rounded-xl mb-4 text-xs font-medium text-teal-800 dark:text-teal-200 flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-teal-600 shrink-0" />
             <span>
@@ -971,6 +1199,12 @@ function CertificateTypeCreateContent() {
                   content={content} 
                   schoolName={schoolName}
                   schoolAddress={schoolAddress}
+                  schoolLogo={schoolLogo || undefined}
+                  showLogo={showLogo}
+                  logoWidth={logoWidth}
+                  schoolNameFontSize={schoolNameFontSize}
+                  titleFontSize={titleFontSize}
+                  subtitleFontSize={subtitleFontSize}
                   studentName={sampleStudentName}
                   date={issueDate}
                   principalName={principalName}
@@ -1014,6 +1248,12 @@ function CertificateTypeCreateContent() {
                   content={content} 
                   schoolName={schoolName}
                   schoolAddress={schoolAddress}
+                  schoolLogo={schoolLogo || undefined}
+                  showLogo={showLogo}
+                  logoWidth={logoWidth}
+                  schoolNameFontSize={schoolNameFontSize}
+                  titleFontSize={titleFontSize}
+                  subtitleFontSize={subtitleFontSize}
                   studentName={sampleStudentName}
                   date={issueDate}
                   principalName={principalName}
@@ -1056,6 +1296,12 @@ function CertificateTypeCreateContent() {
                   content={content} 
                   schoolName={schoolName}
                   schoolAddress={schoolAddress}
+                  schoolLogo={schoolLogo || undefined}
+                  showLogo={showLogo}
+                  logoWidth={logoWidth}
+                  schoolNameFontSize={schoolNameFontSize}
+                  titleFontSize={titleFontSize}
+                  subtitleFontSize={subtitleFontSize}
                   studentName={sampleStudentName}
                   date={issueDate}
                   principalName={principalName}
@@ -1098,6 +1344,12 @@ function CertificateTypeCreateContent() {
                   content={content} 
                   schoolName={schoolName}
                   schoolAddress={schoolAddress}
+                  schoolLogo={schoolLogo || undefined}
+                  showLogo={showLogo}
+                  logoWidth={logoWidth}
+                  schoolNameFontSize={schoolNameFontSize}
+                  titleFontSize={titleFontSize}
+                  subtitleFontSize={subtitleFontSize}
                   studentName={sampleStudentName}
                   date={issueDate}
                   principalName={principalName}
@@ -1823,11 +2075,11 @@ function CertificateTypeCreateContent() {
               onClick={handleToggleAllVisibility}
               className="px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shadow-2xs"
             >
-              {hiddenFields.length === 0 ? 'Don\'t Show All (Hide All)' : 'Show All Fields'}
+              {HIDDEN_FIELDS_LIST.every(f => !hiddenFields.includes(f)) ? "Don't Show All (Hide All)" : 'Show All Fields'}
             </button>
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-3 bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-700">
             {HIDDEN_FIELDS_LIST.map((field) => {
               const isVisible = !hiddenFields.includes(field)
 

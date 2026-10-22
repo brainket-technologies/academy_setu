@@ -106,7 +106,7 @@ export default function CertificateTypePage() {
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
-            <span>Certificate Type Setup</span>
+            <span>Setup Certificate</span>
             <span className="text-xs bg-teal-50 dark:bg-teal-900/40 text-teal-600 px-2.5 py-0.5 rounded-full font-bold">
               {types.length} Templates
             </span>
@@ -127,6 +127,13 @@ export default function CertificateTypePage() {
               className="pl-9 pr-4 py-2 w-64 border border-slate-200 dark:border-slate-600 rounded-lg text-xs bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-700 dark:text-slate-200"
             />
           </div>
+          <Link 
+            href="/institute/certificate" 
+            className="px-3.5 h-9 flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-200 transition-colors shadow-2xs text-xs font-bold"
+          >
+            <Award className="w-4 h-4 text-slate-500" />
+            <span>Generate Certificate</span>
+          </Link>
           <Link 
             href="/institute/certificate/type/create" 
             className="px-3.5 h-9 flex items-center gap-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors shadow-sm text-xs font-bold"

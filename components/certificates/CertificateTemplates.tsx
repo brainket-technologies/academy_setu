@@ -1,5 +1,5 @@
 import React from 'react'
-import { QrCode, Award, ShieldCheck, CheckCircle2, User } from 'lucide-react'
+import { QrCode, Award, ShieldCheck, CheckCircle2, User, Upload } from 'lucide-react'
 import { LiveEditableText, ProperQrCode, SampleSchoolLogo, hexToRgba } from '@/components/admit-card/AdmitCardModalPreview'
 
 export { hexToRgba }
@@ -13,6 +13,18 @@ export function adjustHex(hex?: string, amount: number = 0): string {
   const g = Math.max(0, Math.min(255, ((num >> 8) & 255) + amount))
   const b = Math.max(0, Math.min(255, (num & 255) + amount))
   return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`
+}
+
+export function parseFontSize(size?: number | string): string | undefined {
+  if (size === undefined || size === null || size === '') return undefined
+  const str = String(size).trim()
+  if (!str) return undefined
+  if (str.endsWith('px') || str.endsWith('rem') || str.endsWith('em') || str.endsWith('%') || str.endsWith('pt')) {
+    return str
+  }
+  const num = parseFloat(str)
+  if (isNaN(num) || num <= 0) return undefined
+  return `${num}px`
 }
 
 export const CERTIFICATE_COLOR_PRESETS = [
@@ -39,6 +51,9 @@ export interface CertificateCustomProps {
   logoWidth?: string | number
   logoHeight?: string | number
   showLogo?: boolean
+  schoolNameFontSize?: string | number
+  titleFontSize?: string | number
+  subtitleFontSize?: string | number
   studentName?: string
   fatherName?: string
   motherName?: string
@@ -428,6 +443,9 @@ export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
   schoolLogo,
   logoWidth = 60,
   showLogo = true,
+  schoolNameFontSize,
+  titleFontSize,
+  subtitleFontSize,
   studentName = 'Student Name',
   fatherName,
   motherName,
@@ -511,13 +529,25 @@ export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
       <div className="relative z-10 flex flex-col items-center pt-6 px-16 text-center flex-1 justify-center">
         {showLogo && !isHidden('Logo') && !isHidden('Institute Logo') && (
           <div 
-            className="mb-1.5 shrink-0 flex items-center justify-center overflow-hidden"
+            onClick={() => {
+              if (editable) onUpdateField?.('triggerLogoUpload', 'true')
+            }}
+            title={editable ? 'Click to select / upload institute logo' : undefined}
+            className={`mb-1.5 shrink-0 flex items-center justify-center relative group overflow-hidden ${
+              editable ? 'cursor-pointer hover:ring-2 hover:ring-amber-500 rounded-xl transition-all' : ''
+            }`}
             style={{ width: `${actualLogoWidth}px`, height: `${actualLogoWidth}px` }}
           >
             {schoolLogo ? (
-              <img src={schoolLogo} alt="Logo" className="w-full h-full object-contain" />
+              <img src={schoolLogo} alt="Logo" className="w-full h-full object-contain rounded-lg" />
             ) : (
               <SampleSchoolLogo width={actualLogoWidth} height={actualLogoWidth} color={primary} />
+            )}
+            {editable && (
+              <div className="absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 rounded-xl flex flex-col items-center justify-center text-[7.5px] font-black transition-opacity">
+                <Upload className="w-3.5 h-3.5 mb-0.5" />
+                <span>Change</span>
+              </div>
             )}
           </div>
         )}
@@ -528,7 +558,24 @@ export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
             editable={editable}
             onSave={(val) => onUpdateField?.('schoolName', val)}
             className="font-serif font-black text-sm tracking-widest uppercase mb-0.5"
-            style={{ color: primary }}
+            style={{ 
+              color: primary,
+              fontSize: parseFontSize(schoolNameFontSize) || undefined 
+            }}
+            fontSizeControl={{
+              label: 'Institute Name',
+              value: schoolNameFontSize ? parseInt(String(schoolNameFontSize)) : 14,
+              onChange: (val) => onUpdateField?.('schoolNameFontSize', val)
+            }}
+          />
+        )}
+        {!isHidden('School Address') && schoolAddress && (
+          <LiveEditableText
+            tag="p"
+            value={schoolAddress}
+            editable={editable}
+            onSave={(val) => onUpdateField?.('schoolAddress', val)}
+            className="text-[9px] text-slate-500 font-sans tracking-wide mb-1 max-w-lg truncate"
           />
         )}
 
@@ -541,15 +588,31 @@ export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
               editable={editable}
               onSave={(val) => onUpdateField?.('title', val)}
               className="font-serif font-black text-3xl tracking-wider text-slate-900 uppercase drop-shadow-xs"
+              style={{ 
+                fontSize: parseFontSize(titleFontSize) || undefined 
+              }}
+              fontSizeControl={{
+                label: 'Certificate Title',
+                value: titleFontSize ? parseInt(String(titleFontSize)) : 30,
+                onChange: (val) => onUpdateField?.('titleFontSize', val)
+              }}
             />
-            {!isHidden('Subtitle') && (
+            {!isHidden('Subtitle') && !isHidden('Tagline') && (
               <LiveEditableText
                 tag="p"
                 value={subtitle}
                 editable={editable}
                 onSave={(val) => onUpdateField?.('subtitle', val)}
                 className="font-bold text-[11px] tracking-[0.25em] uppercase mt-0.5"
-                style={{ color: primary }}
+                style={{ 
+                  color: primary,
+                  fontSize: parseFontSize(subtitleFontSize) || undefined 
+                }}
+                fontSizeControl={{
+                  label: 'Subtitle',
+                  value: subtitleFontSize ? parseInt(String(subtitleFontSize)) : 11,
+                  onChange: (val) => onUpdateField?.('subtitleFontSize', val)
+                }}
               />
             )}
           </div>
@@ -654,6 +717,9 @@ export const CertificateDesign2: React.FC<CertificateCustomProps> = ({
   schoolLogo,
   logoWidth = 60,
   showLogo = true,
+  schoolNameFontSize,
+  titleFontSize,
+  subtitleFontSize,
   studentName = 'Student Name',
   fatherName,
   motherName,
@@ -746,13 +812,25 @@ export const CertificateDesign2: React.FC<CertificateCustomProps> = ({
       <div className="relative z-20 flex flex-col items-center pt-6 px-16 flex-1 text-center justify-center">
         {showLogo && !isHidden('Logo') && !isHidden('Institute Logo') && (
           <div 
-            className="mb-1.5 shrink-0 flex items-center justify-center overflow-hidden"
+            onClick={() => {
+              if (editable) onUpdateField?.('triggerLogoUpload', 'true')
+            }}
+            title={editable ? 'Click to select / upload institute logo' : undefined}
+            className={`mb-1.5 shrink-0 flex items-center justify-center relative group overflow-hidden ${
+              editable ? 'cursor-pointer hover:ring-2 hover:ring-amber-500 rounded-xl transition-all' : ''
+            }`}
             style={{ width: `${actualLogoWidth}px`, height: `${actualLogoWidth}px` }}
           >
             {schoolLogo ? (
-              <img src={schoolLogo} alt="Logo" className="w-full h-full object-contain" />
+              <img src={schoolLogo} alt="Logo" className="w-full h-full object-contain rounded-lg" />
             ) : (
               <SampleSchoolLogo width={actualLogoWidth} height={actualLogoWidth} color={primaryDark} />
+            )}
+            {editable && (
+              <div className="absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 rounded-xl flex flex-col items-center justify-center text-[7.5px] font-black transition-opacity">
+                <Upload className="w-3.5 h-3.5 mb-0.5" />
+                <span>Change</span>
+              </div>
             )}
           </div>
         )}
@@ -763,7 +841,24 @@ export const CertificateDesign2: React.FC<CertificateCustomProps> = ({
             editable={editable}
             onSave={(val) => onUpdateField?.('schoolName', val)}
             className="font-serif font-black text-xs tracking-widest uppercase mb-1"
-            style={{ color: primaryDark }}
+            style={{ 
+              color: primaryDark,
+              fontSize: parseFontSize(schoolNameFontSize) || undefined 
+            }}
+            fontSizeControl={{
+              label: 'Institute Name',
+              value: schoolNameFontSize ? parseInt(String(schoolNameFontSize)) : 14,
+              onChange: (val) => onUpdateField?.('schoolNameFontSize', val)
+            }}
+          />
+        )}
+        {!isHidden('School Address') && schoolAddress && (
+          <LiveEditableText
+            tag="p"
+            value={schoolAddress}
+            editable={editable}
+            onSave={(val) => onUpdateField?.('schoolAddress', val)}
+            className="text-[9px] text-slate-500 font-sans tracking-wide mb-1 max-w-lg truncate"
           />
         )}
 
@@ -776,8 +871,16 @@ export const CertificateDesign2: React.FC<CertificateCustomProps> = ({
               editable={editable}
               onSave={(val) => onUpdateField?.('title', val)}
               className="font-black text-3xl tracking-wider text-slate-900 uppercase"
+              style={{ 
+                fontSize: parseFontSize(titleFontSize) || undefined 
+              }}
+              fontSizeControl={{
+                label: 'Certificate Title',
+                value: titleFontSize ? parseInt(String(titleFontSize)) : 30,
+                onChange: (val) => onUpdateField?.('titleFontSize', val)
+              }}
             />
-            {!isHidden('Subtitle') && (
+            {!isHidden('Subtitle') && !isHidden('Tagline') && (
               <div className="flex items-center justify-center gap-3 text-slate-600 mt-0.5">
                 <div className="w-10 h-px" style={{ backgroundColor: primary }}></div>
                 <LiveEditableText
@@ -786,7 +889,15 @@ export const CertificateDesign2: React.FC<CertificateCustomProps> = ({
                   editable={editable}
                   onSave={(val) => onUpdateField?.('subtitle', val)}
                   className="tracking-[0.2em] font-medium text-[11px] uppercase"
-                  style={{ color: primaryDark }}
+                  style={{ 
+                    color: primaryDark,
+                    fontSize: parseFontSize(subtitleFontSize) || undefined 
+                  }}
+                  fontSizeControl={{
+                    label: 'Subtitle',
+                    value: subtitleFontSize ? parseInt(String(subtitleFontSize)) : 11,
+                    onChange: (val) => onUpdateField?.('subtitleFontSize', val)
+                  }}
                 />
                 <div className="w-10 h-px" style={{ backgroundColor: primary }}></div>
               </div>
@@ -901,6 +1012,9 @@ export const CertificateDesign3: React.FC<CertificateCustomProps> = ({
   schoolLogo,
   logoWidth = 60,
   showLogo = true,
+  schoolNameFontSize,
+  titleFontSize,
+  subtitleFontSize,
   studentName = 'Student Name',
   fatherName,
   motherName,
@@ -993,13 +1107,25 @@ export const CertificateDesign3: React.FC<CertificateCustomProps> = ({
       <div className="relative z-10 flex flex-col items-center pt-6 px-16 flex-1 text-center justify-center">
         {showLogo && !isHidden('Logo') && !isHidden('Institute Logo') && (
           <div 
-            className="mb-1.5 shrink-0 flex items-center justify-center overflow-hidden"
+            onClick={() => {
+              if (editable) onUpdateField?.('triggerLogoUpload', 'true')
+            }}
+            title={editable ? 'Click to select / upload institute logo' : undefined}
+            className={`mb-1.5 shrink-0 flex items-center justify-center relative group overflow-hidden ${
+              editable ? 'cursor-pointer hover:ring-2 hover:ring-amber-500 rounded-xl transition-all' : ''
+            }`}
             style={{ width: `${actualLogoWidth}px`, height: `${actualLogoWidth}px` }}
           >
             {schoolLogo ? (
-              <img src={schoolLogo} alt="Logo" className="w-full h-full object-contain" />
+              <img src={schoolLogo} alt="Logo" className="w-full h-full object-contain rounded-lg" />
             ) : (
               <SampleSchoolLogo width={actualLogoWidth} height={actualLogoWidth} color={primary} />
+            )}
+            {editable && (
+              <div className="absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 rounded-xl flex flex-col items-center justify-center text-[7.5px] font-black transition-opacity">
+                <Upload className="w-3.5 h-3.5 mb-0.5" />
+                <span>Change</span>
+              </div>
             )}
           </div>
         )}
@@ -1019,9 +1145,26 @@ export const CertificateDesign3: React.FC<CertificateCustomProps> = ({
               editable={editable}
               onSave={(val) => onUpdateField?.('schoolName', val)}
               className="font-bold text-xs tracking-widest uppercase"
-              style={{ color: primaryDark }}
+              style={{ 
+                color: primaryDark,
+                fontSize: parseFontSize(schoolNameFontSize) || undefined 
+              }}
+              fontSizeControl={{
+                label: 'Institute Name',
+                value: schoolNameFontSize ? parseInt(String(schoolNameFontSize)) : 14,
+                onChange: (val) => onUpdateField?.('schoolNameFontSize', val)
+              }}
             />
           </div>
+        )}
+        {!isHidden('School Address') && schoolAddress && (
+          <LiveEditableText
+            tag="p"
+            value={schoolAddress}
+            editable={editable}
+            onSave={(val) => onUpdateField?.('schoolAddress', val)}
+            className="text-[9px] text-slate-500 font-sans tracking-wide mb-1 max-w-lg truncate"
+          />
         )}
 
         {!isHidden('Title') && (
@@ -1032,15 +1175,31 @@ export const CertificateDesign3: React.FC<CertificateCustomProps> = ({
               editable={editable}
               onSave={(val) => onUpdateField?.('title', val)}
               className="font-serif font-black text-3xl tracking-wider uppercase text-slate-900"
+              style={{ 
+                fontSize: parseFontSize(titleFontSize) || undefined 
+              }}
+              fontSizeControl={{
+                label: 'Certificate Title',
+                value: titleFontSize ? parseInt(String(titleFontSize)) : 30,
+                onChange: (val) => onUpdateField?.('titleFontSize', val)
+              }}
             />
-            {!isHidden('Subtitle') && (
+            {!isHidden('Subtitle') && !isHidden('Tagline') && (
               <LiveEditableText
                 tag="p"
                 value={subtitle}
                 editable={editable}
                 onSave={(val) => onUpdateField?.('subtitle', val)}
                 className="font-bold text-[11px] tracking-[0.25em] uppercase mt-0.5"
-                style={{ color: primary }}
+                style={{ 
+                  color: primary,
+                  fontSize: parseFontSize(subtitleFontSize) || undefined 
+                }}
+                fontSizeControl={{
+                  label: 'Subtitle',
+                  value: subtitleFontSize ? parseInt(String(subtitleFontSize)) : 11,
+                  onChange: (val) => onUpdateField?.('subtitleFontSize', val)
+                }}
               />
             )}
           </div>
@@ -1142,6 +1301,9 @@ export const CertificateDesign4: React.FC<CertificateCustomProps> = ({
   themeColor,
   schoolName = 'COSMOPOLITAN INTER COLLEGE',
   schoolAddress = 'Knowledge Park, Sector 62, New Delhi',
+  schoolNameFontSize,
+  titleFontSize,
+  subtitleFontSize,
   studentName = 'Student Name',
   fatherName,
   motherName,
@@ -1208,7 +1370,15 @@ export const CertificateDesign4: React.FC<CertificateCustomProps> = ({
             editable={editable}
             onSave={(val) => onUpdateField?.('schoolName', val)}
             className="font-bold text-xs tracking-widest uppercase mb-0.5"
-            style={{ color: primary }}
+            style={{ 
+              color: primary,
+              fontSize: parseFontSize(schoolNameFontSize) || undefined 
+            }}
+            fontSizeControl={{
+              label: 'Institute Name',
+              value: schoolNameFontSize ? parseInt(String(schoolNameFontSize)) : 14,
+              onChange: (val) => onUpdateField?.('schoolNameFontSize', val)
+            }}
           />
         )}
         {!isHidden('School Address') && (
@@ -1229,15 +1399,33 @@ export const CertificateDesign4: React.FC<CertificateCustomProps> = ({
               editable={editable}
               onSave={(val) => onUpdateField?.('title', val)}
               className="font-serif font-black text-3xl tracking-wider text-slate-900 uppercase"
+              style={{ 
+                fontSize: parseFontSize(titleFontSize) || undefined 
+              }}
+              fontSizeControl={{
+                label: 'Certificate Title',
+                value: titleFontSize ? parseInt(String(titleFontSize)) : 30,
+                onChange: (val) => onUpdateField?.('titleFontSize', val)
+              }}
             />
-            <LiveEditableText
-              tag="p"
-              value={subtitle}
-              editable={editable}
-              onSave={(val) => onUpdateField?.('subtitle', val)}
-              className="font-bold text-[11px] tracking-[0.25em] uppercase mt-0.5"
-              style={{ color: primary }}
-            />
+            {!isHidden('Subtitle') && !isHidden('Tagline') && (
+              <LiveEditableText
+                tag="p"
+                value={subtitle}
+                editable={editable}
+                onSave={(val) => onUpdateField?.('subtitle', val)}
+                className="font-bold text-[11px] tracking-[0.25em] uppercase mt-0.5"
+                style={{ 
+                  color: primary,
+                  fontSize: parseFontSize(subtitleFontSize) || undefined 
+                }}
+                fontSizeControl={{
+                  label: 'Subtitle',
+                  value: subtitleFontSize ? parseInt(String(subtitleFontSize)) : 11,
+                  onChange: (val) => onUpdateField?.('subtitleFontSize', val)
+                }}
+              />
+            )}
           </div>
         )}
 

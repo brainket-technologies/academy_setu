@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, X, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Save, Check, CheckCircle2, Award, Eye, FileText, LayoutTemplate, ShieldAlert, Sparkles, Printer, RefreshCw, Layers, Clock, Calendar, School, QrCode, Palette, Sliders, User, Stamp, MoveLeft, MoveRight, Upload } from 'lucide-react'
+import { Plus, X, ArrowLeft, ArrowRight, ChevronDown, ChevronUp, Save, Check, CheckCircle2, Award, Eye, FileText, LayoutTemplate, ShieldAlert, Sparkles, Printer, RefreshCw, Layers, Clock, Calendar, School, QrCode, Palette, Sliders, User, Stamp, MoveLeft, MoveRight, Upload, Trash2, AlignLeft, AlignCenter, AlignRight, Type } from 'lucide-react'
 import { toast } from 'sonner'
 import { saveMultipleMarksheetSetups, saveMarksheetSetup, fetchExamGroups, saveExamGroup, fetchMarksheetSetupById, fetchCurrentInstitutionDetails } from '../actions'
 import { MarksheetPreview, MarksheetMiniPreview } from '@/components/marksheets/MarksheetPreview'
@@ -23,7 +23,78 @@ import {
 type StepType = 'Exams' | 'Marks & Grade Range' | 'Admit Card Setup' | 'Marksheet Design Setup' | 'Certificate Design'
 const STEPS: StepType[] = ['Exams', 'Marks & Grade Range', 'Admit Card Setup', 'Marksheet Design Setup', 'Certificate Design']
 
-// Admit Card student display field keys
+// Admit Card student display field keys & definitions
+export const ALL_ADMIT_FIELD_DEFINITIONS: Record<string, { label: string; category: string }> = {
+  // Core Student Details
+  name: { label: 'Candidate Name', category: 'student' },
+  fatherName: { label: "Father's Name", category: 'student' },
+  motherName: { label: "Mother's Name", category: 'student' },
+  dob: { label: 'Date of Birth', category: 'student' },
+  class: { label: 'Class', category: 'student' },
+  section: { label: 'Section', category: 'student' },
+  rollNo: { label: 'Roll Number', category: 'student' },
+  admissionNo: { label: 'Admission No.', category: 'student' },
+  registrationNo: { label: 'Registration No.', category: 'student' },
+  enrollmentNo: { label: 'Enrollment No.', category: 'student' },
+  mobileNo: { label: 'Mobile No.', category: 'student' },
+  address: { label: 'Address', category: 'student' },
+
+  // Media & Template-Specific Elements
+  photo: { label: 'Candidate Photo', category: 'media' },
+  logo: { label: 'Institute Logo', category: 'media' },
+  qrCode: { label: 'Verification QR', category: 'feature' },
+  affiliationDetails: { label: 'Affiliation & Codes', category: 'feature' },
+  boardFormat: { label: 'Board Format Badge', category: 'feature' },
+  verifiedPass: { label: 'Verified Pass Badge', category: 'feature' },
+  centerCode: { label: 'Exam Center Code', category: 'feature' },
+  helpline: { label: 'Helpline Number', category: 'feature' },
+  mottoQuote: { label: 'Academy Motto / Tagline', category: 'feature' },
+  reportingTime: { label: 'Reporting Time', category: 'feature' },
+  gateClosure: { label: 'Gate Closure Time', category: 'feature' }
+}
+
+export const TEMPLATE_SPECIFIC_FIELD_KEYS: Record<string, string[]> = {
+  'Classic Board': [
+    'name', 'fatherName', 'motherName', 'dob', 'class', 'section', 'rollNo', 'admissionNo',
+    'registrationNo', 'enrollmentNo', 'mobileNo', 'address', 'photo', 'qrCode',
+    'affiliationDetails', 'boardFormat', 'reportingTime', 'gateClosure'
+  ],
+  'Modern Split Pass': [
+    'name', 'fatherName', 'motherName', 'dob', 'class', 'section', 'rollNo', 'admissionNo',
+    'registrationNo', 'enrollmentNo', 'mobileNo', 'address', 'photo', 'qrCode',
+    'verifiedPass', 'centerCode', 'helpline', 'reportingTime', 'gateClosure'
+  ],
+  'Executive Heritage': [
+    'name', 'fatherName', 'motherName', 'dob', 'class', 'section', 'rollNo', 'admissionNo',
+    'registrationNo', 'enrollmentNo', 'mobileNo', 'address', 'photo', 'qrCode',
+    'mottoQuote', 'reportingTime', 'gateClosure'
+  ],
+  'Compact Minimalist': [
+    'name', 'fatherName', 'motherName', 'dob', 'class', 'section', 'rollNo', 'admissionNo',
+    'registrationNo', 'enrollmentNo', 'mobileNo', 'address', 'photo', 'qrCode',
+    'centerCode', 'reportingTime', 'gateClosure'
+  ]
+}
+
+export const getSupportedFieldsForTemplate = (templateStyle?: string): { key: string; label: string; category: string }[] => {
+  const styleRaw = (templateStyle || 'Classic Board').toLowerCase()
+  let key = 'Classic Board'
+  if (styleRaw.includes('modern') || styleRaw.includes('emerald') || styleRaw.includes('split') || styleRaw.includes('dual')) {
+    key = 'Modern Split Pass'
+  } else if (styleRaw.includes('executive') || styleRaw.includes('crimson') || styleRaw.includes('heritage') || styleRaw.includes('crest')) {
+    key = 'Executive Heritage'
+  } else if (styleRaw.includes('compact') || styleRaw.includes('minimal') || styleRaw.includes('slate') || styleRaw.includes('ticket')) {
+    key = 'Compact Minimalist'
+  }
+
+  const allowedKeys = TEMPLATE_SPECIFIC_FIELD_KEYS[key] || TEMPLATE_SPECIFIC_FIELD_KEYS['Classic Board']
+  return allowedKeys.map(k => ({
+    key: k,
+    label: ALL_ADMIT_FIELD_DEFINITIONS[k]?.label || k,
+    category: ALL_ADMIT_FIELD_DEFINITIONS[k]?.category || 'student'
+  }))
+}
+
 const ADMIT_DISPLAY_FIELDS_KEYS = [
   { key: 'name', label: 'Name' },
   { key: 'fatherName', label: 'Father Name' },
@@ -56,13 +127,14 @@ const MARKSHEET_DISPLAY_FIELDS_KEYS = [
   { key: 'obtMarks', label: 'Obt Marks' },
   { key: 'totalMarks', label: 'Total Marks' },
   { key: 'percentage', label: 'Percentage' },
+  { key: 'cgpa', label: 'CGPA' },
+  { key: 'division', label: 'Division' },
   { key: 'grade', label: 'Grade' },
   { key: 'rank', label: 'Class Rank' },
   { key: 'result', label: 'Result Status' },
   { key: 'remarks', label: 'Teacher Remarks' },
   { key: 'examDate', label: 'Exam Date' },
-  { key: 'dateOfIssue', label: 'Date of Issue' },
-  { key: 'logo', label: 'Institute Logo' },
+  { key: 'dateOfIssue', label: 'Date of Issue' }
 ]
 
 // Certificate field keys for Display Fields (Signatures have their own dedicated section below)
@@ -82,7 +154,6 @@ export const CERTIFICATE_DISPLAY_FIELDS_KEYS: Array<{ key: string; label: string
 
   // 2. Institutional & General Layout Fields
   { key: 'schoolName', label: 'School / Institute Name', category: 'institutional' },
-  { key: 'logo', label: 'Institute Brand Logo', category: 'institutional' },
   { key: 'title', label: 'Certificate Title', category: 'institutional' },
   { key: 'subtitle', label: 'Certificate Subtitle', category: 'institutional' },
   { key: 'presentedTo', label: 'Presentation Salutation', category: 'institutional' },
@@ -316,6 +387,10 @@ function AddSetupWizardContent() {
         if (s.config?.certParentSignName) setCertParentSignName(s.config.certParentSignName)
         if (s.config?.certStudentSignLabel) setCertStudentSignLabel(s.config.certStudentSignLabel)
         if (s.config?.certSealLabel) setCertSealLabel(s.config.certSealLabel)
+        if (s.config?.certDateOfIssue) setCertDateOfIssue(s.config.certDateOfIssue)
+        if (s.config?.certSchoolNameFontSize) setCertSchoolNameFontSize(s.config.certSchoolNameFontSize)
+        if (s.config?.certTitleFontSize) setCertTitleFontSize(s.config.certTitleFontSize)
+        if (s.config?.certSubtitleFontSize) setCertSubtitleFontSize(s.config.certSubtitleFontSize)
         if (s.config?.certDateLabel) setCertDateLabel(s.config.certDateLabel)
         if (s.config?.certCustomLabels) setCertCustomLabelsState(s.config.certCustomLabels)
         if (typeof s.lockExam === 'boolean') setLockExam(s.lockExam)
@@ -334,6 +409,10 @@ function AddSetupWizardContent() {
         if (s.config?.admitCardSettings?.schoolStampWidth) setAdmitSchoolStampWidth(String(s.config.admitCardSettings.schoolStampWidth))
         if (s.config?.admitCardSettings?.schoolLogo) setAdmitSchoolLogo(s.config.admitCardSettings.schoolLogo)
         if (s.config?.admitCardSettings?.schoolLogoWidth) setAdmitSchoolLogoWidth(String(s.config.admitCardSettings.schoolLogoWidth))
+        if (s.config?.admitCardSettings?.schoolLogoHeight) setAdmitSchoolLogoHeight(String(s.config.admitCardSettings.schoolLogoHeight))
+        if (s.config?.admitCardSettings?.logoPosition) setAdmitLogoPosition(s.config.admitCardSettings.logoPosition)
+        if (s.config?.admitCardSettings?.contentPosition) setAdmitContentPosition(s.config.admitCardSettings.contentPosition)
+        if (s.config?.admitCardSettings?.photoPosition) setAdmitPhotoPosition(s.config.admitCardSettings.photoPosition)
         if (Array.isArray(s.config?.admitCardSettings?.signatureOrder) && s.config.admitCardSettings.signatureOrder.length > 0) {
           const loadedOrder = s.config.admitCardSettings.signatureOrder
           const standardKeys = ['studentSign', 'parentSign', 'teacherSign', 'principalSign', 'schoolStamp']
@@ -341,6 +420,35 @@ function AddSetupWizardContent() {
           const missing = standardKeys.filter(k => !filtered.includes(k))
           setAdmitSignatureOrder([...filtered, ...missing])
         }
+        if (s.config?.admitCardSettings?.qrCodeSize) setAdmitQrCodeSize(String(s.config.admitCardSettings.qrCodeSize))
+        if (s.config?.admitCardSettings?.signatureWidth) setAdmitSignatureWidth(String(s.config.admitCardSettings.signatureWidth))
+        if (s.config?.admitCardSettings?.signatureFontSize) setAdmitSignatureFontSize(String(s.config.admitCardSettings.signatureFontSize))
+        if (s.config?.admitCardSettings?.headerNameFontSize) {
+          const v = Number(s.config.admitCardSettings.headerNameFontSize)
+          setAdmitHeaderNameFontSize(v > 32 ? '22' : String(v))
+        }
+        if (s.config?.admitCardSettings?.headerDetailsFontSize) {
+          const v = Number(s.config.admitCardSettings.headerDetailsFontSize)
+          setAdmitHeaderDetailsFontSize(v >= 20 ? '10' : String(v))
+        }
+        if (s.config?.admitCardSettings?.headingFontSize) {
+          const v = Number(s.config.admitCardSettings.headingFontSize)
+          setAdmitHeadingFontSize(v > 20 ? '13' : String(v))
+        }
+        if (s.config?.admitCardSettings?.studentDetailsFontSize) {
+          const v = Number(s.config.admitCardSettings.studentDetailsFontSize)
+          setAdmitStudentDetailsFontSize(v > 16 ? '11' : String(v))
+        }
+        if (s.config?.admitCardSettings?.timetableDetailsFontSize) {
+          const v = Number(s.config.admitCardSettings.timetableDetailsFontSize)
+          setAdmitTimetableDetailsFontSize(v > 16 ? '11' : String(v))
+        }
+        if (s.config?.admitCardSettings?.defaultFontSize) {
+          const v = Number(s.config.admitCardSettings.defaultFontSize)
+          setAdmitDefaultFontSize(v > 13 ? '9' : String(v))
+        }
+        if (s.config?.admitCardSettings?.reportingTimeValue) setAdmitReportingTime(s.config.admitCardSettings.reportingTimeValue)
+        if (s.config?.admitCardSettings?.gateClosureValue) setAdmitGateClosureTime(s.config.admitCardSettings.gateClosureValue)
         if (s.config?.admitCardSettings?.customLabels) setAdmitCustomLabels(s.config.admitCardSettings.customLabels)
         if (s.config?.marksheetCustomLabels) setMarksheetCustomLabels(s.config.marksheetCustomLabels)
         if (s.config?.minPassingPct) setMinPassingPct(String(s.config.minPassingPct))
@@ -353,6 +461,18 @@ function AddSetupWizardContent() {
         if (s.config?.schoolDetails?.affiliateTo) setAffiliateTo(s.config.schoolDetails.affiliateTo)
         if (s.config?.schoolDetails?.schoolAddress) setSchoolAddress(s.config.schoolDetails.schoolAddress)
         if (s.config?.schoolDetails?.principalName) setPrincipalName(s.config.schoolDetails.principalName)
+        if (s.config?.marksheetDateOfIssue) setMarksheetDateOfIssue(s.config.marksheetDateOfIssue)
+        if (s.config?.marksheetExamDate) setMarksheetExamDate(s.config.marksheetExamDate)
+        if (s.config?.marksheetHeaderNameFontSize) setMarksheetHeaderNameFontSize(String(s.config.marksheetHeaderNameFontSize))
+        if (s.config?.marksheetHeadingFontSize) setMarksheetHeadingFontSize(String(s.config.marksheetHeadingFontSize))
+        if (s.config?.marksheetHeaderDetailsFontSize) setMarksheetHeaderDetailsFontSize(String(s.config.marksheetHeaderDetailsFontSize))
+
+        if (s.marksGrade) setMarksGrade(s.marksGrade as any)
+        if (s.config?.marksGrade) setMarksGrade(s.config.marksGrade as any)
+        if (Array.isArray(s.config?.percentRanges) && s.config.percentRanges.length > 0) setPercentRanges(s.config.percentRanges)
+        if (Array.isArray(s.config?.gradeRanges) && s.config.gradeRanges.length > 0) setGradeRanges(s.config.gradeRanges)
+        if (Array.isArray(s.config?.divisionRanges) && s.config.divisionRanges.length > 0) setDivisionRanges(s.config.divisionRanges)
+        if (Array.isArray(s.config?.cgpaRanges) && s.config.cgpaRanges.length > 0) setCgpaRanges(s.config.cgpaRanges)
 
         const baseClassName = s.config?.className || (s.classGrade ? s.classGrade.split('(')[0].trim() : '')
         const secs = Array.isArray(s.config?.sections) && s.config.sections.length > 0 
@@ -531,7 +651,9 @@ function AddSetupWizardContent() {
     admissionNo: true, registrationNo: true, rollNo: true, enrollmentNo: false,
     dob: true, address: true, class: true, section: true, photo: true, logo: true,
     studentSign: true, teacherSign: true, principalSign: true, parentSign: true,
-    schoolStamp: false
+    schoolStamp: false, qrCode: true, affiliationDetails: true, boardFormat: true,
+    verifiedPass: true, centerCode: true, helpline: true, mottoQuote: true,
+    reportingTime: true, gateClosure: true
   })
   const [admitCardStatus, setAdmitCardStatus] = useState(true)
   const [showExamTimeTableOnAdmit, setShowExamTimeTableOnAdmit] = useState(true)
@@ -539,19 +661,25 @@ function AddSetupWizardContent() {
     '1. Candidates must arrive at the examination center 30 minutes before the scheduled time.\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.'
   )
   const [admitLabel, setAdmitLabel] = useState('Admit Card')
+  const [admitReportingTime, setAdmitReportingTime] = useState('09:30 AM IST')
+  const [admitGateClosureTime, setAdmitGateClosureTime] = useState('09:50 AM (Sharp)')
   const [admitNoOfPrintPerPage, setAdmitNoOfPrintPerPage] = useState('1')
-  const [admitHeaderNameFontSize, setAdmitHeaderNameFontSize] = useState('30')
-  const [admitHeaderDetailsFontSize, setAdmitHeaderDetailsFontSize] = useState('30')
-  const [admitStudentDetailsFontSize, setAdmitStudentDetailsFontSize] = useState('14')
-  const [admitTimetableDetailsFontSize, setAdmitTimetableDetailsFontSize] = useState('14')
-  const [admitHeadingFontSize, setAdmitHeadingFontSize] = useState('18')
-  const [admitDefaultFontSize, setAdmitDefaultFontSize] = useState('18')
+  const [admitHeaderNameFontSize, setAdmitHeaderNameFontSize] = useState('22')
+  const [admitHeaderDetailsFontSize, setAdmitHeaderDetailsFontSize] = useState('10')
+  const [admitStudentDetailsFontSize, setAdmitStudentDetailsFontSize] = useState('11')
+  const [admitTimetableDetailsFontSize, setAdmitTimetableDetailsFontSize] = useState('11')
+  const [admitHeadingFontSize, setAdmitHeadingFontSize] = useState('13')
+  const [admitDefaultFontSize, setAdmitDefaultFontSize] = useState('9')
   const [admitSpacing, setAdmitSpacing] = useState('20')
-  const [admitStudentPhotoSize, setAdmitStudentPhotoSize] = useState('96')
-  const [admitStudentPhotoWidth, setAdmitStudentPhotoWidth] = useState('96')
-  const [admitStudentPhotoHeight, setAdmitStudentPhotoHeight] = useState('120')
+  const [admitStudentPhotoSize, setAdmitStudentPhotoSize] = useState('88')
+  const [admitStudentPhotoWidth, setAdmitStudentPhotoWidth] = useState('88')
+  const [admitStudentPhotoHeight, setAdmitStudentPhotoHeight] = useState('110')
   const [admitSchoolLogo, setAdmitSchoolLogo] = useState<string>('')
-  const [admitSchoolLogoWidth, setAdmitSchoolLogoWidth] = useState<string>('60')
+  const [admitSchoolLogoWidth, setAdmitSchoolLogoWidth] = useState<string>('54')
+  const [admitSchoolLogoHeight, setAdmitSchoolLogoHeight] = useState<string>('54')
+  const [admitLogoPosition, setAdmitLogoPosition] = useState<'left' | 'center' | 'right'>('left')
+  const [admitContentPosition, setAdmitContentPosition] = useState<'left' | 'center' | 'right'>('left')
+  const [admitPhotoPosition, setAdmitPhotoPosition] = useState<'left' | 'right'>('right')
   const logoFileInputRef = React.useRef<HTMLInputElement | null>(null)
   const marksheetLogoFileInputRef = React.useRef<HTMLInputElement | null>(null)
   const certLogoFileInputRef = React.useRef<HTMLInputElement | null>(null)
@@ -559,7 +687,10 @@ function AddSetupWizardContent() {
   const [admitStudentSignLabel, setAdmitStudentSignLabel] = useState("Student's Sign.")
   const [admitParentSignLabel, setAdmitParentSignLabel] = useState("Parent's Sign.")
   const [admitPrincipalSignLabel, setAdmitPrincipalSignLabel] = useState("Principal's Sign.")
-  const [admitSignatureWidth, setAdmitSignatureWidth] = useState('30')
+  const [admitSignatureWidth, setAdmitSignatureWidth] = useState('100')
+  const [admitSignatureFontSize, setAdmitSignatureFontSize] = useState('9')
+  const [admitQrCodeSize, setAdmitQrCodeSize] = useState('72')
+  const [admitSizingStudioTab, setAdmitSizingStudioTab] = useState<'media' | 'signs' | 'text'>('media')
   const [admitSchoolStampWidth, setAdmitSchoolStampWidth] = useState('56')
   const [admitSignatureOrder, setAdmitSignatureOrder] = useState<string[]>([
     'studentSign', 'parentSign', 'teacherSign', 'principalSign', 'schoolStamp'
@@ -576,6 +707,11 @@ function AddSetupWizardContent() {
   }
   const [admitCustomLabels, setAdmitCustomLabels] = useState<Record<string, string>>({})
   const [marksheetCustomLabels, setMarksheetCustomLabels] = useState<Record<string, string>>({})
+  const [marksheetHeaderNameFontSize, setMarksheetHeaderNameFontSize] = useState('22')
+  const [marksheetHeadingFontSize, setMarksheetHeadingFontSize] = useState('14')
+  const [marksheetHeaderDetailsFontSize, setMarksheetHeaderDetailsFontSize] = useState('11')
+  const [marksheetDateOfIssue, setMarksheetDateOfIssue] = useState('25/03/2026')
+  const [marksheetExamDate, setMarksheetExamDate] = useState('March 2026')
 
   const handleMarksheetFieldUpdate = (field: string, value: any) => {
     if (field === 'schoolName') setSchoolName(value)
@@ -588,6 +724,15 @@ function AddSetupWizardContent() {
     else if (field === 'principalName') setPrincipalName(value)
     else if (field === 'phone') setPhone(value)
     else if (field === 'email') setEmail(value)
+    else if (field === 'dateOfIssue') setMarksheetDateOfIssue(value)
+    else if (field === 'examDate') setMarksheetExamDate(value)
+    else if (field === 'headerNameFontSize') setMarksheetHeaderNameFontSize(String(value))
+    else if (field === 'headingFontSize') setMarksheetHeadingFontSize(String(value))
+    else if (field === 'headerDetailsFontSize') setMarksheetHeaderDetailsFontSize(String(value))
+    else if (field === 'logoWidth') setLogoWidth(String(value))
+    else if (field === 'triggerLogoUpload') {
+      marksheetLogoFileInputRef.current?.click()
+    }
     else if (field === 'customLabels') {
       setMarksheetCustomLabels(prev => ({ ...prev, ...value }))
     }
@@ -597,6 +742,8 @@ function AddSetupWizardContent() {
     if (field === 'schoolName') setSchoolName(value)
     else if (field === 'schoolAddress') setSchoolAddress(value)
     else if (field === 'admitCardLabel') setAdmitLabel(value)
+    else if (field === 'reportingTimeValue') setAdmitReportingTime(value)
+    else if (field === 'gateClosureValue') setAdmitGateClosureTime(value)
     else if (field === 'examName') setExamName(value)
     else if (field === 'session') setSession(value)
     else if (field === 'instructions') setAdmitInstructions(value)
@@ -605,27 +752,49 @@ function AddSetupWizardContent() {
     else if (field === 'studentSignLabel') setAdmitStudentSignLabel(value)
     else if (field === 'parentSignLabel') setAdmitParentSignLabel(value)
     else if (field === 'principalName') setPrincipalName(value)
+    else if (field === 'triggerLogoUpload') {
+      logoFileInputRef.current?.click()
+    }
+    else if (field === 'logoPosition') setAdmitLogoPosition(value)
+    else if (field === 'contentPosition') setAdmitContentPosition(value)
+    else if (field === 'photoPosition') setAdmitPhotoPosition(value)
+    else if (field === 'schoolLogoWidth') setAdmitSchoolLogoWidth(String(value))
+    else if (field === 'schoolLogoHeight') setAdmitSchoolLogoHeight(String(value))
+    else if (field === 'qrCodeSize') setAdmitQrCodeSize(String(value))
+    else if (field === 'signatureWidth') setAdmitSignatureWidth(String(value))
+    else if (field === 'signatureFontSize') setAdmitSignatureFontSize(String(value))
+    else if (field === 'schoolStampWidth') setAdmitSchoolStampWidth(String(value))
+    else if (field === 'headerNameFontSize') setAdmitHeaderNameFontSize(String(value))
+    else if (field === 'headerDetailsFontSize') setAdmitHeaderDetailsFontSize(String(value))
+    else if (field === 'headingFontSize') setAdmitHeadingFontSize(String(value))
+    else if (field === 'studentDetailsFontSize') setAdmitStudentDetailsFontSize(String(value))
+    else if (field === 'timetableDetailsFontSize') setAdmitTimetableDetailsFontSize(String(value))
+    else if (field === 'defaultFontSize') setAdmitDefaultFontSize(String(value))
     else if (field === 'customLabels') {
       setAdmitCustomLabels(prev => ({ ...prev, ...value }))
     }
   }
 
+  const availableAdmitFields = useMemo(() => {
+    return getSupportedFieldsForTemplate(admitTemplateStyle)
+  }, [admitTemplateStyle])
+
   const handleAdmitCheckboxChange = (key: string) => {
-    setAdmitDisplayFields(prev => ({ ...prev, [key]: !prev[key] }))
+    setAdmitDisplayFields(prev => ({ ...prev, [key]: prev[key] === false ? true : false }))
   }
   const handleAdmitSelectAllChange = (checked: boolean) => {
     const updated: { [key: string]: boolean } = { ...admitDisplayFields }
-    ADMIT_DISPLAY_FIELDS_KEYS.forEach(f => { updated[f.key] = checked })
+    availableAdmitFields.forEach(f => { updated[f.key] = checked })
     setAdmitDisplayFields(updated)
   }
-  const isAdmitAllSelected = ADMIT_DISPLAY_FIELDS_KEYS.every(f => admitDisplayFields[f.key])
+  const isAdmitAllSelected = availableAdmitFields.length > 0 && availableAdmitFields.every(f => admitDisplayFields[f.key] !== false)
 
   // Marksheet Columns & Display Fields State
   const [columnsList, setColumnsList] = useState({
     rollNumber: true, motherName: true, fatherName: true, admissionNo: true,
     mobileNumber: false, classSection: true, gender: true, dob: true,
     examName: true, obtMarks: true, totalMarks: true,
-    percentage: true, grade: true, remarks: true, rank: true,
+    percentage: true, cgpa: true, division: true, grade: true, remarks: true, rank: true,
     result: true, teacherSign: true, controllerSign: true, principalSign: true,
     attendance: true, examDate: false, dateOfIssue: true, parentSign: true,
     logo: true
@@ -809,6 +978,8 @@ function AddSetupWizardContent() {
   }
 
   // ==================== STEP 2: MARKS & GRADE STATE ====================
+  const [marksGrade, setMarksGrade] = useState<'Percentage' | 'CGPA' | 'Grade' | 'Percentage & CGPA'>('Percentage')
+
   const [percentRanges, setPercentRanges] = useState([
     { range: '85-100', remark: 'Excellent' },
     { range: '75-84', remark: 'Very Good' },
@@ -832,10 +1003,22 @@ function AddSetupWizardContent() {
   const [divisionRanges, setDivisionRanges] = useState([
     { range: '75-100', div: '1st' },
     { range: '60-74', div: '2nd' },
-    { range: '33-59', div: '3rd' }
+    { range: '33-59', div: '3rd' },
+    { range: '0-33', div: 'Failed' }
   ])
 
-  const [expandedSection, setExpandedSection] = useState<'percent' | 'grade' | 'division' | null>('percent')
+  const [cgpaRanges, setCgpaRanges] = useState([
+    { range: '91-100', cgpa: '10.0' },
+    { range: '81-90', cgpa: '9.0' },
+    { range: '71-80', cgpa: '8.0' },
+    { range: '61-70', cgpa: '7.0' },
+    { range: '51-60', cgpa: '6.0' },
+    { range: '41-50', cgpa: '5.0' },
+    { range: '33-40', cgpa: '4.0' },
+    { range: '00-32', cgpa: '0.0' }
+  ])
+
+  const [expandedSection, setExpandedSection] = useState<'percent' | 'grade' | 'division' | 'cgpa' | null>('percent')
 
   // ==================== STEP 3: MARKSHEET DESIGN STATE ====================
   // Criteria
@@ -882,6 +1065,10 @@ function AddSetupWizardContent() {
   const [certSubtitle, setCertSubtitle] = useState('IN RECOGNITION OF ACADEMIC EXCELLENCE')
   const [certPresentedTo, setCertPresentedTo] = useState('THIS CERTIFICATE IS PROUDLY PRESENTED TO')
   const [certDescription, setCertDescription] = useState('This certificate is proudly awarded in recognition of outstanding performance, exemplary dedication, and commendable achievement during the academic session.')
+  const [certDateOfIssue, setCertDateOfIssue] = useState('15 October 2026')
+  const [certSchoolNameFontSize, setCertSchoolNameFontSize] = useState('14')
+  const [certTitleFontSize, setCertTitleFontSize] = useState('30')
+  const [certSubtitleFontSize, setCertSubtitleFontSize] = useState('11')
   const [certDisplayFields, setCertDisplayFields] = useState<Record<string, boolean>>({
     schoolName: true,
     logo: true,
@@ -933,7 +1120,7 @@ function AddSetupWizardContent() {
   }
 
   const handleCertSelectAllChange = (checked: boolean) => {
-    const updated: Record<string, boolean> = {}
+    const updated: Record<string, boolean> = { logo: true }
     CERTIFICATE_DISPLAY_FIELDS_KEYS.forEach(f => {
       updated[f.key] = checked
     })
@@ -955,7 +1142,7 @@ function AddSetupWizardContent() {
   const certHiddenFields = useMemo(() => {
     const hidden: string[] = []
     if (!certDisplayFields.schoolName) hidden.push('School Name')
-    if (!certDisplayFields.logo) {
+    if (certDisplayFields.logo === false) {
       hidden.push('Logo')
       hidden.push('Institute Logo')
     }
@@ -1113,7 +1300,7 @@ function AddSetupWizardContent() {
         groupName: groupName || 'Quarterly',
         examName: examName.trim(),
         classGrade: combinedClassGrade || (classes[0]?.className || 'All Classes'),
-        marksGrade: 'Percentage',
+        marksGrade: marksGrade || 'Percentage',
         templateName: selectedTemplate,
         session: session,
         examDate: dateOfExam || classes[0]?.subjects?.[0]?.examDate || undefined,
@@ -1133,9 +1320,11 @@ function AddSetupWizardContent() {
           marksheetThemeColor: marksheetThemeColor,
           admitTemplateStyle: admitTemplateStyle,
           admitThemeColor: admitThemeColor,
+          marksGrade,
           percentRanges,
           gradeRanges,
           divisionRanges,
+          cgpaRanges,
           minPassingPct,
           minPassingMarks,
           gradeToDisplay,
@@ -1156,6 +1345,11 @@ function AddSetupWizardContent() {
           showRoundBorderPhoto,
           columnsList,
           marksheetCustomLabels,
+          marksheetDateOfIssue,
+          marksheetExamDate,
+          marksheetHeaderNameFontSize,
+          marksheetHeadingFontSize,
+          marksheetHeaderDetailsFontSize,
           schoolDetails: {
             schoolName,
             affiliateTo,
@@ -1186,10 +1380,16 @@ function AddSetupWizardContent() {
           certStudentSignLabel,
           certSealLabel,
           certDateLabel,
+          certDateOfIssue,
+          certSchoolNameFontSize,
+          certTitleFontSize,
+          certSubtitleFontSize,
           certCustomLabels: certCustomLabelsState,
           lockClasses,
           admitCardSettings: {
             admitLabel,
+            reportingTimeValue: admitReportingTime,
+            gateClosureValue: admitGateClosureTime,
             templateStyle: admitTemplateStyle,
             themeColor: admitThemeColor,
             displayFields: admitDisplayFields,
@@ -1212,10 +1412,15 @@ function AddSetupWizardContent() {
             parentSignLabel: admitParentSignLabel,
             principalSignLabel: admitPrincipalSignLabel,
             signatureWidth: admitSignatureWidth,
+            signatureFontSize: admitSignatureFontSize,
             schoolStampWidth: admitSchoolStampWidth,
+            qrCodeSize: admitQrCodeSize,
             schoolLogo: admitSchoolLogo,
             schoolLogoWidth: admitSchoolLogoWidth,
-            schoolLogoHeight: admitSchoolLogoWidth,
+            schoolLogoHeight: admitSchoolLogoHeight || admitSchoolLogoWidth,
+            logoPosition: admitLogoPosition,
+            contentPosition: admitContentPosition,
+            photoPosition: admitPhotoPosition,
             signatureOrder: admitSignatureOrder,
             customLabels: admitCustomLabels
           }
@@ -1733,28 +1938,66 @@ function AddSetupWizardContent() {
         {/* ================================== STEP 2: MARKS & GRADE RANGE ================================== */}
         {currentStep === 'Marks & Grade Range' && (
           <div className="space-y-6 animate-in fade-in duration-300">
-            <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-4">
-              Configure Grading Ranges & Remarks
-            </h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 uppercase tracking-wider">
+                    Step 2 of 5
+                  </span>
+                  <h2 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                    Configure Grading Ranges & Remarks
+                  </h2>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Define percentage remarks, subject grades, division rules, and CGPA score mappings for marksheet generation.
+                </p>
+              </div>
+
+              {/* Evaluation Scheme Selector */}
+              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 px-2 uppercase tracking-wider">Scheme:</span>
+                {(['Percentage', 'CGPA', 'Grade', 'Percentage & CGPA'] as const).map(scheme => (
+                  <button
+                    key={scheme}
+                    type="button"
+                    onClick={() => setMarksGrade(scheme)}
+                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                      marksGrade === scheme
+                        ? 'bg-white dark:bg-slate-900 text-teal-700 dark:text-teal-400 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    {scheme}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* Panel 1: Percentage Remarks Range */}
-            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-slate-900">
               <button 
+                type="button"
                 onClick={() => setExpandedSection(expandedSection === 'percent' ? null : 'percent')}
-                className="w-full flex items-center justify-between px-6 py-4 bg-slate-50 border-b border-slate-200 text-left text-xs font-black text-[#1b3a60] uppercase tracking-wide"
+                className="w-full flex items-center justify-between px-6 py-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-left text-xs font-black text-[#1b3a60] dark:text-slate-200 uppercase tracking-wide hover:bg-slate-100/70 dark:hover:bg-slate-800 transition-colors"
               >
-                <span>Percentage Remarks Range *</span>
-                {expandedSection === 'percent' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                <div className="flex items-center gap-2">
+                  <span>Percentage Remarks Range *</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                    {percentRanges.length} rules
+                  </span>
+                </div>
+                {expandedSection === 'percent' ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
               </button>
 
               {expandedSection === 'percent' && (
-                <div className="p-6 space-y-4 animate-in slide-in-from-top-1 duration-200 bg-white">
-                  <div className="grid grid-cols-2 gap-4 font-bold text-xs text-slate-500 mb-2 border-b border-slate-100 pb-2">
+                <div className="p-6 space-y-4 animate-in slide-in-from-top-1 duration-200 bg-white dark:bg-slate-900">
+                  <div className="grid grid-cols-[1fr_1fr_auto] gap-4 font-bold text-xs text-slate-500 dark:text-slate-400 mb-2 border-b border-slate-100 dark:border-slate-800 pb-2">
                     <span>Range (e.g. 85-100)</span>
                     <span>Remarks (e.g. Excellent)</span>
+                    <span className="w-8"></span>
                   </div>
                   {percentRanges.map((item, idx) => (
-                    <div key={idx} className="grid grid-cols-2 gap-4">
+                    <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-4 items-center">
                       <input 
                         type="text" 
                         value={item.range} 
@@ -1763,7 +2006,8 @@ function AddSetupWizardContent() {
                           updated[idx].range = e.target.value
                           setPercentRanges(updated)
                         }}
-                        className="px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
+                        placeholder="85-100"
+                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-800 dark:text-slate-100"
                       />
                       <input 
                         type="text" 
@@ -1773,32 +2017,63 @@ function AddSetupWizardContent() {
                           updated[idx].remark = e.target.value
                           setPercentRanges(updated)
                         }}
-                        className="px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
+                        placeholder="Remark"
+                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-800 dark:text-slate-100"
                       />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (percentRanges.length > 1) {
+                            setPercentRanges(percentRanges.filter((_, i) => i !== idx))
+                          }
+                        }}
+                        title="Delete rule"
+                        disabled={percentRanges.length <= 1}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   ))}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setPercentRanges([...percentRanges, { range: '', remark: '' }])}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 dark:hover:bg-teal-900/50 border border-teal-200 dark:border-teal-800 rounded-lg transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Remark Range
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Panel 2: Subject Grade Range */}
-            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-slate-900">
               <button 
+                type="button"
                 onClick={() => setExpandedSection(expandedSection === 'grade' ? null : 'grade')}
-                className="w-full flex items-center justify-between px-6 py-4 bg-slate-50 border-b border-slate-200 text-left text-xs font-black text-[#1b3a60] uppercase tracking-wide"
+                className="w-full flex items-center justify-between px-6 py-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-left text-xs font-black text-[#1b3a60] dark:text-slate-200 uppercase tracking-wide hover:bg-slate-100/70 dark:hover:bg-slate-800 transition-colors"
               >
-                <span>Subject Grade Range *</span>
-                {expandedSection === 'grade' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                <div className="flex items-center gap-2">
+                  <span>Subject Grade Range *</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                    {gradeRanges.length} rules
+                  </span>
+                </div>
+                {expandedSection === 'grade' ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
               </button>
 
               {expandedSection === 'grade' && (
-                <div className="p-6 space-y-4 animate-in slide-in-from-top-1 duration-200 bg-white">
-                  <div className="grid grid-cols-2 gap-4 font-bold text-xs text-slate-500 mb-2 border-b border-slate-100 pb-2">
+                <div className="p-6 space-y-4 animate-in slide-in-from-top-1 duration-200 bg-white dark:bg-slate-900">
+                  <div className="grid grid-cols-[1fr_1fr_auto] gap-4 font-bold text-xs text-slate-500 dark:text-slate-400 mb-2 border-b border-slate-100 dark:border-slate-800 pb-2">
                     <span>Range (e.g. 91-100)</span>
                     <span>Grade (e.g. A+)</span>
+                    <span className="w-8"></span>
                   </div>
                   {gradeRanges.map((item, idx) => (
-                    <div key={idx} className="grid grid-cols-2 gap-4">
+                    <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-4 items-center">
                       <input 
                         type="text" 
                         value={item.range} 
@@ -1807,7 +2082,8 @@ function AddSetupWizardContent() {
                           updated[idx].range = e.target.value
                           setGradeRanges(updated)
                         }}
-                        className="px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
+                        placeholder="91-100"
+                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-800 dark:text-slate-100"
                       />
                       <input 
                         type="text" 
@@ -1817,32 +2093,63 @@ function AddSetupWizardContent() {
                           updated[idx].grade = e.target.value
                           setGradeRanges(updated)
                         }}
-                        className="px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
+                        placeholder="A+"
+                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-800 dark:text-slate-100"
                       />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (gradeRanges.length > 1) {
+                            setGradeRanges(gradeRanges.filter((_, i) => i !== idx))
+                          }
+                        }}
+                        title="Delete rule"
+                        disabled={gradeRanges.length <= 1}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   ))}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setGradeRanges([...gradeRanges, { range: '', grade: '' }])}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 dark:hover:bg-teal-900/50 border border-teal-200 dark:border-teal-800 rounded-lg transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Grade Range
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Panel 3: Division Remarks Range */}
-            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-slate-900">
               <button 
+                type="button"
                 onClick={() => setExpandedSection(expandedSection === 'division' ? null : 'division')}
-                className="w-full flex items-center justify-between px-6 py-4 bg-slate-50 border-b border-slate-200 text-left text-xs font-black text-[#1b3a60] uppercase tracking-wide"
+                className="w-full flex items-center justify-between px-6 py-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-left text-xs font-black text-[#1b3a60] dark:text-slate-200 uppercase tracking-wide hover:bg-slate-100/70 dark:hover:bg-slate-800 transition-colors"
               >
-                <span>Division Remarks Range *</span>
-                {expandedSection === 'division' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                <div className="flex items-center gap-2">
+                  <span>Division Remarks Range *</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                    {divisionRanges.length} rules
+                  </span>
+                </div>
+                {expandedSection === 'division' ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
               </button>
 
               {expandedSection === 'division' && (
-                <div className="p-6 space-y-4 animate-in slide-in-from-top-1 duration-200 bg-white">
-                  <div className="grid grid-cols-2 gap-4 font-bold text-xs text-slate-500 mb-2 border-b border-slate-100 pb-2">
+                <div className="p-6 space-y-4 animate-in slide-in-from-top-1 duration-200 bg-white dark:bg-slate-900">
+                  <div className="grid grid-cols-[1fr_1fr_auto] gap-4 font-bold text-xs text-slate-500 dark:text-slate-400 mb-2 border-b border-slate-100 dark:border-slate-800 pb-2">
                     <span>Range (e.g. 75-100)</span>
                     <span>Division (e.g. 1st)</span>
+                    <span className="w-8"></span>
                   </div>
                   {divisionRanges.map((item, idx) => (
-                    <div key={idx} className="grid grid-cols-2 gap-4">
+                    <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-4 items-center">
                       <input 
                         type="text" 
                         value={item.range} 
@@ -1851,7 +2158,8 @@ function AddSetupWizardContent() {
                           updated[idx].range = e.target.value
                           setDivisionRanges(updated)
                         }}
-                        className="px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
+                        placeholder="75-100"
+                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-800 dark:text-slate-100"
                       />
                       <input 
                         type="text" 
@@ -1861,10 +2169,147 @@ function AddSetupWizardContent() {
                           updated[idx].div = e.target.value
                           setDivisionRanges(updated)
                         }}
-                        className="px-4 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold"
+                        placeholder="1st"
+                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-800 dark:text-slate-100"
                       />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (divisionRanges.length > 1) {
+                            setDivisionRanges(divisionRanges.filter((_, i) => i !== idx))
+                          }
+                        }}
+                        title="Delete rule"
+                        disabled={divisionRanges.length <= 1}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   ))}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setDivisionRanges([...divisionRanges, { range: '', div: '' }])}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 dark:hover:bg-teal-900/50 border border-teal-200 dark:border-teal-800 rounded-lg transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Division Range
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Panel 4: CGPA Range */}
+            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-slate-900">
+              <button 
+                type="button"
+                onClick={() => setExpandedSection(expandedSection === 'cgpa' ? null : 'cgpa')}
+                className="w-full flex items-center justify-between px-6 py-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-left text-xs font-black text-[#1b3a60] dark:text-slate-200 uppercase tracking-wide hover:bg-slate-100/70 dark:hover:bg-slate-800 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span>CGPA Range *</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                    {cgpaRanges.length} rules
+                  </span>
+                </div>
+                {expandedSection === 'cgpa' ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+              </button>
+
+              {expandedSection === 'cgpa' && (
+                <div className="p-6 space-y-4 animate-in slide-in-from-top-1 duration-200 bg-white dark:bg-slate-900">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                      Configure marks-to-CGPA scale (e.g. CBSE 10.0 scale or 4.0 scale).
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCgpaRanges([
+                          { range: '91-100', cgpa: '10.0' },
+                          { range: '81-90', cgpa: '9.0' },
+                          { range: '71-80', cgpa: '8.0' },
+                          { range: '61-70', cgpa: '7.0' },
+                          { range: '51-60', cgpa: '6.0' },
+                          { range: '41-50', cgpa: '5.0' },
+                          { range: '33-40', cgpa: '4.0' },
+                          { range: '00-32', cgpa: '0.0' }
+                        ])}
+                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
+                      >
+                        Reset 10.0 Scale
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCgpaRanges([
+                          { range: '90-100', cgpa: '4.0' },
+                          { range: '80-89', cgpa: '3.0' },
+                          { range: '70-79', cgpa: '2.0' },
+                          { range: '60-69', cgpa: '1.0' },
+                          { range: '00-59', cgpa: '0.0' }
+                        ])}
+                        className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
+                      >
+                        4.0 Scale Preset
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-[1fr_1fr_auto] gap-4 font-bold text-xs text-slate-500 dark:text-slate-400 mb-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <span>Range (e.g. 91-100)</span>
+                    <span>CGPA (e.g. 10.0)</span>
+                    <span className="w-8"></span>
+                  </div>
+                  {cgpaRanges.map((item, idx) => (
+                    <div key={idx} className="grid grid-cols-[1fr_1fr_auto] gap-4 items-center">
+                      <input 
+                        type="text" 
+                        value={item.range} 
+                        onChange={e => {
+                          const updated = [...cgpaRanges]
+                          updated[idx].range = e.target.value
+                          setCgpaRanges(updated)
+                        }}
+                        placeholder="91-100"
+                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-800 dark:text-slate-100"
+                      />
+                      <input 
+                        type="text" 
+                        value={item.cgpa} 
+                        onChange={e => {
+                          const updated = [...cgpaRanges]
+                          updated[idx].cgpa = e.target.value
+                          setCgpaRanges(updated)
+                        }}
+                        placeholder="10.0"
+                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-800 dark:text-slate-100"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (cgpaRanges.length > 1) {
+                            setCgpaRanges(cgpaRanges.filter((_, i) => i !== idx))
+                          }
+                        }}
+                        title="Delete rule"
+                        disabled={cgpaRanges.length <= 1}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setCgpaRanges([...cgpaRanges, { range: '', cgpa: '' }])}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 dark:hover:bg-teal-900/50 border border-teal-200 dark:border-teal-800 rounded-lg transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add CGPA Range
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -2051,6 +2496,9 @@ function AddSetupWizardContent() {
                         displayFields={admitDisplayFields}
                         showExamTimeTable={showExamTimeTableOnAdmit}
                         schoolLogo={admitSchoolLogo}
+                        logoPosition={admitLogoPosition}
+                        contentPosition={admitContentPosition}
+                        photoPosition={admitPhotoPosition}
                       />
 
                       <div className="text-center my-0.5">
@@ -2117,6 +2565,9 @@ function AddSetupWizardContent() {
                         displayFields={admitDisplayFields}
                         showExamTimeTable={showExamTimeTableOnAdmit}
                         schoolLogo={admitSchoolLogo}
+                        logoPosition={admitLogoPosition}
+                        contentPosition={admitContentPosition}
+                        photoPosition={admitPhotoPosition}
                       />
 
                       <div className="text-center my-0.5">
@@ -2183,6 +2634,9 @@ function AddSetupWizardContent() {
                         displayFields={admitDisplayFields}
                         showExamTimeTable={showExamTimeTableOnAdmit}
                         schoolLogo={admitSchoolLogo}
+                        logoPosition={admitLogoPosition}
+                        contentPosition={admitContentPosition}
+                        photoPosition={admitPhotoPosition}
                       />
 
                       <div className="text-center my-0.5">
@@ -2249,6 +2703,9 @@ function AddSetupWizardContent() {
                         displayFields={admitDisplayFields}
                         showExamTimeTable={showExamTimeTableOnAdmit}
                         schoolLogo={admitSchoolLogo}
+                        logoPosition={admitLogoPosition}
+                        contentPosition={admitContentPosition}
+                        photoPosition={admitPhotoPosition}
                       />
 
                       <div className="text-center my-0.5">
@@ -2321,15 +2778,728 @@ function AddSetupWizardContent() {
                   </button>
                 </div>
 
+                {/* Real-time Sizing & Typography Studio Toolbar */}
+                <div className="bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+                  {/* Studio Header - Sticky so tabs never scroll off-screen */}
+                  <div className="sticky top-2 z-20 bg-white/95 dark:bg-slate-850/95 backdrop-blur-md p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-xs flex flex-wrap items-center justify-between gap-3 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Sliders className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">
+                        Admit Card Sizing & Typography Studio
+                      </span>
+                      <span className="text-[9px] font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 px-2 py-0.5 rounded-full border border-teal-200/50 dark:border-teal-800/50">
+                        Live Sync Across All 4 Templates
+                      </span>
+                    </div>
+
+                    {/* Studio Category Tabs */}
+                    <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setAdmitSizingStudioTab('media')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all ${
+                          admitSizingStudioTab === 'media'
+                            ? 'bg-teal-600 text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                        <span>Logo & QR Sizing</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAdmitSizingStudioTab('signs')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all ${
+                          admitSizingStudioTab === 'signs'
+                            ? 'bg-teal-600 text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <Stamp className="w-3.5 h-3.5" />
+                        <span>Signatures & Seal</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAdmitSizingStudioTab('text')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all ${
+                          admitSizingStudioTab === 'text'
+                            ? 'bg-teal-600 text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <Type className="w-3.5 h-3.5" />
+                        <span>Main Text Typography</span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => logoFileInputRef.current?.click()}
+                        className="px-2.5 py-1 rounded-lg text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white transition-all shadow-2xs flex items-center gap-1.5"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{admitSchoolLogo ? 'Change Logo' : 'Upload Logo'}</span>
+                      </button>
+                      {admitSchoolLogo && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAdmitSchoolLogo('')
+                            toast.info('Reverted to Sample Academy Crest')
+                          }}
+                          className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-600 dark:text-slate-300 transition-all"
+                        >
+                          Use Sample
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* TAB 1: LOGO & MEDIA SIZING */}
+                  {admitSizingStudioTab === 'media' && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {/* Logo Sizing Box */}
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Institute Logo Size</span>
+                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-200/50 dark:border-teal-800/50">
+                              {admitSchoolLogoWidth} × {admitSchoolLogoHeight} px
+                            </span>
+                          </div>
+                          
+                          {/* Quick Presets */}
+                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                            {[
+                              { label: 'S (48px)', size: '48' },
+                              { label: 'M (60px)', size: '60' },
+                              { label: 'L (76px)', size: '76' },
+                              { label: 'XL (96px)', size: '96' }
+                            ].map(p => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => {
+                                  setAdmitSchoolLogoWidth(p.size)
+                                  setAdmitSchoolLogoHeight(p.size)
+                                }}
+                                className={`py-1 rounded text-[10px] font-bold transition-all ${
+                                  admitSchoolLogoWidth === p.size
+                                    ? 'bg-teal-600 text-white shadow-2xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                {p.label.split(' ')[0]}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Sliders */}
+                          <div className="space-y-2 pt-1 text-[11px]">
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Width:</span>
+                              <input
+                                type="range"
+                                min="32"
+                                max="140"
+                                step="2"
+                                value={Number(admitSchoolLogoWidth) || 60}
+                                onChange={e => setAdmitSchoolLogoWidth(e.target.value)}
+                                className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitSchoolLogoWidth}px</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Height:</span>
+                              <input
+                                type="range"
+                                min="32"
+                                max="140"
+                                step="2"
+                                value={Number(admitSchoolLogoHeight) || 60}
+                                onChange={e => setAdmitSchoolLogoHeight(e.target.value)}
+                                className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitSchoolLogoHeight}px</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* QR Code Sizing Box */}
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Official QR Code Size</span>
+                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-200/50 dark:border-teal-800/50">
+                              {admitQrCodeSize} px
+                            </span>
+                          </div>
+
+                          {/* Quick Presets */}
+                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                            {[
+                              { label: 'S (52px)', size: '52' },
+                              { label: 'M (72px)', size: '72' },
+                              { label: 'L (92px)', size: '92' },
+                              { label: 'XL (112px)', size: '112' }
+                            ].map(p => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => setAdmitQrCodeSize(p.size)}
+                                className={`py-1 rounded text-[10px] font-bold transition-all ${
+                                  admitQrCodeSize === p.size
+                                    ? 'bg-teal-600 text-white shadow-2xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                {p.label.split(' ')[0]}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="pt-2 text-[11px]">
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Scale:</span>
+                              <input
+                                type="range"
+                                min="44"
+                                max="130"
+                                step="2"
+                                value={Number(admitQrCodeSize) || 72}
+                                onChange={e => setAdmitQrCodeSize(e.target.value)}
+                                className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitQrCodeSize}px</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-2">Scales QR matrix cleanly without pixel blur.</p>
+                          </div>
+                        </div>
+
+                        {/* Student Photo Dimensions */}
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Candidate Photo Size</span>
+                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-200/50 dark:border-teal-800/50">
+                              {admitStudentPhotoWidth} × {admitStudentPhotoHeight} px
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                            {[
+                              { label: 'Passport (80×100)', w: '80', h: '100' },
+                              { label: 'Standard (96×120)', w: '96', h: '120' },
+                              { label: 'Large (110×140)', w: '110', h: '140' }
+                            ].map(p => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => {
+                                  setAdmitStudentPhotoWidth(p.w)
+                                  setAdmitStudentPhotoHeight(p.h)
+                                }}
+                                className={`py-1 rounded text-[9.5px] font-bold transition-all ${
+                                  admitStudentPhotoWidth === p.w
+                                    ? 'bg-teal-600 text-white shadow-2xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                {p.label.split(' ')[0]}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="space-y-2 pt-1 text-[11px]">
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Width:</span>
+                              <input
+                                type="range"
+                                min="60"
+                                max="140"
+                                step="2"
+                                value={Number(admitStudentPhotoWidth) || 96}
+                                onChange={e => setAdmitStudentPhotoWidth(e.target.value)}
+                                className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitStudentPhotoWidth}px</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Height:</span>
+                              <input
+                                type="range"
+                                min="75"
+                                max="170"
+                                step="2"
+                                value={Number(admitStudentPhotoHeight) || 120}
+                                onChange={e => setAdmitStudentPhotoHeight(e.target.value)}
+                                className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitStudentPhotoHeight}px</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 2: SIGNATURES & STAMP SIZING */}
+                  {admitSizingStudioTab === 'signs' && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {/* Signature Line Width */}
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Line Width</span>
+                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-200/50 dark:border-teal-800/50">
+                              {admitSignatureWidth} px
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                            {[
+                              { label: 'S', size: '75' },
+                              { label: 'M', size: '100' },
+                              { label: 'L', size: '130' },
+                              { label: 'XL', size: '165' }
+                            ].map(p => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => setAdmitSignatureWidth(p.size)}
+                                className={`py-1 rounded text-[10px] font-bold transition-all ${
+                                  admitSignatureWidth === p.size
+                                    ? 'bg-teal-600 text-white shadow-2xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                {p.label}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="pt-2 text-[11px]">
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Width:</span>
+                              <input
+                                type="range"
+                                min="50"
+                                max="180"
+                                step="5"
+                                value={Number(admitSignatureWidth) || 100}
+                                onChange={e => setAdmitSignatureWidth(e.target.value)}
+                                className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitSignatureWidth}px</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-2">Adjusts width of candidate, teacher, and principal sign lines.</p>
+                          </div>
+                        </div>
+
+                        {/* Stamp Seal Diameter */}
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">School Stamp / Seal Diameter</span>
+                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-200/50 dark:border-teal-800/50">
+                              {admitSchoolStampWidth} px
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                            {[
+                              { label: 'S (44px)', size: '44' },
+                              { label: 'M (56px)', size: '56' },
+                              { label: 'L (70px)', size: '70' },
+                              { label: 'XL (84px)', size: '84' }
+                            ].map(p => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => setAdmitSchoolStampWidth(p.size)}
+                                className={`py-1 rounded text-[10px] font-bold transition-all ${
+                                  admitSchoolStampWidth === p.size
+                                    ? 'bg-teal-600 text-white shadow-2xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                {p.label.split(' ')[0]}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="pt-2 text-[11px]">
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Diameter:</span>
+                              <input
+                                type="range"
+                                min="36"
+                                max="90"
+                                step="2"
+                                value={Number(admitSchoolStampWidth) || 56}
+                                onChange={e => setAdmitSchoolStampWidth(e.target.value)}
+                                className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitSchoolStampWidth}px</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-2">Scales circular official verification stamp & seal mark.</p>
+                          </div>
+                        </div>
+
+                        {/* Signature Text Size */}
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Text Font Size</span>
+                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-200/50 dark:border-teal-800/50">
+                              {admitSignatureFontSize} px
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                            {[
+                              { label: '8px', size: '8' },
+                              { label: '9px', size: '9' },
+                              { label: '10px', size: '10' },
+                              { label: '11px', size: '11' }
+                            ].map(p => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => setAdmitSignatureFontSize(p.size)}
+                                className={`py-1 rounded text-[10px] font-bold transition-all ${
+                                  admitSignatureFontSize === p.size
+                                    ? 'bg-teal-600 text-white shadow-2xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                {p.label}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="pt-2 text-[11px]">
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Font Size:</span>
+                              <input
+                                type="range"
+                                min="7"
+                                max="14"
+                                step="0.5"
+                                value={Number(admitSignatureFontSize) || 9}
+                                onChange={e => setAdmitSignatureFontSize(e.target.value)}
+                                className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitSignatureFontSize}px</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-2">Controls typography of sign labels & principal designation.</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 3: ALL MAIN TEXT (TYPOGRAPHY) */}
+                  {admitSizingStudioTab === 'text' && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                        {/* 1. School Name */}
+                        <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">1. School / Institute Name</span>
+                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400">{admitHeaderNameFontSize} px</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px]">
+                            <input
+                              type="range"
+                              min="14"
+                              max="38"
+                              step="1"
+                              value={Number(admitHeaderNameFontSize) || 24}
+                              onChange={e => setAdmitHeaderNameFontSize(e.target.value)}
+                              className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                            />
+                            <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitHeaderNameFontSize}px</span>
+                          </div>
+                        </div>
+
+                        {/* 2. School Address / Sub-header */}
+                        <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">2. School Address & Sub-Header</span>
+                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400">{admitHeaderDetailsFontSize} px</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px]">
+                            <input
+                              type="range"
+                              min="8"
+                              max="18"
+                              step="0.5"
+                              value={Number(admitHeaderDetailsFontSize) || 10}
+                              onChange={e => setAdmitHeaderDetailsFontSize(e.target.value)}
+                              className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                            />
+                            <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitHeaderDetailsFontSize}px</span>
+                          </div>
+                        </div>
+
+                        {/* 3. Admit Card Title Heading */}
+                        <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">3. "Admit Card" Title Banner</span>
+                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400">{admitHeadingFontSize} px</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px]">
+                            <input
+                              type="range"
+                              min="10"
+                              max="26"
+                              step="1"
+                              value={Number(admitHeadingFontSize) || 14}
+                              onChange={e => setAdmitHeadingFontSize(e.target.value)}
+                              className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                            />
+                            <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitHeadingFontSize}px</span>
+                          </div>
+                        </div>
+
+                        {/* 4. Student Details Information */}
+                        <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">4. Candidate Info (Roll, Name, etc.)</span>
+                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400">{admitStudentDetailsFontSize} px</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px]">
+                            <input
+                              type="range"
+                              min="9"
+                              max="18"
+                              step="0.5"
+                              value={Number(admitStudentDetailsFontSize) || 12}
+                              onChange={e => setAdmitStudentDetailsFontSize(e.target.value)}
+                              className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                            />
+                            <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitStudentDetailsFontSize}px</span>
+                          </div>
+                        </div>
+
+                        {/* 5. Timetable Schedule Matrix */}
+                        <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">5. Timetable & Exam Datesheet</span>
+                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400">{admitTimetableDetailsFontSize} px</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px]">
+                            <input
+                              type="range"
+                              min="9"
+                              max="18"
+                              step="0.5"
+                              value={Number(admitTimetableDetailsFontSize) || 11}
+                              onChange={e => setAdmitTimetableDetailsFontSize(e.target.value)}
+                              className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                            />
+                            <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitTimetableDetailsFontSize}px</span>
+                          </div>
+                        </div>
+
+                        {/* 6. Candidate Instructions */}
+                        <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">6. Important Instructions Text</span>
+                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400">{admitDefaultFontSize} px</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px]">
+                            <input
+                              type="range"
+                              min="7"
+                              max="15"
+                              step="0.5"
+                              value={Number(admitDefaultFontSize) || 9}
+                              onChange={e => setAdmitDefaultFontSize(e.target.value)}
+                              className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                            />
+                            <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitDefaultFontSize}px</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Live Paper Viewport */}
                 <div className="overflow-x-auto flex justify-center py-3 bg-slate-200/60 dark:bg-slate-950/80 rounded-2xl p-4 sm:p-6 border border-slate-200/80 dark:border-slate-800/80 shadow-inner">
-                  <div className="w-full flex justify-center max-w-[800px]">
+                  <div className="w-full flex flex-col items-center max-w-[800px]">
+                    
+                    {/* Quick Access Typography & Sizing Pills right above the paper */}
+                    <div className="w-full mb-3.5 flex flex-col gap-2.5 p-3 sm:p-3.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl border border-slate-200/90 dark:border-slate-700/80 shadow-xs">
+                      {/* Top Row: Category Switcher */}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            Sizing Controls:
+                          </span>
+                          <div className="inline-flex rounded-lg p-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs">
+                            <button
+                              type="button"
+                              onClick={() => setAdmitSizingStudioTab('text')}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-black text-[11px] transition-all ${
+                                admitSizingStudioTab === 'text'
+                                  ? 'bg-teal-600 text-white shadow-xs'
+                                  : 'text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400'
+                              }`}
+                            >
+                              <Type className="w-3.5 h-3.5" />
+                              <span>🔤 Main Text Font Sizes</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAdmitSizingStudioTab('media')}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-bold text-[11px] transition-all ${
+                                admitSizingStudioTab === 'media'
+                                  ? 'bg-teal-600 text-white shadow-xs'
+                                  : 'text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400'
+                              }`}
+                            >
+                              <QrCode className="w-3.5 h-3.5" />
+                              <span>Logo & QR</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAdmitSizingStudioTab('signs')}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-bold text-[11px] transition-all ${
+                                admitSizingStudioTab === 'signs'
+                                  ? 'bg-teal-600 text-white shadow-xs'
+                                  : 'text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400'
+                              }`}
+                            >
+                              <Stamp className="w-3.5 h-3.5" />
+                              <span>Signatures</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200/60 dark:border-amber-800/60 flex items-center gap-1">
+                            <span>✨ Tip: Click any heading on the card to resize live</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Bottom Row: Direct Instant Font Controls for School Heading, Admit Title & Address */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+                        {/* 1. School Heading Font Size */}
+                        <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">School Name:</span>
+                            <span className="font-mono font-black text-teal-600 dark:text-teal-400 text-[10.5px] bg-teal-50 dark:bg-teal-950/60 px-1 rounded">{admitHeaderNameFontSize}px</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              title="Make School Name smaller"
+                              onClick={() => setAdmitHeaderNameFontSize(prev => String(Math.max(12, Number(prev) - 2)))}
+                              className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                            >
+                              A-
+                            </button>
+                            <input
+                              type="range"
+                              min="12"
+                              max="38"
+                              step="1"
+                              value={Number(admitHeaderNameFontSize) || 24}
+                              onChange={e => setAdmitHeaderNameFontSize(e.target.value)}
+                              className="w-14 sm:w-16 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                            />
+                            <button
+                              type="button"
+                              title="Make School Name bigger"
+                              onClick={() => setAdmitHeaderNameFontSize(prev => String(Math.min(42, Number(prev) + 2)))}
+                              className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                            >
+                              A+
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 2. Admit Card Title Banner */}
+                        <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Admit Title:</span>
+                            <span className="font-mono font-black text-teal-600 dark:text-teal-400 text-[10.5px] bg-teal-50 dark:bg-teal-950/60 px-1 rounded">{admitHeadingFontSize}px</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              title="Make Admit Title smaller"
+                              onClick={() => setAdmitHeadingFontSize(prev => String(Math.max(10, Number(prev) - 1)))}
+                              className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                            >
+                              A-
+                            </button>
+                            <input
+                              type="range"
+                              min="10"
+                              max="26"
+                              step="1"
+                              value={Number(admitHeadingFontSize) || 14}
+                              onChange={e => setAdmitHeadingFontSize(e.target.value)}
+                              className="w-14 sm:w-16 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                            />
+                            <button
+                              type="button"
+                              title="Make Admit Title bigger"
+                              onClick={() => setAdmitHeadingFontSize(prev => String(Math.min(32, Number(prev) + 1)))}
+                              className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                            >
+                              A+
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 3. Address & Sub-Header Font Size */}
+                        <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Address/Details:</span>
+                            <span className="font-mono font-black text-teal-600 dark:text-teal-400 text-[10.5px] bg-teal-50 dark:bg-teal-950/60 px-1 rounded">{admitHeaderDetailsFontSize}px</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              title="Make Address smaller"
+                              onClick={() => setAdmitHeaderDetailsFontSize(prev => String(Math.max(8, Number(prev) - 1)))}
+                              className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                            >
+                              A-
+                            </button>
+                            <input
+                              type="range"
+                              min="8"
+                              max="18"
+                              step="0.5"
+                              value={Number(admitHeaderDetailsFontSize) || 10}
+                              onChange={e => setAdmitHeaderDetailsFontSize(e.target.value)}
+                              className="w-14 sm:w-16 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                            />
+                            <button
+                              type="button"
+                              title="Make Address bigger"
+                              onClick={() => setAdmitHeaderDetailsFontSize(prev => String(Math.min(22, Number(prev) + 1)))}
+                              className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                            >
+                              A+
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     <AdmitCardPaper
                       card={{
                         id: 999999,
                         className: classes[0]?.className || 'Class X',
                         examName: examName || 'Final Term Examination',
                         admitCardLabel: admitLabel || 'Admit Card',
+                        reportingTimeValue: admitReportingTime,
+                        gateClosureValue: admitGateClosureTime,
                         timeTableId: 999999,
                         session: session,
                         schoolName: schoolName || 'COSMOPOLITAN INTER COLLEGE',
@@ -2351,15 +3521,20 @@ function AddSetupWizardContent() {
                         studentPhotoSize: admitStudentPhotoWidth,
                         studentPhotoWidth: admitStudentPhotoWidth,
                         studentPhotoHeight: admitStudentPhotoHeight,
+                        photoPosition: admitPhotoPosition,
                         schoolLogo: admitSchoolLogo,
                         schoolLogoWidth: admitSchoolLogoWidth,
-                        schoolLogoHeight: admitSchoolLogoWidth,
+                        schoolLogoHeight: admitSchoolLogoHeight || admitSchoolLogoWidth,
+                        logoPosition: admitLogoPosition,
+                        contentPosition: admitContentPosition,
+                        qrCodeSize: admitQrCodeSize,
                         teacherSignLabel: admitTeacherSignLabel,
                         studentSignLabel: admitStudentSignLabel,
                         parentSignLabel: admitParentSignLabel,
                         principalSignLabel: admitPrincipalSignLabel,
                         principalName: principalName,
                         signatureWidth: admitSignatureWidth,
+                        signatureFontSize: admitSignatureFontSize,
                         schoolStampWidth: admitSchoolStampWidth,
                         signatureOrder: admitSignatureOrder,
                         customLabels: admitCustomLabels,
@@ -2429,12 +3604,17 @@ function AddSetupWizardContent() {
                 </div>
               </div>
 
-              {/* Display Fields Checkboxes */}
+              {/* Display Fields Checkboxes (Dynamic per Template) */}
               <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <span className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                    Select Fields to Display on Student Admit Card
-                  </span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5 gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide">
+                      Select Fields to Display on Student Admit Card
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200/50 dark:border-teal-800/50">
+                      Template: {admitTemplateStyle}
+                    </span>
+                  </div>
                   <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-teal-600 hover:text-teal-700 select-none">
                     <input
                       type="checkbox"
@@ -2445,22 +3625,65 @@ function AddSetupWizardContent() {
                     <span>Select All Fields</span>
                   </label>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs font-bold text-slate-700 dark:text-slate-300">
-                  {ADMIT_DISPLAY_FIELDS_KEYS.map(f => (
-                    <label key={f.key} className={`flex items-center gap-2.5 p-2 rounded-lg border transition-all cursor-pointer ${
-                      admitDisplayFields[f.key] 
-                        ? 'bg-teal-50/50 dark:bg-teal-950/20 border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-200' 
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs font-bold text-slate-700 dark:text-slate-300">
+                  {availableAdmitFields.map(f => (
+                    <label key={f.key} className={`flex items-center gap-2 p-2 rounded-lg border transition-all cursor-pointer ${
+                      admitDisplayFields[f.key] !== false 
+                        ? 'bg-teal-50/50 dark:bg-teal-950/20 border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-200 shadow-2xs' 
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 opacity-70'
                     }`}>
                       <input
                         type="checkbox"
-                        checked={!!admitDisplayFields[f.key]}
+                        checked={admitDisplayFields[f.key] !== false}
                         onChange={() => handleAdmitCheckboxChange(f.key)}
                         className="w-3.5 h-3.5 text-teal-600 border-slate-300 focus:ring-teal-500 rounded"
                       />
                       <span className="truncate">{f.label}</span>
                     </label>
                   ))}
+                </div>
+              </div>
+
+              {/* Exam Timing Options: Reporting Time & Gate Closure Time */}
+              <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                      Exam Center Reporting & Gate Closure Timings
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-semibold">
+                    Configurable time printed on student admit cards
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                      <span>Reporting Time</span>
+                      <span className="text-[10px] font-normal text-slate-400">e.g. 09:30 AM IST</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="09:30 AM IST"
+                      value={admitReportingTime}
+                      onChange={e => setAdmitReportingTime(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 shadow-2xs"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                      <span>Gate Closure Time</span>
+                      <span className="text-[10px] font-normal text-slate-400">e.g. 09:50 AM (Sharp)</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="09:50 AM (Sharp)"
+                      value={admitGateClosureTime}
+                      onChange={e => setAdmitGateClosureTime(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 shadow-2xs"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -2538,6 +3761,33 @@ function AddSetupWizardContent() {
                             >
                               <div>{p.label}</div>
                               <div className="text-[9px] opacity-75">{p.w}×{p.h}</div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Photo Position Selector */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Photo Placement</label>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {[
+                          { id: 'left', label: 'Left Side' },
+                          { id: 'right', label: 'Right Side' }
+                        ].map(pos => {
+                          const isActive = admitPhotoPosition === pos.id
+                          return (
+                            <button
+                              key={pos.id}
+                              type="button"
+                              onClick={() => setAdmitPhotoPosition(pos.id as any)}
+                              className={`px-2 py-1.5 rounded-lg text-[10.5px] font-bold transition-all border ${
+                                isActive 
+                                  ? 'bg-teal-600 text-white border-teal-600 shadow-xs' 
+                                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400'
+                              }`}
+                            >
+                              {pos.label}
                             </button>
                           )
                         })}
@@ -2687,21 +3937,96 @@ function AddSetupWizardContent() {
                         </div>
                       </div>
 
-                      {/* Logo Width Slider */}
-                      <div className="space-y-1.5 bg-white dark:bg-slate-800/80 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700/60">
-                        <div className="flex items-center justify-between text-[11px] font-bold">
-                          <span className="text-slate-600 dark:text-slate-300">Logo Width</span>
-                          <span className="font-mono text-teal-600 dark:text-teal-400 font-extrabold">{admitSchoolLogoWidth} px</span>
+                      {/* Logo Position Selector */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Logo Position</label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {[
+                            { id: 'left', label: 'Left' },
+                            { id: 'center', label: 'Center' },
+                            { id: 'right', label: 'Right' }
+                          ].map(pos => {
+                            const isActive = admitLogoPosition === pos.id
+                            return (
+                              <button
+                                key={pos.id}
+                                type="button"
+                                onClick={() => setAdmitLogoPosition(pos.id as any)}
+                                className={`px-2 py-1.5 rounded-lg text-[10.5px] font-bold transition-all border ${
+                                  isActive
+                                    ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400'
+                                }`}
+                              >
+                                {pos.label}
+                              </button>
+                            )
+                          })}
                         </div>
-                        <input
-                          type="range"
-                          min="36"
-                          max="130"
-                          step="2"
-                          value={Number(admitSchoolLogoWidth) || 60}
-                          onChange={e => setAdmitSchoolLogoWidth(e.target.value)}
-                          className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                        />
+                      </div>
+
+                      {/* Header Content Alignment */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Content Alignment</label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {[
+                            { id: 'left', label: 'Left' },
+                            { id: 'center', label: 'Center' },
+                            { id: 'right', label: 'Right' }
+                          ].map(pos => {
+                            const isActive = admitContentPosition === pos.id
+                            return (
+                              <button
+                                key={pos.id}
+                                type="button"
+                                onClick={() => setAdmitContentPosition(pos.id as any)}
+                                className={`px-2 py-1.5 rounded-lg text-[10.5px] font-bold transition-all border ${
+                                  isActive
+                                    ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400'
+                                }`}
+                              >
+                                {pos.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {/* Logo Width Slider */}
+                        <div className="space-y-1.5 bg-white dark:bg-slate-800/80 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700/60">
+                          <div className="flex items-center justify-between text-[11px] font-bold">
+                            <span className="text-slate-600 dark:text-slate-300">Logo Width</span>
+                            <span className="font-mono text-teal-600 dark:text-teal-400 font-extrabold">{admitSchoolLogoWidth} px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="36"
+                            max="140"
+                            step="2"
+                            value={Number(admitSchoolLogoWidth) || 60}
+                            onChange={e => setAdmitSchoolLogoWidth(e.target.value)}
+                            className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                          />
+                        </div>
+
+                        {/* Logo Height Slider */}
+                        <div className="space-y-1.5 bg-white dark:bg-slate-800/80 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700/60">
+                          <div className="flex items-center justify-between text-[11px] font-bold">
+                            <span className="text-slate-600 dark:text-slate-300">Logo Height</span>
+                            <span className="font-mono text-teal-600 dark:text-teal-400 font-extrabold">{admitSchoolLogoHeight} px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="36"
+                            max="140"
+                            step="2"
+                            value={Number(admitSchoolLogoHeight) || 60}
+                            onChange={e => setAdmitSchoolLogoHeight(e.target.value)}
+                            className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -3624,6 +4949,211 @@ function AddSetupWizardContent() {
                   </button>
                 </div>
 
+                {/* Quick Logo & Branding Controls Bar for Marksheet */}
+                <div className="border border-purple-200/90 dark:border-purple-800/80 rounded-2xl bg-purple-50/40 dark:bg-purple-950/20 p-3 sm:p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-white dark:bg-slate-800 border border-dashed border-purple-300 dark:border-purple-700 flex items-center justify-center p-1 shrink-0 overflow-hidden shadow-2xs">
+                      {admitSchoolLogo ? (
+                        <img src={admitSchoolLogo} alt="Logo" className="w-full h-full object-contain rounded" />
+                      ) : (
+                        <SampleSchoolLogo width={34} height={34} color={marksheetThemeColor} />
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                          Institute Brand Logo
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setColumnsList(prev => ({ ...prev, logo: !((prev as any).logo !== false) }))}
+                          className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase transition-all shadow-2xs ${
+                            columnsList.logo !== false
+                              ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700'
+                          }`}
+                        >
+                          {columnsList.logo !== false ? '● Visible (ON)' : '○ Hidden (OFF)'}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        {admitSchoolLogo ? 'Custom brand logo active • Updates all templates live' : 'Official sample emblem active • Click logo on template or button to upload'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => marksheetLogoFileInputRef.current?.click()}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white transition-all shadow-sm flex items-center gap-1.5"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{admitSchoolLogo ? 'Change Logo' : 'Select / Upload Logo'}</span>
+                    </button>
+                    {admitSchoolLogo && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAdmitSchoolLogo('')
+                          toast.info('Reverted to Sample Academy Crest')
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 text-slate-600 dark:text-slate-300 shadow-2xs"
+                      >
+                        Use Sample
+                      </button>
+                    )}
+                    <div className="flex items-center gap-1.5 pl-2.5 border-l border-purple-200 dark:border-purple-800">
+                      <span className="text-[10.5px] font-bold text-slate-600 dark:text-slate-300">Logo Size:</span>
+                      <input
+                        type="range"
+                        min="32"
+                        max="130"
+                        step="2"
+                        value={Number(logoWidth) || 60}
+                        onChange={e => setLogoWidth(e.target.value)}
+                        className="w-16 sm:w-20 accent-purple-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                      />
+                      <span className="font-mono font-bold text-purple-600 dark:text-purple-400 text-[10.5px] bg-white dark:bg-slate-800 px-1 py-0.5 rounded border border-purple-200 dark:border-purple-800">{logoWidth}px</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Typography & Font Sizing Controls for Marksheet */}
+                <div className="border border-slate-200/90 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-850 p-4 shadow-xs space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <Type className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                        Quick Typography & Font Sizing Controls
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-400 font-semibold">
+                        Customize header, report card title, and sub-header sizes in real time
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMarksheetHeaderNameFontSize('22')
+                          setMarksheetHeadingFontSize('14')
+                          setMarksheetHeaderDetailsFontSize('11')
+                        }}
+                        className="text-[10px] font-bold text-purple-600 hover:text-purple-700 underline ml-2"
+                      >
+                        Reset Defaults
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* 1. School Name Font Size */}
+                    <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Institute Name:</span>
+                        <span className="font-mono font-black text-purple-600 dark:text-purple-400 text-[10.5px] bg-purple-50 dark:bg-purple-950/60 px-1 rounded">{marksheetHeaderNameFontSize}px</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          title="Make Institute Name smaller"
+                          onClick={() => setMarksheetHeaderNameFontSize(prev => String(Math.max(12, Number(prev) - 2)))}
+                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                        >
+                          A-
+                        </button>
+                        <input
+                          type="range"
+                          min="14"
+                          max="36"
+                          step="1"
+                          value={Number(marksheetHeaderNameFontSize) || 22}
+                          onChange={e => setMarksheetHeaderNameFontSize(e.target.value)}
+                          className="w-14 sm:w-16 accent-purple-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                        />
+                        <button
+                          type="button"
+                          title="Make Institute Name bigger"
+                          onClick={() => setMarksheetHeaderNameFontSize(prev => String(Math.min(42, Number(prev) + 2)))}
+                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                        >
+                          A+
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 2. Marksheet Title Font Size */}
+                    <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Report Title:</span>
+                        <span className="font-mono font-black text-purple-600 dark:text-purple-400 text-[10.5px] bg-purple-50 dark:bg-purple-950/60 px-1 rounded">{marksheetHeadingFontSize}px</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          title="Make Report Title smaller"
+                          onClick={() => setMarksheetHeadingFontSize(prev => String(Math.max(10, Number(prev) - 1)))}
+                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                        >
+                          A-
+                        </button>
+                        <input
+                          type="range"
+                          min="10"
+                          max="26"
+                          step="1"
+                          value={Number(marksheetHeadingFontSize) || 14}
+                          onChange={e => setMarksheetHeadingFontSize(e.target.value)}
+                          className="w-14 sm:w-16 accent-purple-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                        />
+                        <button
+                          type="button"
+                          title="Make Report Title bigger"
+                          onClick={() => setMarksheetHeadingFontSize(prev => String(Math.min(32, Number(prev) + 1)))}
+                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                        >
+                          A+
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 3. Address & Sub-Header Font Size */}
+                    <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Details/Subheader:</span>
+                        <span className="font-mono font-black text-purple-600 dark:text-purple-400 text-[10.5px] bg-purple-50 dark:bg-purple-950/60 px-1 rounded">{marksheetHeaderDetailsFontSize}px</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          title="Make Details smaller"
+                          onClick={() => setMarksheetHeaderDetailsFontSize(prev => String(Math.max(8, Number(prev) - 1)))}
+                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                        >
+                          A-
+                        </button>
+                        <input
+                          type="range"
+                          min="8"
+                          max="18"
+                          step="0.5"
+                          value={Number(marksheetHeaderDetailsFontSize) || 11}
+                          onChange={e => setMarksheetHeaderDetailsFontSize(e.target.value)}
+                          className="w-14 sm:w-16 accent-purple-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                        />
+                        <button
+                          type="button"
+                          title="Make Details bigger"
+                          onClick={() => setMarksheetHeaderDetailsFontSize(prev => String(Math.min(22, Number(prev) + 1)))}
+                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                        >
+                          A+
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Live Paper Viewport */}
                 <div className="overflow-x-auto flex justify-center py-3 bg-slate-200/60 dark:bg-slate-950/80 rounded-2xl p-4 sm:p-6 border border-slate-200/80 dark:border-slate-800/80 shadow-inner">
                   <div className="w-full flex justify-center max-w-[820px]">
@@ -3637,6 +5167,7 @@ function AddSetupWizardContent() {
                       percentRanges={percentRanges}
                       gradeRanges={gradeRanges}
                       divisionRanges={divisionRanges}
+                      cgpaRanges={cgpaRanges}
                       schoolName={schoolName}
                       affiliateTo={affiliateTo}
                       schoolAddress={schoolAddress}
@@ -3648,6 +5179,10 @@ function AddSetupWizardContent() {
                       email={email}
                       principalName={principalName}
                       headingHeader={headingHeader}
+                      headerNameFontSize={marksheetHeaderNameFontSize}
+                      headingFontSize={marksheetHeadingFontSize}
+                      headerDetailsFontSize={marksheetHeaderDetailsFontSize}
+                      dateOfIssue={marksheetDateOfIssue}
                       showStudentPhoto={showStudentPhoto}
                       showRoundBorderPhoto={showRoundBorderPhoto}
                       showTestMarks={showTestMarks}
@@ -4108,6 +5643,49 @@ function AddSetupWizardContent() {
                     </label>
                   )
                 })}
+              </div>
+            </div>
+
+            {/* Marksheet Dates & Schedule Settings */}
+            <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                    Marksheet Date of Issue & Examination Dates
+                  </span>
+                </div>
+                <span className="text-[10px] text-slate-500 font-semibold">
+                  Configurable dates printed on student marksheets
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span>Date of Issue</span>
+                    <span className="text-[10px] font-normal text-slate-400">e.g. 25/03/2026</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="25/03/2026"
+                    value={marksheetDateOfIssue}
+                    onChange={e => setMarksheetDateOfIssue(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none focus:border-purple-500 shadow-2xs"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span>Examination Date / Term</span>
+                    <span className="text-[10px] font-normal text-slate-400">e.g. March 2026</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="March 2026"
+                    value={marksheetExamDate}
+                    onChange={e => setMarksheetExamDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none focus:border-purple-500 shadow-2xs"
+                  />
+                </div>
               </div>
             </div>
 
@@ -5412,9 +6990,16 @@ function AddSetupWizardContent() {
                         className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-amber-500 transition-all shadow-2xs"
                       />
                     </div>
-                    <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-[10px] text-slate-600 dark:text-slate-300 flex items-center justify-between">
-                      <span className="font-semibold">Printed Date:</span>
-                      <span className="font-mono font-bold text-amber-600 dark:text-amber-400">{dateOfExam || 'Current Date'}</span>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Certificate Issue Date / Event Date</label>
+                      <input
+                        type="text"
+                        value={certDateOfIssue}
+                        onChange={e => setCertDateOfIssue(e.target.value)}
+                        disabled={!certDisplayFields.dateOfIssue}
+                        placeholder="e.g. 15 October 2026"
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-amber-500 transition-all shadow-2xs"
+                      />
                     </div>
                   </div>
                 </div>
@@ -5471,7 +7056,7 @@ function AddSetupWizardContent() {
                         themeColor={certThemeColor}
                         schoolName={schoolName || 'COSMOPOLITAN INTER COLLEGE'}
                         schoolLogo={admitSchoolLogo}
-                        showLogo={certDisplayFields.logo}
+                        showLogo={certDisplayFields.logo !== false}
                         studentName="Aarav Sharma"
                         isSelected={isSelected}
                       />
@@ -5535,7 +7120,7 @@ function AddSetupWizardContent() {
                         themeColor={certThemeColor}
                         schoolName={schoolName || 'COSMOPOLITAN INTER COLLEGE'}
                         schoolLogo={admitSchoolLogo}
-                        showLogo={certDisplayFields.logo}
+                        showLogo={certDisplayFields.logo !== false}
                         studentName="Aarav Sharma"
                         isSelected={isSelected}
                       />
@@ -5599,7 +7184,7 @@ function AddSetupWizardContent() {
                         themeColor={certThemeColor}
                         schoolName={schoolName || 'COSMOPOLITAN INTER COLLEGE'}
                         schoolLogo={admitSchoolLogo}
-                        showLogo={certDisplayFields.logo}
+                        showLogo={certDisplayFields.logo !== false}
                         studentName="Aarav Sharma"
                         isSelected={isSelected}
                       />
@@ -5669,6 +7254,211 @@ function AddSetupWizardContent() {
                   </button>
                 </div>
 
+                {/* Quick Logo & Branding Controls Bar for Certificate */}
+                <div className="border border-amber-200/90 dark:border-amber-800/80 rounded-2xl bg-amber-50/40 dark:bg-amber-950/20 p-3 sm:p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-white dark:bg-slate-800 border border-dashed border-amber-300 dark:border-amber-700 flex items-center justify-center p-1 shrink-0 overflow-hidden shadow-2xs">
+                      {admitSchoolLogo ? (
+                        <img src={admitSchoolLogo} alt="Logo" className="w-full h-full object-contain rounded" />
+                      ) : (
+                        <SampleSchoolLogo width={34} height={34} color={certThemeColor} />
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                          Certificate Brand Logo
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCertCheckboxChange('logo')}
+                          className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase transition-all shadow-2xs ${
+                            certDisplayFields.logo !== false
+                              ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700'
+                          }`}
+                        >
+                          {certDisplayFields.logo !== false ? '● Visible (ON)' : '○ Hidden (OFF)'}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        {admitSchoolLogo ? 'Custom brand logo active • Updates all certificate styles live' : 'Official sample emblem active • Click logo on template or button to upload'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => certLogoFileInputRef.current?.click()}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition-all shadow-sm flex items-center gap-1.5"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{admitSchoolLogo ? 'Change Logo' : 'Select / Upload Logo'}</span>
+                    </button>
+                    {admitSchoolLogo && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAdmitSchoolLogo('')
+                          toast.info('Reverted to Sample Academy Crest')
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 text-slate-600 dark:text-slate-300 shadow-2xs"
+                      >
+                        Use Sample
+                      </button>
+                    )}
+                    <div className="flex items-center gap-1.5 pl-2.5 border-l border-amber-200 dark:border-amber-800">
+                      <span className="text-[10.5px] font-bold text-slate-600 dark:text-slate-300">Logo Size:</span>
+                      <input
+                        type="range"
+                        min="32"
+                        max="130"
+                        step="2"
+                        value={Number(logoWidth) || 60}
+                        onChange={e => setLogoWidth(e.target.value)}
+                        className="w-16 sm:w-20 accent-amber-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                      />
+                      <span className="font-mono font-bold text-amber-600 dark:text-amber-400 text-[10.5px] bg-white dark:bg-slate-800 px-1 py-0.5 rounded border border-amber-200 dark:border-amber-800">{logoWidth}px</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Typography & Font Sizing Controls for Certificate */}
+                <div className="border border-slate-200/90 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-850 p-4 shadow-xs space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <Type className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                        Quick Typography & Font Sizing Controls
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-400 font-semibold">
+                        Customize institute name, certificate title, and subtitle font sizes in real time
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCertSchoolNameFontSize('14')
+                          setCertTitleFontSize('30')
+                          setCertSubtitleFontSize('11')
+                        }}
+                        className="text-[10px] font-bold text-amber-600 hover:text-amber-700 underline ml-2"
+                      >
+                        Reset Defaults
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* 1. School / Institute Name Font Size */}
+                    <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Institute Name:</span>
+                        <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-[10.5px] bg-amber-50 dark:bg-amber-950/60 px-1 rounded">{certSchoolNameFontSize}px</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          title="Make Institute Name smaller"
+                          onClick={() => setCertSchoolNameFontSize(prev => String(Math.max(10, Number(prev) - 1)))}
+                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                        >
+                          A-
+                        </button>
+                        <input
+                          type="range"
+                          min="10"
+                          max="28"
+                          step="1"
+                          value={Number(certSchoolNameFontSize) || 14}
+                          onChange={e => setCertSchoolNameFontSize(e.target.value)}
+                          className="w-14 sm:w-16 accent-amber-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                        />
+                        <button
+                          type="button"
+                          title="Make Institute Name bigger"
+                          onClick={() => setCertSchoolNameFontSize(prev => String(Math.min(36, Number(prev) + 1)))}
+                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                        >
+                          A+
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 2. Certificate Title Font Size */}
+                    <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Certificate Title:</span>
+                        <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-[10.5px] bg-amber-50 dark:bg-amber-950/60 px-1 rounded">{certTitleFontSize}px</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          title="Make Certificate Title smaller"
+                          onClick={() => setCertTitleFontSize(prev => String(Math.max(16, Number(prev) - 2)))}
+                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                        >
+                          A-
+                        </button>
+                        <input
+                          type="range"
+                          min="16"
+                          max="48"
+                          step="1"
+                          value={Number(certTitleFontSize) || 30}
+                          onChange={e => setCertTitleFontSize(e.target.value)}
+                          className="w-14 sm:w-16 accent-amber-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                        />
+                        <button
+                          type="button"
+                          title="Make Certificate Title bigger"
+                          onClick={() => setCertTitleFontSize(prev => String(Math.min(54, Number(prev) + 2)))}
+                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                        >
+                          A+
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 3. Subtitle / Tagline Font Size */}
+                    <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Subtitle / Tagline:</span>
+                        <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-[10.5px] bg-amber-50 dark:bg-amber-950/60 px-1 rounded">{certSubtitleFontSize}px</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          title="Make Subtitle smaller"
+                          onClick={() => setCertSubtitleFontSize(prev => String(Math.max(8, Number(prev) - 1)))}
+                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                        >
+                          A-
+                        </button>
+                        <input
+                          type="range"
+                          min="8"
+                          max="20"
+                          step="0.5"
+                          value={Number(certSubtitleFontSize) || 11}
+                          onChange={e => setCertSubtitleFontSize(e.target.value)}
+                          className="w-14 sm:w-16 accent-amber-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                        />
+                        <button
+                          type="button"
+                          title="Make Subtitle bigger"
+                          onClick={() => setCertSubtitleFontSize(prev => String(Math.min(26, Number(prev) + 1)))}
+                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                        >
+                          A+
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Live Paper Viewport */}
                 <div className="overflow-x-auto flex justify-center py-4 bg-slate-200/60 dark:bg-slate-950/80 rounded-2xl p-4 sm:p-6 border border-slate-200/80 dark:border-slate-800/80 shadow-inner">
                   <div className="w-full flex justify-center items-center overflow-hidden min-h-[520px]">
@@ -5681,7 +7471,10 @@ function AddSetupWizardContent() {
                         schoolName={schoolName || 'COSMOPOLITAN INTER COLLEGE'}
                         schoolLogo={admitSchoolLogo}
                         logoWidth={Number(logoWidth) || 60}
-                        showLogo={certDisplayFields.logo}
+                        showLogo={certDisplayFields.logo !== false}
+                        schoolNameFontSize={certSchoolNameFontSize}
+                        titleFontSize={certTitleFontSize}
+                        subtitleFontSize={certSubtitleFontSize}
                         title={certTitle}
                         subtitle={certSubtitle}
                         presentedTo={certPresentedTo}
@@ -5692,6 +7485,11 @@ function AddSetupWizardContent() {
                           if (field === 'subtitle') setCertSubtitle(val)
                           if (field === 'content') setCertDescription(val)
                           if (field === 'schoolName') setSchoolName(val)
+                          if (field === 'date') setCertDateOfIssue(val)
+                          if (field === 'triggerLogoUpload') certLogoFileInputRef.current?.click()
+                          if (field === 'schoolNameFontSize') setCertSchoolNameFontSize(String(val))
+                          if (field === 'titleFontSize') setCertTitleFontSize(String(val))
+                          if (field === 'subtitleFontSize') setCertSubtitleFontSize(String(val))
                         }}
                         onUpdateLabel={(key, val) => {
                           if (key === 'presented_to') setCertPresentedTo(val)
@@ -5709,7 +7507,7 @@ function AddSetupWizardContent() {
                         studentPhoto=""
                         examName={examName || 'Final Term Examination'}
                         session={session || '2025-2026'}
-                        date={dateOfExam || '15 October 2025'}
+                        date={certDateOfIssue || dateOfExam || '15 October 2026'}
                         awarder={certPrincipalSignLabel || "Principal & Director"}
                         principalName={certPrincipalName || principalName || 'Dr. S. K. Sharma'}
                         principalLabel={certPrincipalSignLabel || "Principal & Director"}
@@ -5856,6 +7654,7 @@ function AddSetupWizardContent() {
                   percentRanges={percentRanges}
                   gradeRanges={gradeRanges}
                   divisionRanges={divisionRanges}
+                  cgpaRanges={cgpaRanges}
                   schoolName={schoolName}
                   affiliateTo={affiliateTo}
                   schoolAddress={schoolAddress}
@@ -5867,6 +7666,10 @@ function AddSetupWizardContent() {
                   email={email}
                   principalName={principalName}
                   headingHeader={headingHeader}
+                  headerNameFontSize={marksheetHeaderNameFontSize}
+                  headingFontSize={marksheetHeadingFontSize}
+                  headerDetailsFontSize={marksheetHeaderDetailsFontSize}
+                  dateOfIssue={marksheetDateOfIssue}
                   showStudentPhoto={showStudentPhoto}
                   showRoundBorderPhoto={showRoundBorderPhoto}
                   showTestMarks={showTestMarks}
@@ -5933,6 +7736,8 @@ function AddSetupWizardContent() {
             className: classes[0]?.className || 'Class X',
             examName: examName || 'Final Term Examination',
             admitCardLabel: admitLabel || 'Admit Card',
+            reportingTimeValue: admitReportingTime,
+            gateClosureValue: admitGateClosureTime,
             timeTableId: 999999,
             session: session,
             schoolName: schoolName || 'COSMOPOLITAN INTER COLLEGE',
@@ -5958,7 +7763,12 @@ function AddSetupWizardContent() {
             studentSignLabel: admitStudentSignLabel,
             parentSignLabel: admitParentSignLabel,
             principalSignLabel: admitPrincipalSignLabel,
-            principalName: principalName,
+            schoolLogo: admitSchoolLogo,
+            schoolLogoWidth: admitSchoolLogoWidth,
+            schoolLogoHeight: admitSchoolLogoHeight || admitSchoolLogoWidth,
+            logoPosition: admitLogoPosition,
+            contentPosition: admitContentPosition,
+            photoPosition: admitPhotoPosition,
             signatureWidth: admitSignatureWidth,
             schoolStampWidth: admitSchoolStampWidth,
             signatureOrder: admitSignatureOrder,
@@ -6031,7 +7841,10 @@ function AddSetupWizardContent() {
                   schoolName={schoolName || 'COSMOPOLITAN INTER COLLEGE'}
                   schoolLogo={admitSchoolLogo}
                   logoWidth={Number(logoWidth) || 60}
-                  showLogo={certDisplayFields.logo}
+                  showLogo={certDisplayFields.logo !== false}
+                  schoolNameFontSize={certSchoolNameFontSize}
+                  titleFontSize={certTitleFontSize}
+                  subtitleFontSize={certSubtitleFontSize}
                   title={certTitle}
                   subtitle={certSubtitle}
                   presentedTo={certPresentedTo}
@@ -6042,6 +7855,11 @@ function AddSetupWizardContent() {
                     if (field === 'subtitle') setCertSubtitle(val)
                     if (field === 'content') setCertDescription(val)
                     if (field === 'schoolName') setSchoolName(val)
+                    if (field === 'date') setCertDateOfIssue(val)
+                    if (field === 'triggerLogoUpload') certLogoFileInputRef.current?.click()
+                    if (field === 'schoolNameFontSize') setCertSchoolNameFontSize(String(val))
+                    if (field === 'titleFontSize') setCertTitleFontSize(String(val))
+                    if (field === 'subtitleFontSize') setCertSubtitleFontSize(String(val))
                   }}
                   onUpdateLabel={(key, val) => {
                     if (key === 'presented_to') setCertPresentedTo(val)
@@ -6059,7 +7877,7 @@ function AddSetupWizardContent() {
                   studentPhoto=""
                   examName={examName || 'Final Term Examination'}
                   session={session || '2025-2026'}
-                  date={dateOfExam || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  date={certDateOfIssue || dateOfExam || '15 October 2026'}
                   awarder={certPrincipalSignLabel || "Principal & Director"}
                   principalName={certPrincipalName || principalName || 'Dr. S. K. Sharma'}
                   principalLabel={certPrincipalSignLabel || "Principal & Director"}

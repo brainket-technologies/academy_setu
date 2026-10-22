@@ -1,5 +1,5 @@
 import React from 'react'
-import { QrCode, ShieldCheck, Award, Building2, Phone, Mail, MapPin, Calendar, User, HeartPulse, CheckCircle2, Sparkles, Cpu } from 'lucide-react'
+import { QrCode, ShieldCheck, Award, Building2, Phone, Mail, MapPin, Calendar, User, HeartPulse, CheckCircle2, Sparkles, Cpu, Upload } from 'lucide-react'
 import { LiveEditableText, ProperQrCode, hexToRgba } from '@/components/admit-card/AdmitCardModalPreview'
 
 export function adjustHex(hex?: string, amount: number = 0): string {
@@ -11,6 +11,18 @@ export function adjustHex(hex?: string, amount: number = 0): string {
   const g = Math.max(0, Math.min(255, ((num >> 8) & 255) + amount))
   const b = Math.max(0, Math.min(255, (num & 255) + amount))
   return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`
+}
+
+export function parseFontSize(size?: number | string): string | undefined {
+  if (size === undefined || size === null || size === '') return undefined
+  const str = String(size).trim()
+  if (!str) return undefined
+  if (str.endsWith('px') || str.endsWith('rem') || str.endsWith('em') || str.endsWith('%') || str.endsWith('pt')) {
+    return str
+  }
+  const num = parseFloat(str)
+  if (isNaN(num) || num <= 0) return undefined
+  return `${num}px`
 }
 
 export const ID_CARD_COLOR_PRESETS = [
@@ -39,10 +51,15 @@ export interface IdCardCustomProps {
   principalName?: string
   principalSign?: string
   schoolLogo?: string
+  showLogo?: boolean
+  logoWidth?: number | string
+  schoolNameFontSize?: number | string
+  titleFontSize?: number | string
+  taglineFontSize?: number | string
   themeColor?: string
   editable?: boolean
   customLabels?: Record<string, string>
-  onUpdateField?: (field: string, value: string) => void
+  onUpdateField?: (field: string, value: any) => void
   onUpdateLabel?: (key: string, value: string) => void
   showQr?: boolean
   showWatermark?: boolean
@@ -75,6 +92,11 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
   principalName = 'M.Sharma',
   principalSign,
   schoolLogo,
+  showLogo = true,
+  logoWidth,
+  schoolNameFontSize,
+  titleFontSize,
+  taglineFontSize,
   themeColor,
   editable = false,
   customLabels = {},
@@ -103,6 +125,7 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
   const lightTone = adjustHex(primary, 35)
   const tintLight = hexToRgba(primary, 0.08)
   const borderTint = hexToRgba(primary, 0.3)
+  const actualLogoWidth = Number(logoWidth) || 48
 
   const role = data?.role || 'Student'
   const student = {
@@ -131,32 +154,69 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
         {/* Prominent, Clearly Legible Emblem Badge & School Title Header */}
         <div className="flex items-center gap-2.5 mb-1 px-0.5 text-left">
           {/* High-Contrast Pure White Emblem Bay */}
-          <div className="w-12 h-12 rounded-xl bg-white p-1 shadow-lg border-2 border-amber-400 ring-2 ring-white/70 flex items-center justify-center shrink-0 overflow-hidden">
-            {schoolLogo ? (
-              <img src={schoolLogo} alt="Institute Logo" className="w-full h-full object-contain filter drop-shadow-2xs" />
-            ) : (
-              <div className="w-full h-full rounded-lg bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex flex-col items-center justify-center text-slate-900 shadow-inner p-0.5">
-                <Building2 className="w-5 h-5 text-slate-900" />
-                <span className="text-[5px] font-black uppercase tracking-tighter">LOGO</span>
-              </div>
-            )}
-          </div>
+          {showLogo !== false && (
+            <div 
+              onClick={() => {
+                if (editable) onUpdateField?.('triggerLogoUpload', 'true')
+              }}
+              title={editable ? 'Click to select / upload institute logo' : undefined}
+              className={`rounded-xl bg-white p-1 shadow-lg border-2 border-amber-400 ring-2 ring-white/70 flex items-center justify-center shrink-0 overflow-hidden relative group ${
+                editable ? 'cursor-pointer hover:ring-amber-500 transition-all' : ''
+              }`}
+              style={{ width: `${actualLogoWidth}px`, height: `${actualLogoWidth}px` }}
+            >
+              {schoolLogo ? (
+                <img src={schoolLogo} alt="Institute Logo" className="w-full h-full object-contain filter drop-shadow-2xs" />
+              ) : (
+                <div className="w-full h-full rounded-lg bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex flex-col items-center justify-center text-slate-900 shadow-inner p-0.5">
+                  <Building2 className="w-5 h-5 text-slate-900" />
+                  <span className="text-[5px] font-black uppercase tracking-tighter">LOGO</span>
+                </div>
+              )}
+              {editable && (
+                <div className="absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 rounded-lg flex flex-col items-center justify-center text-[7px] font-black transition-opacity">
+                  <Upload className="w-3.5 h-3.5 mb-0.5" />
+                  <span>Change</span>
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex-1 min-w-0">
-            <h2 className="font-black text-[12px] tracking-tight uppercase leading-tight line-clamp-1 drop-shadow-sm text-white">
+            <h2 
+              className="font-black tracking-tight uppercase leading-tight line-clamp-1 drop-shadow-sm text-white"
+              style={{ fontSize: parseFontSize(schoolNameFontSize) || '12px' }}
+            >
               <LiveEditableText
                 tag="span"
                 value={schoolName}
                 editable={editable}
                 onSave={val => onUpdateField?.('schoolName', val)}
+                style={{ fontSize: parseFontSize(schoolNameFontSize) || '12px' }}
+                fontSizeControl={{
+                  value: schoolNameFontSize ? parseFloat(String(schoolNameFontSize)) || 12 : 12,
+                  onChange: val => onUpdateField?.('schoolNameFontSize', val),
+                  label: 'Institute Name'
+                }}
+                tooltipPosition="bottom"
                 className="inline-block"
               />
             </h2>
             {showTopHeaderTagline && (
-              <p className="text-[7.5px] text-white/90 font-medium tracking-wide truncate">
+              <p 
+                className="text-white/90 font-medium tracking-wide truncate"
+                style={{ fontSize: parseFontSize(taglineFontSize) || '7.5px' }}
+              >
                 <LiveEditableText
                   value={tagline}
                   editable={editable}
                   onSave={val => onUpdateField?.('tagline', val)}
+                  style={{ fontSize: parseFontSize(taglineFontSize) || '7.5px' }}
+                  fontSizeControl={{
+                    value: taglineFontSize ? parseFloat(String(taglineFontSize)) || 7.5 : 7.5,
+                    onChange: val => onUpdateField?.('taglineFontSize', val),
+                    label: 'Tagline'
+                  }}
+                  tooltipPosition="bottom"
                   className="inline-block mr-1"
                 />
                 {affiliationCode && (
@@ -185,13 +245,23 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
 
         {/* Role Pill */}
         <div 
-          className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-white font-black text-[9px] px-3.5 py-0.5 rounded-full shadow-md tracking-wider uppercase border border-white/60 whitespace-nowrap"
-          style={{ backgroundColor: primary }}
+          className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-white font-black px-3.5 py-0.5 rounded-full shadow-md tracking-wider uppercase border border-white/60 whitespace-nowrap"
+          style={{ 
+            backgroundColor: primary,
+            fontSize: parseFontSize(titleFontSize) || '9px'
+          }}
         >
           <LiveEditableText
             value={title}
             editable={editable}
             onSave={val => onUpdateField?.('title', val)}
+            style={{ fontSize: parseFontSize(titleFontSize) || '9px' }}
+            fontSizeControl={{
+              value: titleFontSize ? parseFloat(String(titleFontSize)) || 9 : 9,
+              onChange: val => onUpdateField?.('titleFontSize', val),
+              label: 'Card Title'
+            }}
+            tooltipPosition="bottom"
             className="inline-block mr-1"
           /> •{' '}
           <LiveEditableText
@@ -437,6 +507,11 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
   principalName = 'K.Singhal',
   principalSign,
   schoolLogo,
+  showLogo = true,
+  logoWidth,
+  schoolNameFontSize,
+  titleFontSize,
+  taglineFontSize,
   holderSignName = 'Ananya V.',
   themeColor,
   editable = false,
@@ -464,6 +539,7 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
   const lightTone = adjustHex(primary, 35)
   const tintLight = hexToRgba(primary, 0.08)
   const borderTint = hexToRgba(primary, 0.3)
+  const actualLogoWidth = Number(logoWidth) || 52
 
   const student = {
     name: data?.name || 'ANANYA VERMA',
@@ -490,31 +566,68 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
       >
         <div className="flex items-center gap-3">
           {/* Distinct Architectural Logo Showcase Bay */}
-          <div className="w-14 h-13 rounded-2xl bg-white p-1.5 shadow-lg border-2 border-amber-400 ring-2 ring-white/70 flex items-center justify-center shrink-0 overflow-hidden">
-            {schoolLogo ? (
-              <img src={schoolLogo} alt="Institute Logo" className="w-full h-full object-contain filter drop-shadow-2xs" />
-            ) : (
-              <div className="w-full h-full rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex flex-col items-center justify-center text-slate-900 shadow-inner">
-                <Building2 className="w-6 h-6 text-slate-900" />
-                <span className="text-[6px] font-black uppercase tracking-tighter mt-0.5">LOGO</span>
-              </div>
-            )}
-          </div>
+          {showLogo !== false && (
+            <div 
+              onClick={() => {
+                if (editable) onUpdateField?.('triggerLogoUpload', 'true')
+              }}
+              title={editable ? 'Click to select / upload institute logo' : undefined}
+              className={`rounded-2xl bg-white p-1.5 shadow-lg border-2 border-amber-400 ring-2 ring-white/70 flex items-center justify-center shrink-0 overflow-hidden relative group ${
+                editable ? 'cursor-pointer hover:ring-amber-500 transition-all' : ''
+              }`}
+              style={{ width: `${actualLogoWidth}px`, height: `${actualLogoWidth}px` }}
+            >
+              {schoolLogo ? (
+                <img src={schoolLogo} alt="Institute Logo" className="w-full h-full object-contain filter drop-shadow-2xs" />
+              ) : (
+                <div className="w-full h-full rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex flex-col items-center justify-center text-slate-900 shadow-inner">
+                  <Building2 className="w-6 h-6 text-slate-900" />
+                  <span className="text-[6px] font-black uppercase tracking-tighter mt-0.5">LOGO</span>
+                </div>
+              )}
+              {editable && (
+                <div className="absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 rounded-xl flex flex-col items-center justify-center text-[7.5px] font-black transition-opacity">
+                  <Upload className="w-3.5 h-3.5 mb-0.5" />
+                  <span>Change</span>
+                </div>
+              )}
+            </div>
+          )}
           <div className="text-left">
-            <h2 className="font-black text-[13px] uppercase tracking-wide leading-tight drop-shadow-sm text-white">
+            <h2 
+              className="font-black uppercase tracking-wide leading-tight drop-shadow-sm text-white"
+              style={{ fontSize: parseFontSize(schoolNameFontSize) || '13px' }}
+            >
               <LiveEditableText
                 tag="span"
                 value={schoolName}
                 editable={editable}
                 onSave={val => onUpdateField?.('schoolName', val)}
+                style={{ fontSize: parseFontSize(schoolNameFontSize) || '13px' }}
+                fontSizeControl={{
+                  value: schoolNameFontSize ? parseFloat(String(schoolNameFontSize)) || 13 : 13,
+                  onChange: val => onUpdateField?.('schoolNameFontSize', val),
+                  label: 'Institute Name'
+                }}
+                tooltipPosition="bottom"
                 className="inline-block"
               />
             </h2>
-            <p className="text-[8px] text-white/90 font-medium truncate max-w-[210px]">
+            <p 
+              className="text-white/90 font-medium truncate max-w-[210px]"
+              style={{ fontSize: parseFontSize(taglineFontSize) || '8px' }}
+            >
               <LiveEditableText
                 value={tagline}
                 editable={editable}
                 onSave={val => onUpdateField?.('tagline', val)}
+                style={{ fontSize: parseFontSize(taglineFontSize) || '8px' }}
+                fontSizeControl={{
+                  value: taglineFontSize ? parseFloat(String(taglineFontSize)) || 8 : 8,
+                  onChange: val => onUpdateField?.('taglineFontSize', val),
+                  label: 'Tagline'
+                }}
+                tooltipPosition="bottom"
                 className="inline-block mr-1"
               />
               •{' '}
@@ -765,11 +878,21 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
             className="inline-block"
           />
         </span>
-        <span className="font-semibold text-amber-300">
+        <span 
+          className="font-semibold text-amber-300"
+          style={{ fontSize: parseFontSize(titleFontSize) || '8px' }}
+        >
           <LiveEditableText
             value={title}
             editable={editable}
             onSave={val => onUpdateField?.('title', val)}
+            style={{ fontSize: parseFontSize(titleFontSize) || '8px' }}
+            fontSizeControl={{
+              value: titleFontSize ? parseFloat(String(titleFontSize)) || 8 : 8,
+              onChange: val => onUpdateField?.('titleFontSize', val),
+              label: 'Card Title'
+            }}
+            tooltipPosition="top"
             className="inline-block"
           />
         </span>
@@ -805,6 +928,11 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
   principalName,
   principalSign,
   schoolLogo,
+  showLogo = true,
+  logoWidth,
+  schoolNameFontSize,
+  titleFontSize,
+  taglineFontSize,
   editable = false,
   customLabels = {},
   onUpdateField,
@@ -816,6 +944,7 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
   const lightTone = adjustHex(primary, 35)
   const tintLight = hexToRgba(primary, 0.08)
   const borderTint = hexToRgba(primary, 0.25)
+  const actualLogoWidth = Number(logoWidth) || 48
   const labels = customLabels || {}
 
   const updateLabel = (key: string, val: string) => {
@@ -849,31 +978,71 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
 
         {/* Pristine Pure White Brand Canvas for 100% Logo Legibility */}
         <div className="bg-white px-3 py-2 flex items-center gap-2.5 border-b-2 border-amber-400">
-          <div className="w-12 h-12 rounded-full bg-white p-1 shadow-md border-2 border-amber-400 ring-2 ring-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
-            {schoolLogo ? (
-              <img src={schoolLogo} alt="Institute Logo" className="w-full h-full object-contain filter drop-shadow-2xs" />
-            ) : (
-              <div className="w-full h-full rounded-full bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex flex-col items-center justify-center text-slate-900 shadow-inner">
-                <Award className="w-5 h-5 text-slate-900" />
-                <span className="text-[5px] font-black uppercase">LOGO</span>
-              </div>
-            )}
-          </div>
+          {showLogo !== false && (
+            <div 
+              onClick={() => {
+                if (editable) onUpdateField?.('triggerLogoUpload', 'true')
+              }}
+              title={editable ? 'Click to select / upload institute logo' : undefined}
+              className={`rounded-full bg-white p-1 shadow-md border-2 border-amber-400 ring-2 ring-slate-100 flex items-center justify-center shrink-0 overflow-hidden relative group ${
+                editable ? 'cursor-pointer hover:ring-amber-500 transition-all' : ''
+              }`}
+              style={{ width: `${actualLogoWidth}px`, height: `${actualLogoWidth}px` }}
+            >
+              {schoolLogo ? (
+                <img src={schoolLogo} alt="Institute Logo" className="w-full h-full object-contain filter drop-shadow-2xs" />
+              ) : (
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex flex-col items-center justify-center text-slate-900 shadow-inner">
+                  <Award className="w-5 h-5 text-slate-900" />
+                  <span className="text-[5px] font-black uppercase">LOGO</span>
+                </div>
+              )}
+              {editable && (
+                <div className="absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 rounded-full flex flex-col items-center justify-center text-[7px] font-black transition-opacity">
+                  <Upload className="w-3.5 h-3.5 mb-0.5" />
+                  <span>Change</span>
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex-1 min-w-0 text-left">
-            <h2 className="font-black text-[12px] tracking-tight uppercase leading-tight line-clamp-1 text-slate-900">
+            <h2 
+              className="font-black tracking-tight uppercase leading-tight line-clamp-1 text-slate-900"
+              style={{ fontSize: parseFontSize(schoolNameFontSize) || '12px' }}
+            >
               <LiveEditableText
                 value={schoolName}
                 editable={editable}
                 onSave={val => onUpdateField?.('schoolName', val)}
+                style={{ fontSize: parseFontSize(schoolNameFontSize) || '12px' }}
+                fontSizeControl={{
+                  value: schoolNameFontSize ? parseFloat(String(schoolNameFontSize)) || 12 : 12,
+                  onChange: val => onUpdateField?.('schoolNameFontSize', val),
+                  label: 'Institute Name'
+                }}
+                tooltipPosition="bottom"
                 className="inline-block"
               />
             </h2>
             {showTopHeaderTagline && (
-              <p className="text-[7.5px] font-bold tracking-wider uppercase truncate" style={{ color: primary }}>
+              <p 
+                className="font-bold tracking-wider uppercase truncate" 
+                style={{ 
+                  color: primary,
+                  fontSize: parseFontSize(taglineFontSize) || '7.5px'
+                }}
+              >
                 <LiveEditableText
                   value={tagline}
                   editable={editable}
                   onSave={val => onUpdateField?.('tagline', val)}
+                  style={{ fontSize: parseFontSize(taglineFontSize) || '7.5px' }}
+                  fontSizeControl={{
+                    value: taglineFontSize ? parseFloat(String(taglineFontSize)) || 7.5 : 7.5,
+                    onChange: val => onUpdateField?.('taglineFontSize', val),
+                    label: 'Tagline'
+                  }}
+                  tooltipPosition="bottom"
                   className="inline-block mr-1"
                 />
                 {affiliationCode && `• ${affiliationCode}`}
@@ -892,14 +1061,24 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
 
         {/* Role Belt */}
         <div 
-          className="text-white text-[8px] font-black tracking-wider uppercase py-1 px-3 text-center flex items-center justify-between shadow-xs"
-          style={{ background: `linear-gradient(90deg, ${primary}, ${lightTone})` }}
+          className="text-white font-black tracking-wider uppercase py-1 px-3 text-center flex items-center justify-between shadow-xs"
+          style={{ 
+            background: `linear-gradient(90deg, ${primary}, ${lightTone})`,
+            fontSize: parseFontSize(titleFontSize) || '8px'
+          }}
         >
-          <span>
+          <span style={{ fontSize: parseFontSize(titleFontSize) || '8px' }}>
             <LiveEditableText
               value={title}
               editable={editable}
               onSave={val => onUpdateField?.('title', val)}
+              style={{ fontSize: parseFontSize(titleFontSize) || '8px' }}
+              fontSizeControl={{
+                value: titleFontSize ? parseFloat(String(titleFontSize)) || 8 : 8,
+                onChange: val => onUpdateField?.('titleFontSize', val),
+                label: 'Card Title'
+              }}
+              tooltipPosition="bottom"
               className="inline-block"
             />
           </span>
@@ -1145,6 +1324,9 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
   showBloodGroup = true,
   themeColor,
   principalName,
+  schoolNameFontSize,
+  titleFontSize,
+  taglineFontSize,
   editable = false,
   customLabels = {},
   onUpdateField,
@@ -1193,19 +1375,39 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
             <Building2 className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="font-black text-sm uppercase tracking-wide leading-tight drop-shadow-sm">
+            <h2 
+              className="font-black uppercase tracking-wide leading-tight drop-shadow-sm"
+              style={{ fontSize: parseFontSize(schoolNameFontSize) || '14px' }}
+            >
               <LiveEditableText
                 value={schoolName}
                 editable={editable}
                 onSave={val => onUpdateField?.('schoolName', val)}
+                style={{ fontSize: parseFontSize(schoolNameFontSize) || '14px' }}
+                fontSizeControl={{
+                  value: schoolNameFontSize ? parseFloat(String(schoolNameFontSize)) || 14 : 14,
+                  onChange: val => onUpdateField?.('schoolNameFontSize', val),
+                  label: 'Institute Name'
+                }}
+                tooltipPosition="bottom"
                 className="inline-block"
               />
             </h2>
-            <p className="text-[8px] text-white/90 font-medium">
+            <p 
+              className="text-white/90 font-medium"
+              style={{ fontSize: parseFontSize(taglineFontSize) || '8px' }}
+            >
               <LiveEditableText
                 value={tagline}
                 editable={editable}
                 onSave={val => onUpdateField?.('tagline', val)}
+                style={{ fontSize: parseFontSize(taglineFontSize) || '8px' }}
+                fontSizeControl={{
+                  value: taglineFontSize ? parseFloat(String(taglineFontSize)) || 8 : 8,
+                  onChange: val => onUpdateField?.('taglineFontSize', val),
+                  label: 'Tagline'
+                }}
+                tooltipPosition="bottom"
                 className="inline-block"
               />
               {' '}• CAMPUS ID
@@ -1214,8 +1416,11 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
         </div>
         <div className="text-right">
           <span 
-            className="font-black text-[9px] px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs text-white"
-            style={{ backgroundColor: primary }}
+            className="font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs text-white"
+            style={{ 
+              backgroundColor: primary,
+              fontSize: parseFontSize(titleFontSize) || '9px'
+            }}
           >
             FACULTY • {session}
           </span>
@@ -1441,6 +1646,9 @@ export const EmployeeDesignVertical: React.FC<IdCardCustomProps> = ({
   showTopHeaderTagline = true,
   themeColor,
   principalName,
+  schoolNameFontSize,
+  titleFontSize,
+  taglineFontSize,
   editable = false,
   customLabels = {},
   onUpdateField,
@@ -1490,22 +1698,42 @@ export const EmployeeDesignVertical: React.FC<IdCardCustomProps> = ({
           >
             <ShieldCheck className="w-3.5 h-3.5" />
           </div>
-          <h2 className="font-black text-[13px] tracking-tight uppercase leading-tight line-clamp-1 drop-shadow-sm">
+          <h2 
+            className="font-black tracking-tight uppercase leading-tight line-clamp-1 drop-shadow-sm"
+            style={{ fontSize: parseFontSize(schoolNameFontSize) || '13px' }}
+          >
             <LiveEditableText
               value={schoolName}
               editable={editable}
               onSave={val => onUpdateField?.('schoolName', val)}
+              style={{ fontSize: parseFontSize(schoolNameFontSize) || '13px' }}
+              fontSizeControl={{
+                value: schoolNameFontSize ? parseFloat(String(schoolNameFontSize)) || 13 : 13,
+                onChange: val => onUpdateField?.('schoolNameFontSize', val),
+                label: 'Institute Name'
+              }}
+              tooltipPosition="bottom"
               className="inline-block"
             />
           </h2>
         </div>
 
         {showTopHeaderTagline && (
-          <p className="text-[8px] text-white/90 font-semibold tracking-wider uppercase">
+          <p 
+            className="text-white/90 font-semibold tracking-wider uppercase"
+            style={{ fontSize: parseFontSize(taglineFontSize) || '8px' }}
+          >
             <LiveEditableText
               value={tagline}
               editable={editable}
               onSave={val => onUpdateField?.('tagline', val)}
+              style={{ fontSize: parseFontSize(taglineFontSize) || '8px' }}
+              fontSizeControl={{
+                value: taglineFontSize ? parseFloat(String(taglineFontSize)) || 8 : 8,
+                onChange: val => onUpdateField?.('taglineFontSize', val),
+                label: 'Tagline'
+              }}
+              tooltipPosition="bottom"
               className="inline-block"
             />
           </p>
@@ -1521,13 +1749,23 @@ export const EmployeeDesignVertical: React.FC<IdCardCustomProps> = ({
 
         {/* Badge Pill */}
         <div 
-          className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-white font-black text-[9px] px-3.5 py-0.5 rounded-full shadow-md tracking-wider uppercase border border-white"
-          style={{ backgroundColor: primary }}
+          className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-white font-black px-3.5 py-0.5 rounded-full shadow-md tracking-wider uppercase border border-white"
+          style={{ 
+            backgroundColor: primary,
+            fontSize: parseFontSize(titleFontSize) || '9px'
+          }}
         >
           <LiveEditableText
             value={title}
             editable={editable}
             onSave={val => onUpdateField?.('title', val)}
+            style={{ fontSize: parseFontSize(titleFontSize) || '9px' }}
+            fontSizeControl={{
+              value: titleFontSize ? parseFloat(String(titleFontSize)) || 9 : 9,
+              onChange: val => onUpdateField?.('titleFontSize', val),
+              label: 'Card Title'
+            }}
+            tooltipPosition="bottom"
             className="inline-block"
           />
         </div>
@@ -1734,6 +1972,11 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
   principalName,
   principalSign,
   schoolLogo,
+  showLogo = true,
+  logoWidth,
+  schoolNameFontSize,
+  titleFontSize,
+  taglineFontSize,
   editable = false,
   customLabels = {},
   onUpdateField,
@@ -1745,6 +1988,7 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
   const lightTone = adjustHex(primary, 35)
   const tintLight = hexToRgba(primary, 0.08)
   const borderTint = hexToRgba(primary, 0.25)
+  const actualLogoWidth = Number(logoWidth) || 52
   const labels = customLabels || {}
 
   const updateLabel = (key: string, val: string) => {
@@ -1775,30 +2019,67 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
       >
         <div className="flex items-center gap-3">
           {/* Distinct High-Contrast Modern Tech Logo Pod */}
-          <div className="w-14 h-13 rounded-xl bg-white p-1.5 shadow-lg border-2 border-cyan-400 ring-2 ring-white/70 flex items-center justify-center shrink-0 overflow-hidden">
-            {schoolLogo ? (
-              <img src={schoolLogo} alt="Institute Logo" className="w-full h-full object-contain filter drop-shadow-2xs" />
-            ) : (
-              <div className="w-full h-full rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex flex-col items-center justify-center text-white shadow-inner">
-                <ShieldCheck className="w-6 h-6 text-white" />
-                <span className="text-[6px] font-black uppercase tracking-tighter mt-0.5">LOGO</span>
-              </div>
-            )}
-          </div>
+          {showLogo !== false && (
+            <div 
+              onClick={() => {
+                if (editable) onUpdateField?.('triggerLogoUpload', 'true')
+              }}
+              title={editable ? 'Click to select / upload institute logo' : undefined}
+              className={`rounded-xl bg-white p-1.5 shadow-lg border-2 border-cyan-400 ring-2 ring-white/70 flex items-center justify-center shrink-0 overflow-hidden relative group ${
+                editable ? 'cursor-pointer hover:ring-cyan-500 transition-all' : ''
+              }`}
+              style={{ width: `${actualLogoWidth}px`, height: `${actualLogoWidth}px` }}
+            >
+              {schoolLogo ? (
+                <img src={schoolLogo} alt="Institute Logo" className="w-full h-full object-contain filter drop-shadow-2xs" />
+              ) : (
+                <div className="w-full h-full rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex flex-col items-center justify-center text-white shadow-inner">
+                  <ShieldCheck className="w-6 h-6 text-white" />
+                  <span className="text-[6px] font-black uppercase tracking-tighter mt-0.5">LOGO</span>
+                </div>
+              )}
+              {editable && (
+                <div className="absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 rounded-xl flex flex-col items-center justify-center text-[7.5px] font-black transition-opacity">
+                  <Upload className="w-3.5 h-3.5 mb-0.5" />
+                  <span>Change</span>
+                </div>
+              )}
+            </div>
+          )}
           <div>
-            <h2 className="font-black text-[13px] uppercase tracking-wide leading-tight drop-shadow-sm text-white">
+            <h2 
+              className="font-black uppercase tracking-wide leading-tight drop-shadow-sm text-white"
+              style={{ fontSize: parseFontSize(schoolNameFontSize) || '13px' }}
+            >
               <LiveEditableText
                 value={schoolName}
                 editable={editable}
                 onSave={val => onUpdateField?.('schoolName', val)}
+                style={{ fontSize: parseFontSize(schoolNameFontSize) || '13px' }}
+                fontSizeControl={{
+                  value: schoolNameFontSize ? parseFloat(String(schoolNameFontSize)) || 13 : 13,
+                  onChange: val => onUpdateField?.('schoolNameFontSize', val),
+                  label: 'Institute Name'
+                }}
+                tooltipPosition="bottom"
                 className="inline-block"
               />
             </h2>
-            <p className="text-[8px] text-white/90 font-medium">
+            <p 
+              className="text-white/90 font-medium"
+              style={{ fontSize: parseFontSize(taglineFontSize) || '8px' }}
+            >
               <LiveEditableText
                 value={tagline}
                 editable={editable}
                 onSave={val => onUpdateField?.('tagline', val)}
+                style={{ fontSize: parseFontSize(taglineFontSize) || '8px' }}
+                fontSizeControl={{
+                  value: taglineFontSize ? parseFloat(String(taglineFontSize)) || 8 : 8,
+                  onChange: val => onUpdateField?.('taglineFontSize', val),
+                  label: 'Tagline'
+                }}
+                tooltipPosition="bottom"
                 className="inline-block"
               />
               {' '}• STAFF CREDENTIAL
@@ -1807,10 +2088,25 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
         </div>
         <div className="text-right">
           <span 
-            className="font-black text-[9px] px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs text-white"
-            style={{ backgroundColor: primary }}
+            className="font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs text-white inline-flex items-center gap-1"
+            style={{ 
+              backgroundColor: primary,
+              fontSize: parseFontSize(titleFontSize) || '9px'
+            }}
           >
-            STAFF PASS • {session}
+            <LiveEditableText
+              value={title}
+              editable={editable}
+              onSave={val => onUpdateField?.('title', val)}
+              style={{ fontSize: parseFontSize(titleFontSize) || '9px' }}
+              fontSizeControl={{
+                value: titleFontSize ? parseFloat(String(titleFontSize)) || 9 : 9,
+                onChange: val => onUpdateField?.('titleFontSize', val),
+                label: 'Card Title'
+              }}
+              tooltipPosition="bottom"
+              className="inline-block"
+            /> • {session}
           </span>
           <p className="text-[7.5px] text-white/80 mt-0.5 truncate max-w-[140px]">
             <LiveEditableText
@@ -2044,6 +2340,14 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
 // -------------------------------------------------------------
 // CARD BACK SIDE TEMPLATE (SUPPORTING BOTH PORTRAIT & LANDSCAPE)
 // -------------------------------------------------------------
+export const DEFAULT_ID_CARD_GUIDELINES = [
+  'This card is non-transferable and remains the property of the institute.',
+  'Must be worn visibly during school/campus hours.',
+  'Loss of this card should be reported to the office immediately.',
+  'Damage or misuse of the card is strictly prohibited.',
+  'Valid only for authorized campus access and library services.'
+]
+
 export const IdCardBackDesign: React.FC<{
   orientation?: 'portrait' | 'landscape'
   schoolName?: string
@@ -2052,6 +2356,8 @@ export const IdCardBackDesign: React.FC<{
   schoolEmail?: string
   bottomNotes?: string
   themeColor?: string
+  termsTitle?: string
+  termsGuidelines?: string | string[]
   editable?: boolean
   onUpdateField?: (field: string, value: any) => void
 }> = ({
@@ -2062,12 +2368,28 @@ export const IdCardBackDesign: React.FC<{
   schoolEmail = 'info@academy.edu',
   bottomNotes = 'This card is the property of the institute. If found, please return to the school administration office immediately.',
   themeColor,
+  termsTitle = 'Terms & Campus Guidelines',
+  termsGuidelines,
   editable = false,
   onUpdateField
 }) => {
   const primary = themeColor || '#1e3a8a'
   const borderTint = hexToRgba(primary, 0.25)
   const tintLight = hexToRgba(primary, 0.05)
+
+  const parsedGuidelines = React.useMemo(() => {
+    if (Array.isArray(termsGuidelines) && termsGuidelines.length > 0) {
+      return termsGuidelines.map(l => l.replace(/^[•\-\*\d\.\s]+/, '').trim()).filter(Boolean)
+    }
+    if (typeof termsGuidelines === 'string' && termsGuidelines.trim().length > 0) {
+      const split = termsGuidelines
+        .split('\n')
+        .map(l => l.replace(/^[•\-\*\d\.\s]+/, '').trim())
+        .filter(Boolean)
+      if (split.length > 0) return split
+    }
+    return DEFAULT_ID_CARD_GUIDELINES
+  }, [termsGuidelines])
 
   if (orientation === 'landscape') {
     return (
@@ -2079,7 +2401,14 @@ export const IdCardBackDesign: React.FC<{
           className="font-black text-xs uppercase tracking-wider border-b pb-1 mb-2 flex items-center justify-between"
           style={{ color: primary, borderColor: borderTint }}
         >
-          <span>Terms & Campus Guidelines</span>
+          <span>
+            <LiveEditableText
+              value={termsTitle || 'Terms & Campus Guidelines'}
+              editable={editable}
+              onSave={val => onUpdateField?.('termsTitle', val)}
+              className="inline-block"
+            />
+          </span>
           <span className="text-[8px] font-bold px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: primary }}>
             BACK SIDE
           </span>
@@ -2087,10 +2416,20 @@ export const IdCardBackDesign: React.FC<{
 
         <div className="grid grid-cols-2 gap-4 text-[9px] flex-1">
           <ul className="space-y-1 list-disc list-inside text-slate-600">
-            <li>Must be displayed visibly at all times within campus.</li>
-            <li>Non-transferable; strict action for fraudulent use.</li>
-            <li>Loss must be reported immediately to school authorities.</li>
-            <li>Replacement charges applicable for re-issuance.</li>
+            {parsedGuidelines.map((item, idx) => (
+              <li key={idx} className="leading-tight">
+                <LiveEditableText
+                  value={item}
+                  editable={editable}
+                  onSave={val => {
+                    const next = [...parsedGuidelines]
+                    next[idx] = val
+                    onUpdateField?.('termsGuidelines', next.map(l => `• ${l}`).join('\n'))
+                  }}
+                  className="inline"
+                />
+              </li>
+            ))}
           </ul>
 
           <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-2xs">
@@ -2164,15 +2503,29 @@ export const IdCardBackDesign: React.FC<{
         className="font-black text-xs uppercase tracking-wider border-b pb-1 mb-3 text-center"
         style={{ color: primary, borderColor: borderTint }}
       >
-        Terms & Campus Guidelines
+        <LiveEditableText
+          value={termsTitle || 'Terms & Campus Guidelines'}
+          editable={editable}
+          onSave={val => onUpdateField?.('termsTitle', val)}
+          className="inline-block"
+        />
       </h4>
 
       <ul className="space-y-2 text-[9.5px] text-slate-600 list-disc list-inside px-1 flex-1">
-        <li>This card is non-transferable and remains the property of the institute.</li>
-        <li>Must be worn visibly during school/campus hours.</li>
-        <li>Loss of this card should be reported to the office immediately.</li>
-        <li>Damage or misuse of the card is strictly prohibited.</li>
-        <li>Valid only for authorized campus access and library services.</li>
+        {parsedGuidelines.map((item, idx) => (
+          <li key={idx} className="leading-snug">
+            <LiveEditableText
+              value={item}
+              editable={editable}
+              onSave={val => {
+                const next = [...parsedGuidelines]
+                next[idx] = val
+                onUpdateField?.('termsGuidelines', next.map(l => `• ${l}`).join('\n'))
+              }}
+              className="inline"
+            />
+          </li>
+        ))}
       </ul>
 
       <div className="bg-white p-3 rounded-xl border border-slate-200 mb-3 space-y-1 shadow-2xs">

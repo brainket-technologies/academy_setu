@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Award, CheckCircle2, ShieldCheck, QrCode, Sparkles, School, Star, BookOpen, Heart, Activity, Palette, Compass, Trophy, User, Check } from 'lucide-react'
+import { Award, CheckCircle2, ShieldCheck, QrCode, Sparkles, School, Star, BookOpen, Heart, Activity, Palette, Compass, Trophy, User, Check, Upload } from 'lucide-react'
 import { LiveEditableText, ProperQrCode, SampleSchoolLogo } from '@/components/admit-card/AdmitCardModalPreview'
 
 // Helper: convert hex to rgba
@@ -56,6 +56,7 @@ export interface MarksheetPreviewProps {
   percentRanges?: Array<{ range: string; remark: string }>
   gradeRanges?: Array<{ range: string; grade: string }>
   divisionRanges?: Array<{ range: string; div: string }>
+  cgpaRanges?: Array<{ range: string; cgpa: string }>
   showStudentPhoto?: boolean
   showRoundBorderPhoto?: boolean
   showTestMarks?: boolean
@@ -64,6 +65,10 @@ export interface MarksheetPreviewProps {
   columnsList?: Record<string, boolean>
   editable?: boolean
   customLabels?: Record<string, string>
+  headerNameFontSize?: string
+  headingFontSize?: string
+  headerDetailsFontSize?: string
+  dateOfIssue?: string
   onUpdateField?: (field: string, value: any) => void
 }
 
@@ -84,6 +89,10 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
   academicYear = '2025-2026',
   examName = 'Annual Examination 2025-26',
   headingHeader = 'ANNUAL PROGRESS REPORT CARD',
+  headerNameFontSize = '22',
+  headingFontSize = '14',
+  headerDetailsFontSize = '11',
+  dateOfIssue = '25/03/2026',
   className = 'Class 10',
   sectionName = 'Section A',
   studentName = 'Rahul Verma',
@@ -116,6 +125,22 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
     { range: '51-60', grade: 'C1' },
     { range: '41-50', grade: 'C2' },
     { range: '33-40', grade: 'D' }
+  ],
+  divisionRanges = [
+    { range: '75-100', div: '1st' },
+    { range: '60-74', div: '2nd' },
+    { range: '33-59', div: '3rd' },
+    { range: '0-33', div: 'Failed' }
+  ],
+  cgpaRanges = [
+    { range: '91-100', cgpa: '10.0' },
+    { range: '81-90', cgpa: '9.0' },
+    { range: '71-80', cgpa: '8.0' },
+    { range: '61-70', cgpa: '7.0' },
+    { range: '51-60', cgpa: '6.0' },
+    { range: '41-50', cgpa: '5.0' },
+    { range: '33-40', cgpa: '4.0' },
+    { range: '00-32', cgpa: '0.0' }
   ],
   showStudentPhoto = true,
   showRoundBorderPhoto = true,
@@ -260,6 +285,47 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
     : (columnsList ? (columnsList as any).logo !== false : true)
   const actualLogoWidth = Math.max(28, Math.min(180, Number(logoWidth) || 60))
 
+  const renderInteractiveLogo = (customContainerClass?: string, isRound: boolean = false) => {
+    if (!showLogo) return null
+    return (
+      <div
+        onClick={() => {
+          if (editable) onUpdateField?.('triggerLogoUpload', true)
+        }}
+        title={editable ? 'Click to select / upload institute logo' : undefined}
+        className={`shrink-0 flex items-center justify-center relative group overflow-hidden ${customContainerClass || ''} ${
+          isRound ? 'rounded-full' : 'rounded-xl'
+        } ${editable ? 'cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all' : ''}`}
+        style={{
+          width: `${actualLogoWidth}px`,
+          height: `${actualLogoWidth}px`,
+          backgroundColor: isRound && !schoolLogo ? primary : 'transparent',
+          borderColor: isRound ? borderTint : undefined
+        }}
+      >
+        {schoolLogo ? (
+          <img
+            src={schoolLogo}
+            alt={schoolName || 'School Logo'}
+            className={`w-full h-full object-contain ${isRound ? 'rounded-full' : ''}`}
+          />
+        ) : (
+          <SampleSchoolLogo
+            width={isRound ? actualLogoWidth - 8 : actualLogoWidth}
+            height={isRound ? actualLogoWidth - 8 : actualLogoWidth}
+            color={isRound ? '#ffffff' : primary}
+          />
+        )}
+        {editable && (
+          <div className={`absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-[7.5px] font-black transition-opacity ${isRound ? 'rounded-full' : 'rounded-xl'}`}>
+            <Upload className="w-3.5 h-3.5 mb-0.5" />
+            <span>Change</span>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   // =========================================================================
   // TEMPLATE 2: MINIMALIST MODERN (CANVA / PINTEREST STYLE - TEAL & SLATE)
   // =========================================================================
@@ -268,29 +334,20 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
       <div className="w-full max-w-[780px] bg-white text-slate-800 rounded-3xl shadow-2xl p-7 md:p-9 font-sans border select-none" style={{ borderColor: borderTint }}>
         {/* Header */}
         <div className="flex flex-col items-center text-center pb-6 border-b border-slate-100">
-          {showLogo && (
-            <div 
-              className="mb-2.5 shrink-0 flex items-center justify-center overflow-hidden"
-              style={{ width: `${actualLogoWidth}px`, height: `${actualLogoWidth}px` }}
-            >
-              {schoolLogo ? (
-                <img
-                  src={schoolLogo}
-                  alt={schoolName || 'School Logo'}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <SampleSchoolLogo width={actualLogoWidth} height={actualLogoWidth} color={primary} />
-              )}
-            </div>
-          )}
-          <div className="flex items-center gap-2.5 font-black text-lg md:text-xl tracking-tight uppercase" style={{ color: primary }}>
+          {renderInteractiveLogo("mb-2.5")}
+          <div className="flex items-center gap-2.5 font-black text-lg md:text-xl tracking-tight uppercase" style={{ color: primary, fontSize: headerNameFontSize ? `${headerNameFontSize}px` : undefined }}>
             {!showLogo && <School className="w-7 h-7" style={{ color: primary }} />}
             <LiveEditableText
               tag="span"
               value={schoolName}
               editable={editable}
               onSave={val => onUpdateField?.('schoolName', val)}
+              style={{ fontSize: headerNameFontSize ? `${headerNameFontSize}px` : undefined }}
+              fontSizeControl={{
+                label: 'School Name',
+                value: headerNameFontSize ? parseInt(headerNameFontSize) : 22,
+                onChange: val => onUpdateField?.('headerNameFontSize', val)
+              }}
               className="inline-block"
             />
           </div>
@@ -299,6 +356,12 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
               value={headingHeader || 'STUDENT REPORT CARD'}
               editable={editable}
               onSave={val => onUpdateField?.('headingHeader', val)}
+              style={{ fontSize: headingFontSize ? `${headingFontSize}px` : undefined }}
+              fontSizeControl={{
+                label: 'Report Title',
+                value: headingFontSize ? parseInt(headingFontSize) : 14,
+                onChange: val => onUpdateField?.('headingFontSize', val)
+              }}
               className="inline-block"
             /> • {labels.academicYearTitle || 'ACADEMIC YEAR'}{' '}
             <LiveEditableText
@@ -501,7 +564,22 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
                 onSave={val => updateLabel('cgpaBadge', val)}
                 className="inline-block mr-1"
               />
-              {((Number(percentage) / 100) * 4).toFixed(1)} / 4.0
+              {(() => {
+                const pct = Number(percentage) || 91.5
+                if (Array.isArray(cgpaRanges) && cgpaRanges.length > 0) {
+                  for (const item of cgpaRanges) {
+                    const parts = item.range.split('-').map(s => Number(s.trim()))
+                    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                      const min = Math.min(parts[0], parts[1])
+                      const max = Math.max(parts[0], parts[1])
+                      if (pct >= min && pct <= max) {
+                        return `${item.cgpa} / 10.0`
+                      }
+                    }
+                  }
+                }
+                return `${((pct / 100) * 10).toFixed(1)} / 10.0`
+              })()}
             </span>
             <span className="px-3 py-1 rounded-full text-xs font-black text-white shadow-xs" style={{ backgroundColor: primary, opacity: 0.9 }}>
               <LiveEditableText
@@ -627,42 +705,34 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
           {/* Header */}
           <div className="text-center pb-4 border-b-2" style={{ borderColor: primary }}>
             <div className="flex items-center justify-center gap-3">
-              {showLogo && (
-                <div 
-                  className="shrink-0 flex items-center justify-center overflow-hidden rounded-full border-2 shadow-xs p-1"
-                  style={{ 
-                    width: `${actualLogoWidth}px`, 
-                    height: `${actualLogoWidth}px`,
-                    backgroundColor: schoolLogo ? 'transparent' : primary,
-                    borderColor: borderTint
-                  }}
-                >
-                  {schoolLogo ? (
-                    <img
-                      src={schoolLogo}
-                      alt={schoolName || 'School Logo'}
-                      className="w-full h-full object-contain rounded-full"
-                    />
-                  ) : (
-                    <SampleSchoolLogo width={actualLogoWidth - 8} height={actualLogoWidth - 8} color="#ffffff" />
-                  )}
-                </div>
-              )}
-              <h1 className="text-2xl md:text-3xl font-black uppercase tracking-wide" style={{ color: primary }}>
+              {renderInteractiveLogo("", true)}
+              <h1 className="text-2xl md:text-3xl font-black uppercase tracking-wide" style={{ color: primary, fontSize: headerNameFontSize ? `${headerNameFontSize}px` : undefined }}>
                 <LiveEditableText
                   tag="span"
                   value={schoolName}
                   editable={editable}
                   onSave={val => onUpdateField?.('schoolName', val)}
+                  style={{ fontSize: headerNameFontSize ? `${headerNameFontSize}px` : undefined }}
+                  fontSizeControl={{
+                    label: 'School Name',
+                    value: headerNameFontSize ? parseInt(headerNameFontSize) : 22,
+                    onChange: val => onUpdateField?.('headerNameFontSize', val)
+                  }}
                   className="inline-block"
                 />
               </h1>
             </div>
-            <p className="text-xs font-bold text-slate-600 tracking-wider uppercase mt-1">
+            <p className="text-xs font-bold text-slate-600 tracking-wider uppercase mt-1" style={{ fontSize: headerDetailsFontSize ? `${headerDetailsFontSize}px` : undefined }}>
               <LiveEditableText
                 value={affiliateTo}
                 editable={editable}
                 onSave={val => onUpdateField?.('affiliateTo', val)}
+                style={{ fontSize: headerDetailsFontSize ? `${headerDetailsFontSize}px` : undefined }}
+                fontSizeControl={{
+                  label: 'Affiliation & Code',
+                  value: headerDetailsFontSize ? parseFloat(headerDetailsFontSize) : 11,
+                  onChange: val => onUpdateField?.('headerDetailsFontSize', val)
+                }}
                 className="inline-block"
               /> • {labels.schoolCodeLabel || 'SCHOOL CODE:'}{' '}
               <LiveEditableText
@@ -674,12 +744,18 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
             </p>
             <div 
               className="inline-block mt-2 px-6 py-1 text-white font-sans font-black text-xs uppercase tracking-widest rounded-sm shadow-xs"
-              style={{ backgroundColor: primary }}
+              style={{ backgroundColor: primary, fontSize: headingFontSize ? `${headingFontSize}px` : undefined }}
             >
               <LiveEditableText
                 value={headingHeader || 'ANNUAL ACADEMIC MARK SHEET'}
                 editable={editable}
                 onSave={val => onUpdateField?.('headingHeader', val)}
+                style={{ fontSize: headingFontSize ? `${headingFontSize}px` : undefined }}
+                fontSizeControl={{
+                  label: 'Report Title',
+                  value: headingFontSize ? parseInt(headingFontSize) : 14,
+                  onChange: val => onUpdateField?.('headingFontSize', val)
+                }}
                 className="inline-block mr-1"
               />{' '}
               <LiveEditableText
@@ -1039,22 +1115,7 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
         
         {/* Playful Header */}
         <div className="text-center pb-5 border-b-2" style={{ borderColor: borderTint }}>
-          {showLogo && (
-            <div 
-              className="mx-auto mb-2.5 shrink-0 flex items-center justify-center overflow-hidden"
-              style={{ width: `${actualLogoWidth}px`, height: `${actualLogoWidth}px` }}
-            >
-              {schoolLogo ? (
-                <img
-                  src={schoolLogo}
-                  alt={schoolName || 'School Logo'}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <SampleSchoolLogo width={actualLogoWidth} height={actualLogoWidth} color={primary} />
-              )}
-            </div>
-          )}
+          {renderInteractiveLogo("mx-auto mb-2.5")}
           <div 
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full font-black text-xs mb-2 border"
             style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}
@@ -1070,20 +1131,32 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
               />
             </span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight" style={{ color: primary }}>
+          <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight" style={{ color: primary, fontSize: headingFontSize ? `${headingFontSize}px` : undefined }}>
             <LiveEditableText
               tag="span"
               value={labels.holisticHeading || 'HOLISTIC SKILLS & DEVELOPMENTAL PROGRESS REPORT'}
               editable={editable}
               onSave={val => updateLabel('holisticHeading', val)}
+              style={{ fontSize: headingFontSize ? `${headingFontSize}px` : undefined }}
+              fontSizeControl={{
+                label: 'Report Title',
+                value: headingFontSize ? parseInt(headingFontSize) : 16,
+                onChange: val => onUpdateField?.('headingFontSize', val)
+              }}
               className="inline-block"
             />
           </h1>
-          <p className="text-xs font-bold text-slate-500 mt-1">
+          <p className="text-xs font-bold text-slate-500 mt-1" style={{ fontSize: headerNameFontSize ? `${headerNameFontSize}px` : undefined }}>
             <LiveEditableText
               value={schoolName}
               editable={editable}
               onSave={val => onUpdateField?.('schoolName', val)}
+              style={{ fontSize: headerNameFontSize ? `${headerNameFontSize}px` : undefined }}
+              fontSizeControl={{
+                label: 'School Name',
+                value: headerNameFontSize ? parseInt(headerNameFontSize) : 18,
+                onChange: val => onUpdateField?.('headerNameFontSize', val)
+              }}
               className="inline-block"
             /> • Primary & Kindergarten Section
           </p>
@@ -1389,27 +1462,7 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 pb-5 border-b-2" style={{ borderColor: primary }}>
           {/* School Emblem / Logo */}
           <div className="flex items-center gap-4">
-            {showLogo && (
-              <div 
-                className="shrink-0 flex items-center justify-center overflow-hidden rounded-full border-2 shadow-md p-1"
-                style={{ 
-                  width: `${actualLogoWidth}px`, 
-                  height: `${actualLogoWidth}px`,
-                  backgroundColor: schoolLogo ? 'transparent' : primary,
-                  borderColor: borderTint
-                }}
-              >
-                {schoolLogo ? (
-                  <img
-                    src={schoolLogo}
-                    alt={schoolName || 'School Logo'}
-                    className="w-full h-full object-contain rounded-full"
-                  />
-                ) : (
-                  <SampleSchoolLogo width={actualLogoWidth - 8} height={actualLogoWidth - 8} color="#ffffff" />
-                )}
-              </div>
-            )}
+            {renderInteractiveLogo("", true)}
             <div>
               <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight" style={{ color: primary }}>
                 <LiveEditableText
@@ -1417,14 +1470,26 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
                   value={schoolName}
                   editable={editable}
                   onSave={val => onUpdateField?.('schoolName', val)}
+                  style={{ fontSize: headerNameFontSize ? `${headerNameFontSize}px` : undefined }}
+                  fontSizeControl={{
+                    label: 'School Name',
+                    value: headerNameFontSize ? parseInt(headerNameFontSize) : 22,
+                    onChange: val => onUpdateField?.('headerNameFontSize', val)
+                  }}
                   className="inline-block"
                 />
               </h1>
-              <p className="text-[11px] font-bold mt-0.5" style={{ color: primary }}>
+              <p className="text-[11px] font-bold mt-0.5" style={{ color: primary, fontSize: headerDetailsFontSize ? `${headerDetailsFontSize}px` : undefined }}>
                 <LiveEditableText
                   value={affiliateTo}
                   editable={editable}
                   onSave={val => onUpdateField?.('affiliateTo', val)}
+                  style={{ fontSize: headerDetailsFontSize ? `${headerDetailsFontSize}px` : undefined }}
+                  fontSizeControl={{
+                    label: 'Affiliation & Code',
+                    value: headerDetailsFontSize ? parseFloat(headerDetailsFontSize) : 11,
+                    onChange: val => onUpdateField?.('headerDetailsFontSize', val)
+                  }}
                   className="inline-block"
                 /> • {labels.schoolCodeLabel || 'SCHOOL CODE:'}{' '}
                 <LiveEditableText
@@ -1476,13 +1541,20 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
             className="inline-block px-8 py-1.5 rounded-full text-white font-black text-xs md:text-sm tracking-wider uppercase shadow-md border"
             style={{ 
               background: `linear-gradient(135deg, ${primary}, ${hexToRgba(primary, 0.85)})`,
-              borderColor: borderTint
+              borderColor: borderTint,
+              fontSize: headingFontSize ? `${headingFontSize}px` : undefined
             }}
           >
             <LiveEditableText
               value={headingHeader || 'ANNUAL PROGRESS REPORT CARD'}
               editable={editable}
               onSave={val => onUpdateField?.('headingHeader', val)}
+              style={{ fontSize: headingFontSize ? `${headingFontSize}px` : undefined }}
+              fontSizeControl={{
+                label: 'Report Title',
+                value: headingFontSize ? parseInt(headingFontSize) : 14,
+                onChange: val => onUpdateField?.('headingFontSize', val)
+              }}
               className="inline-block"
             />
           </div>
@@ -1822,7 +1894,9 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
                   className="text-[6.5px] uppercase font-bold inline-block"
                 />
               </div>
-              <span className="text-[9px] text-slate-400 mt-1 font-mono">DATE: {new Date().toLocaleDateString('en-GB')}</span>
+              <span className="text-[9px] text-slate-500 mt-1 font-mono">
+                DATE: <LiveEditableText value={dateOfIssue || new Date().toLocaleDateString('en-GB')} editable={editable} onSave={val => onUpdateField?.('dateOfIssue', val)} className="inline-block" />
+              </span>
             </div>
           )}
 
