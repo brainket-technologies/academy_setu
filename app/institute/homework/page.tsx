@@ -118,15 +118,92 @@ export default function HomeworkPage() {
     h.classes.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const HOMEWORK_HUB_CARDS = [
+    {
+      title: 'Assign Homework',
+      description: 'Create and assign new homework tasks to your students easily.',
+      href: '/institute/homework/assign',
+      iconBg: 'bg-blue-50 text-blue-600',
+      borderColor: 'hover:border-blue-300'
+    },
+    {
+      title: 'Remark Homework',
+      description: 'Review, evaluate, and provide feedback on submitted assignments.',
+      href: '/institute/homework/remark',
+      iconBg: 'bg-emerald-50 text-emerald-600',
+      borderColor: 'hover:border-emerald-300'
+    },
+    {
+      title: 'Pending Assign Homework',
+      description: 'Select date, class, and subject to directly assign pending homework.',
+      href: '/institute/homework/pending-assign',
+      iconBg: 'bg-amber-50 text-amber-600',
+      borderColor: 'hover:border-amber-300'
+    },
+    {
+      title: 'Pending Remark Homework',
+      description: 'Select date, class, and subject to review and remark pending tasks.',
+      href: '/institute/homework/pending-remark',
+      iconBg: 'bg-orange-50 text-orange-600',
+      borderColor: 'hover:border-orange-300'
+    },
+    {
+      title: 'Homework Report',
+      description: 'View detailed insights and completion statistics of homeworks.',
+      href: '/institute/homework/report',
+      iconBg: 'bg-purple-50 text-purple-600',
+      borderColor: 'hover:border-purple-300'
+    }
+  ]
+
   return (
     <div className="flex flex-col gap-6 w-full pb-10 animate-in fade-in duration-300">
       
       {/* Header */}
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm flex items-center justify-between">
+      <div className="bg-gradient-to-r from-emerald-700 to-teal-800 text-white rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-black text-slate-800 dark:text-slate-100">Homework</h1>
-          <p className="text-xs text-slate-400">Assign curriculum exercises and evaluate student submissions logs</p>
+          <h1 className="text-2xl font-black tracking-tight">Homework Management Hub</h1>
+          <p className="text-xs text-emerald-100 mt-1">Assign curriculum exercises, review submissions, and track student completion</p>
         </div>
+        <Link
+          href="/institute/homework/create"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-white text-emerald-800 rounded-xl font-bold text-xs shadow-sm hover:bg-emerald-50 transition-colors w-fit"
+        >
+          <Plus className="w-4 h-4" />
+          Assign New Homework
+        </Link>
+      </div>
+
+      {/* 5 Hub Cards Grid matching user screenshot */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
+        {HOMEWORK_HUB_CARDS.map((card, idx) => (
+          <Link
+            key={card.title}
+            href={card.href}
+            className={`group bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between ${card.borderColor}`}
+          >
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-base shadow-inner ${card.iconBg}`}>
+                  {idx === 0 && '📚'}
+                  {idx === 1 && '📝'}
+                  {idx === 2 && '⏳'}
+                  {idx === 3 && '📋'}
+                  {idx === 4 && '📊'}
+                </div>
+                <div className="w-6 h-6 rounded-full bg-slate-50 group-hover:bg-emerald-50 group-hover:text-emerald-700 flex items-center justify-center text-slate-400 transition-colors">
+                  <span className="text-sm font-bold">›</span>
+                </div>
+              </div>
+              <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 group-hover:text-emerald-700 transition-colors">
+                {card.title}
+              </h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                {card.description}
+              </p>
+            </div>
+          </Link>
+        ))}
       </div>
 
       {/* Control Actions (Screenshot 1) */}

@@ -213,7 +213,16 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
         { label: 'Day Book', href: '/institute/ledger-day-book/day-book' },
       ]
     },
-    { icon: Book, label: 'Homework', href: '/institute/homework' },
+    { 
+      icon: Book, label: 'Homework', href: '#',
+      subItems: [
+        { label: 'Assign Homework', href: '/institute/homework/assign' },
+        { label: 'Remark Homework', href: '/institute/homework/remark' },
+        { label: 'Pending Assign Homework', href: '/institute/homework/pending-assign' },
+        { label: 'Pending Remark Homework', href: '/institute/homework/pending-remark' },
+        { label: 'Homework Report', href: '/institute/homework/report' },
+      ]
+    },
     { icon: Clock, label: 'Time Table', href: '/institute/time-table' },
     { icon: Smartphone, label: 'Mobile App User', href: '/institute/mobile-app-user' },
     { icon: Bell, label: 'Notification', href: '/institute/notification' },
