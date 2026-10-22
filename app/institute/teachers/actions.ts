@@ -21,6 +21,13 @@ async function ensureTeachersTable() {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_inst_teachers_inst ON institute_teachers(institution_id);
+    ALTER TABLE institute_teachers ADD COLUMN IF NOT EXISTS avatar TEXT;
+    ALTER TABLE institute_teachers ADD COLUMN IF NOT EXISTS details JSONB;
+    ALTER TABLE institute_teachers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+    ALTER TABLE institute_teachers ADD COLUMN IF NOT EXISTS username VARCHAR(255);
+    ALTER TABLE institute_teachers ADD COLUMN IF NOT EXISTS assigned_classes TEXT[];
+    ALTER TABLE institute_teachers ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active';
+    ALTER TABLE institute_teachers ADD COLUMN IF NOT EXISTS joining_date DATE DEFAULT CURRENT_DATE;
   `)
 }
 
