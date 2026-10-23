@@ -1,117 +1,295 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { 
-  Calendar, BookOpen, Clock, AlertCircle, CheckCircle2, 
-  Plus, Search, ArrowLeft, Filter, Sparkles, X, FileText,
-  Upload, ChevronRight, Layers, UserCheck
+  ChevronLeft, ChevronRight, Users, GraduationCap, 
+  Calendar, FileText, Paperclip, Plus, Search, Check, 
+  X, ArrowLeft, Clock, CheckCircle2, User, BookOpen, AlertCircle,
+  Filter, Sparkles, Download, Eye, ChevronDown, Upload,
+  CheckSquare, Square, Database, RotateCcw, Loader2, CloudUpload
 } from 'lucide-react'
 import Link from 'next/link'
 import { useClasses, useSections, useSubjects } from '@/lib/mastersData'
+import { fetchStudents } from '@/app/institute/students/actions'
+import { fetchTeachers } from '@/app/institute/teachers/actions'
+import { 
+  fetchHomeworkTasks, 
+  createHomeworkTask 
+} from '@/app/institute/homework/assign/actions'
 
-interface PendingSubjectItem {
+// Types
+interface ClassCardItem {
   id: string
-  subjectName: string
-  subjectCode: string
-  teacherName: string
-  classes: string
+  className: string
   section: string
-  lastAssignedDate: string
-  status: 'Pending' | 'Assigned' | 'Holiday/Exempt'
+  classTeacher: string
+  studentsCount: number
 }
 
-const DEFAULT_SUBJECTS: PendingSubjectItem[] = [
+interface SubjectItem {
+  id: string
+  subjectName: string
+  teacherName: string
+  bgColor: string
+  borderColor: string
+  textColor: string
+  badgeColor: string
+}
+
+interface PendingDateItem {
+  id: string
+  dayNumber: string
+  dayName: string
+  monthName: string
+  year: string
+  fullDate: string
+}
+
+// Generate default pending past dates matching Screenshot 1
+const DEFAULT_PENDING_DATES: PendingDateItem[] = [
+  { id: 'pd-1', dayNumber: '08', dayName: 'Mon', monthName: 'July', year: '2026', fullDate: '2026-07-08' },
+  { id: 'pd-2', dayNumber: '04', dayName: 'Mon', monthName: 'July', year: '2026', fullDate: '2026-07-04' },
+  { id: 'pd-3', dayNumber: '01', dayName: 'Mon', monthName: 'July', year: '2026', fullDate: '2026-07-01' },
+  { id: 'pd-4', dayNumber: '25', dayName: 'Mon', monthName: 'June', year: '2026', fullDate: '2026-06-25' },
+  { id: 'pd-5', dayNumber: '22', dayName: 'Mon', monthName: 'June', year: '2026', fullDate: '2026-06-22' },
+  { id: 'pd-6', dayNumber: '10', dayName: 'Mon', monthName: 'June', year: '2026', fullDate: '2026-06-10' },
+  { id: 'pd-7', dayNumber: '02', dayName: 'Mon', monthName: 'June', year: '2026', fullDate: '2026-06-02' },
+  { id: 'pd-8', dayNumber: '24', dayName: 'Mon', monthName: 'May', year: '2026', fullDate: '2026-05-24' },
+  { id: 'pd-9', dayNumber: '14', dayName: 'Mon', monthName: 'May', year: '2026', fullDate: '2026-05-14' },
+  { id: 'pd-10', dayNumber: '10', dayName: 'Mon', monthName: 'May', year: '2026', fullDate: '2026-05-10' },
+  { id: 'pd-11', dayNumber: '03', dayName: 'Mon', monthName: 'May', year: '2026', fullDate: '2026-05-03' },
+  { id: 'pd-12', dayNumber: '01', dayName: 'Mon', monthName: 'May', year: '2026', fullDate: '2026-05-01' }
+]
+
+const DEFAULT_CLASSES: ClassCardItem[] = [
+  { id: 'c-1', className: 'Class V', section: 'A', classTeacher: 'Pooja Sharma', studentsCount: 40 },
+  { id: 'c-2', className: 'Class V', section: 'B', classTeacher: 'Ramesh Chandra', studentsCount: 38 },
+  { id: 'c-3', className: 'Class VI', section: 'A', classTeacher: 'Sunita Sharma', studentsCount: 35 },
+  { id: 'c-4', className: 'Class VI', section: 'B', classTeacher: 'Ashok Kumar', studentsCount: 36 }
+]
+
+const DEFAULT_SUBJECTS: SubjectItem[] = [
   {
-    id: 'ps-1',
+    id: 's-1',
     subjectName: 'Mathematics',
-    subjectCode: 'MATH-101',
-    teacherName: 'Vikram Joshi',
-    classes: 'Class 1',
-    section: 'A',
-    lastAssignedDate: '20/10/2026',
-    status: 'Pending'
+    teacherName: 'Ashok Kumar',
+    bgColor: 'bg-sky-50 hover:bg-sky-100/90',
+    borderColor: 'border-sky-200/80',
+    textColor: 'text-sky-950',
+    badgeColor: 'bg-sky-100 text-sky-800'
   },
   {
-    id: 'ps-2',
+    id: 's-2',
     subjectName: 'Science',
-    subjectCode: 'SCI-102',
-    teacherName: 'Dr. Neha Sen',
-    classes: 'Class 1',
-    section: 'A',
-    lastAssignedDate: '19/10/2026',
-    status: 'Pending'
+    teacherName: 'Sunita Sharma',
+    bgColor: 'bg-emerald-50 hover:bg-emerald-100/90',
+    borderColor: 'border-emerald-200/80',
+    textColor: 'text-emerald-950',
+    badgeColor: 'bg-emerald-100 text-emerald-800'
   },
   {
-    id: 'ps-3',
-    subjectName: 'English Literature',
-    subjectCode: 'ENG-103',
-    teacherName: 'Anita Sharma',
-    classes: 'Class 1',
-    section: 'A',
-    lastAssignedDate: '22/10/2026',
-    status: 'Assigned'
+    id: 's-3',
+    subjectName: 'English',
+    teacherName: 'Priya Verma',
+    bgColor: 'bg-rose-50 hover:bg-rose-100/90',
+    borderColor: 'border-rose-200/80',
+    textColor: 'text-rose-950',
+    badgeColor: 'bg-rose-100 text-rose-800'
   },
   {
-    id: 'ps-4',
-    subjectName: 'Social Studies',
-    subjectCode: 'SST-104',
-    teacherName: 'Rahul Verma',
-    classes: 'Class 1',
-    section: 'A',
-    lastAssignedDate: '18/10/2026',
-    status: 'Pending'
-  },
-  {
-    id: 'ps-5',
+    id: 's-4',
     subjectName: 'Hindi',
-    subjectCode: 'HIN-105',
-    teacherName: 'Sunita Mehra',
-    classes: 'Class 1',
-    section: 'A',
-    lastAssignedDate: '21/10/2026',
-    status: 'Assigned'
+    teacherName: 'Ramesh Chandra',
+    bgColor: 'bg-amber-50 hover:bg-amber-100/90',
+    borderColor: 'border-amber-200/80',
+    textColor: 'text-amber-950',
+    badgeColor: 'bg-amber-100 text-amber-800'
   },
   {
-    id: 'ps-6',
+    id: 's-5',
+    subjectName: 'Social Studies',
+    teacherName: 'Vikas Gupta',
+    bgColor: 'bg-purple-50 hover:bg-purple-100/90',
+    borderColor: 'border-purple-200/80',
+    textColor: 'text-purple-950',
+    badgeColor: 'bg-purple-100 text-purple-800'
+  },
+  {
+    id: 's-6',
     subjectName: 'Computer Science',
-    subjectCode: 'CS-106',
-    teacherName: 'Arjun Das',
-    classes: 'Class 1',
-    section: 'B',
-    lastAssignedDate: '17/10/2026',
-    status: 'Pending'
+    teacherName: 'Neha Singh',
+    bgColor: 'bg-orange-50 hover:bg-orange-100/90',
+    borderColor: 'border-orange-200/80',
+    textColor: 'text-orange-950',
+    badgeColor: 'bg-orange-100 text-orange-800'
   }
 ]
+
+function parseStudentClassAndSection(student: any): { className: string; section: string } {
+  let rawClass = String(student.class || student.className || '').trim()
+  let rawSection = String(student.section || student.sectionName || student.section_name || '').trim()
+  const rawCombined = String(student.class_name || '').trim()
+
+  if (rawCombined) {
+    const parenMatch = rawCombined.match(/^([^(]+?)\s*\(([^)]+)\)$/)
+    if (parenMatch) {
+      if (!rawClass) rawClass = parenMatch[1].trim()
+      if (!rawSection) rawSection = parenMatch[2].trim()
+    } else {
+      const dashMatch = rawCombined.match(/^(.+?)\s*-\s*(.+?)$/)
+      if (dashMatch) {
+        if (!rawClass) rawClass = dashMatch[1].trim()
+        if (!rawSection) rawSection = dashMatch[2].trim()
+      } else if (!rawClass) {
+        rawClass = rawCombined
+      }
+    }
+  }
+
+  const cleanSection = rawSection.replace(/^section\s+/i, '').replace(/[-_]/g, '').trim()
+
+  return {
+    className: rawClass,
+    section: cleanSection
+  }
+}
+
+function matchesClassAndSection(student: any, cardClassName: string, cardSection: string): boolean {
+  if (student.deleted || student.status === 'Deleted' || student.status === 'Dropped' || student.status === 'Passed') {
+    return false
+  }
+
+  const { className: sClass, section: sSec } = parseStudentClassAndSection(student)
+  if (!sClass) return false
+
+  const normClass = (s: string) =>
+    s.toLowerCase()
+      .replace(/\s+/g, ' ')
+      .replace(/^class\s+/i, '')
+      .replace(/^grade\s+/i, '')
+      .replace(/^std\s+/i, '')
+      .replace(/(st|nd|rd|th)$/i, '')
+      .trim()
+
+  const cardNorm = normClass(cardClassName)
+  const studentNorm = normClass(sClass)
+
+  if (cardNorm !== studentNorm && sClass.toLowerCase().trim() !== cardClassName.toLowerCase().trim()) {
+    return false
+  }
+
+  const normSec = (s: string) =>
+    s.toLowerCase()
+      .replace(/^section\s+/i, '')
+      .replace(/[-_\s]/g, '')
+      .trim()
+
+  const cardSec = normSec(cardSection)
+  const studentSec = normSec(sSec)
+
+  if (!cardSec || cardSec === 'all') return true
+
+  if (studentSec) {
+    return studentSec === cardSec
+  }
+
+  return cardSec === 'a' || cardSec === ''
+}
+
+const DEFAULT_TEACHERS_BY_SUBJECT: Record<string, string> = {
+  english: 'Priya Verma',
+  physics: 'Dr. R.K. Verma',
+  chemistry: 'Suman Lata',
+  biology: 'Dr. Neha Kapoor',
+  mathematics: 'Ashok Kumar',
+  maths: 'Ashok Kumar',
+  math: 'Ashok Kumar',
+  science: 'Sunita Sharma',
+  hindi: 'Ramesh Chandra',
+  'social studies': 'Vikas Gupta',
+  'social science': 'Vikas Gupta',
+  history: 'Vikas Gupta',
+  geography: 'Anuradha Roy',
+  computer: 'Neha Singh',
+  'computer science': 'Neha Singh',
+  sanskrit: 'Acharya Vidyadhar',
+  economics: 'Meenakshi Iyer',
+  commerce: 'Suresh Kumar',
+  accounts: 'Rakesh Singhal',
+  art: 'Kavita Joshi'
+}
+
+function getTeacherForSubject(
+  subject: any,
+  className: string,
+  section: string,
+  classTeacher: string,
+  registeredTeachers: any[]
+): string {
+  const direct = subject.teacherName || subject.teacher || subject.faculty
+  if (direct && typeof direct === 'string' && direct.trim() && direct.trim() !== '—' && direct.trim() !== '-') {
+    return direct.trim()
+  }
+
+  const cleanSubject = String(subject.subjectName || subject.name || '').trim()
+  const cleanSubjectLower = cleanSubject.toLowerCase()
+
+  if (DEFAULT_TEACHERS_BY_SUBJECT[cleanSubjectLower]) {
+    return DEFAULT_TEACHERS_BY_SUBJECT[cleanSubjectLower]
+  }
+
+  for (const [key, name] of Object.entries(DEFAULT_TEACHERS_BY_SUBJECT)) {
+    if (cleanSubjectLower.includes(key) || key.includes(cleanSubjectLower)) {
+      return name
+    }
+  }
+
+  if (classTeacher && classTeacher.trim() && classTeacher.trim() !== '—') {
+    return classTeacher.trim()
+  }
+
+  return 'Faculty'
+}
 
 export default function PendingAssignHomeworkPage() {
   const classesData = useClasses()
   const sectionsData = useSections()
   const subjectsData = useSubjects()
 
-  // Filters
-  const [selectedDate, setSelectedDate] = useState<string>(() => {
-    const today = new Date()
-    return today.toISOString().split('T')[0]
-  })
-  const [selectedClass, setSelectedClass] = useState<string>('Class 1')
-  const [selectedSection, setSelectedSection] = useState<string>('A')
-  const [selectedSubject, setSelectedSubject] = useState<string>('')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filterTab, setFilterTab] = useState<'All' | 'Pending' | 'Assigned'>('Pending')
+  // Real students & registered teachers
+  const [allStudents, setAllStudents] = useState<any[]>([])
+  const [registeredTeachers, setRegisteredTeachers] = useState<any[]>([])
 
-  // Subject items list
-  const [subjectList, setSubjectList] = useState<PendingSubjectItem[]>(DEFAULT_SUBJECTS)
+  // Screen flow: 'dates' (Screenshot 1) -> 'classes' (Screenshot 4) -> 'subjects' (Screenshot 2) -> 'form' (Screenshot 3)
+  const [currentStep, setCurrentStep] = useState<'dates' | 'classes' | 'subjects' | 'form'>('dates')
 
-  // Direct Assign Modal
-  const [modalItem, setModalItem] = useState<PendingSubjectItem | null>(null)
-  const [hwTitle, setHwTitle] = useState('')
-  const [hwDescription, setHwDescription] = useState('')
-  const [hwDueDate, setHwDueDate] = useState(() => {
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    return tomorrow.toISOString().split('T')[0]
+  // Screen 1: Selected Pending Date
+  const [selectedPendingDate, setSelectedPendingDate] = useState<PendingDateItem>(DEFAULT_PENDING_DATES[0])
+  const [monthFilter, setMonthFilter] = useState<string>('All')
+  const [customDateInput, setCustomDateInput] = useState<string>('')
+
+  // Screen 2: Classes filter
+  const [selectedClassItem, setSelectedClassItem] = useState<ClassCardItem>(DEFAULT_CLASSES[0])
+  const [filterClass, setFilterClass] = useState<string>('All')
+  const [filterSection, setFilterSection] = useState<string>('All')
+  const [searchClassQuery, setSearchClassQuery] = useState<string>('')
+
+  // Screen 3: Subjects
+  const [selectedSubjectItem, setSelectedSubjectItem] = useState<SubjectItem>(DEFAULT_SUBJECTS[0])
+
+  // Screen 4: Form state matching Screenshot 3
+  const [taskTitle, setTaskTitle] = useState<string>('')
+  const [taskDescription, setTaskDescription] = useState<string>('')
+  const [taskDueDate, setTaskDueDate] = useState<string>(() => {
+    return new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0]
   })
-  const [hwAttachment, setHwAttachment] = useState<string>('')
+  const [attachmentName, setAttachmentName] = useState<string>('')
+  const [attachmentSize, setAttachmentSize] = useState<string>('')
+  const [assignTarget, setAssignTarget] = useState<'entire' | 'specific'>('entire')
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([])
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Toast
   const [toastMsg, setToastMsg] = useState('')
@@ -123,550 +301,854 @@ export default function PendingAssignHomeworkPage() {
     setTimeout(() => setToastOpen(false), 3000)
   }
 
-  // Derived options with defaults
-  const classOptions = useMemo(() => {
-    if (classesData && classesData.length > 0) {
-      return classesData.map((c: any) => c.className || c.name || String(c))
-    }
-    return ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10']
-  }, [classesData])
+  // Load real students and teachers
+  useEffect(() => {
+    let isMounted = true
 
-  const sectionOptions = useMemo(() => {
-    if (sectionsData && sectionsData.length > 0) {
-      return sectionsData.map((s: any) => s.sectionName || s.name || String(s))
-    }
-    return ['A', 'B', 'C', 'D']
-  }, [sectionsData])
+    const loadData = async () => {
+      const parseLocal = (key: string) => {
+        try {
+          const raw = localStorage.getItem(key)
+          if (!raw) return []
+          const parsed = JSON.parse(raw)
+          return Array.isArray(parsed) ? parsed : []
+        } catch {
+          return []
+        }
+      }
 
-  const subjectOptions = useMemo(() => {
-    if (subjectsData && subjectsData.length > 0) {
-      return subjectsData.map((s: any) => s.subjectName || s.name || String(s))
-    }
-    return ['Mathematics', 'Science', 'English Literature', 'Social Studies', 'Hindi', 'Computer Science']
-  }, [subjectsData])
+      const l1 = parseLocal('school_students')
+      const l2 = parseLocal('school_institute_students')
+      const l3 = parseLocal('students')
+      const localCombined = [...l1, ...l2, ...l3]
 
-  // Filtered subjects
-  const filteredList = useMemo(() => {
-    return subjectList.filter(item => {
-      if (selectedClass && item.classes !== selectedClass) return false
-      if (selectedSection && item.section !== selectedSection) return false
-      if (selectedSubject && !item.subjectName.toLowerCase().includes(selectedSubject.toLowerCase())) return false
-      if (filterTab !== 'All' && item.status !== filterTab) return false
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase()
-        const matchTitle = item.subjectName.toLowerCase().includes(q)
-        const matchTeacher = item.teacherName.toLowerCase().includes(q)
-        const matchCode = item.subjectCode.toLowerCase().includes(q)
-        if (!matchTitle && !matchTeacher && !matchCode) return false
+      if (isMounted && localCombined.length > 0) {
+        setAllStudents(localCombined)
+      }
+
+      try {
+        const res = await fetchStudents()
+        if (isMounted && res && res.success && Array.isArray(res.data)) {
+          const dbStudents = res.data
+          const dbIds = new Set(dbStudents.map((s: any) => String(s.id || s.admission_no || s.admissionNo)))
+          const uniqueLocal = localCombined.filter((s: any) => !dbIds.has(String(s.id || s.admission_no || s.admissionNo)))
+          setAllStudents([...dbStudents, ...uniqueLocal])
+        }
+      } catch (e) {}
+
+      try {
+        const tRes = await fetchTeachers()
+        if (isMounted && tRes && tRes.success && Array.isArray(tRes.data)) {
+          setRegisteredTeachers(tRes.data)
+        }
+      } catch (e) {}
+    }
+
+    loadData()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  // Build real class cards from masters data with live student counts
+  const realClassCards = useMemo<ClassCardItem[]>(() => {
+    const activeClasses = classesData.filter((c: any) => !c.deleted && c.className)
+    if (activeClasses.length === 0) return DEFAULT_CLASSES
+
+    const activeSections = sectionsData.filter((s: any) => !s.deleted && s.sectionName)
+    const cards: ClassCardItem[] = []
+
+    activeClasses.forEach((cls: any) => {
+      const linkedSections = activeSections
+        .filter((s: any) => s.className && s.className.toLowerCase() === cls.className.toLowerCase())
+        .map((s: any) => {
+          const name: string = s.sectionName.trim()
+          return name.toLowerCase().startsWith('section ') ? name.replace(/^section /i, '') : name
+        })
+
+      const classObjSections: string[] = Array.isArray(cls.sections)
+        ? cls.sections.map((s: string) => {
+            const name = s.trim()
+            return name.toLowerCase().startsWith('section ') ? name.replace(/^section /i, '') : name
+          })
+        : []
+
+      const mergedSections = Array.from(new Set([...linkedSections, ...classObjSections]))
+      const finalSections = mergedSections.length > 0 ? mergedSections : ['A']
+
+      finalSections.forEach(sec => {
+        const matchedCount = allStudents.filter(s => matchesClassAndSection(s, cls.className, sec)).length
+        const studentsCount = allStudents.length > 0 ? matchedCount : (cls.totalStudents ?? 0)
+
+        cards.push({
+          id: `${cls.id ?? cls.className}-${sec}`,
+          className: cls.className,
+          section: sec,
+          classTeacher: cls.classTeacher ?? '',
+          studentsCount
+        })
+      })
+    })
+
+    return cards.length > 0 ? cards : DEFAULT_CLASSES
+  }, [classesData, sectionsData, allStudents])
+
+  // Keep selectedClassItem synchronized
+  const activeClassItem = useMemo(() => {
+    return (
+      realClassCards.find(
+        c =>
+          c.className.toLowerCase() === selectedClassItem.className.toLowerCase() &&
+          c.section.toLowerCase() === selectedClassItem.section.toLowerCase()
+      ) || realClassCards[0] || selectedClassItem
+    )
+  }, [realClassCards, selectedClassItem])
+
+  const uniqueClassNames = useMemo(() => Array.from(new Set(realClassCards.map(c => c.className))), [realClassCards])
+  const uniqueSections = useMemo(() => Array.from(new Set(realClassCards.map(c => c.section))), [realClassCards])
+
+  // Filtered classes for Screen 2
+  const filteredClasses = useMemo(() => {
+    return realClassCards.filter(c => {
+      if (filterClass !== 'All' && c.className !== filterClass) return false
+      if (filterSection !== 'All' && c.section !== filterSection) return false
+      if (searchClassQuery.trim()) {
+        const q = searchClassQuery.toLowerCase()
+        const matchName = c.className.toLowerCase().includes(q)
+        const matchSec = c.section.toLowerCase().includes(q)
+        const matchTeacher = c.classTeacher.toLowerCase().includes(q)
+        if (!matchName && !matchSec && !matchTeacher) return false
       }
       return true
     })
-  }, [subjectList, selectedClass, selectedSection, selectedSubject, filterTab, searchQuery])
+  }, [realClassCards, filterClass, filterSection, searchClassQuery])
 
-  // Stats
-  const totalCount = subjectList.length
-  const pendingCount = subjectList.filter(s => s.status === 'Pending').length
-  const assignedCount = subjectList.filter(s => s.status === 'Assigned').length
+  // Color palette for subjects
+  const SUBJECT_COLORS = [
+    { bgColor: 'bg-sky-50 hover:bg-sky-100/90', borderColor: 'border-sky-200/80', textColor: 'text-sky-950', badgeColor: 'bg-sky-100 text-sky-800' },
+    { bgColor: 'bg-emerald-50 hover:bg-emerald-100/90', borderColor: 'border-emerald-200/80', textColor: 'text-emerald-950', badgeColor: 'bg-emerald-100 text-emerald-800' },
+    { bgColor: 'bg-rose-50 hover:bg-rose-100/90', borderColor: 'border-rose-200/80', textColor: 'text-rose-950', badgeColor: 'bg-rose-100 text-rose-800' },
+    { bgColor: 'bg-amber-50 hover:bg-amber-100/90', borderColor: 'border-amber-200/80', textColor: 'text-amber-950', badgeColor: 'bg-amber-100 text-amber-800' },
+    { bgColor: 'bg-purple-50 hover:bg-purple-100/90', borderColor: 'border-purple-200/80', textColor: 'text-purple-950', badgeColor: 'bg-purple-100 text-purple-800' },
+    { bgColor: 'bg-orange-50 hover:bg-orange-100/90', borderColor: 'border-orange-200/80', textColor: 'text-orange-950', badgeColor: 'bg-orange-100 text-orange-800' }
+  ]
 
-  const handleOpenAssignModal = (item: PendingSubjectItem) => {
-    setModalItem(item)
-    setHwTitle(`${item.subjectName} Daily Task - Exercise Work`)
-    setHwDescription(`Complete the questions from Chapter review for ${item.subjectName}. Submit neatly handwritten responses.`)
-    setHwAttachment('')
+  // Real subjects for the selected class (Screen 3)
+  const classSubjects = useMemo<SubjectItem[]>(() => {
+    const activeSubjects = subjectsData.filter(
+      (s: any) => !s.deleted && s.subjectName &&
+        s.className?.toLowerCase() === activeClassItem.className?.toLowerCase()
+    )
+    if (activeSubjects.length === 0) return []
+    return activeSubjects.map((s: any, idx: number) => ({
+      id: String(s.id ?? idx),
+      subjectName: s.subjectName,
+      teacherName: getTeacherForSubject(
+        s,
+        activeClassItem.className,
+        activeClassItem.section,
+        activeClassItem.classTeacher,
+        registeredTeachers
+      ),
+      ...SUBJECT_COLORS[idx % SUBJECT_COLORS.length]
+    }))
+  }, [subjectsData, activeClassItem, registeredTeachers])
+
+  const activeSubjectItem = useMemo(() => {
+    return (
+      classSubjects.find(
+        s => s.subjectName.toLowerCase() === selectedSubjectItem.subjectName.toLowerCase()
+      ) || classSubjects[0] || selectedSubjectItem
+    )
+  }, [classSubjects, selectedSubjectItem])
+
+  // Real enrolled students for selected class & section (for specific students selection)
+  const classStudents = useMemo(() => {
+    const matched = allStudents.filter(s =>
+      matchesClassAndSection(s, activeClassItem.className, activeClassItem.section)
+    )
+
+    return matched.map((s: any, idx: number) => {
+      const firstName = s.firstName || s.first_name || ''
+      const lastName = s.lastName || s.last_name || ''
+      const fullName = `${firstName} ${lastName}`.trim() || s.name || 'Student'
+
+      return {
+        id: String(s.id || s.admission_no || s.admissionNo || `st-${idx}`),
+        name: fullName,
+        rollNo: String(s.rollNo || s.roll_no || `${idx < 9 ? '0' : ''}${idx + 1}`),
+        admissionNo: String(s.admissionNo || s.admission_no || `ADM-${1000 + idx}`)
+      }
+    })
+  }, [allStudents, activeClassItem])
+
+  // Filtered dates list
+  const filteredPendingDates = useMemo(() => {
+    if (monthFilter === 'All') return DEFAULT_PENDING_DATES
+    return DEFAULT_PENDING_DATES.filter(d => d.monthName.toLowerCase() === monthFilter.toLowerCase())
+  }, [monthFilter])
+
+  // Handlers for step transitions
+  const handleSelectPendingDate = (d: PendingDateItem) => {
+    setSelectedPendingDate(d)
+    setCurrentStep('classes')
   }
 
-  const handleSaveDirectAssign = (e: React.FormEvent) => {
+  const handleCustomDateSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!modalItem || !hwTitle.trim()) return
+    if (!customDateInput) return
+    const dt = new Date(customDateInput)
+    const dayNumber = String(dt.getDate()).padStart(2, '0')
+    const dayName = dt.toLocaleDateString('en-US', { weekday: 'short' })
+    const monthName = dt.toLocaleDateString('en-US', { month: 'long' })
+    const year = String(dt.getFullYear())
 
-    // 1. Update in local subjectList
-    const updated = subjectList.map(s => 
-      s.id === modalItem.id 
-        ? { ...s, status: 'Assigned' as const, lastAssignedDate: selectedDate }
-        : s
-    )
-    setSubjectList(updated)
-
-    // 2. Also push into global school_homeworks so it shows in Assign Homework / Main list
-    try {
-      const existing = localStorage.getItem('school_homeworks')
-      const hwArray = existing ? JSON.parse(existing) : []
-      const newHw = {
-        id: Date.now(),
-        title: hwTitle,
-        classes: modalItem.classes,
-        section: modalItem.section,
-        subject: modalItem.subjectName,
-        status: 'Active',
-        scheduleDate: selectedDate,
-        submissionDate: hwDueDate,
-        description: hwDescription
-      }
-      hwArray.unshift(newHw)
-      localStorage.setItem('school_homeworks', JSON.stringify(hwArray))
-    } catch (err) {
-      console.error(err)
+    const customItem: PendingDateItem = {
+      id: `custom-${Date.now()}`,
+      dayNumber,
+      dayName,
+      monthName,
+      year,
+      fullDate: customDateInput
     }
 
-    showToast(`Homework assigned successfully for ${modalItem.subjectName}!`)
-    setModalItem(null)
+    setSelectedPendingDate(customItem)
+    setCurrentStep('classes')
   }
 
-  const handleMarkExempt = (item: PendingSubjectItem) => {
-    const updated = subjectList.map(s => 
-      s.id === item.id 
-        ? { ...s, status: 'Assigned' as const }
-        : s
-    )
-    setSubjectList(updated)
-    showToast(`Marked ${item.subjectName} as no homework required today.`)
+  const handleSelectClass = (cls: ClassCardItem) => {
+    setSelectedClassItem(cls)
+    setCurrentStep('subjects')
+  }
+
+  const handleSelectSubject = (sub: SubjectItem) => {
+    setSelectedSubjectItem(sub)
+    setCurrentStep('form')
+  }
+
+  // File handling
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setAttachmentName(file.name)
+      const sizeKb = file.size / 1024
+      const sizeStr = sizeKb > 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${Math.round(sizeKb)} KB`
+      setAttachmentSize(sizeStr)
+    }
+  }
+
+  const handleRemoveAttachment = () => {
+    setAttachmentName('')
+    setAttachmentSize('')
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  // Submit Homework for Pending Date
+  const handleSubmitPendingHomework = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!taskTitle.trim()) {
+      alert('Please enter assignment title')
+      return
+    }
+
+    setIsSubmitting(true)
+
+    const formatDisplay = (dStr: string) => {
+      if (!dStr) return ''
+      try {
+        const parts = dStr.split('-')
+        if (parts.length === 3) {
+          const dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+          return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        }
+        return dStr
+      } catch {
+        return dStr
+      }
+    }
+
+    const newTask = {
+      id: `task-${Date.now()}`,
+      title: taskTitle.trim(),
+      description: taskDescription.trim() || 'Complete the assigned exercises in your notebook.',
+      subject: activeSubjectItem.subjectName,
+      classes: activeClassItem.className,
+      section: activeClassItem.section,
+      status: 'Active' as const,
+      hasAttachment: !!attachmentName,
+      attachmentName: attachmentName || undefined,
+      assignedBy: `${activeSubjectItem.teacherName} (Faculty)`,
+      assignDate: `${selectedPendingDate.dayNumber} ${selectedPendingDate.monthName.slice(0, 3)} ${selectedPendingDate.year}`,
+      submissionDate: formatDisplay(taskDueDate),
+      studentsCount: activeClassItem.studentsCount
+    }
+
+    // 1. Cache to shared localStorage
+    try {
+      const existingRaw = localStorage.getItem('school_homework_tasks')
+      const existing = existingRaw ? JSON.parse(existingRaw) : []
+      localStorage.setItem('school_homework_tasks', JSON.stringify([newTask, ...existing]))
+    } catch {}
+
+    // 2. Persist in Neon PostgreSQL database institutewise
+    try {
+      await createHomeworkTask(newTask)
+      showToast(`Homework published for pending date ${newTask.assignDate} in database!`)
+      // Reset form
+      setTaskTitle('')
+      setTaskDescription('')
+      handleRemoveAttachment()
+      setAssignTarget('entire')
+      setSelectedStudentIds([])
+      // Return to dates screen
+      setCurrentStep('dates')
+    } catch (err) {
+      console.error('Failed to save pending homework in DB:', err)
+      showToast('Task saved locally.')
+      setCurrentStep('dates')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/70 p-4 md:p-8 space-y-6">
+    <div className="min-h-screen bg-slate-50/70 p-3 sm:p-5 md:p-8 space-y-5 animate-in fade-in duration-200">
       {/* Toast Notification */}
       {toastOpen && (
-        <div className="fixed top-5 right-5 z-50 flex items-center gap-2 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-xl transition-all animate-in fade-in slide-in-from-top-4">
+        <div className="fixed top-5 right-5 z-50 flex items-center gap-2 bg-[#0d8065] text-white px-5 py-3 rounded-xl shadow-xl transition-all animate-in fade-in slide-in-from-top-4">
           <CheckCircle2 className="w-5 h-5 text-white" />
           <span className="text-sm font-medium">{toastMsg}</span>
         </div>
       )}
 
-      {/* Top Breadcrumb & Hub Quick Tabs */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-medium text-slate-500 mb-1">
-            <Link href="/institute/homework" className="hover:text-emerald-700 transition-colors">
-              Homework
-            </Link>
-            <ChevronRight className="w-3.5 h-3.5" />
-            <span className="text-emerald-700 font-semibold">Pending Assign Homework</span>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <span className="p-2 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-200/60">
-              <Clock className="w-6 h-6" />
-            </span>
-            Pending Assign Homework
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Select date, class, and subject to directly assign pending homework to students.
-          </p>
-        </div>
-
-        {/* Quick Nav Dropdown Pill Strip */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/institute/homework/assign"
-            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors"
-          >
-            Assign Homework
-          </Link>
-          <Link
-            href="/institute/homework/remark"
-            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors"
-          >
-            Remark Homework
-          </Link>
-          <Link
-            href="/institute/homework/pending-assign"
-            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white shadow-sm"
-          >
-            Pending Assign
-          </Link>
-          <Link
-            href="/institute/homework/pending-remark"
-            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors"
-          >
-            Pending Remark
-          </Link>
-          <Link
-            href="/institute/homework/report"
-            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors"
-          >
-            Homework Report
-          </Link>
-        </div>
-      </div>
-
-      {/* KPI Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-            <BookOpen className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Subjects</p>
-            <h3 className="text-2xl font-bold text-slate-800">{totalCount}</h3>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-amber-200/80 shadow-sm flex items-center gap-4 bg-gradient-to-br from-amber-50/40 to-transparent">
-          <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
-            <AlertCircle className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-amber-700 uppercase tracking-wider">Pending Assignment</p>
-            <h3 className="text-2xl font-bold text-amber-900">{pendingCount}</h3>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-emerald-200/80 shadow-sm flex items-center gap-4 bg-gradient-to-br from-emerald-50/40 to-transparent">
-          <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-emerald-700 uppercase tracking-wider">Assigned Today</p>
-            <h3 className="text-2xl font-bold text-emerald-900">{assignedCount}</h3>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter and Selection Card */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2 font-semibold text-slate-800 text-sm">
-            <Filter className="w-4 h-4 text-emerald-600" />
-            Select Date, Class & Subject Criteria
-          </div>
-          <button 
-            type="button"
-            onClick={() => {
-              setSelectedClass('Class 1')
-              setSelectedSection('A')
-              setSelectedSubject('')
-              setSearchQuery('')
-              setFilterTab('Pending')
-            }}
-            className="text-xs text-slate-500 hover:text-emerald-600 font-medium transition-colors"
-          >
-            Reset Filters
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Date Picker */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-              Select Date *
-            </label>
-            <div className="relative">
-              <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={e => setSelectedDate(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-700"
-              />
+      {/* Top Emerald Header matching Screenshots */}
+      <div className="bg-[#0d8065] text-white rounded-3xl p-5 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                if (currentStep === 'form') setCurrentStep('subjects')
+                else if (currentStep === 'subjects') setCurrentStep('classes')
+                else if (currentStep === 'classes') setCurrentStep('dates')
+                else window.history.back()
+              }}
+              className="w-10 h-10 rounded-2xl bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
+              title="Go Back"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold tracking-tight">
+                {currentStep === 'dates' && 'Pending Assign Homework'}
+                {currentStep === 'classes' && 'Pending Assign Homework'}
+                {currentStep === 'subjects' && 'Select Subject'}
+                {currentStep === 'form' && 'Assign Homework'}
+              </h1>
+              <p className="text-xs text-emerald-100/80 font-medium">
+                {currentStep === 'dates' && 'Pick a pending or missed date to assign homework'}
+                {currentStep === 'classes' && `Assigning for ${selectedPendingDate.dayNumber} ${selectedPendingDate.monthName} ${selectedPendingDate.year}`}
+                {currentStep === 'subjects' && `${activeClassItem.className} (Sec ${activeClassItem.section})`}
+                {currentStep === 'form' && `${activeSubjectItem.subjectName} • ${activeClassItem.className} - ${activeClassItem.section}`}
+              </p>
             </div>
           </div>
 
-          {/* Class Select */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-              Class *
-            </label>
-            <select
-              value={selectedClass}
-              onChange={e => setSelectedClass(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-700"
+          <div className="flex items-center gap-2 text-xs">
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 font-medium text-emerald-100">
+              <Database className="w-3.5 h-3.5" />
+              DB Synced
+            </span>
+            <Link
+              href="/institute/homework"
+              className="px-3 py-1.5 rounded-xl bg-white text-[#0d8065] font-bold text-xs hover:bg-emerald-50 transition-colors"
             >
-              <option value="">All Classes</option>
-              {classOptions.map((c: string) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Section Select */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-              Section *
-            </label>
-            <select
-              value={selectedSection}
-              onChange={e => setSelectedSection(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-700"
-            >
-              <option value="">All Sections</option>
-              {sectionOptions.map((s: string) => (
-                <option key={s} value={s}>Section {s}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Subject Filter */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-              Subject Filter
-            </label>
-            <select
-              value={selectedSubject}
-              onChange={e => setSelectedSubject(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-700"
-            >
-              <option value="">All Subjects</option>
-              {subjectOptions.map((sub: string) => (
-                <option key={sub} value={sub}>{sub}</option>
-              ))}
-            </select>
+              Homework Hub
+            </Link>
           </div>
         </div>
       </div>
 
-      {/* Main List Section */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-        {/* Table Toolbar */}
-        <div className="p-4 md:p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          {/* Status Tabs */}
-          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
-            {(['Pending', 'Assigned', 'All'] as const).map(tab => (
+      {/* =========================================================================
+          SCREEN 1: SELECT PENDING DATE (Screenshot 1)
+          ========================================================================= */}
+      {currentStep === 'dates' && (
+        <div className="space-y-5">
+          {/* Section Header with Month Dropdown & Custom Date Picker matching Screenshot 1 */}
+          <div className="bg-white rounded-3xl p-5 shadow-xs border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">
+                Select Date
+              </h2>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Pick a pending date to assign homework
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Custom Date Input for ANY missed date */}
+              <form onSubmit={handleCustomDateSubmit} className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={customDateInput}
+                  onChange={e => setCustomDateInput(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-xs font-semibold text-slate-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0d8065]/20 focus:border-[#0d8065]"
+                />
+                <button
+                  type="submit"
+                  disabled={!customDateInput}
+                  className="px-3 py-2 rounded-2xl bg-[#0d8065] hover:bg-[#0b6e56] text-white text-xs font-bold disabled:opacity-40 transition-colors cursor-pointer"
+                >
+                  Go
+                </button>
+              </form>
+
+              {/* Month Dropdown matching Screenshot 1 */}
+              <div className="relative">
+                <select
+                  value={monthFilter}
+                  onChange={e => setMonthFilter(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-2xl pl-9 pr-8 py-2.5 text-xs font-bold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-[#0d8065]/20 focus:border-[#0d8065] shadow-xs cursor-pointer"
+                >
+                  <option value="All">All Months</option>
+                  <option value="July">Jul 2026</option>
+                  <option value="June">Jun 2026</option>
+                  <option value="May">May 2026</option>
+                </select>
+                <Calendar className="w-3.5 h-3.5 text-[#0d8065] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+
+          {/* Grid of Pending Dates matching Screenshot 1 */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
+            {filteredPendingDates.map(date => (
               <button
-                key={tab}
-                onClick={() => setFilterTab(tab)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  filterTab === tab
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
+                key={date.id}
+                type="button"
+                onClick={() => handleSelectPendingDate(date)}
+                className="bg-white rounded-3xl p-5 shadow-xs border border-slate-200/80 hover:border-[#0d8065] hover:shadow-md transition-all flex flex-col items-center justify-center space-y-1.5 cursor-pointer group active:scale-95"
               >
-                {tab === 'Pending' && 'Pending Assign'}
-                {tab === 'Assigned' && 'Assigned'}
-                {tab === 'All' && 'All Subjects'}
-                <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] bg-slate-200/70 text-slate-700">
-                  {tab === 'All' 
-                    ? subjectList.length 
-                    : subjectList.filter(s => s.status === tab).length
-                  }
+                <span className="text-xs font-extrabold text-slate-700">
+                  {date.monthName}
+                </span>
+                <span className="text-3xl sm:text-4xl font-extrabold text-[#0d8065] group-hover:scale-105 transition-transform tracking-tight">
+                  {date.dayNumber}
+                </span>
+                <span className="text-xs font-medium text-slate-400">
+                  {date.dayName}
                 </span>
               </button>
             ))}
           </div>
-
-          {/* Search */}
-          <div className="relative w-full md:w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search subject or teacher..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
-            />
-          </div>
         </div>
+      )}
 
-        {/* Content Table / Cards */}
-        {filteredList.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3">
-              <CheckCircle2 className="w-8 h-8" />
-            </div>
-            <h4 className="text-base font-bold text-slate-800">All Homeworks are Assigned!</h4>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-              There are no pending subjects requiring homework assignment for the selected date and filters.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
-                  <th className="py-3 px-4">Subject & Code</th>
-                  <th className="py-3 px-4">Class & Section</th>
-                  <th className="py-3 px-4">Assigned Teacher</th>
-                  <th className="py-3 px-4">Last Assigned</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredList.map(item => (
-                  <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0">
-                          {item.subjectName.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-800 text-sm">{item.subjectName}</p>
-                          <span className="text-[11px] font-mono text-slate-400">{item.subjectCode}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 font-medium text-slate-700">
-                      <span className="inline-block px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 font-semibold text-[11px]">
-                        {item.classes} - Sec {item.section}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-600 font-medium">
-                      <div className="flex items-center gap-1.5">
-                        <UserCheck className="w-3.5 h-3.5 text-slate-400" />
-                        {item.teacherName}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-500">
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                        {item.lastAssignedDate}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      {item.status === 'Pending' ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                          <Clock className="w-3 h-3" />
-                          Pending Assign
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Assigned
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      {item.status === 'Pending' ? (
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleMarkExempt(item)}
-                            className="px-2.5 py-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg text-xs font-medium transition-colors"
-                            title="No homework for today"
-                          >
-                            No HW Today
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenAssignModal(item)}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm flex items-center gap-1 transition-all"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            Direct Assign
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenAssignModal(item)}
-                          className="px-2.5 py-1 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg text-xs font-medium transition-colors"
-                        >
-                          Reassign / Edit
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Direct Assign Modal */}
-      {modalItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 bg-emerald-700 text-white flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-base flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-emerald-200" />
-                  Direct Assign Homework
-                </h3>
-                <p className="text-xs text-emerald-100 mt-0.5">
-                  {modalItem.subjectName} • {modalItem.classes} (Section {modalItem.section})
-                </p>
+      {/* =========================================================================
+          SCREEN 2: SELECT CLASS TO ASSIGN FOR CHOSEN DATE (Screenshot 4)
+          ========================================================================= */}
+      {currentStep === 'classes' && (
+        <div className="space-y-5">
+          {/* Pending Assign Date Pill Card matching Screenshot 4 */}
+          <div className="bg-white rounded-3xl p-5 shadow-xs border border-slate-200/80 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#0d8065] flex items-center justify-center shrink-0 shadow-xs">
+                <Calendar className="w-6 h-6" />
               </div>
-              <button
-                type="button"
-                onClick={() => setModalItem(null)}
-                className="w-8 h-8 rounded-lg bg-emerald-800 hover:bg-emerald-900 flex items-center justify-center text-white transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div>
+                <p className="text-xs text-slate-400 font-semibold">Pending Assign Date</p>
+                <h3 className="text-lg font-extrabold text-slate-900 leading-tight">
+                  {selectedPendingDate.dayNumber} {selectedPendingDate.monthName} {selectedPendingDate.year} ({selectedPendingDate.dayName})
+                </h3>
+              </div>
             </div>
 
-            <form onSubmit={handleSaveDirectAssign} className="p-6 space-y-4 overflow-y-auto">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Homework Title *
-                </label>
+            <button
+              type="button"
+              onClick={() => setCurrentStep('dates')}
+              className="text-xs font-bold text-emerald-700 hover:underline"
+            >
+              Change Date
+            </button>
+          </div>
+
+          {/* Filters: Class, Section Dropdowns & Search */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">Class</label>
+              <div className="relative">
+                <select
+                  value={filterClass}
+                  onChange={e => setFilterClass(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-[#0d8065]/20 focus:border-[#0d8065] shadow-xs cursor-pointer"
+                >
+                  <option value="All">All Classes</option>
+                  {uniqueClassNames.map(cn => (
+                    <option key={cn} value={cn}>{cn}</option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">Section</label>
+              <div className="relative">
+                <select
+                  value={filterSection}
+                  onChange={e => setFilterSection(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-[#0d8065]/20 focus:border-[#0d8065] shadow-xs cursor-pointer"
+                >
+                  <option value="All">All Sections</option>
+                  {uniqueSections.map(sec => (
+                    <option key={sec} value={sec}>Section {sec}</option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">Search Class</label>
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  required
-                  value={hwTitle}
-                  onChange={e => setHwTitle(e.target.value)}
-                  placeholder="e.g. Chapter 4 Practice Questions"
-                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  placeholder="Search class or teacher..."
+                  value={searchClassQuery}
+                  onChange={e => setSearchClassQuery(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0d8065]/20 focus:border-[#0d8065] shadow-xs"
                 />
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Schedule / Assign Date
-                  </label>
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={e => setSelectedDate(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Submission Due Date *
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={hwDueDate}
-                    onChange={e => setHwDueDate(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Homework Instructions & Description
-                </label>
-                <textarea
-                  rows={4}
-                  value={hwDescription}
-                  onChange={e => setHwDescription(e.target.value)}
-                  placeholder="Describe exercises, page numbers, instructions..."
-                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Attach Reference Document (Optional)
-                </label>
-                <div className="border-2 border-dashed border-slate-200 hover:border-emerald-500 rounded-xl p-4 text-center cursor-pointer transition-colors bg-slate-50/50">
-                  <Upload className="w-5 h-5 text-slate-400 mx-auto mb-1" />
-                  <p className="text-xs text-slate-600 font-medium">Click to upload question sheet / PDF</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">PDF, PNG, JPG up to 10MB</p>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setModalItem(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center gap-1.5 transition-all"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  Assign Directly
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
+
+          {/* Section Heading */}
+          <div className="flex items-center justify-between pt-1">
+            <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">
+              Select Class to Assign
+            </h2>
+            <span className="text-xs font-bold text-slate-400">
+              {filteredClasses.length} Available
+            </span>
+          </div>
+
+          {/* Class Cards List matching Screenshot 4 */}
+          <div className="space-y-4">
+            {filteredClasses.map(cls => (
+              <div
+                key={cls.id}
+                className="bg-white rounded-3xl p-5 shadow-xs border border-slate-200/80 space-y-4 hover:shadow-md transition-all"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#0d8065] flex items-center justify-center shrink-0">
+                      <GraduationCap className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-extrabold text-slate-900 leading-tight">
+                        {cls.className} - Section {cls.section}
+                      </h3>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Class Teacher:</span>
+                        <span className="font-bold text-slate-700">{cls.classTeacher || 'Assigned Faculty'}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 font-bold text-xs inline-flex items-center gap-1.5 shrink-0 border border-blue-100">
+                    <Users className="w-3.5 h-3.5" />
+                    {cls.studentsCount} {cls.studentsCount === 1 ? 'Student' : 'Students'}
+                  </span>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectClass(cls)}
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-[#0d8065] hover:bg-[#0b6e56] text-white font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>Assign Homework</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          SCREEN 3: SELECT SUBJECT (Screenshot 2)
+          ========================================================================= */}
+      {currentStep === 'subjects' && (
+        <div className="space-y-5">
+          {/* Class Header Card matching Screenshot 2 */}
+          <div className="bg-white rounded-3xl p-5 shadow-xs border border-slate-200/80 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-[#0d8065] text-white flex items-center justify-center shrink-0 shadow-xs">
+                <GraduationCap className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-extrabold text-slate-900 leading-tight">
+                  {activeClassItem.className}
+                </h3>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">
+                  {classSubjects.length} Subjects Assigned
+                </p>
+              </div>
+            </div>
+
+            <span className="px-4 py-2 rounded-2xl bg-[#0d8065] text-white font-bold text-xs shadow-xs">
+              Section {activeClassItem.section}
+            </span>
+          </div>
+
+          {/* Section Heading */}
+          <div className="flex items-center justify-between pt-1">
+            <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">Subjects</h2>
+            <button
+              type="button"
+              onClick={() => setCurrentStep('classes')}
+              className="text-xs font-bold text-emerald-700 hover:underline"
+            >
+              Change Class
+            </button>
+          </div>
+
+          {/* Subject Items List matching Screenshot 2 */}
+          {classSubjects.length === 0 ? (
+            <div className="bg-white rounded-3xl p-10 text-center border border-slate-200/80 shadow-xs">
+              <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-3">
+                <BookOpen className="w-7 h-7" />
+              </div>
+              <h4 className="font-bold text-slate-800 text-base">No Subjects Added For This Class</h4>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-4">
+                No subjects have been mapped for {activeClassItem.className} (Sec {activeClassItem.section}) in Masters.
+              </p>
+              <Link
+                href="/institute/masters"
+                className="px-4 py-2 rounded-xl bg-[#0d8065] text-white text-xs font-bold shadow-xs inline-flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" /> Add Subjects in Masters
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3.5">
+              {classSubjects.map(sub => (
+                <div
+                  key={sub.id}
+                  onClick={() => handleSelectSubject(sub)}
+                  className={`p-4 rounded-3xl border transition-all cursor-pointer flex items-center justify-between gap-3 shadow-2xs hover:shadow-md ${sub.bgColor} ${sub.borderColor}`}
+                >
+                  <div className="space-y-1.5 min-w-0">
+                    <h4 className={`text-sm md:text-base font-extrabold truncate ${sub.textColor}`}>
+                      Subject : {sub.subjectName}
+                    </h4>
+                    <div className="inline-block bg-white/90 px-3 py-1 rounded-xl shadow-2xs">
+                      <span className="text-xs font-semibold text-slate-700">
+                        Teacher : {sub.teacherName}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-slate-400 shadow-xs shrink-0">
+                    <ChevronRight className="w-5 h-5" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =========================================================================
+          SCREEN 4: ASSIGN HOMEWORK FORM FOR PENDING DATE (Screenshot 3)
+          ========================================================================= */}
+      {currentStep === 'form' && (
+        <div className="space-y-5">
+          {/* Class & Subject Selected Banner matching Screenshot 3 */}
+          <div className="bg-[#0d8065] text-white rounded-3xl p-5 shadow-sm flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-white/20 text-white flex items-center justify-center shrink-0">
+                <GraduationCap className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-extrabold text-white leading-tight">
+                  {activeClassItem.className} - {activeClassItem.section}
+                </h3>
+                <p className="text-xs text-emerald-100 font-medium mt-0.5">
+                  Subject: {activeSubjectItem.subjectName}
+                </p>
+              </div>
+            </div>
+
+            <span className="px-3.5 py-1.5 rounded-2xl bg-white/20 text-white font-bold text-xs border border-white/30">
+              Selected
+            </span>
+          </div>
+
+          {/* Form Container matching Screenshot 3 */}
+          <form onSubmit={handleSubmitPendingHomework} className="bg-white rounded-3xl p-5 md:p-6 shadow-xs border border-slate-200/80 space-y-4">
+            {/* Title * */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Title <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={taskTitle}
+                onChange={e => setTaskTitle(e.target.value)}
+                placeholder="Enter assignment title"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0d8065]/20 focus:border-[#0d8065]"
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Description
+              </label>
+              <textarea
+                rows={4}
+                value={taskDescription}
+                onChange={e => setTaskDescription(e.target.value)}
+                placeholder="Enter detailed description"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0d8065]/20 focus:border-[#0d8065] resize-none"
+              />
+            </div>
+
+            {/* Submission Date * */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Submission Date <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="date"
+                  required
+                  value={taskDueDate}
+                  onChange={e => setTaskDueDate(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0d8065]/20 focus:border-[#0d8065] cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {/* Attachment Box matching Screenshot 3 */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Attachment
+              </label>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.zip"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+
+              {attachmentName ? (
+                <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-xs flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 truncate">
+                    <div className="w-10 h-10 rounded-xl bg-[#0d8065] text-white flex items-center justify-center shrink-0">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div className="truncate">
+                      <p className="font-bold text-slate-900 truncate">{attachmentName}</p>
+                      <p className="text-[11px] text-emerald-700">{attachmentSize || 'Attached'}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveAttachment}
+                    className="w-8 h-8 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-colors shrink-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-slate-200 hover:border-[#0d8065] bg-slate-50/50 hover:bg-emerald-50/20 rounded-2xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 group"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 group-hover:bg-[#0d8065] text-[#0d8065] group-hover:text-white flex items-center justify-center transition-colors">
+                    <CloudUpload className="w-6 h-6" />
+                  </div>
+                  <p className="text-xs font-bold text-slate-700 group-hover:text-[#0d8065] transition-colors">
+                    Tap to upload document, image, or PDF
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Assign To Radio Buttons matching Screenshot 3 */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-2">
+                Assign To
+              </label>
+              <div className="flex items-center gap-6">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="assignTarget"
+                    value="entire"
+                    checked={assignTarget === 'entire'}
+                    onChange={() => setAssignTarget('entire')}
+                    className="w-4 h-4 text-[#0d8065] focus:ring-[#0d8065]"
+                  />
+                  <span>Entire Class</span>
+                </label>
+
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="assignTarget"
+                    value="specific"
+                    checked={assignTarget === 'specific'}
+                    onChange={() => setAssignTarget('specific')}
+                    className="w-4 h-4 text-[#0d8065] focus:ring-[#0d8065]"
+                  />
+                  <span>Specific Students</span>
+                </label>
+              </div>
+
+              {/* If Specific Students chosen, list students checkboxes */}
+              {assignTarget === 'specific' && (
+                <div className="mt-3 p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 max-h-48 overflow-y-auto">
+                  {classStudents.map(st => (
+                    <label key={st.id} className="flex items-center gap-2 text-xs font-medium text-slate-800 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedStudentIds.includes(st.id)}
+                        onChange={e => {
+                          if (e.target.checked) setSelectedStudentIds(prev => [...prev, st.id])
+                          else setSelectedStudentIds(prev => prev.filter(x => x !== st.id))
+                        }}
+                        className="rounded text-[#0d8065] focus:ring-[#0d8065]"
+                      />
+                      <span>{st.name} (Roll: {st.rollNo})</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Submit Homework Button matching Screenshot 3 */}
+            <div className="pt-3">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-3.5 rounded-2xl bg-[#0d8065] hover:bg-[#0b6e56] text-white font-extrabold text-sm shadow-md shadow-[#0d8065]/20 flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                <span>Submit Homework</span>
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>
