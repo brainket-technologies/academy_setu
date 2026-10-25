@@ -14,7 +14,7 @@ export default function ExamMarksheetSetupPage() {
         </div>
       }
     >
-      <UnifiedExamAdmitHub defaultTab="marksheet" />
+      <UnifiedExamAdmitHub defaultTab="marksheet" hideAdmitCardTab={true} />
     </Suspense>
   )
 }

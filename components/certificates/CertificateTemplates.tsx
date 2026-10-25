@@ -273,155 +273,170 @@ export const CertificateFooterSignatures: React.FC<{
   const textColor = primaryDark || primary
   const fontStyle = fontFamily ? { fontFamily } : {}
 
+  // Collect all potential signature candidates
+  interface SignConfig {
+    id: string
+    isActive: boolean
+    name: string
+    label: string
+    saveField?: string
+    saveLabel: string
+    isStudent?: boolean
+    isPrincipal?: boolean
+  }
+
+  const allSignatures: SignConfig[] = [
+    {
+      id: 'teacherSign',
+      isActive: !isHidden('Teacher Sign') && !isHidden('Class Teacher Sign'),
+      name: teacherSignName || customLabels['teacherSignName'] || 'Mrs. Kavita Verma',
+      label: teacherSignLabel || customLabels['teacherSignLabel'] || "Class Teacher's Sign",
+      saveField: 'teacherSignName',
+      saveLabel: 'teacherSign'
+    },
+    {
+      id: 'controllerSign',
+      isActive: !isHidden('Controller Sign') && !isHidden('Exam Controller Sign'),
+      name: controllerSignName || customLabels['controllerSignName'] || 'Mr. R. K. Saxena',
+      label: controllerSignLabel || customLabels['controllerSignLabel'] || 'Exam Controller',
+      saveField: 'controllerSignName',
+      saveLabel: 'controllerSign'
+    },
+    {
+      id: 'secondarySign',
+      isActive: !isHidden('Secondary Sign') && !isHidden('Coordinator Sign') && !isHidden('Coordinator / In-Charge Sign'),
+      name: secondarySignName || customLabels['secondarySignName'] || 'Authorized Signatory',
+      label: secondarySignLabel || customLabels['secondarySignLabel'] || 'Coordinator / In-Charge',
+      saveField: 'secondarySignName',
+      saveLabel: 'secondarySign'
+    },
+    {
+      id: 'parentSign',
+      isActive: !isHidden('Parent Sign') && !isHidden('Parent / Guardian Sign'),
+      name: parentSignName || customLabels['parentSignName'] || 'Parent / Guardian',
+      label: parentSignLabel || customLabels['parentSignLabel'] || "Parent's Signature",
+      saveField: 'parentSignName',
+      saveLabel: 'parentSign'
+    },
+    {
+      id: 'studentSign',
+      isActive: !isHidden('Student Sign') && !isHidden('Student Signature Line'),
+      name: 'Candidate',
+      label: studentSignLabel || customLabels['studentSignLabel'] || "Student's Signature",
+      saveLabel: 'studentSign',
+      isStudent: true
+    },
+    {
+      id: 'principalSign',
+      isActive: !isHidden('Principal Sign') && !isHidden('Principal / Director Sign'),
+      name: principalName || customLabels['principalName'] || 'Dr. S. K. Sharma',
+      label: principalLabel || customLabels['principalSignLabel'] || 'Principal & Director',
+      saveField: 'principalName',
+      saveLabel: 'principalSign',
+      isPrincipal: true
+    }
+  ]
+
+  // Filter to active signatures (up to 4 active)
+  const activeSigns = allSignatures.filter(s => s.isActive)
+
+  // Ensure Principal is positioned on the far right if active
+  const sortedSigns = [...activeSigns].sort((a, b) => {
+    if (a.isPrincipal) return 1
+    if (b.isPrincipal) return -1
+    return 0
+  })
+
+  const isSealVisible = !!showSeal && !isHidden('Official Seal') && !isHidden('Seal') && !isHidden('School Stamp') && !isHidden('Official Seal / Crest')
+  const isDateVisible = !isHidden('Certificate Date') && !isHidden('Date of Issue')
+
+  // Render helper for an individual signature box
+  const renderSignBox = (s: SignConfig) => (
+    <div key={s.id} className="flex flex-col items-center flex-1 min-w-[80px] max-w-[135px] text-center px-1 mb-1">
+      {s.isStudent ? (
+        <p className="italic font-bold text-xs mb-0.5 text-slate-400 truncate w-full" style={fontStyle}>
+          Candidate
+        </p>
+      ) : (
+        <LiveEditableText
+          tag="p"
+          value={s.name}
+          editable={editable && !!s.saveField}
+          onSave={(val) => s.saveField && onUpdateField?.(s.saveField, val)}
+          className={`italic font-bold text-xs mb-0.5 truncate w-full ${s.id === 'parentSign' ? 'text-slate-600' : ''}`}
+          style={{ color: s.id === 'parentSign' ? undefined : textColor, ...fontStyle }}
+        />
+      )}
+      <div className="w-full h-px bg-slate-300 mb-0.5" />
+      <LiveEditableText
+        tag="p"
+        value={s.label}
+        editable={editable}
+        onSave={(val) => onUpdateLabel?.(s.saveLabel, val)}
+        className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase truncate max-w-full"
+      />
+    </div>
+  )
+
+  // Split signatures around central seal if seal is visible
+  let leftSigns: SignConfig[] = []
+  let rightSigns: SignConfig[] = []
+
+  if (isSealVisible) {
+    if (sortedSigns.length === 4) {
+      leftSigns = sortedSigns.slice(0, 2)
+      rightSigns = sortedSigns.slice(2, 4)
+    } else if (sortedSigns.length === 3) {
+      leftSigns = sortedSigns.slice(0, 2)
+      rightSigns = sortedSigns.slice(2, 3)
+    } else if (sortedSigns.length === 2) {
+      leftSigns = sortedSigns.slice(0, 1)
+      rightSigns = sortedSigns.slice(1, 2)
+    } else if (sortedSigns.length === 1) {
+      leftSigns = []
+      rightSigns = sortedSigns
+    }
+  }
+
   return (
-    <div className="relative z-20 flex justify-between items-end px-12 pb-7 mt-auto gap-3 w-full">
-      {/* 1. Date of Issue */}
-      {!isHidden('Certificate Date') && !isHidden('Date of Issue') && (
-        <div className="flex flex-col items-center flex-1 min-w-[70px] max-w-[125px] text-center px-1 mb-1">
+    <div className="relative z-20 flex flex-col justify-end px-10 pb-5 mt-auto gap-2 w-full">
+      {/* Signatures & Central Seal Row */}
+      <div className="flex justify-between items-end gap-3 w-full">
+        {isSealVisible ? (
+          <>
+            {/* Left Wing Signatures */}
+            <div className="flex items-end gap-3 flex-1 justify-start">
+              {leftSigns.map(renderSignBox)}
+            </div>
+
+            {/* Central Official Seal / Crest */}
+            <div className="shrink-0 flex items-center justify-center w-20 h-22 mx-2">
+              {sealComponent}
+            </div>
+
+            {/* Right Wing Signatures */}
+            <div className="flex items-end gap-3 flex-1 justify-end">
+              {rightSigns.map(renderSignBox)}
+            </div>
+          </>
+        ) : (
+          /* Full Width Distributed Signatures when Seal is OFF */
+          <div className="flex justify-between items-end gap-4 w-full">
+            {sortedSigns.map(renderSignBox)}
+          </div>
+        )}
+      </div>
+
+      {/* Date of Issue Badge (Cleanly placed at footer bottom-left, never displacing signatures) */}
+      {isDateVisible && (
+        <div className="flex items-center gap-1.5 text-[8.5px] font-bold text-slate-500 pt-0.5 border-t border-slate-100/60 dark:border-slate-800/40">
+          <span className="uppercase tracking-widest text-slate-400 font-extrabold">{customLabels['date_label'] || 'Date of Issue'}:</span>
           <LiveEditableText
-            tag="p"
-            value={date || '15 October 2025'}
+            tag="span"
+            value={date || '15 October 2026'}
             editable={editable}
             onSave={(val) => onUpdateField?.('date', val)}
-            className="font-bold text-xs text-slate-800 mb-0.5 truncate w-full"
-          />
-          <div className="w-full h-px bg-slate-300 mb-0.5"></div>
-          <p className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase truncate max-w-full">
-            {customLabels['date_label'] || 'Date of Issue'}
-          </p>
-        </div>
-      )}
-
-      {/* 2. Class Teacher Sign */}
-      {!isHidden('Teacher Sign') && !isHidden('Class Teacher Sign') && (
-        <div className="flex flex-col items-center flex-1 min-w-[70px] max-w-[125px] text-center px-1 mb-1">
-          <LiveEditableText
-            tag="p"
-            value={teacherSignName || customLabels['teacherSignName'] || 'Mrs. Kavita Verma'}
-            editable={editable}
-            onSave={(val) => onUpdateField?.('teacherSignName', val)}
-            className="italic font-bold text-xs mb-0.5 truncate w-full"
-            style={{ color: textColor, ...fontStyle }}
-          />
-          <div className="w-full h-px bg-slate-300 mb-0.5"></div>
-          <LiveEditableText
-            tag="p"
-            value={teacherSignLabel || customLabels['teacherSignLabel'] || "Class Teacher's Sign"}
-            editable={editable}
-            onSave={(val) => onUpdateLabel?.('teacherSign', val)}
-            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase truncate max-w-full"
-          />
-        </div>
-      )}
-
-      {/* 3. Exam Controller Sign */}
-      {!isHidden('Controller Sign') && !isHidden('Exam Controller Sign') && (
-        <div className="flex flex-col items-center flex-1 min-w-[70px] max-w-[125px] text-center px-1 mb-1">
-          <LiveEditableText
-            tag="p"
-            value={controllerSignName || customLabels['controllerSignName'] || 'Mr. R. K. Saxena'}
-            editable={editable}
-            onSave={(val) => onUpdateField?.('controllerSignName', val)}
-            className="italic font-bold text-xs mb-0.5 truncate w-full"
-            style={{ color: textColor, ...fontStyle }}
-          />
-          <div className="w-full h-px bg-slate-300 mb-0.5"></div>
-          <LiveEditableText
-            tag="p"
-            value={controllerSignLabel || customLabels['controllerSignLabel'] || "Exam Controller"}
-            editable={editable}
-            onSave={(val) => onUpdateLabel?.('controllerSign', val)}
-            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase truncate max-w-full"
-          />
-        </div>
-      )}
-
-      {/* 4. Coordinator / In-Charge Sign */}
-      {!isHidden('Secondary Sign') && !isHidden('Coordinator Sign') && !isHidden('Coordinator / In-Charge Sign') && (
-        <div className="flex flex-col items-center flex-1 min-w-[70px] max-w-[125px] text-center px-1 mb-1">
-          <LiveEditableText
-            tag="p"
-            value={secondarySignName || customLabels['secondarySignName'] || 'Authorized Signatory'}
-            editable={editable}
-            onSave={(val) => onUpdateField?.('secondarySignName', val)}
-            className="italic font-bold text-xs mb-0.5 truncate w-full"
-            style={{ color: textColor, ...fontStyle }}
-          />
-          <div className="w-full h-px bg-slate-300 mb-0.5"></div>
-          <LiveEditableText
-            tag="p"
-            value={secondarySignLabel || customLabels['secondarySignLabel'] || 'Coordinator / In-Charge'}
-            editable={editable}
-            onSave={(val) => onUpdateLabel?.('secondarySign', val)}
-            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase truncate max-w-full"
-          />
-        </div>
-      )}
-
-      {/* 5. Parent / Guardian Sign */}
-      {!isHidden('Parent Sign') && !isHidden('Parent / Guardian Sign') && (
-        <div className="flex flex-col items-center flex-1 min-w-[70px] max-w-[125px] text-center px-1 mb-1">
-          <LiveEditableText
-            tag="p"
-            value={parentSignName || customLabels['parentSignName'] || 'Parent / Guardian'}
-            editable={editable}
-            onSave={(val) => onUpdateField?.('parentSignName', val)}
-            className="italic font-bold text-xs mb-0.5 truncate text-slate-500 w-full"
-            style={fontStyle}
-          />
-          <div className="w-full h-px bg-slate-300 mb-0.5"></div>
-          <LiveEditableText
-            tag="p"
-            value={parentSignLabel || customLabels['parentSignLabel'] || "Parent's Signature"}
-            editable={editable}
-            onSave={(val) => onUpdateLabel?.('parentSign', val)}
-            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase truncate max-w-full"
-          />
-        </div>
-      )}
-
-      {/* 6. Student Signature Line */}
-      {!isHidden('Student Sign') && !isHidden('Student Signature Line') && (
-        <div className="flex flex-col items-center flex-1 min-w-[70px] max-w-[125px] text-center px-1 mb-1">
-          <p className="italic font-bold text-xs mb-0.5 text-slate-400 truncate w-full" style={fontStyle}>
-            Candidate
-          </p>
-          <div className="w-full h-px bg-slate-300 mb-0.5"></div>
-          <LiveEditableText
-            tag="p"
-            value={studentSignLabel || customLabels['studentSignLabel'] || "Student's Signature"}
-            editable={editable}
-            onSave={(val) => onUpdateLabel?.('studentSign', val)}
-            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase truncate max-w-full"
-          />
-        </div>
-      )}
-
-      {/* 7. Official Seal / Crest */}
-      {showSeal && !isHidden('Official Seal') && !isHidden('Seal') && !isHidden('School Stamp') && !isHidden('Official Seal / Crest') && (
-        <div className="shrink-0 flex items-center justify-center w-20 h-22 mx-2">
-          {sealComponent}
-        </div>
-      )}
-
-      {/* 8. Principal / Director Sign */}
-      {!isHidden('Principal Sign') && !isHidden('Principal / Director Sign') && (
-        <div className="flex flex-col items-center flex-1 min-w-[70px] max-w-[125px] text-center px-1 mb-1">
-          <LiveEditableText
-            tag="p"
-            value={principalName || 'Dr. S. K. Sharma'}
-            editable={editable}
-            onSave={(val) => onUpdateField?.('principalName', val)}
-            className="italic font-bold text-xs mb-0.5 truncate w-full"
-            style={{ color: textColor, ...fontStyle }}
-          />
-          <div className="w-full h-px bg-slate-300 mb-0.5"></div>
-          <LiveEditableText
-            tag="p"
-            value={principalLabel || 'Principal & Director'}
-            editable={editable}
-            onSave={(val) => onUpdateLabel?.('principalSign', val)}
-            className="text-[7.5px] font-bold text-slate-400 tracking-widest uppercase truncate max-w-full"
+            className="font-bold text-slate-700 dark:text-slate-300"
           />
         </div>
       )}

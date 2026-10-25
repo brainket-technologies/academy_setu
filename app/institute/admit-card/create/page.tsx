@@ -30,8 +30,7 @@ const DISPLAY_FIELDS_KEYS = [
   { key: 'principalSign', label: 'Principal Sign.' },
   { key: 'teacherSign', label: 'Teacher Sign.' },
   { key: 'studentSign', label: 'Student Sign.' },
-  { key: 'parentSign', label: 'Parent Sign.' },
-  { key: 'schoolStamp', label: 'School Stamp' }
+  { key: 'parentSign', label: 'Parent Sign.' }
 ]
 
 function CreateAdmitCardForm() {
@@ -62,8 +61,7 @@ function CreateAdmitCardForm() {
     name: true, fatherName: true, motherName: true, mobileNo: false,
     admissionNo: true, registrationNo: true, rollNo: true, enrollmentNo: false,
     dob: true, address: true, class: true, section: true, photo: true,
-    studentSign: true, teacherSign: true, principalSign: true, parentSign: true,
-    schoolStamp: false
+    studentSign: true, teacherSign: true, principalSign: true, parentSign: true
   })
 
   // Toggles
@@ -815,40 +813,6 @@ function CreateAdmitCardForm() {
                   />
                 </div>
               </div>
-
-              {/* 5. School Stamp */}
-              <div className={`p-4 rounded-2xl border transition-all ${
-                displayFields.schoolStamp 
-                  ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
-                  : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
-              }`}>
-                <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-slate-800 dark:text-slate-100">School Stamp</span>
-                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                      displayFields.schoolStamp 
-                        ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
-                        : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
-                    }`}>
-                      {displayFields.schoolStamp ? 'ON' : 'OFF'}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleCheckboxChange('schoolStamp')}
-                    className={`w-10 h-5.5 rounded-full relative transition-colors ${displayFields.schoolStamp ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
-                  >
-                    <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${displayFields.schoolStamp ? 'left-5' : 'left-0.5'}`} />
-                  </button>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Seal Status</label>
-                  <div className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs bg-slate-50 dark:bg-slate-850 font-semibold text-slate-600 dark:text-slate-300 flex items-center justify-between">
-                    <span>Official Institute Seal</span>
-                    <span className="text-[10px] text-teal-600 font-bold">{displayFields.schoolStamp ? 'Included' : 'Excluded'}</span>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -1148,15 +1112,6 @@ function CreateAdmitCardForm() {
                     <div className="flex-1 flex flex-col items-center">
                       <div className="w-[80%] h-0.5 border-t border-dashed border-slate-400 mb-2 min-h-[16px]"></div>
                       <span>{parentSignLabel || "Parent's Sign."}</span>
-                    </div>
-                  )}
-                  {displayFields.schoolStamp && (
-                    <div className="flex-1 flex flex-col items-center">
-                      <div className="w-12 h-12 rounded-full border-2 border-dashed border-teal-600 flex flex-col items-center justify-center text-[6px] font-bold text-teal-700 mb-1">
-                        <span>★ SEAL ★</span>
-                        <span>STAMP</span>
-                      </div>
-                      <span>Official Stamp</span>
                     </div>
                   )}
                 </div>

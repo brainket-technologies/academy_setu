@@ -44,6 +44,7 @@ export interface MarksheetPreviewProps {
   motherName?: string
   dob?: string
   attendance?: string
+  classRank?: string | number
   subjects?: Array<{
     id?: number | string
     subjectName: string
@@ -57,6 +58,10 @@ export interface MarksheetPreviewProps {
   gradeRanges?: Array<{ range: string; grade: string }>
   divisionRanges?: Array<{ range: string; div: string }>
   cgpaRanges?: Array<{ range: string; cgpa: string }>
+  enableGrade?: boolean
+  enableCgpa?: boolean
+  enablePercentage?: boolean
+  enableDivision?: boolean
   showStudentPhoto?: boolean
   showRoundBorderPhoto?: boolean
   showTestMarks?: boolean
@@ -102,6 +107,7 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
   motherName = 'Sunita Verma',
   dob = '12/05/2008',
   attendance = '188 / 200 Days (94%)',
+  classRank = '3',
   subjects = [
     { subjectName: 'English Communicative', maxMarks: '100', practicalColumn: true, practicalMarks: '20', obtainedMarks: '90', grade: 'A1' },
     { subjectName: 'Hindi Course-A', maxMarks: '100', practicalColumn: true, practicalMarks: '20', obtainedMarks: '90', grade: 'A1' },
@@ -142,14 +148,19 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
     { range: '33-40', cgpa: '4.0' },
     { range: '00-32', cgpa: '0.0' }
   ],
+  enableGrade,
+  enableCgpa,
+  enablePercentage,
+  enableDivision,
   showStudentPhoto = true,
   showRoundBorderPhoto = true,
   showTestMarks = true,
   showHeaderSign = true,
   showHeaderStamp = true,
   columnsList = {
-    rollNumber: true, motherName: true, fatherName: true, admissionNo: true,
-    classSection: true, dob: true, attendance: true, examDate: true, dateOfIssue: true
+    schoolAffiliation: true, rollNumber: true, motherName: true, fatherName: true, admissionNo: true,
+    classSection: true, dob: true, attendance: true, dateOfIssue: true,
+    obtMarks: true, totalMarks: true
   },
   editable = false,
   customLabels = {},
@@ -171,14 +182,17 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
     candidatePhotoLabel: "Candidate",
     sessionTitle: "ACADEMIC SESSION:",
     affilCbseTitle: "AFFILIATED TO CBSE",
-    part1Heading: "PART 1: SCHOLASTIC AREAS",
-    thSubjects: "SCHOLASTIC SUBJECTS",
-    thTheory: "THEORY (80)",
-    thPractical: "PRACTICAL / ASMT (20)",
-    thTotal: "TOTAL MARKS (100)",
+    part1Heading: "SCHOLASTIC AREAS",
+    thSubjects: "SUBJECT",
+    thMaxMarks: "MAX MARKS",
+    thTheory: "THEORY",
+    thPractical: "PRACTICAL",
+    thObtained: "OBTAIN MARKS",
+    thTotal: "TOTAL MARKS",
     thPct: "PERCENTAGE (%)",
     thGrade: "GRADE",
-    totalLabel: "TOTAL",
+    thCgpa: "CGPA",
+    totalLabel: "TOTAL / AVERAGE",
     overallPctLabel: "OVERALL PERCENTAGE:",
     part2Heading: "PART 2: CO-SCHOLASTIC AREAS (3-POINT SCALE: A, B, C)",
     part3Heading: "PART 3: CLASS TEACHER'S REMARKS",
@@ -200,11 +214,13 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
     attendanceIndicator: "Attendance Indicator",
     attendanceOnTrack: "✓ On Track",
     academicPerformanceHeading: "Modern Academic Performance",
-    totalScoreLabel: "Total Score",
+    totalScoreLabel: "FINAL MARKS",
     overallRemarksHeading: "Overall Remarks",
     percentageBadge: "PERCENTAGE:",
     cgpaBadge: "CGPA:",
-    gradeBadge: "GRADE: A+",
+    gradeBadge: "GRADE:",
+    divisionBadge: "DIVISION:",
+    classRankBadge: "RANK:",
 
     // Template 3 (Dual-Term Consolidated)
     consolidatedHeading: "CONSOLIDATED ACADEMIC PERFORMANCE (TERM I & TERM II)",
@@ -259,9 +275,103 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
     { subjectName: 'Information Technology', maxMarks: '100', practicalColumn: true, practicalMarks: '20', obtainedMarks: '90', grade: 'A1' }
   ]
 
+  // Practical detection
+  const hasAnyPractical = activeSubjects.some(s => !!s.practicalColumn)
+
+  // Grading & CGPA evaluation helpers
+  const getGradeForPct = (pct: number): string => {
+    if (gradeRanges && gradeRanges.length > 0) {
+      for (const item of gradeRanges) {
+        const parts = item.range.split('-')
+        if (parts.length === 2) {
+          const n1 = parseFloat(parts[0])
+          const n2 = parseFloat(parts[1])
+          if (!isNaN(n1) && !isNaN(n2)) {
+            const low = Math.min(n1, n2)
+            const high = Math.max(n1, n2)
+            if (pct >= low && pct <= high) {
+              return item.grade
+            }
+          }
+        }
+      }
+    }
+    return pct >= 90 ? 'A1' : pct >= 80 ? 'A2' : pct >= 70 ? 'B1' : pct >= 60 ? 'B2' : pct >= 50 ? 'C1' : pct >= 40 ? 'C2' : pct >= 33 ? 'D' : 'E'
+  }
+
+  const getCgpaForPct = (pct: number): string => {
+    if (cgpaRanges && cgpaRanges.length > 0) {
+      for (const item of cgpaRanges) {
+        const parts = item.range.split('-')
+        if (parts.length === 2) {
+          const n1 = parseFloat(parts[0])
+          const n2 = parseFloat(parts[1])
+          if (!isNaN(n1) && !isNaN(n2)) {
+            const low = Math.min(n1, n2)
+            const high = Math.max(n1, n2)
+            if (pct >= low && pct <= high) {
+              return item.cgpa
+            }
+          }
+        }
+      }
+    }
+    return Math.min(10.0, Math.max(0, (pct / 9.5))).toFixed(1)
+  }
+
+  const getDivisionForPct = (pct: number): string => {
+    if (divisionRanges && divisionRanges.length > 0) {
+      for (const item of divisionRanges) {
+        const parts = item.range.split('-')
+        if (parts.length === 2) {
+          const n1 = parseFloat(parts[0])
+          const n2 = parseFloat(parts[1])
+          if (!isNaN(n1) && !isNaN(n2)) {
+            const low = Math.min(n1, n2)
+            const high = Math.max(n1, n2)
+            if (pct >= low && pct <= high) {
+              return item.div
+            }
+          }
+        }
+      }
+    }
+    return pct >= 75 ? '1st' : pct >= 60 ? '2nd' : pct >= 33 ? '3rd' : 'Failed'
+  }
+
   const totalMax = activeSubjects.reduce((acc, s) => acc + (Number(s.maxMarks) || 100), 0)
-  const totalObt = activeSubjects.reduce((acc, s) => acc + (Number(s.obtainedMarks) || 88), 0)
+  const totalObt = activeSubjects.reduce((acc, s, i) => acc + (Number(s.obtainedMarks) || Math.floor(86 + (i * 2) % 12)), 0)
+  const totalTheory = activeSubjects.reduce((acc, s, i) => {
+    const max = Number(s.maxMarks) || 100
+    const obt = Number(s.obtainedMarks) || Math.floor(86 + (i * 2) % 12)
+    if (s.practicalColumn) {
+      const pMarks = Number(s.practicalMarks) || 20
+      const pObt = Math.min(pMarks, Math.round(pMarks * (obt / max))) || (18 + (i % 3))
+      return acc + Math.max(0, obt - pObt)
+    }
+    return acc + obt
+  }, 0)
+  const totalPrac = activeSubjects.reduce((acc, s, i) => {
+    if (s.practicalColumn) {
+      const max = Number(s.maxMarks) || 100
+      const obt = Number(s.obtainedMarks) || Math.floor(86 + (i * 2) % 12)
+      const pMarks = Number(s.practicalMarks) || 20
+      const pObt = Math.min(pMarks, Math.round(pMarks * (obt / max))) || (18 + (i % 3))
+      return acc + pObt
+    }
+    return acc
+  }, 0)
   const percentage = ((totalObt / totalMax) * 100).toFixed(1)
+  const overallPct = Math.round(Number(percentage))
+  const averageGrade = getGradeForPct(overallPct)
+  const averageCgpa = getCgpaForPct(overallPct)
+  const averageDivision = getDivisionForPct(overallPct)
+
+  // Step 2 conditional visibility for Grade, CGPA, Percentage, and Division
+  const showGradeColumn = enableGrade !== undefined ? !!enableGrade : (columnsList.grade !== false)
+  const showCgpaColumn = enableCgpa !== undefined ? !!enableCgpa : (columnsList.cgpa === true)
+  const showPercentage = enablePercentage !== undefined ? !!enablePercentage : (columnsList.percentage !== false)
+  const showDivision = enableDivision !== undefined ? !!enableDivision : (columnsList.division !== false)
 
   const normalized = (templateName || '').toLowerCase()
 
@@ -326,228 +436,138 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
     )
   }
 
-  // =========================================================================
-  // TEMPLATE 2: MINIMALIST MODERN (CANVA / PINTEREST STYLE - TEAL & SLATE)
-  // =========================================================================
-  if (isMinimalModern) {
+  const renderUniversalMarksTable = (tableContainerClass?: string, headerBgColor?: string, isRound: boolean = false) => {
     return (
-      <div className="w-full max-w-[780px] bg-white text-slate-800 rounded-3xl shadow-2xl p-7 md:p-9 font-sans border select-none" style={{ borderColor: borderTint }}>
-        {/* Header */}
-        <div className="flex flex-col items-center text-center pb-6 border-b border-slate-100">
-          {renderInteractiveLogo("mb-2.5")}
-          <div className="flex items-center gap-2.5 font-black text-lg md:text-xl tracking-tight uppercase" style={{ color: primary, fontSize: headerNameFontSize ? `${headerNameFontSize}px` : undefined }}>
-            {!showLogo && <School className="w-7 h-7" style={{ color: primary }} />}
-            <LiveEditableText
-              tag="span"
-              value={schoolName}
-              editable={editable}
-              onSave={val => onUpdateField?.('schoolName', val)}
-              style={{ fontSize: headerNameFontSize ? `${headerNameFontSize}px` : undefined }}
-              fontSizeControl={{
-                label: 'School Name',
-                value: headerNameFontSize ? parseInt(headerNameFontSize) : 22,
-                onChange: val => onUpdateField?.('headerNameFontSize', val)
-              }}
-              className="inline-block"
-            />
-          </div>
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-            <LiveEditableText
-              value={headingHeader || 'STUDENT REPORT CARD'}
-              editable={editable}
-              onSave={val => onUpdateField?.('headingHeader', val)}
-              style={{ fontSize: headingFontSize ? `${headingFontSize}px` : undefined }}
-              fontSizeControl={{
-                label: 'Report Title',
-                value: headingFontSize ? parseInt(headingFontSize) : 14,
-                onChange: val => onUpdateField?.('headingFontSize', val)
-              }}
-              className="inline-block"
-            /> • {labels.academicYearTitle || 'ACADEMIC YEAR'}{' '}
-            <LiveEditableText
-              value={academicYear}
-              editable={editable}
-              onSave={val => onUpdateField?.('academicYear', val)}
-              className="inline-block"
-            />
-          </span>
-          <p className="text-[10px] text-slate-400 mt-0.5">
-            <LiveEditableText
-              value={affiliateTo}
-              editable={editable}
-              onSave={val => onUpdateField?.('affiliateTo', val)}
-              className="inline-block"
-            />
-          </p>
-        </div>
-
-        {/* Student Profile, Proper QR & Attendance Gauge Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 my-6">
-          {/* Profile Card */}
-          <div className="sm:col-span-2 bg-slate-50 border rounded-2xl p-4 flex items-center gap-4" style={{ borderColor: borderTint }}>
-            {showStudentPhoto && (
-              <div 
-                className="w-16 h-16 rounded-full border-2 overflow-hidden shrink-0 shadow-sm flex items-center justify-center"
-                style={{ backgroundColor: tintLight, borderColor: primary }}
-              >
-                <img 
-                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(studentName)}`}
-                  alt={studentName}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            )}
-            <div>
-              <span className="text-[9px] font-bold uppercase tracking-wider block" style={{ color: primary }}>
-                <LiveEditableText
-                  value={labels.profileTitle || 'Student Profile'}
-                  editable={editable}
-                  onSave={val => updateLabel('profileTitle', val)}
-                  className="inline-block"
-                />
-              </span>
-              <h3 className="text-base font-black text-slate-900 leading-tight">{studentName}</h3>
-              <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-slate-600 mt-1">
-                {columnsList.classSection !== false && (
-                  <span>Class: <strong className="text-slate-900">{className} {sectionName ? `(${sectionName})` : ''}</strong></span>
-                )}
-                {columnsList.rollNumber !== false && (
-                  <span>Roll: <strong className="text-slate-900">{rollNo}</strong></span>
-                )}
-                {columnsList.admissionNo !== false && (
-                  <span>ID: <strong className="text-slate-900">{admissionNo}</strong></span>
-                )}
-                {columnsList.dob && (
-                  <span>DOB: <strong className="text-slate-900">{dob}</strong></span>
-                )}
-                {columnsList.gender && (
-                  <span>Gender: <strong className="text-slate-900">Male</strong></span>
-                )}
-                {columnsList.mobileNumber && (
-                  <span>Mobile: <strong className="text-slate-900">9876543210</strong></span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Attendance Indicator Card */}
-          {columnsList.attendance !== false && (
-            <div className="bg-slate-50 border rounded-2xl p-4 flex flex-col items-center justify-center text-center" style={{ borderColor: borderTint }}>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                <LiveEditableText
-                  value={labels.attendanceIndicator || 'Attendance Indicator'}
-                  editable={editable}
-                  onSave={val => updateLabel('attendanceIndicator', val)}
-                  className="inline-block"
-                />
-              </span>
-              <div className="text-xl font-black mt-1" style={{ color: primary }}>96%</div>
-              <span className="text-[10px] font-semibold text-slate-500">175 / 182 Days</span>
-              <span 
-                className="mt-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold border"
-                style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}
-              >
-                <LiveEditableText
-                  value={labels.attendanceOnTrack || '✓ On Track'}
-                  editable={editable}
-                  onSave={val => updateLabel('attendanceOnTrack', val)}
-                  className="inline-block"
-                />
-              </span>
-            </div>
-          )}
-
-          {/* Proper QR Code Verification Card */}
-          <div className="bg-slate-50 border rounded-2xl p-2.5 flex flex-col items-center justify-center text-center" style={{ borderColor: borderTint }}>
-            <ProperQrCode className="w-18 h-18" color={primary} />
-            <span className="text-[7.5px] font-black uppercase tracking-wider mt-1" style={{ color: primary }}>
-              <LiveEditableText
-                value={labels.qrVerifyLabel || 'Official Marksheet QR'}
-                editable={editable}
-                onSave={val => updateLabel('qrVerifyLabel', val)}
-                className="inline-block"
-              />
-            </span>
-            <LiveEditableText
-              value={labels.qrCodeText || 'CODE: MS-2025-042'}
-              editable={editable}
-              onSave={val => updateLabel('qrCodeText', val)}
-              className="text-[7px] font-mono font-bold text-slate-400 mt-0.5 inline-block"
-            />
-          </div>
-        </div>
-
-        {/* Modern Academic Performance Table with Progress Bars */}
-        <div className="border rounded-2xl overflow-hidden shadow-xs mb-6" style={{ borderColor: borderTint }}>
-          <div className="text-white px-5 py-3 flex items-center justify-between text-xs font-black uppercase tracking-wider" style={{ backgroundColor: primary }}>
-            <LiveEditableText
-              value={labels.academicPerformanceHeading || 'Modern Academic Performance'}
-              editable={editable}
-              onSave={val => updateLabel('academicPerformanceHeading', val)}
-              className="inline-block"
-            />
-            <span className="text-white/90 font-semibold text-[11px]">
-              <LiveEditableText
-                value={examName}
-                editable={editable}
-                onSave={val => onUpdateField?.('examName', val)}
-                className="inline-block"
-              />
-            </span>
-          </div>
-          <div className="divide-y divide-slate-100 bg-white">
+      <div className={`overflow-x-auto border-x border-b shadow-2xs ${isRound ? 'rounded-b-2xl' : 'rounded-b-lg'} ${tableContainerClass || ''}`} style={{ borderColor: borderTint }}>
+        <table className="w-full text-xs text-left">
+          <thead>
+            <tr className="text-white font-bold text-[10px] uppercase" style={{ backgroundColor: headerBgColor || primary, opacity: 0.95 }}>
+              <th className="px-3.5 py-2">
+                <LiveEditableText value={labels.thSubjects || 'SUBJECT'} editable={editable} onSave={val => updateLabel('thSubjects', val)} />
+              </th>
+              <th className="px-2.5 py-2 text-center text-[9px] tracking-tight">
+                <LiveEditableText value={labels.thMaxMarks || 'MAX MARKS'} editable={editable} onSave={val => updateLabel('thMaxMarks', val)} />
+              </th>
+              <th className="px-2.5 py-2 text-center text-[9px] tracking-tight">
+                <LiveEditableText value={labels.thTheory || 'THEORY'} editable={editable} onSave={val => updateLabel('thTheory', val)} />
+              </th>
+              {hasAnyPractical && (
+                <th className="px-2.5 py-2 text-center text-[9px] tracking-tight">
+                  <LiveEditableText value={labels.thPractical || 'PRACTICAL'} editable={editable} onSave={val => updateLabel('thPractical', val)} />
+                </th>
+              )}
+              <th className="px-2.5 py-2 text-center text-[9px] tracking-tight">
+                <LiveEditableText value={labels.thObtained || 'OBTAIN MARKS'} editable={editable} onSave={val => updateLabel('thObtained', val)} />
+              </th>
+              {showGradeColumn && (
+                <th className="px-2 py-2 text-center text-[8.5px] tracking-wider">
+                  <LiveEditableText value={labels.thGrade || 'GRADE'} editable={editable} onSave={val => updateLabel('thGrade', val)} />
+                </th>
+              )}
+              {showCgpaColumn && (
+                <th className="px-2 py-2 text-center text-[8.5px] tracking-wider">
+                  <LiveEditableText value={labels.thCgpa || 'CGPA'} editable={editable} onSave={val => updateLabel('thCgpa', val)} />
+                </th>
+              )}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 bg-white font-sans">
             {activeSubjects.map((sub, i) => {
               const max = Number(sub.maxMarks) || 100
-              const obt = Number(sub.obtainedMarks) || Math.floor(84 + (i * 3) % 14)
+              const isPracOn = !!sub.practicalColumn
+              const obt = Number(sub.obtainedMarks) || Math.floor(86 + (i * 2) % 12)
+              let theory = obt
+              let prac: string | number = '-'
+              if (isPracOn) {
+                const pMarks = Number(sub.practicalMarks) || 20
+                const pObt = Math.min(pMarks, Math.round(pMarks * (obt / max))) || (18 + (i % 3))
+                prac = pObt
+                theory = Math.max(0, obt - pObt)
+              }
               const pct = Math.min(100, Math.round((obt / max) * 100))
-              const grade = sub.grade || (pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B+' : 'B')
+              const grade = sub.grade || getGradeForPct(pct)
+              const cgpa = getCgpaForPct(pct)
               return (
-                <div key={i} className="p-3.5 px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors">
-                  <div className="flex items-center gap-3 sm:w-1/3">
-                    <div 
-                      className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 border"
-                      style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}
-                    >
-                      {sub.subjectName.substring(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <span className="font-extrabold text-xs text-slate-800 block leading-tight">{sub.subjectName}</span>
-                      <span className="text-[10px] text-slate-400">{sub.practicalColumn ? 'Theory + Practical' : 'Theory Core'}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 sm:w-2/3 justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-black text-slate-900">{obt}</span>
-                      <span className="text-[10px] text-slate-400">/{max}</span>
+                <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
+                  <td className="px-3.5 py-2 font-bold text-slate-800">{sub.subjectName}</td>
+                  <td className="px-3 py-2 text-center font-semibold text-slate-700">{max}</td>
+                  <td className="px-3 py-2 text-center font-semibold text-slate-600">{theory}</td>
+                  {hasAnyPractical && (
+                    <td className="px-3 py-2 text-center font-semibold text-slate-600">
+                      {prac}
+                    </td>
+                  )}
+                  <td className="px-2.5 py-1.5 text-center font-black text-slate-900 text-[11px]">{obt}</td>
+                  {showGradeColumn && (
+                    <td className="px-2 py-1.5 text-center">
                       <span 
-                        className="px-2 py-0.5 rounded-md text-[10px] font-black border ml-1"
+                        className="px-1.5 py-0.5 rounded text-[8px] font-black border leading-none inline-block"
                         style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}
                       >
                         {grade}
                       </span>
-                    </div>
-
-                    {/* Sleek Progress Bar */}
-                    <div className="flex items-center gap-2.5 flex-1 max-w-[200px]">
-                      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full rounded-full transition-all"
-                          style={{ width: `${pct}%`, backgroundColor: primary }}
-                        />
-                      </div>
-                      <span className="text-[10px] font-mono font-bold text-slate-500 w-8 text-right">{pct}%</span>
-                    </div>
-                  </div>
-                </div>
+                    </td>
+                  )}
+                  {showCgpaColumn && (
+                    <td className="px-2 py-1.5 text-center font-mono font-bold text-[8.5px] text-slate-700">
+                      {cgpa}
+                    </td>
+                  )}
+                </tr>
               )
             })}
-          </div>
-        </div>
+            <tr className="font-black text-xs border-t-2" style={{ backgroundColor: tintLight, borderColor: primary }}>
+              <td className="px-3.5 py-2.5 font-black uppercase" style={{ color: primary }}>
+                <LiveEditableText
+                  value={labels.totalLabel || 'TOTAL / AVERAGE'}
+                  editable={editable}
+                  onSave={val => updateLabel('totalLabel', val)}
+                  className="inline-block"
+                />
+              </td>
+              <td className="px-3 py-2.5 text-center font-black text-slate-900">{totalMax}</td>
+              <td className="px-3 py-2.5 text-center font-bold text-slate-700">{totalTheory}</td>
+              {hasAnyPractical && (
+                <td className="px-3 py-2.5 text-center font-bold text-slate-700">{totalPrac}</td>
+              )}
+              <td className="px-2.5 py-2 text-center text-xs font-black" style={{ color: primary }}>{totalObt}</td>
+              {showGradeColumn && (
+                <td className="px-2 py-2 text-center">
+                  <span 
+                    className="px-1.5 py-0.5 rounded text-[8px] font-black border shadow-2xs bg-white inline-block leading-none"
+                    style={{ color: primary, borderColor: borderTint }}
+                    title={`Average Grade: ${averageGrade}`}
+                  >
+                    {averageGrade}
+                  </span>
+                </td>
+              )}
+              {showCgpaColumn && (
+                <td className="px-2 py-2 text-center">
+                  <span 
+                    className="px-1.5 py-0.5 rounded text-[8px] font-mono font-black border shadow-2xs bg-white inline-block leading-none"
+                    style={{ color: primary, borderColor: borderTint }}
+                    title={`Average CGPA: ${averageCgpa}`}
+                  >
+                    {averageCgpa}
+                  </span>
+                </td>
+              )}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    )
+  }
 
-        {/* GPA & Percentage Pill Badges */}
-        <div className="bg-slate-50 border rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 mb-6" style={{ borderColor: borderTint }}>
-          <div className="flex flex-wrap items-center gap-2.5">
+  const renderOverallPerformanceCard = (customContainerClass?: string, isRound: boolean = false) => {
+    return (
+      <div 
+        className={`border p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-3 ${isRound ? 'rounded-2xl' : 'rounded-lg'} ${customContainerClass || 'my-4'}`}
+        style={{ borderColor: borderTint, backgroundColor: tintLight }}
+      >
+        <div className="flex flex-wrap items-center gap-2.5">
+          {showPercentage && (
             <span className="px-3 py-1 rounded-full text-xs font-black text-white shadow-xs" style={{ backgroundColor: primary }}>
               <LiveEditableText
                 value={labels.percentageBadge || 'PERCENTAGE:'}
@@ -557,6 +577,8 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
               />
               {percentage}%
             </span>
+          )}
+          {showCgpaColumn && (
             <span className="px-3 py-1 rounded-full text-xs font-black bg-slate-800 text-white shadow-xs">
               <LiveEditableText
                 value={labels.cgpaBadge || 'CGPA:'}
@@ -564,86 +586,382 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
                 onSave={val => updateLabel('cgpaBadge', val)}
                 className="inline-block mr-1"
               />
-              {(() => {
-                const pct = Number(percentage) || 91.5
-                if (Array.isArray(cgpaRanges) && cgpaRanges.length > 0) {
-                  for (const item of cgpaRanges) {
-                    const parts = item.range.split('-').map(s => Number(s.trim()))
-                    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-                      const min = Math.min(parts[0], parts[1])
-                      const max = Math.max(parts[0], parts[1])
-                      if (pct >= min && pct <= max) {
-                        return `${item.cgpa} / 10.0`
-                      }
-                    }
-                  }
-                }
-                return `${((pct / 100) * 10).toFixed(1)} / 10.0`
-              })()}
+              {averageCgpa} / 10.0
             </span>
+          )}
+          {showGradeColumn && (
             <span className="px-3 py-1 rounded-full text-xs font-black text-white shadow-xs" style={{ backgroundColor: primary, opacity: 0.9 }}>
               <LiveEditableText
-                value={labels.gradeBadge || 'GRADE: A+'}
+                value={labels.gradeBadge || 'GRADE:'}
                 editable={editable}
                 onSave={val => updateLabel('gradeBadge', val)}
-                className="inline-block"
+                className="inline-block mr-1"
               />
+              {averageGrade}
             </span>
-          </div>
-          <div className="text-right">
-            <span className="text-[10px] font-bold text-slate-400 uppercase block">
+          )}
+          {showDivision && (
+            <span 
+              className="px-3 py-1 rounded-full text-xs font-black text-white shadow-xs"
+              style={{ backgroundColor: '#4338ca' }}
+            >
               <LiveEditableText
-                value={labels.totalScoreLabel || 'Total Score'}
+                value={labels.divisionBadge || 'DIVISION:'}
                 editable={editable}
-                onSave={val => updateLabel('totalScoreLabel', val)}
+                onSave={val => updateLabel('divisionBadge', val)}
+                className="inline-block mr-1"
+              />
+              {averageDivision}
+            </span>
+          )}
+          {columnsList.rank !== false && (
+            <span 
+              className="px-3 py-1 rounded-full text-xs font-black text-white shadow-xs" 
+              style={{ background: 'linear-gradient(135deg, #d97706, #b45309)' }}
+            >
+              <LiveEditableText
+                value={labels.classRankBadge || 'RANK:'}
+                editable={editable}
+                onSave={val => updateLabel('classRankBadge', val)}
+                className="inline-block mr-1"
+              />
+              {classRank}
+            </span>
+          )}
+        </div>
+        <div className="text-right">
+          <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-wider">
+            <LiveEditableText
+              value={labels.totalScoreLabel || 'FINAL MARKS'}
+              editable={editable}
+              onSave={val => updateLabel('totalScoreLabel', val)}
+              className="inline-block"
+            />
+          </span>
+          <span className="text-lg md:text-xl font-black text-slate-900">{totalObt} / {totalMax}</span>
+        </div>
+      </div>
+    )
+  }
+
+  // =========================================================================
+  // TEMPLATE 2: MINIMALIST MODERN (CANVA / PINTEREST STYLE - TEAL & SLATE)
+  // =========================================================================
+  if (isMinimalModern) {
+    return (
+      <div className="w-full max-w-[780px] bg-white text-slate-800 rounded-3xl shadow-2xl p-7 md:p-9 font-sans border select-none" style={{ borderColor: borderTint }}>
+        {/* Header Part (Modern & Balanced) */}
+        <div className="pb-6 border-b border-slate-100 flex flex-col items-center text-center">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-2">
+            {renderInteractiveLogo("", true)}
+            <div className="text-center sm:text-left">
+              <div 
+                className="font-black text-xl md:text-2xl tracking-tight uppercase leading-tight" 
+                style={{ color: primary, fontSize: headerNameFontSize ? `${headerNameFontSize}px` : undefined }}
+              >
+                {!showLogo && <School className="w-7 h-7 inline-block mr-2" style={{ color: primary }} />}
+                <LiveEditableText
+                  tag="span"
+                  value={schoolName}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('schoolName', val)}
+                  style={{ fontSize: headerNameFontSize ? `${headerNameFontSize}px` : undefined }}
+                  fontSizeControl={{
+                    label: 'School Name',
+                    value: headerNameFontSize ? parseInt(headerNameFontSize) : 22,
+                    onChange: val => onUpdateField?.('headerNameFontSize', val)
+                  }}
+                  className="inline-block"
+                />
+              </div>
+              {columnsList.schoolAffiliation !== false && (
+                <p className="text-[11px] font-bold text-slate-500 mt-0.5">
+                  <LiveEditableText
+                    value={affiliateTo || 'Affiliated to CBSE, New Delhi • Affiliation No. 2130842'}
+                    editable={editable}
+                    onSave={val => onUpdateField?.('affiliateTo', val)}
+                    className="inline-block"
+                  />
+                  <span> • Code: </span>
+                  <LiveEditableText
+                    value={schoolCode || '123456'}
+                    editable={editable}
+                    onSave={val => onUpdateField?.('schoolCode', val)}
+                    className="inline-block font-mono"
+                  />
+                </p>
+              )}
+              {(schoolAddress || phone) && (
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  {schoolAddress && (
+                    <LiveEditableText
+                      value={schoolAddress}
+                      editable={editable}
+                      onSave={val => onUpdateField?.('schoolAddress', val)}
+                      className="inline-block mr-2"
+                    />
+                  )}
+                  {phone && (
+                    <span>• Tel: {phone}</span>
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Report Title & Academic Session Ribbon */}
+          <div 
+            className="mt-2.5 inline-flex flex-wrap items-center justify-center gap-2 px-5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider border shadow-2xs"
+            style={{ 
+              backgroundColor: tintLight, 
+              borderColor: borderTint,
+              color: primary,
+              fontSize: headingFontSize ? `${headingFontSize}px` : undefined
+            }}
+          >
+            <LiveEditableText
+              value={headingHeader || 'STUDENT REPORT CARD'}
+              editable={editable}
+              onSave={val => onUpdateField?.('headingHeader', val)}
+              style={{ fontSize: headingFontSize ? `${headingFontSize}px` : undefined }}
+              fontSizeControl={{
+                label: 'Report Title',
+                value: headingFontSize ? parseInt(headingFontSize) : 13,
+                onChange: val => onUpdateField?.('headingFontSize', val)
+              }}
+              className="inline-block"
+            />
+            <span className="opacity-40">•</span>
+            <span className="text-slate-700">
+              {labels.academicYearTitle || 'SESSION:'}{' '}
+              <LiveEditableText
+                value={academicYear}
+                editable={editable}
+                onSave={val => onUpdateField?.('academicYear', val)}
                 className="inline-block"
               />
             </span>
-            <span className="text-sm font-black text-slate-900">{totalObt} / {totalMax}</span>
+            {columnsList.examName !== false && examName && (
+              <>
+                <span className="opacity-40">•</span>
+                <span className="text-slate-600 font-semibold">{examName}</span>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Overall Remarks */}
-        {columnsList.remarks !== false && (
-          <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 mb-6">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+        {/* Student Detail Part (Redesigned Proper Dossier) */}
+        <div className="my-6 bg-slate-50/70 border rounded-2xl p-4 sm:p-5 shadow-xs" style={{ borderColor: borderTint }}>
+          
+          {/* Top Row: Avatar + Name + Core Badges + Quick Widgets */}
+          <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-4 pb-4 border-b border-slate-200/80">
+            {/* Identity & Badges */}
+            <div className="flex items-center gap-4 text-center sm:text-left">
+              {showStudentPhoto && (
+                <div 
+                  className="w-16 h-16 rounded-2xl border-2 overflow-hidden shrink-0 shadow-sm flex items-center justify-center bg-white"
+                  style={{ borderColor: primary }}
+                >
+                  <img 
+                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(studentName)}`}
+                    alt={studentName}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-wider block" style={{ color: primary }}>
+                  <LiveEditableText
+                    value={labels.profileTitle || 'STUDENT PROFILE'}
+                    editable={editable}
+                    onSave={val => updateLabel('profileTitle', val)}
+                    className="inline-block"
+                  />
+                </span>
+                <h3 className="text-lg md:text-xl font-black text-slate-900 leading-tight">{studentName}</h3>
+                
+                {/* Core Badges Row */}
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 mt-1.5">
+                  {columnsList.classSection !== false && (
+                    <span 
+                      className="px-2 py-0.5 rounded-md text-[10px] font-bold border"
+                      style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}
+                    >
+                      Class {className} {sectionName ? `(${sectionName})` : ''}
+                    </span>
+                  )}
+                  {columnsList.rollNumber !== false && (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-white text-slate-700 border border-slate-200">
+                      Roll: {rollNo}
+                    </span>
+                  )}
+                  {columnsList.admissionNo !== false && (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-white text-slate-700 border border-slate-200">
+                      ID: {admissionNo}
+                    </span>
+                  )}
+                  {columnsList.rank !== false && (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                      Rank: #{classRank}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Widgets: Attendance Indicator + Official QR Code */}
+            <div className="flex items-center gap-3 shrink-0">
+              {columnsList.attendance !== false && (
+                <div className="bg-white border rounded-xl px-3 py-2 text-center shadow-2xs min-w-[100px]" style={{ borderColor: borderTint }}>
+                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">
+                    <LiveEditableText
+                      value={labels.attendanceIndicator || 'Attendance'}
+                      editable={editable}
+                      onSave={val => updateLabel('attendanceIndicator', val)}
+                      className="inline-block"
+                    />
+                  </span>
+                  <div className="text-base font-black leading-tight" style={{ color: primary }}>96%</div>
+                  <span className="text-[8.5px] font-semibold text-slate-500 block">175 / 182 Days</span>
+                  <span 
+                    className="mt-0.5 px-1.5 py-0.2 rounded-full text-[7.5px] font-bold border inline-block"
+                    style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}
+                  >
+                    <LiveEditableText
+                      value={labels.attendanceOnTrack || '✓ On Track'}
+                      editable={editable}
+                      onSave={val => updateLabel('attendanceOnTrack', val)}
+                      className="inline-block"
+                    />
+                  </span>
+                </div>
+              )}
+
+              {/* Official QR Verification Badge */}
+              <div className="bg-white border rounded-xl p-2 flex flex-col items-center justify-center text-center shadow-2xs" style={{ borderColor: borderTint }}>
+                <ProperQrCode className="w-11 h-11" color={primary} />
+                <span className="text-[6.5px] font-black uppercase tracking-wider mt-0.5" style={{ color: primary }}>
+                  <LiveEditableText
+                    value={labels.qrVerifyLabel || 'Official QR'}
+                    editable={editable}
+                    onSave={val => updateLabel('qrVerifyLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
+                <LiveEditableText
+                  value={labels.qrCodeText || 'CODE: MS-2025-042'}
+                  editable={editable}
+                  onSave={val => updateLabel('qrCodeText', val)}
+                  className="text-[6px] font-mono font-bold text-slate-400 inline-block leading-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Grid: Clear, Spacious Grid of Student Personal Details */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 pt-3.5 text-xs">
+            {columnsList.fatherName !== false && (
+              <div className="bg-white p-2.5 rounded-lg border border-slate-200/70 shadow-2xs">
+                <span className="text-[9px] font-bold uppercase text-slate-400 block tracking-wider">
+                  <LiveEditableText
+                    value={labels.fatherNameLabel || "Father's Name"}
+                    editable={editable}
+                    onSave={val => updateLabel('fatherNameLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
+                <strong className="text-slate-800 font-bold block truncate">{fatherName}</strong>
+              </div>
+            )}
+            {columnsList.motherName !== false && (
+              <div className="bg-white p-2.5 rounded-lg border border-slate-200/70 shadow-2xs">
+                <span className="text-[9px] font-bold uppercase text-slate-400 block tracking-wider">
+                  <LiveEditableText
+                    value={labels.motherNameLabel || "Mother's Name"}
+                    editable={editable}
+                    onSave={val => updateLabel('motherNameLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
+                <strong className="text-slate-800 font-bold block truncate">{motherName}</strong>
+              </div>
+            )}
+            {columnsList.dob !== false && (
+              <div className="bg-white p-2.5 rounded-lg border border-slate-200/70 shadow-2xs">
+                <span className="text-[9px] font-bold uppercase text-slate-400 block tracking-wider">
+                  <LiveEditableText
+                    value={labels.dobLabel || "Date of Birth"}
+                    editable={editable}
+                    onSave={val => updateLabel('dobLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
+                <strong className="text-slate-800 font-bold block">{dob}</strong>
+              </div>
+            )}
+            {columnsList.gender !== false && (
+              <div className="bg-white p-2.5 rounded-lg border border-slate-200/70 shadow-2xs">
+                <span className="text-[9px] font-bold uppercase text-slate-400 block tracking-wider">Gender</span>
+                <strong className="text-slate-800 font-bold block">Male</strong>
+              </div>
+            )}
+            {!!columnsList.mobileNumber && (
+              <div className="bg-white p-2.5 rounded-lg border border-slate-200/70 shadow-2xs">
+                <span className="text-[9px] font-bold uppercase text-slate-400 block tracking-wider">Mobile</span>
+                <strong className="text-slate-800 font-bold block">{phone || '9876543210'}</strong>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Modern Academic Performance Table */}
+        <div className="mb-6">
+          <div 
+            className="text-white px-5 py-3 flex items-center justify-between text-xs font-black uppercase tracking-wider rounded-t-2xl shadow-2xs"
+            style={{ backgroundColor: primary }}
+          >
+            <LiveEditableText
+              value={labels.academicPerformanceHeading || 'Modern Academic Performance'}
+              editable={editable}
+              onSave={val => updateLabel('academicPerformanceHeading', val)}
+              className="inline-block"
+            />
+            {columnsList.examName !== false && (
+              <span className="text-white/90 font-semibold text-[11px]">
+                <LiveEditableText
+                  value={examName}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('examName', val)}
+                  className="inline-block"
+                />
+              </span>
+            )}
+          </div>
+          {renderUniversalMarksTable('', undefined, true)}
+        </div>
+
+        {/* GPA & Percentage Pill Badges Card */}
+        {renderOverallPerformanceCard('mb-6', true)}
+
+        {/* Result Status Banner */}
+        {columnsList.result !== false && (
+          <div className="mb-6 p-3.5 bg-slate-50 border rounded-2xl flex items-center justify-between text-xs font-black shadow-xs" style={{ borderColor: borderTint }}>
+            <span className="uppercase tracking-wider" style={{ color: primary }}>
               <LiveEditableText
-                value={labels.overallRemarksHeading || 'Overall Remarks'}
+                value={labels.aggregateGradeLabel || 'AGGREGATE RESULT: PASSED'}
                 editable={editable}
-                onSave={val => updateLabel('overallRemarksHeading', val)}
+                onSave={val => updateLabel('aggregateGradeLabel', val)}
                 className="inline-block"
               />
             </span>
-            <p className="text-xs font-medium text-slate-700 italic">
-              <LiveEditableText
-                tag="span"
-                multiline
-                value={labels.remarksText || '"Rahul is a dedicated, hardworking student with excellent academic performance and leadership qualities. Best wishes for continued success!"'}
-                editable={editable}
-                onSave={val => updateLabel('remarksText', val)}
-                className="inline-block"
-              />
-            </p>
+            <span className="px-3 py-1 rounded-full text-white text-[10px] font-black uppercase shadow-xs" style={{ backgroundColor: primary }}>
+              Passed with Distinction
+            </span>
           </div>
         )}
 
         {/* Signatures */}
         <div className="flex flex-wrap items-center justify-around gap-6 pt-4 border-t border-slate-100 text-center">
-          {columnsList.principalSign !== false && (
-            <div className="flex flex-col items-center">
-              <div className="h-9 flex items-end justify-center font-serif italic text-slate-700 text-sm font-bold border-b border-slate-300 w-40 pb-1">
-                {principalName}
-              </div>
-              <span className="text-[10px] font-black uppercase text-slate-500 mt-1">
-                <LiveEditableText
-                  value={labels.principalSignLabel || "Principal's Signature"}
-                  editable={editable}
-                  onSave={val => updateLabel('principalSignLabel', val)}
-                  className="inline-block"
-                />
-              </span>
-            </div>
-          )}
           {columnsList.teacherSign !== false && (
             <div className="flex flex-col items-center">
               <div className="h-9 flex items-end justify-center font-cursive italic text-slate-700 text-sm font-bold border-b border-slate-300 w-40 pb-1">
@@ -674,7 +992,7 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
               </span>
             </div>
           )}
-          {columnsList.parentSign && (
+          {columnsList.parentSign !== false && (
             <div className="flex flex-col items-center">
               <div className="h-9 flex items-end justify-center font-serif italic text-slate-700 text-sm font-bold border-b border-slate-300 w-40 pb-1">
                 Parent Signature
@@ -689,7 +1007,37 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
               </span>
             </div>
           )}
+          {columnsList.principalSign !== false && (
+            <div className="flex flex-col items-center">
+              <div className="h-9 flex items-end justify-center font-serif italic text-slate-700 text-sm font-bold border-b border-slate-300 w-40 pb-1">
+                {principalName}
+              </div>
+              <span className="text-[10px] font-black uppercase text-slate-500 mt-1">
+                <LiveEditableText
+                  value={labels.principalSignLabel || "Principal's Signature"}
+                  editable={editable}
+                  onSave={val => updateLabel('principalSignLabel', val)}
+                  className="inline-block"
+                />
+              </span>
+            </div>
+          )}
         </div>
+
+        {/* Date of Issue */}
+        {columnsList.dateOfIssue !== false && (
+          <div className="pt-3 text-center">
+            <span className="text-[10px] font-semibold text-slate-400">
+              Date of Issue:{' '}
+              <LiveEditableText
+                value={dateOfIssue || new Date().toLocaleDateString('en-GB')}
+                editable={editable}
+                onSave={val => onUpdateField?.('dateOfIssue', val)}
+                className="font-bold text-slate-600 inline-block"
+              />
+            </span>
+          </div>
+        )}
       </div>
     )
   }
@@ -722,26 +1070,28 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
                 />
               </h1>
             </div>
-            <p className="text-xs font-bold text-slate-600 tracking-wider uppercase mt-1" style={{ fontSize: headerDetailsFontSize ? `${headerDetailsFontSize}px` : undefined }}>
-              <LiveEditableText
-                value={affiliateTo}
-                editable={editable}
-                onSave={val => onUpdateField?.('affiliateTo', val)}
-                style={{ fontSize: headerDetailsFontSize ? `${headerDetailsFontSize}px` : undefined }}
-                fontSizeControl={{
-                  label: 'Affiliation & Code',
-                  value: headerDetailsFontSize ? parseFloat(headerDetailsFontSize) : 11,
-                  onChange: val => onUpdateField?.('headerDetailsFontSize', val)
-                }}
-                className="inline-block"
-              /> • {labels.schoolCodeLabel || 'SCHOOL CODE:'}{' '}
-              <LiveEditableText
-                value={schoolCode}
-                editable={editable}
-                onSave={val => onUpdateField?.('schoolCode', val)}
-                className="inline-block"
-              />
-            </p>
+            {columnsList.schoolAffiliation !== false && (
+              <p className="text-xs font-bold text-slate-600 tracking-wider uppercase mt-1" style={{ fontSize: headerDetailsFontSize ? `${headerDetailsFontSize}px` : undefined }}>
+                <LiveEditableText
+                  value={affiliateTo || 'Affiliated to CBSE, New Delhi • Affiliation No. 2130842'}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('affiliateTo', val)}
+                  style={{ fontSize: headerDetailsFontSize ? `${headerDetailsFontSize}px` : undefined }}
+                  fontSizeControl={{
+                    label: 'Affiliation & Code',
+                    value: headerDetailsFontSize ? parseFloat(headerDetailsFontSize) : 11,
+                    onChange: val => onUpdateField?.('headerDetailsFontSize', val)
+                  }}
+                  className="inline-block"
+                /> • {labels.schoolCodeLabel || 'SCHOOL CODE:'}{' '}
+                <LiveEditableText
+                  value={schoolCode || '123456'}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('schoolCode', val)}
+                  className="inline-block font-mono"
+                />
+              </p>
+            )}
             <div 
               className="inline-block mt-2 px-6 py-1 text-white font-sans font-black text-xs uppercase tracking-widest rounded-sm shadow-xs"
               style={{ backgroundColor: primary, fontSize: headingFontSize ? `${headingFontSize}px` : undefined }}
@@ -768,7 +1118,7 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
           </div>
 
           {/* Student Profile Info Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 py-3.5 border-b text-xs font-sans" style={{ borderColor: borderTint }}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 py-3.5 border-b text-xs font-sans" style={{ borderColor: borderTint }}>
             <div>
               <span className="text-slate-400 font-bold uppercase text-[9px] block">
                 <LiveEditableText
@@ -819,109 +1169,96 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
                 <strong className="text-slate-900">{admissionNo}</strong>
               </div>
             )}
-            {columnsList.dob && (
+            {columnsList.fatherName !== false && (
               <div>
-                <span className="text-slate-400 font-bold uppercase text-[9px] block">DOB:</span>
-                <strong className="text-slate-900">{dob}</strong>
-              </div>
-            )}
-            {columnsList.fatherName && (
-              <div>
-                <span className="text-slate-400 font-bold uppercase text-[9px] block">Father:</span>
+                <span className="text-slate-400 font-bold uppercase text-[9px] block">
+                  <LiveEditableText
+                    value={labels.fatherNameLabel || "Father's Name:"}
+                    editable={editable}
+                    onSave={val => updateLabel('fatherNameLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
                 <strong className="text-slate-900">{fatherName}</strong>
               </div>
             )}
-            {columnsList.mobileNumber && (
+            {columnsList.motherName !== false && (
+              <div>
+                <span className="text-slate-400 font-bold uppercase text-[9px] block">
+                  <LiveEditableText
+                    value={labels.motherNameLabel || "Mother's Name:"}
+                    editable={editable}
+                    onSave={val => updateLabel('motherNameLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
+                <strong className="text-slate-900">{motherName}</strong>
+              </div>
+            )}
+            {columnsList.dob !== false && (
+              <div>
+                <span className="text-slate-400 font-bold uppercase text-[9px] block">
+                  <LiveEditableText
+                    value={labels.dobLabel || 'DOB:'}
+                    editable={editable}
+                    onSave={val => updateLabel('dobLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
+                <strong className="text-slate-900">{dob}</strong>
+              </div>
+            )}
+            {columnsList.gender !== false && (
+              <div>
+                <span className="text-slate-400 font-bold uppercase text-[9px] block">Gender:</span>
+                <strong className="text-slate-900">Male</strong>
+              </div>
+            )}
+            {columnsList.attendance !== false && (
+              <div>
+                <span className="text-slate-400 font-bold uppercase text-[9px] block">
+                  <LiveEditableText
+                    value={labels.attendanceLabel || 'Attendance:'}
+                    editable={editable}
+                    onSave={val => updateLabel('attendanceLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
+                <strong className="text-slate-900">{attendance || '96% (175/182)'}</strong>
+              </div>
+            )}
+            {!!columnsList.mobileNumber && (
               <div>
                 <span className="text-slate-400 font-bold uppercase text-[9px] block">Mobile:</span>
-                <strong className="text-slate-900">9876543210</strong>
+                <strong className="text-slate-900">{phone || '9876543210'}</strong>
+              </div>
+            )}
+            {columnsList.examName !== false && (
+              <div>
+                <span className="text-slate-400 font-bold uppercase text-[9px] block">Exam:</span>
+                <strong className="text-slate-900">{examName}</strong>
               </div>
             )}
           </div>
 
-          {/* Dual-Term Consolidated Table */}
-          <div className="my-4 overflow-x-auto border-2 rounded-sm" style={{ borderColor: primary }}>
+          {/* Academic Evaluation Table */}
+          <div className="my-4">
             <div 
-              className="text-white text-center py-1.5 font-sans font-black text-xs uppercase tracking-wider"
+              className="text-white text-center py-2 font-sans font-black text-xs uppercase tracking-wider rounded-t-sm shadow-2xs"
               style={{ backgroundColor: primary }}
             >
               <LiveEditableText
-                value={labels.consolidatedHeading || 'CONSOLIDATED ACADEMIC PERFORMANCE (TERM I & TERM II)'}
+                value={labels.consolidatedHeading || 'CONSOLIDATED ACADEMIC PERFORMANCE'}
                 editable={editable}
                 onSave={val => updateLabel('consolidatedHeading', val)}
                 className="inline-block"
               />
             </div>
-            <table className="w-full text-[11px] text-center font-sans border-collapse">
-              <thead>
-                <tr className="text-white font-bold text-[10px]" style={{ backgroundColor: primary, opacity: 0.95 }}>
-                  <th rowSpan={2} className="p-2 border-r border-white/20 text-left pl-3">
-                    <LiveEditableText value={labels.thSubject || 'SUBJECT'} editable={editable} onSave={val => updateLabel('thSubject', val)} />
-                  </th>
-                  <th colSpan={4} className="p-1 border-r border-white/20">
-                    <LiveEditableText value={labels.term1Heading || 'TERM I'} editable={editable} onSave={val => updateLabel('term1Heading', val)} />
-                  </th>
-                  <th colSpan={4} className="p-1 border-r border-white/20">
-                    <LiveEditableText value={labels.term2Heading || 'TERM II'} editable={editable} onSave={val => updateLabel('term2Heading', val)} />
-                  </th>
-                  <th rowSpan={2} className="p-2">
-                    <LiveEditableText value={labels.grandTotalHeading || 'GRAND TOTAL'} editable={editable} onSave={val => updateLabel('grandTotalHeading', val)} />
-                  </th>
-                </tr>
-                <tr className="text-white font-semibold text-[9px]" style={{ backgroundColor: primary, opacity: 0.85 }}>
-                  <th className="p-1 border-r border-white/20">
-                    <LiveEditableText value={labels.pt1Heading || 'PT 1 (20)'} editable={editable} onSave={val => updateLabel('pt1Heading', val)} />
-                  </th>
-                  <th className="p-1 border-r border-white/20">
-                    <LiveEditableText value={labels.halfYearlyHeading || 'Half Yearly (80)'} editable={editable} onSave={val => updateLabel('halfYearlyHeading', val)} />
-                  </th>
-                  <th className="p-1 border-r border-white/20">
-                    <LiveEditableText value={labels.subtotalHeading || 'Subtotal'} editable={editable} onSave={val => updateLabel('subtotalHeading', val)} />
-                  </th>
-                  <th className="p-1 border-r border-white/20">
-                    <LiveEditableText value={labels.gradeHeading || 'Grade'} editable={editable} onSave={val => updateLabel('gradeHeading', val)} />
-                  </th>
-                  <th className="p-1 border-r border-white/20">
-                    <LiveEditableText value={labels.pt2Heading || 'PT 2 (20)'} editable={editable} onSave={val => updateLabel('pt2Heading', val)} />
-                  </th>
-                  <th className="p-1 border-r border-white/20">
-                    <LiveEditableText value={labels.annualHeading || 'Annual (80)'} editable={editable} onSave={val => updateLabel('annualHeading', val)} />
-                  </th>
-                  <th className="p-1 border-r border-white/20">
-                    <LiveEditableText value={labels.subtotalHeading || 'Subtotal'} editable={editable} onSave={val => updateLabel('subtotalHeading', val)} />
-                  </th>
-                  <th className="p-1 border-r border-white/20">
-                    <LiveEditableText value={labels.gradeHeading || 'Grade'} editable={editable} onSave={val => updateLabel('gradeHeading', val)} />
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {activeSubjects.map((sub, i) => {
-                  const pt1 = 18 + (i % 3)
-                  const hy = 72 + (i * 2) % 8
-                  const t1 = pt1 + hy
-                  const pt2 = 19 + (i % 2)
-                  const ann = 74 + (i * 3) % 6
-                  const t2 = pt2 + ann
-                  const grandTotal = t1 + t2
-                  return (
-                    <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                      <td className="p-2 text-left pl-3 font-bold text-slate-800 border-r border-slate-200">{sub.subjectName}</td>
-                      <td className="p-1 border-r border-slate-200 text-slate-600">{pt1}</td>
-                      <td className="p-1 border-r border-slate-200 text-slate-600">{hy}</td>
-                      <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{t1}</td>
-                      <td className="p-1 border-r border-slate-200 font-bold" style={{ color: primary }}>A1</td>
-                      <td className="p-1 border-r border-slate-200 text-slate-600">{pt2}</td>
-                      <td className="p-1 border-r border-slate-200 text-slate-600">{ann}</td>
-                      <td className="p-1 border-r border-slate-200 font-bold text-slate-900">{t2}</td>
-                      <td className="p-1 border-r border-slate-200 font-bold" style={{ color: primary }}>A1</td>
-                      <td className="p-1 font-black text-slate-900">{grandTotal} / 200</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            {renderUniversalMarksTable()}
           </div>
+
+          {/* Overall Performance Card (Percentage, CGPA, Grade, Final Marks) */}
+          {renderOverallPerformanceCard('my-4', false)}
 
           {/* Class Rank Badge, Proper QR & Result Banner */}
           <div className="flex flex-col sm:flex-row items-center gap-4 my-4 font-sans">
@@ -939,7 +1276,7 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
                     className="inline-block"
                   />
                 </span>
-                <span className="text-3xl font-black my-0.5">3</span>
+                <span className="text-3xl font-black my-0.5">{classRank}</span>
                 <span className="text-[8.5px] opacity-80">
                   <LiveEditableText
                     value={labels.outOfClassLabel || 'out of 45'}
@@ -986,7 +1323,7 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
                 </div>
               )}
               <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                {columnsList.remarks !== false && (
+                {columnsList.result !== false && (
                   <div className="border p-2 rounded-sm" style={{ borderColor: borderTint, backgroundColor: tintLight }}>
                     <span className="text-[9px] font-bold uppercase block" style={{ color: primary }}>
                       <LiveEditableText
@@ -1047,35 +1384,9 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
 
           {/* 4 Signatures */}
           <div className="flex flex-wrap items-center justify-around gap-4 pt-6 border-t-2 text-center font-sans text-[10px]" style={{ borderColor: primary }}>
-            {columnsList.principalSign !== false && (
-              <div className="min-w-[110px]">
-                <div className="h-8 border-b border-slate-400 font-serif italic font-bold">{principalName}</div>
-                <span className="font-black uppercase text-slate-600 block mt-1">
-                  <LiveEditableText
-                    value={labels.principalSignLabel || 'Principal'}
-                    editable={editable}
-                    onSave={val => updateLabel('principalSignLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-              </div>
-            )}
-            {columnsList.controllerSign !== false && (
-              <div className="min-w-[110px]">
-                <div className="h-8 border-b border-slate-400 font-serif italic">Exam Board</div>
-                <span className="font-black uppercase text-slate-600 block mt-1">
-                  <LiveEditableText
-                    value={labels.examInChargeSignLabel || 'Exam In-Charge'}
-                    editable={editable}
-                    onSave={val => updateLabel('examInChargeSignLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-              </div>
-            )}
             {columnsList.teacherSign !== false && (
               <div className="min-w-[110px]">
-                <div className="h-8 border-b border-slate-400 font-serif italic">Preeti Saxena</div>
+                <div className="h-8 border-b border-slate-400 font-cursive italic text-xs font-bold flex items-end justify-center pb-0.5">Preeti Saxena</div>
                 <span className="font-black uppercase text-slate-600 block mt-1">
                   <LiveEditableText
                     value={labels.teacherSignLabel || 'Class Teacher'}
@@ -1086,9 +1397,22 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
                 </span>
               </div>
             )}
+            {columnsList.controllerSign !== false && (
+              <div className="min-w-[110px]">
+                <div className="h-8 border-b border-slate-400 font-serif italic text-xs flex items-end justify-center pb-0.5">Exam Board</div>
+                <span className="font-black uppercase text-slate-600 block mt-1">
+                  <LiveEditableText
+                    value={labels.examInChargeSignLabel || 'Exam In-Charge'}
+                    editable={editable}
+                    onSave={val => updateLabel('examInChargeSignLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
+              </div>
+            )}
             {columnsList.parentSign !== false && (
               <div className="min-w-[110px]">
-                <div className="h-8 border-b border-slate-400 font-serif italic">Guardian Sign</div>
+                <div className="h-8 border-b border-slate-400 font-serif italic text-xs flex items-end justify-center pb-0.5">Guardian Sign</div>
                 <span className="font-black uppercase text-slate-600 block mt-1">
                   <LiveEditableText
                     value={labels.parentSignLabel || 'Parent / Guardian'}
@@ -1099,6 +1423,56 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
                 </span>
               </div>
             )}
+            {columnsList.principalSign !== false && (
+              <div className="min-w-[110px]">
+                <div className="h-8 border-b border-slate-400 font-serif italic font-bold text-xs flex items-end justify-center pb-0.5">{principalName}</div>
+                <span className="font-black uppercase text-slate-600 block mt-1">
+                  <LiveEditableText
+                    value={labels.principalSignLabel || 'Principal'}
+                    editable={editable}
+                    onSave={val => updateLabel('principalSignLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Date of Issue & QR Footer Sub-Bar */}
+          <div className="pt-3 border-t border-slate-200/90 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            {columnsList.dateOfIssue !== false ? (
+              <div className="flex items-center gap-1.5 select-none">
+                <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-500">Date of Issue:</span>
+                <span className="font-mono font-bold text-[10.5px] text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                  <LiveEditableText
+                    value={dateOfIssue || new Date().toLocaleDateString('en-GB')}
+                    editable={editable}
+                    onSave={val => onUpdateField?.('dateOfIssue', val)}
+                    className="inline-block"
+                  />
+                </span>
+              </div>
+            ) : <div />}
+
+            <div className="flex items-center gap-2.5 bg-white p-1 rounded-lg border border-slate-200/90 shadow-2xs select-none">
+              <ProperQrCode className="w-8 h-8 shrink-0" color={primary} />
+              <div className="text-left">
+                <span className="text-[7.5px] font-black uppercase tracking-wider block" style={{ color: primary }}>
+                  <LiveEditableText
+                    value={labels.qrVerifyLabel || 'Official Marksheet QR'}
+                    editable={editable}
+                    onSave={val => updateLabel('qrVerifyLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
+                <LiveEditableText
+                  value={labels.qrCodeText || 'CODE: MS-2025-042'}
+                  editable={editable}
+                  onSave={val => updateLabel('qrCodeText', val)}
+                  className="text-[7px] font-mono font-bold text-slate-400 inline-block leading-none"
+                />
+              </div>
+            </div>
           </div>
 
         </div>
@@ -1160,6 +1534,22 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
               className="inline-block"
             /> • Primary & Kindergarten Section
           </p>
+          {columnsList.schoolAffiliation !== false && (
+            <p className="text-[11px] font-bold text-slate-500 mt-1">
+              <LiveEditableText
+                value={affiliateTo || 'Affiliated to CBSE, New Delhi'}
+                editable={editable}
+                onSave={val => onUpdateField?.('affiliateTo', val)}
+                className="inline-block"
+              /> • {labels.schoolCodeLabel || 'School Code:'}{' '}
+              <LiveEditableText
+                value={schoolCode || '123456'}
+                editable={editable}
+                onSave={val => onUpdateField?.('schoolCode', val)}
+                className="inline-block font-mono"
+              />
+            </p>
+          )}
         </div>
 
         {/* Child Profile Ribbon & Proper QR Code */}
@@ -1187,22 +1577,45 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
                 />
               </span>
               <h3 className="text-xl font-black text-slate-900">{studentName}</h3>
-              <div className="flex items-center gap-3 text-xs font-bold text-slate-600 mt-0.5">
-                <span>
-                  <LiveEditableText
-                    value={labels.classLabel || 'Class:'}
-                    editable={editable}
-                    onSave={val => updateLabel('classLabel', val)}
-                    className="inline-block mr-1"
-                  />
-                  <strong style={{ color: primary }}>{className}</strong>
-                </span>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-slate-600 mt-1">
+                {columnsList.classSection !== false && (
+                  <span>
+                    <LiveEditableText
+                      value={labels.classLabel || 'Class:'}
+                      editable={editable}
+                      onSave={val => updateLabel('classLabel', val)}
+                      className="inline-block mr-1"
+                    />
+                    <strong style={{ color: primary }}>{className} {sectionName ? `(${sectionName})` : ''}</strong>
+                  </span>
+                )}
+                {columnsList.rollNumber !== false && (
+                  <span>Roll: <strong className="text-slate-900">{rollNo}</strong></span>
+                )}
+                {columnsList.fatherName !== false && (
+                  <span>Father: <strong className="text-slate-900">{fatherName}</strong></span>
+                )}
+                {columnsList.motherName !== false && (
+                  <span>Mother: <strong className="text-slate-900">{motherName}</strong></span>
+                )}
+                {columnsList.dob !== false && (
+                  <span>DOB: <strong className="text-slate-900">{dob}</strong></span>
+                )}
+                {columnsList.gender !== false && (
+                  <span>Gender: <strong className="text-slate-900">Male</strong></span>
+                )}
+                {!!columnsList.mobileNumber && (
+                  <span>Mobile: <strong className="text-slate-900">{phone || '9876543210'}</strong></span>
+                )}
+                {columnsList.examName !== false && (
+                  <span>Exam: <strong className="text-slate-900">{examName}</strong></span>
+                )}
                 <span>
                   <LiveEditableText
                     value={labels.teacherLabel || 'Teacher:'}
                     editable={editable}
                     onSave={val => updateLabel('teacherLabel', val)}
-                    className="inline-block mr-1"
+                    className="inline-block mr-1 text-slate-400"
                   />
                   <strong className="text-slate-800">Ms. Sarah Lee</strong>
                 </span>
@@ -1237,6 +1650,19 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
                 <span className="text-base font-mono font-black">{admissionNo}</span>
               </div>
             )}
+            {columnsList.rank !== false && (
+              <div className="px-3.5 py-1.5 rounded-2xl text-center font-bold border" style={{ backgroundColor: '#fef3c7', color: '#b45309', borderColor: '#fde68a' }}>
+                <span className="text-[8.5px] uppercase block opacity-80" style={{ color: '#b45309' }}>
+                  <LiveEditableText
+                    value={labels.classRankBadge || 'Rank'}
+                    editable={editable}
+                    onSave={val => updateLabel('classRankBadge', val)}
+                    className="inline-block"
+                  />
+                </span>
+                <span className="text-base font-black">{classRank}</span>
+              </div>
+            )}
 
             {/* Proper QR Code Verification Card */}
             <div className="p-1.5 rounded-2xl border text-center flex flex-col items-center shrink-0 shadow-2xs" style={{ backgroundColor: tintLight, borderColor: borderTint }}>
@@ -1251,6 +1677,41 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Academic Subject Performance Table */}
+        <div className="my-6">
+          <div 
+            className="text-white px-5 py-2.5 flex items-center justify-between text-xs font-black uppercase tracking-wider rounded-t-2xl shadow-2xs"
+            style={{ backgroundColor: primary }}
+          >
+            <div className="flex items-center gap-2">
+              <Star className="w-4 h-4 text-amber-300 fill-amber-300" />
+              <span>Academic Performance Evaluation</span>
+            </div>
+            {columnsList.examName !== false && (
+              <span className="text-white/90 font-semibold text-[11px]">{examName}</span>
+            )}
+          </div>
+          {renderUniversalMarksTable('', undefined, true)}
+        </div>
+
+        {/* Overall Performance Card (Percentage, CGPA, Grade, Final Marks) */}
+        {renderOverallPerformanceCard('my-4', true)}
+
+        {/* Developmental Result Status Banner */}
+        {columnsList.result !== false && (
+          <div 
+            className="my-4 p-3 rounded-2xl text-center font-black text-xs uppercase tracking-wider text-white shadow-xs"
+            style={{ backgroundColor: primary }}
+          >
+            <LiveEditableText
+              value={labels.holisticResultBanner || 'DEVELOPMENTAL RESULT: PROMOTED TO HIGHER GRADE WITH DISTINCTION ★★★'}
+              editable={editable}
+              onSave={val => updateLabel('holisticResultBanner', val)}
+              className="inline-block"
+            />
+          </div>
+        )}
 
         {/* 4 Developmental Domain Cards with Star Ratings */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-6">
@@ -1365,44 +1826,7 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
 
         </div>
 
-        {/* Achievement Ribbon & Teacher Quote */}
-        <div className="border-2 rounded-2xl p-5 my-6 flex flex-col sm:flex-row items-center gap-4" style={{ borderColor: borderTint, backgroundColor: tintLight }}>
-          <div 
-            className="w-16 h-16 rounded-2xl text-white flex flex-col items-center justify-center shadow-md shrink-0"
-            style={{ backgroundColor: primary }}
-          >
-            <Trophy className="w-8 h-8" />
-            <span className="text-[7.5px] font-black uppercase">
-              <LiveEditableText
-                value={labels.wayToGoLabel || 'WAY TO GO!'}
-                editable={editable}
-                onSave={val => updateLabel('wayToGoLabel', val)}
-                className="inline-block"
-              />
-            </span>
-          </div>
-          <div>
-            <span className="text-[10px] font-black uppercase tracking-wider block" style={{ color: primary }}>
-              <LiveEditableText
-                value={labels.teacherRemarksTitle || "Teacher's Encouraging Remarks"}
-                editable={editable}
-                onSave={val => updateLabel('teacherRemarksTitle', val)}
-                className="inline-block"
-              />
-            </span>
-            <p className="text-xs font-semibold text-slate-800 mt-0.5">
-              <LiveEditableText
-                tag="span"
-                multiline
-                value={labels.teacherRemarksText || `"${studentName} is a joyful and creative learner! They show great enthusiasm in collaborative group work and storytelling. Keep shining bright!"`}
-                editable={editable}
-                onSave={val => updateLabel('teacherRemarksText', val)}
-                className="inline-block"
-              />
-            </p>
-            <span className="text-[10px] italic block mt-1" style={{ color: primary }}>"Every child is a story waiting to be told."</span>
-          </div>
-        </div>
+
 
         {/* Parent Feedback & Signature */}
         <div className="pt-4 border-t-2 flex flex-wrap items-center justify-around gap-6 text-center text-xs" style={{ borderColor: borderTint }}>
@@ -1447,6 +1871,19 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
           )}
         </div>
 
+        {/* Date of Issue */}
+        {columnsList.dateOfIssue !== false && (
+          <div className="pt-3 text-center text-[10px] font-bold text-slate-500">
+            Date of Issue:{' '}
+            <LiveEditableText
+              value={dateOfIssue || new Date().toLocaleDateString('en-GB')}
+              editable={editable}
+              onSave={val => onUpdateField?.('dateOfIssue', val)}
+              className="text-slate-800 font-mono inline-block"
+            />
+          </div>
+        )}
+
       </div>
     )
   }
@@ -1479,26 +1916,28 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
                   className="inline-block"
                 />
               </h1>
-              <p className="text-[11px] font-bold mt-0.5" style={{ color: primary, fontSize: headerDetailsFontSize ? `${headerDetailsFontSize}px` : undefined }}>
-                <LiveEditableText
-                  value={affiliateTo}
-                  editable={editable}
-                  onSave={val => onUpdateField?.('affiliateTo', val)}
-                  style={{ fontSize: headerDetailsFontSize ? `${headerDetailsFontSize}px` : undefined }}
-                  fontSizeControl={{
-                    label: 'Affiliation & Code',
-                    value: headerDetailsFontSize ? parseFloat(headerDetailsFontSize) : 11,
-                    onChange: val => onUpdateField?.('headerDetailsFontSize', val)
-                  }}
-                  className="inline-block"
-                /> • {labels.schoolCodeLabel || 'SCHOOL CODE:'}{' '}
-                <LiveEditableText
-                  value={schoolCode}
-                  editable={editable}
-                  onSave={val => onUpdateField?.('schoolCode', val)}
-                  className="inline-block"
-                />
-              </p>
+              {columnsList.schoolAffiliation !== false && (
+                <p className="text-[11px] font-bold mt-0.5" style={{ color: primary, fontSize: headerDetailsFontSize ? `${headerDetailsFontSize}px` : undefined }}>
+                  <LiveEditableText
+                    value={affiliateTo || 'Affiliated to CBSE, New Delhi • Affiliation No. 2130842'}
+                    editable={editable}
+                    onSave={val => onUpdateField?.('affiliateTo', val)}
+                    style={{ fontSize: headerDetailsFontSize ? `${headerDetailsFontSize}px` : undefined }}
+                    fontSizeControl={{
+                      label: 'Affiliation & Code',
+                      value: headerDetailsFontSize ? parseFloat(headerDetailsFontSize) : 11,
+                      onChange: val => onUpdateField?.('headerDetailsFontSize', val)
+                    }}
+                    className="inline-block"
+                  /> • {labels.schoolCodeLabel || 'SCHOOL CODE:'}{' '}
+                  <LiveEditableText
+                    value={schoolCode || '123456'}
+                    editable={editable}
+                    onSave={val => onUpdateField?.('schoolCode', val)}
+                    className="inline-block font-mono"
+                  />
+                </p>
+              )}
               {phone && (
                 <p className="text-[10px] text-slate-500">
                   {labels.phoneLabel || 'Ph:'}{' '}
@@ -1559,6 +1998,19 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
             />
           </div>
           <div className="text-[11px] font-black mt-1.5 uppercase tracking-wide" style={{ color: primary }}>
+            {columnsList.examName !== false && examName && (
+              <>
+                <span className="font-bold text-slate-800">
+                  <LiveEditableText
+                    value={examName}
+                    editable={editable}
+                    onSave={val => onUpdateField?.('examName', val)}
+                    className="inline-block mr-1"
+                  />
+                </span>
+                <span>• </span>
+              </>
+            )}
             <LiveEditableText
               value={labels.sessionTitle || 'ACADEMIC SESSION:'}
               editable={editable}
@@ -1684,16 +2136,29 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
               <span className="font-semibold text-slate-700">{attendance}</span>
             </div>
           )}
-          {columnsList.gender && (
+          {columnsList.gender !== false && (
             <div>
               <span className="text-[10px] font-bold uppercase text-slate-400 block">Gender</span>
               <span className="font-semibold text-slate-700">Male</span>
             </div>
           )}
-          {columnsList.mobileNumber && (
+          {!!columnsList.mobileNumber && (
             <div>
               <span className="text-[10px] font-bold uppercase text-slate-400 block">Mobile</span>
-              <span className="font-semibold text-slate-700">9876543210</span>
+              <span className="font-semibold text-slate-700">{phone || '9876543210'}</span>
+            </div>
+          )}
+          {columnsList.rank !== false && (
+            <div>
+              <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                <LiveEditableText
+                  value={labels.classRankLabel || 'Class Rank'}
+                  editable={editable}
+                  onSave={val => updateLabel('classRankLabel', val)}
+                  className="inline-block"
+                />
+              </span>
+              <span className="font-bold text-amber-700">{classRank}</span>
             </div>
           )}
         </div>
@@ -1705,253 +2170,143 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
             style={{ backgroundColor: primary }}
           >
             <LiveEditableText
-              value={labels.part1Heading || 'PART 1: SCHOLASTIC AREAS'}
+              value={labels.part1Heading || 'SCHOLASTIC AREAS'}
               editable={editable}
               onSave={val => updateLabel('part1Heading', val)}
               className="inline-block"
             />
           </div>
-          <div className="overflow-x-auto border-x border-b rounded-b-lg shadow-2xs" style={{ borderColor: borderTint }}>
-            <table className="w-full text-xs text-left">
-              <thead>
-                <tr className="text-white font-bold text-[10px] uppercase" style={{ backgroundColor: primary, opacity: 0.95 }}>
-                  <th className="px-3.5 py-2">
-                    <LiveEditableText value={labels.thSubjects || 'SCHOLASTIC SUBJECTS'} editable={editable} onSave={val => updateLabel('thSubjects', val)} />
-                  </th>
-                  <th className="px-3.5 py-2 text-center">
-                    <LiveEditableText value={labels.thTheory || 'THEORY (80)'} editable={editable} onSave={val => updateLabel('thTheory', val)} />
-                  </th>
-                  <th className="px-3.5 py-2 text-center">
-                    <LiveEditableText value={labels.thPractical || 'PRACTICAL / ASMT (20)'} editable={editable} onSave={val => updateLabel('thPractical', val)} />
-                  </th>
-                  <th className="px-3.5 py-2 text-center">
-                    <LiveEditableText value={labels.thTotal || 'TOTAL MARKS (100)'} editable={editable} onSave={val => updateLabel('thTotal', val)} />
-                  </th>
-                  <th className="px-3.5 py-2 text-center">
-                    <LiveEditableText value={labels.thPct || 'PERCENTAGE (%)'} editable={editable} onSave={val => updateLabel('thPct', val)} />
-                  </th>
-                  <th className="px-3.5 py-2 text-center">
-                    <LiveEditableText value={labels.thGrade || 'GRADE'} editable={editable} onSave={val => updateLabel('thGrade', val)} />
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {activeSubjects.map((sub, i) => {
-                  const max = Number(sub.maxMarks) || 100
-                  const obt = Number(sub.obtainedMarks) || Math.floor(86 + (i * 2) % 12)
-                  const prac = sub.practicalColumn ? 18 + (i % 3) : 20
-                  const theory = obt - prac
-                  const pct = Math.round((obt / max) * 100)
-                  const grade = sub.grade || (pct >= 90 ? 'A1' : pct >= 80 ? 'A2' : pct >= 70 ? 'B1' : 'B2')
-                  return (
-                    <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
-                      <td className="px-3.5 py-2 font-bold text-slate-800">{sub.subjectName}</td>
-                      <td className="px-3.5 py-2 text-center font-semibold text-slate-600">{theory}</td>
-                      <td className="px-3.5 py-2 text-center font-semibold text-slate-600">{prac}</td>
-                      <td className="px-3.5 py-2 text-center font-black text-slate-900">{obt}</td>
-                      <td className="px-3.5 py-2 text-center font-mono text-slate-700">{pct}%</td>
-                      <td className="px-3.5 py-2 text-center">
-                        <span 
-                          className="px-2 py-0.5 rounded text-[10px] font-black border"
-                          style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}
-                        >
-                          {grade}
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                })}
-                <tr className="font-black text-xs border-t-2" style={{ backgroundColor: tintLight, borderColor: primary }}>
-                  <td className="px-3.5 py-2.5" style={{ color: primary }}>
-                    <LiveEditableText
-                      value={labels.totalLabel || 'TOTAL'}
-                      editable={editable}
-                      onSave={val => updateLabel('totalLabel', val)}
-                      className="inline-block mr-1"
-                    /> (Out of {totalMax})
-                  </td>
-                  <td colSpan={2} className="px-3.5 py-2.5 text-center text-slate-700">
-                    <LiveEditableText
-                      value={labels.overallPctLabel || 'OVERALL PERCENTAGE:'}
-                      editable={editable}
-                      onSave={val => updateLabel('overallPctLabel', val)}
-                      className="inline-block mr-1"
-                    /> {percentage}%
-                  </td>
-                  <td className="px-3.5 py-2.5 text-center text-sm font-black" style={{ color: primary }}>{totalObt}</td>
-                  <td className="px-3.5 py-2.5 text-center font-bold" style={{ color: primary }}>{percentage}%</td>
-                  <td className="px-3.5 py-2.5 text-center font-black" style={{ color: primary }}>A1</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          {renderUniversalMarksTable()}
         </div>
 
-        {/* Part 2: Co-Scholastic & Part 3: Remarks */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
-          {/* Co-Scholastic */}
-          <div className="border rounded-lg overflow-hidden shadow-2xs" style={{ borderColor: borderTint }}>
-            <div className="text-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider" style={{ backgroundColor: primary }}>
+        {/* Overall Performance Card (Percentage, CGPA, Grade, Final Marks) */}
+        {renderOverallPerformanceCard('my-4', false)}
+
+        {/* Result Status Banner */}
+        {columnsList.result !== false && (
+          <div className="my-4 border rounded-lg overflow-hidden p-3.5 flex items-center justify-center shadow-2xs" style={{ borderColor: borderTint, backgroundColor: tintLight }}>
+            <div className="text-[11px] font-black uppercase text-center" style={{ color: primary }}>
               <LiveEditableText
-                value={labels.part2Heading || 'PART 2: CO-SCHOLASTIC AREAS (3-POINT SCALE: A, B, C)'}
+                value={labels.aggregateGradeLabel || 'AGGREGATE GRADE: A1 • RESULT: PASSED'}
                 editable={editable}
-                onSave={val => updateLabel('part2Heading', val)}
+                onSave={val => updateLabel('aggregateGradeLabel', val)}
                 className="inline-block"
               />
             </div>
-            <table className="w-full text-xs text-left">
-              <tbody className="divide-y divide-slate-100 font-semibold">
-                <tr><td className="px-3 py-1.5 text-slate-700">Work Education</td><td className="px-3 py-1.5 text-right font-black" style={{ color: primary }}>A1</td></tr>
-                <tr><td className="px-3 py-1.5 text-slate-700">Art Education</td><td className="px-3 py-1.5 text-right font-black" style={{ color: primary }}>A1</td></tr>
-                <tr><td className="px-3 py-1.5 text-slate-700">Health & Physical Education</td><td className="px-3 py-1.5 text-right font-black" style={{ color: primary }}>A1</td></tr>
-                <tr><td className="px-3 py-1.5 text-slate-700">Discipline</td><td className="px-3 py-1.5 text-right font-black" style={{ color: primary }}>A</td></tr>
-              </tbody>
-            </table>
           </div>
+        )}
 
-          {/* Teacher Remarks & Result */}
-          <div className="border rounded-lg overflow-hidden p-3.5 flex flex-col justify-between shadow-2xs" style={{ borderColor: borderTint, backgroundColor: tintLight }}>
-            {columnsList.remarks !== false && (
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-wider block mb-1" style={{ color: primary }}>
+        {/* Official Signatures & Verification Footer */}
+        <div className="pt-6 mt-5 border-t-2 space-y-5" style={{ borderColor: primary }}>
+          {/* Signatures Row: Clean horizontal line, always aligned at baseline */}
+          <div className="flex flex-wrap items-end justify-between gap-4 text-center">
+            {/* 1. Class Teacher */}
+            {columnsList.teacherSign !== false && (
+              <div className="flex-1 min-w-[110px] max-w-[160px] flex flex-col items-center">
+                <div className="w-full border-b border-slate-400 mb-1.5 pb-1 text-[11px] font-cursive italic text-slate-700 min-h-[22px] flex items-end justify-center">
+                  Preeti Saxena
+                </div>
+                <span className="text-[10px] font-black uppercase text-slate-600 tracking-wider">
                   <LiveEditableText
-                    value={labels.part3Heading || "PART 3: CLASS TEACHER'S REMARKS"}
+                    value={labels.teacherSignLabel || 'Class Teacher'}
                     editable={editable}
-                    onSave={val => updateLabel('part3Heading', val)}
+                    onSave={val => updateLabel('teacherSignLabel', val)}
                     className="inline-block"
                   />
                 </span>
-                <p className="text-xs text-slate-700 italic">
+              </div>
+            )}
+
+            {/* 2. Exam Controller / In-Charge */}
+            {columnsList.controllerSign !== false && (
+              <div className="flex-1 min-w-[110px] max-w-[160px] flex flex-col items-center">
+                <div className="w-full border-b border-slate-400 mb-1.5 pb-1 text-[11px] font-serif italic text-slate-700 min-h-[22px] flex items-end justify-center">
+                  Exam Controller
+                </div>
+                <span className="text-[10px] font-black uppercase text-slate-600 tracking-wider">
                   <LiveEditableText
-                    tag="span"
-                    multiline
-                    value={labels.teacherRemarksText || `"${studentName} is a dedicated, hardworking student with excellent academic performance and leadership qualities. Best wishes for the future!"`}
+                    value={labels.examInChargeSignLabel || 'Exam In-Charge'}
                     editable={editable}
-                    onSave={val => updateLabel('teacherRemarksText', val)}
+                    onSave={val => updateLabel('examInChargeSignLabel', val)}
                     className="inline-block"
                   />
-                </p>
+                </span>
               </div>
             )}
-            {columnsList.result !== false && (
-              <div className="mt-2 text-[10px] font-black uppercase" style={{ color: primary }}>
-                <LiveEditableText
-                  value={labels.aggregateGradeLabel || 'AGGREGATE GRADE: A1 • RESULT: PASSED'}
-                  editable={editable}
-                  onSave={val => updateLabel('aggregateGradeLabel', val)}
-                  className="inline-block"
-                />
+
+            {/* 3. Parent / Guardian Sign */}
+            {columnsList.parentSign && (
+              <div className="flex-1 min-w-[110px] max-w-[160px] flex flex-col items-center">
+                <div className="w-full border-b border-slate-400 mb-1.5 pb-1 text-[11px] font-serif italic text-slate-700 min-h-[22px] flex items-end justify-center">
+                  Parent Signature
+                </div>
+                <span className="text-[10px] font-black uppercase text-slate-600 tracking-wider">
+                  <LiveEditableText
+                    value={labels.parentSignLabel || 'Parent / Guardian'}
+                    editable={editable}
+                    onSave={val => updateLabel('parentSignLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
+              </div>
+            )}
+
+            {/* 4. Principal */}
+            {columnsList.principalSign !== false && (
+              <div className="flex-1 min-w-[110px] max-w-[170px] flex flex-col items-center">
+                <div className="w-full border-b border-slate-400 mb-1.5 pb-1 text-[11.5px] font-serif font-black italic text-slate-900 min-h-[22px] flex items-end justify-center">
+                  {principalName}
+                </div>
+                <span className="text-[10px] font-black uppercase text-slate-700 tracking-wider">
+                  <LiveEditableText
+                    value={labels.principalSignLabel || 'Principal'}
+                    editable={editable}
+                    onSave={val => updateLabel('principalSignLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
               </div>
             )}
           </div>
-        </div>
 
-        {/* Official Signatures, Seal & Proper QR Code */}
-        <div className="pt-6 mt-4 border-t-2 border-[#065f46] flex flex-wrap items-end justify-between gap-4 text-center text-xs" style={{ borderColor: primary }}>
-          {/* Class Teacher */}
-          {columnsList.teacherSign !== false && (
-            <div>
-              <div className="w-32 border-b border-slate-400 mb-1 pb-1 text-[11px] font-cursive italic text-slate-600">
-                Preeti Saxena
+          {/* Footer Sub-Bar: Clean Issue Date & Verified Official QR Badge */}
+          <div className="pt-3 border-t border-slate-200/90 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            {/* Left: Date of Issue */}
+            {columnsList.dateOfIssue !== false ? (
+              <div className="flex items-center gap-1.5 select-none">
+                <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-500">Date of Issue:</span>
+                <span className="font-mono font-bold text-[10.5px] text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                  <LiveEditableText
+                    value={dateOfIssue || new Date().toLocaleDateString('en-GB')}
+                    editable={editable}
+                    onSave={val => onUpdateField?.('dateOfIssue', val)}
+                    className="inline-block"
+                  />
+                </span>
               </div>
-              <span className="text-[10px] font-black uppercase text-slate-600">
-                <LiveEditableText
-                  value={labels.teacherSignLabel || 'Class Teacher'}
-                  editable={editable}
-                  onSave={val => updateLabel('teacherSignLabel', val)}
-                  className="inline-block"
-                />
-              </span>
-            </div>
-          )}
+            ) : <div />}
 
-          {/* Exam Controller / In-Charge */}
-          {columnsList.controllerSign !== false && (
-            <div>
-              <div className="w-32 border-b border-slate-400 mb-1 pb-1 text-[11px] font-serif italic text-slate-600">
-                Exam Controller
-              </div>
-              <span className="text-[10px] font-black uppercase text-slate-600">
+            {/* Right: Official Verification QR Badge */}
+            <div className="flex items-center gap-2.5 bg-white p-1.5 rounded-lg border border-slate-200/90 shadow-2xs select-none">
+              <ProperQrCode className="w-10 h-10 shrink-0" color={primary} />
+              <div className="text-left">
+                <span className="text-[8px] font-black uppercase tracking-wider text-slate-600 block leading-tight">
+                  <LiveEditableText
+                    value={labels.qrVerifyLabel || 'Official Marksheet QR'}
+                    editable={editable}
+                    onSave={val => updateLabel('qrVerifyLabel', val)}
+                    className="inline-block"
+                  />
+                </span>
                 <LiveEditableText
-                  value={labels.examInChargeSignLabel || 'Exam Controller'}
+                  value={labels.qrCodeText || 'CODE: MS-2025-042'}
                   editable={editable}
-                  onSave={val => updateLabel('examInChargeSignLabel', val)}
-                  className="inline-block"
-                />
-              </span>
-            </div>
-          )}
-
-          {/* Official Seal Stamp */}
-          {showHeaderStamp && (
-            <div className="flex flex-col items-center select-none">
-              <div className="w-16 h-16 rounded-full border-2 border-dashed flex flex-col items-center justify-center p-1 text-[7px] font-black uppercase text-center shadow-xs" style={{ borderColor: primary, color: primary }}>
-                <Award className="w-4 h-4 mb-0.5 text-amber-600" />
-                <LiveEditableText
-                  value={labels.officialSealLabel || 'OFFICIAL SEAL'}
-                  editable={editable}
-                  onSave={val => updateLabel('officialSealLabel', val)}
-                  className="text-[6.5px] uppercase font-bold inline-block"
+                  onSave={val => updateLabel('qrCodeText', val)}
+                  className="text-[7px] font-mono font-bold text-slate-400 block mt-0.5"
                 />
               </div>
-              <span className="text-[9px] text-slate-500 mt-1 font-mono">
-                DATE: <LiveEditableText value={dateOfIssue || new Date().toLocaleDateString('en-GB')} editable={editable} onSave={val => onUpdateField?.('dateOfIssue', val)} className="inline-block" />
-              </span>
             </div>
-          )}
-
-          {/* Proper QR Code Verification Card */}
-          <div className="bg-white p-1.5 rounded-lg border border-slate-300 shadow-2xs flex flex-col items-center select-none">
-            <ProperQrCode className="w-18 h-18" color={primary} />
-            <span className="text-[7px] font-black uppercase tracking-wider text-slate-500 mt-0.5">
-              <LiveEditableText
-                value={labels.qrVerifyLabel || 'Official Marksheet QR'}
-                editable={editable}
-                onSave={val => updateLabel('qrVerifyLabel', val)}
-                className="inline-block"
-              />
-            </span>
-            <LiveEditableText
-              value={labels.qrCodeText || 'CODE: MS-2025-042'}
-              editable={editable}
-              onSave={val => updateLabel('qrCodeText', val)}
-              className="text-[6.5px] font-mono font-bold text-slate-500 inline-block"
-            />
           </div>
-
-          {/* Parent / Guardian Sign */}
-          {columnsList.parentSign && (
-            <div>
-              <div className="w-32 border-b border-slate-400 mb-1 pb-1 text-[11px] font-serif italic text-slate-600">
-                Parent Signature
-              </div>
-              <span className="text-[10px] font-black uppercase text-slate-600">
-                <LiveEditableText
-                  value={labels.parentSignLabel || 'Parent Sign'}
-                  editable={editable}
-                  onSave={val => updateLabel('parentSignLabel', val)}
-                  className="inline-block"
-                />
-              </span>
-            </div>
-          )}
-
-          {/* Principal */}
-          {columnsList.principalSign !== false && (
-            <div>
-              <div className="w-36 border-b border-slate-400 mb-1 pb-1 text-[11px] font-serif font-black italic text-slate-800">
-                {principalName}
-              </div>
-              <span className="text-[10px] font-black uppercase text-slate-600">
-                <LiveEditableText
-                  value={labels.principalSignLabel || 'Principal'}
-                  editable={editable}
-                  onSave={val => updateLabel('principalSignLabel', val)}
-                  className="inline-block"
-                />
-              </span>
-            </div>
-          )}
         </div>
 
       </div>
@@ -2078,10 +2433,10 @@ export const MarksheetMiniPreview: React.FC<MarksheetMiniPreviewProps> = ({
             </div>
           </div>
 
-          {/* Signatures & Seal */}
+          {/* Signatures */}
           <div className="flex justify-between items-center pt-0.5 text-[4.5px] font-black uppercase text-slate-500 border-t" style={{ borderColor: borderTint }}>
             <span>Class Teacher</span>
-            <span className="px-1 py-0.2 rounded border font-serif" style={{ borderColor: primary, color: primary }}>SEAL ★</span>
+            <span>Exam In-Charge</span>
             <span>Principal Sign</span>
           </div>
         </div>

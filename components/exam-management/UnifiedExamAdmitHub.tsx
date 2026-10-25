@@ -33,19 +33,61 @@ import {
   syncAllSetupsWithAdmitCards
 } from '@/lib/admit-card-sync'
 
+function extractCleanClasses(classGrade?: string, fallbackClass?: string): string[] {
+  const raw = (classGrade || fallbackClass || '').trim()
+  if (!raw) return fallbackClass ? [fallbackClass] : []
+
+  // Strip anything inside parentheses e.g. "(Sec A, Sec B)"
+  let stripped = raw.replace(/\s*\([^)]*\)?/g, '').trim()
+
+  // Clean up any stray parentheses
+  stripped = stripped.replace(/[()]/g, '').trim()
+
+  if (!stripped) {
+    return fallbackClass ? [fallbackClass] : []
+  }
+
+  const parts = stripped
+    .split(/[,;/]+/)
+    .map(c => c.trim())
+    .filter(Boolean)
+
+  const unique = Array.from(new Set(parts))
+  return unique.length > 0 ? unique : (fallbackClass ? [fallbackClass] : [stripped])
+}
+
+function formatDisplayDate(rawDate?: string): string {
+  if (!rawDate) return 'Not Set'
+  const trimmed = String(rawDate).trim()
+  if (!trimmed || trimmed === 'Not Set') return 'Not Set'
+  try {
+    if (trimmed.includes('-')) {
+      const d = new Date(trimmed)
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      }
+    }
+  } catch (e) {}
+  return trimmed
+}
+
 interface UnifiedExamAdmitHubProps {
   defaultTab?: 'marksheet' | 'admit-card'
+  hideAdmitCardTab?: boolean
 }
 
 
-export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: UnifiedExamAdmitHubProps) {
+export default function UnifiedExamAdmitHub({
+  defaultTab = 'marksheet',
+  hideAdmitCardTab = true
+}: UnifiedExamAdmitHubProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab')
 
   // Active Tab: 'marksheet' or 'admit-card'
   const [activeTab, setActiveTab] = useState<'marksheet' | 'admit-card'>(
-    tabParam === 'admit-card' ? 'admit-card' : defaultTab
+    !hideAdmitCardTab && tabParam === 'admit-card' ? 'admit-card' : defaultTab
   )
 
   const [loading, setLoading] = useState(true)
@@ -96,6 +138,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
     examDate: string
     startTime: string
     endTime: string
+    theoryMarks?: string
     maxMarks: string
     practicalColumn: boolean
     practicalMarks: string
@@ -136,7 +179,52 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
   }
 
   const handleUpdateModalSubject = (subId: number, field: keyof ModalSubject, val: any) => {
-    setFormSubjects(prev => prev.map(s => s.id === subId ? { ...s, [field]: val } : s))
+    setFormSubjects(prev => prev.map(s => {
+      if (s.id === subId) {
+        const updated = { ...s, [field]: val }
+
+        if (field === 'practicalColumn') {
+          if (val) {
+            const currentMax = parseFloat(s.maxMarks || '100') || 100
+            const pr = s.practicalMarks && parseFloat(s.practicalMarks) > 0 ? parseFloat(s.practicalMarks) : 30
+            const th = s.theoryMarks && parseFloat(s.theoryMarks) > 0 ? parseFloat(s.theoryMarks) : (currentMax - pr > 0 ? currentMax - pr : 70)
+            updated.practicalMarks = String(pr)
+            updated.theoryMarks = String(th)
+            updated.maxMarks = String(th + pr)
+          } else {
+            updated.practicalMarks = ''
+            updated.maxMarks = updated.theoryMarks || s.maxMarks || '100'
+          }
+        }
+
+        if (field === 'theoryMarks') {
+          if (updated.practicalColumn) {
+            const th = parseFloat(val || '0') || 0
+            const pr = parseFloat(updated.practicalMarks || '0') || 0
+            updated.maxMarks = String(th + pr)
+          } else {
+            updated.maxMarks = val
+          }
+        }
+
+        if (field === 'practicalMarks') {
+          if (updated.practicalColumn) {
+            const th = parseFloat(updated.theoryMarks || '0') || 0
+            const pr = parseFloat(val || '0') || 0
+            updated.maxMarks = String(th + pr)
+          }
+        }
+
+        if (field === 'maxMarks') {
+          if (!updated.practicalColumn) {
+            updated.theoryMarks = val
+          }
+        }
+
+        return updated
+      }
+      return s
+    }))
   }
 
   // Create Group Popup State
@@ -157,10 +245,12 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
 
   // Sync tab with URL parameter if present
   useEffect(() => {
-    if (tabParam === 'admit-card' || tabParam === 'marksheet') {
+    if (hideAdmitCardTab) {
+      setActiveTab('marksheet')
+    } else if (tabParam === 'admit-card' || tabParam === 'marksheet') {
       setActiveTab(tabParam)
     }
-  }, [tabParam])
+  }, [tabParam, hideAdmitCardTab])
 
   const loadAllData = async () => {
     setLoading(true)
@@ -815,57 +905,59 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
       {/* ============================================================== */}
       {/* UNIFIED TAB NAVIGATION (SIMULTANEOUS WORKSPACE)                 */}
       {/* ============================================================== */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-3">
-        <div className="flex items-center gap-1.5 p-1.5 bg-slate-100 dark:bg-slate-800/90 rounded-2xl w-fit border border-slate-200/60 dark:border-slate-700/60 shadow-2xs">
-          <button
-            type="button"
-            onClick={() => setActiveTab('marksheet')}
-            className={`flex items-center gap-2.5 px-5 py-2 rounded-xl text-xs font-black transition-all ${
-              activeTab === 'marksheet'
-                ? 'bg-white dark:bg-slate-900 text-teal-700 dark:text-teal-400 shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            <span>1. Exam & Marksheet Setup</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-              activeTab === 'marksheet'
-                ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800'
-                : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-            }`}>
-              {setups.length}
-            </span>
-          </button>
+      {!hideAdmitCardTab && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-3">
+          <div className="flex items-center gap-1.5 p-1.5 bg-slate-100 dark:bg-slate-800/90 rounded-2xl w-fit border border-slate-200/60 dark:border-slate-700/60 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setActiveTab('marksheet')}
+              className={`flex items-center gap-2.5 px-5 py-2 rounded-xl text-xs font-black transition-all ${
+                activeTab === 'marksheet'
+                  ? 'bg-white dark:bg-slate-900 text-teal-700 dark:text-teal-400 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              <span>Exam & Marksheet Setup</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                activeTab === 'marksheet'
+                  ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+              }`}>
+                {setups.length}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('admit-card')}
-            className={`flex items-center gap-2.5 px-5 py-2 rounded-xl text-xs font-black transition-all ${
-              activeTab === 'admit-card'
-                ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-            }`}
-          >
-            <FileCheck className="w-4 h-4" />
-            <span>2. Admit Cards & Timetables</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-              activeTab === 'admit-card'
-                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-            }`}>
-              {admitCards.length}
-            </span>
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('admit-card')}
+              className={`flex items-center gap-2.5 px-5 py-2 rounded-xl text-xs font-black transition-all ${
+                activeTab === 'admit-card'
+                  ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+            >
+              <FileCheck className="w-4 h-4" />
+              <span>2. Admit Cards & Timetables</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                activeTab === 'admit-card'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+              }`}>
+                {admitCards.length}
+              </span>
+            </button>
+          </div>
 
-        {/* Simultaneous Status Indicator */}
-        <div className="flex items-center gap-2 text-xs font-bold bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800 px-3.5 py-2 rounded-xl w-fit shadow-2xs">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-emerald-800 dark:text-emerald-300 font-bold">
-            Simultaneous Sync Mode: Marksheets & Admit Cards work in real-time
-          </span>
+          {/* Simultaneous Status Indicator */}
+          <div className="flex items-center gap-2 text-xs font-bold bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800 px-3.5 py-2 rounded-xl w-fit shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-emerald-800 dark:text-emerald-300 font-bold">
+              Simultaneous Sync Mode: Marksheets & Admit Cards work in real-time
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ============================================================== */}
       {/* TAB 1: EXAM & MARKSHEET SETUP TABLE (WITH ADMIT CARD ACTIONS)   */}
@@ -1053,10 +1145,12 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                 <thead className="bg-slate-50 dark:bg-slate-800/80 font-black text-slate-600 dark:text-slate-300 border-b border-slate-200/80 dark:border-slate-800">
                   <tr>
                     <th className="px-4 py-3.5 text-left">S. No.</th>
-                    <th className="px-4 py-3.5 text-left">Group</th>
+                    <th className="px-4 py-3.5 text-left">Exam Group</th>
                     <th className="px-4 py-3.5 text-left">Exam Name</th>
-                    <th className="px-4 py-3.5 text-center">Class Grade</th>
+                    <th className="px-4 py-3.5 text-center">Session</th>
+                    <th className="px-4 py-3.5 text-center">Class</th>
                     <th className="px-4 py-3.5 text-center">Exam Start Date</th>
+                    <th className="px-4 py-3.5 text-center">Result Date</th>
                     <th className="px-4 py-3.5 text-center">Preview Designs (Admit, Marksheet, Certificate)</th>
                     <th className="px-4 py-3.5 text-right">Actions</th>
                   </tr>
@@ -1069,7 +1163,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                       <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="px-4 py-3.5 text-left text-slate-400 font-bold">{i + 1}.</td>
 
-                        {/* Group */}
+                        {/* Exam Group */}
                         <td className="px-4 py-3.5 text-left">
                           <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                             {item.group}
@@ -1079,26 +1173,21 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                         {/* Exam Name */}
                         <td className="px-4 py-3.5 text-left font-bold text-slate-800 dark:text-slate-100">
                           <div className="text-sm font-black">{item.exam}</div>
-                          <div className="flex items-center gap-2 text-[10px] text-slate-400 font-normal mt-0.5">
-                            <span>Session: {item.session || '2025-2026'}</span>
-                            {(item.examDate || item.config?.examDate) && (
-                              <>
-                                <span>•</span>
-                                <span className="text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1">
-                                  <Calendar className="w-3 h-3" />
-                                  Starts: {item.examDate || item.config?.examDate}
-                                </span>
-                              </>
-                            )}
-                          </div>
                         </td>
 
-                        {/* Class Grade */}
+                        {/* Session */}
                         <td className="px-4 py-3.5 text-center">
-                          <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-md mx-auto">
-                            {(item.classGrade || '').split(', ').map((cls, cIdx) => (
-                              <span key={cIdx} className="px-2.5 py-1 rounded-md text-[10.5px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 shadow-2xs">
-                                {cls.trim()}
+                          <span className="px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-bold text-[11px]">
+                            {item.session || '2025-2026'}
+                          </span>
+                        </td>
+
+                        {/* Class (Only Class, NO Section) */}
+                        <td className="px-4 py-3.5 text-center">
+                          <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-xs mx-auto">
+                            {extractCleanClasses(item.classGrade, item.config?.className).map((cls, cIdx) => (
+                              <span key={cIdx} className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 shadow-2xs">
+                                {cls}
                               </span>
                             ))}
                           </div>
@@ -1109,19 +1198,17 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50/70 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/60 shadow-2xs">
                             <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                             <span>
-                              {(() => {
-                                const raw = item.examDate || item.config?.examDate || item.config?.subjects?.[0]?.examDate || item.date
-                                if (!raw) return 'Not Set'
-                                try {
-                                  if (raw.includes('-')) {
-                                    const d = new Date(raw)
-                                    if (!isNaN(d.getTime())) {
-                                      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-                                    }
-                                  }
-                                } catch (e) {}
-                                return raw
-                              })()}
+                              {formatDisplayDate(item.examDate || item.config?.examDate || item.config?.subjects?.[0]?.examDate || item.date)}
+                            </span>
+                          </span>
+                        </td>
+
+                        {/* Result Date */}
+                        <td className="px-4 py-3.5 text-center">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50/70 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/60 shadow-2xs">
+                            <Calendar className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                            <span>
+                              {formatDisplayDate(item.lastDateToEnter || item.config?.resultDate || item.config?.lastDateToEnter)}
                             </span>
                           </span>
                         </td>
@@ -1481,6 +1568,9 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                   subjects={previewSetup.config?.subjects}
                   percentRanges={previewSetup.config?.percentRanges}
                   gradeRanges={previewSetup.config?.gradeRanges}
+                  cgpaRanges={previewSetup.config?.cgpaRanges}
+                  enableGrade={previewSetup.config?.enableGradeRemarks ?? true}
+                  enableCgpa={previewSetup.config?.enableCgpa ?? false}
                   schoolName={previewSetup.config?.schoolDetails?.schoolName}
                   affiliateTo={previewSetup.config?.schoolDetails?.affiliateTo}
                   schoolAddress={previewSetup.config?.schoolDetails?.schoolAddress}
@@ -1490,7 +1580,7 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                   showStudentPhoto={previewSetup.config?.showStudentPhoto ?? true}
                   showTestMarks={previewSetup.config?.showTestMarks ?? true}
                   showHeaderSign={previewSetup.config?.showHeaderSign ?? true}
-                  showHeaderStamp={previewSetup.config?.showHeaderStamp ?? true}
+                  classRank={previewSetup.config?.rank || '3'}
                   columnsList={previewSetup.config?.columnsList}
                 />
               </div>
@@ -2291,12 +2381,39 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                           </td>
 
                           <td className="py-2 px-3">
-                            <input
-                              type="number"
-                              value={sub.maxMarks}
-                              onChange={e => handleUpdateModalSubject(sub.id, 'maxMarks', e.target.value)}
-                              className="w-full px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none text-center focus:border-teal-500"
-                            />
+                            {!sub.practicalColumn ? (
+                              <input
+                                type="number"
+                                value={sub.theoryMarks || sub.maxMarks || '100'}
+                                onChange={e => handleUpdateModalSubject(sub.id, 'theoryMarks', e.target.value)}
+                                className="w-full px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none text-center focus:border-teal-500"
+                                title="Theory Marks (Max Marks)"
+                              />
+                            ) : (
+                              <div className="flex items-center gap-1.5 justify-center">
+                                <input
+                                  type="number"
+                                  placeholder="Th"
+                                  value={sub.theoryMarks ?? ''}
+                                  onChange={e => handleUpdateModalSubject(sub.id, 'theoryMarks', e.target.value)}
+                                  className="w-14 px-1.5 py-1 rounded border border-slate-200 text-xs font-bold text-center"
+                                  title="Theory Marks"
+                                />
+                                <span className="text-slate-400 font-bold">+</span>
+                                <input
+                                  type="number"
+                                  placeholder="Pr"
+                                  value={sub.practicalMarks ?? ''}
+                                  onChange={e => handleUpdateModalSubject(sub.id, 'practicalMarks', e.target.value)}
+                                  className="w-14 px-1.5 py-1 rounded border border-slate-200 text-xs font-bold text-center"
+                                  title="Practical Marks"
+                                />
+                                <span className="text-slate-400 font-bold">=</span>
+                                <span className="px-2 py-1 rounded bg-teal-50 text-teal-800 font-black text-xs border border-teal-200" title="Auto Calculated Max Marks">
+                                  {sub.maxMarks || '100'}
+                                </span>
+                              </div>
+                            )}
                           </td>
 
                           <td className="py-2 px-3">
@@ -2308,17 +2425,10 @@ export default function UnifiedExamAdmitHub({ defaultTab = 'marksheet' }: Unifie
                                   onChange={e => handleUpdateModalSubject(sub.id, 'practicalColumn', e.target.checked)}
                                   className="rounded text-teal-600 focus:ring-teal-500"
                                 />
-                                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">Yes</span>
+                                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                                  {sub.practicalColumn ? 'Yes' : 'No'}
+                                </span>
                               </label>
-                              {sub.practicalColumn && (
-                                <input
-                                  type="number"
-                                  placeholder="Marks"
-                                  value={sub.practicalMarks}
-                                  onChange={e => handleUpdateModalSubject(sub.id, 'practicalMarks', e.target.value)}
-                                  className="w-16 px-1.5 py-1 rounded border border-slate-200 text-xs text-center font-bold"
-                                />
-                              )}
                             </div>
                           </td>
 

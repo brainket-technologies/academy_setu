@@ -707,11 +707,7 @@ export const MarksheetDesign3: React.FC<{ data?: MarksheetData }> = ({ data = {}
             </table>
           </div>
 
-          {/* Remarks Box */}
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mx-2 text-[10px] font-bold text-slate-700 flex gap-2 items-center">
-            <span className="text-slate-400 uppercase text-[9px]">Remark :</span>
-            <span className="text-slate-800 italic">Good</span>
-          </div>
+
 
         </div>
 

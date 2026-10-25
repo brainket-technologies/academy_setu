@@ -52,6 +52,15 @@ export async function fetchMarksheetSetups() {
     // Deduplicate / consolidate setups that share the same exam name, group, and session into one setup row
     const consolidatedMap = new Map<string, any>()
     for (const row of res.rows) {
+      if (typeof row.config === 'string') {
+        try { row.config = JSON.parse(row.config) } catch (e) {}
+      }
+      if (!row.lastDateToEnter && (row.config?.resultDate || row.config?.lastDateToEnter)) {
+        row.lastDateToEnter = row.config?.resultDate || row.config?.lastDateToEnter
+      }
+      if (!row.examDate && (row.config?.examDate || row.config?.dateOfExam)) {
+        row.examDate = row.config?.examDate || row.config?.dateOfExam
+      }
       const key = `${(row.exam || '').trim().toLowerCase()}__${(row.session || '').trim().toLowerCase()}`
       if (!consolidatedMap.has(key)) {
         consolidatedMap.set(key, { ...row })

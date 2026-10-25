@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useState, useEffect } from 'react'
+import React, { useRef, useState, useEffect, useMemo } from 'react'
 import {
   X,
   Printer,
@@ -558,14 +558,12 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
       teacherSign: true,
       principalSign: true,
       parentSign: true,
-      schoolStamp: false,
       affiliationDetails: true,
       boardFormat: true,
       verifiedPass: true,
       centerCode: true,
       helpline: true,
       mottoQuote: true,
-      reportingTime: true,
       gateClosure: true
     }
     return defaults[key] ?? true
@@ -596,6 +594,8 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
   const bgTintSubtle = hexToRgba(primaryColor, 0.03)
   const borderTint = hexToRgba(primaryColor, 0.25)
   const borderTintStrong = hexToRgba(primaryColor, 0.5)
+  const primary = primaryColor
+  const tintLight = bgTintLight
 
   const schoolName = card.schoolName || 'COSMOPOLITAN INTER COLLEGE'
   const schoolAddress = card.schoolAddress || 'Knowledge Park, Sector 62, New Delhi - 110092'
@@ -603,8 +603,23 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
   const session = card.session || '2025-2026'
   const classNameStr = card.className || 'Class X'
   const admitLabel = card.admitCardLabel || 'ADMIT CARD • HALL TICKET'
-  const instructions = card.instructions !== undefined ? card.instructions :
-    '1. Candidates must arrive at the examination center 30 minutes before scheduled time.\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.'
+  const reportingTimeValue = card.reportingTimeValue || '09:30 AM IST'
+  const rawInstructions = card.instructions !== undefined && card.instructions !== null ? card.instructions :
+    `1. Reporting Time: Candidates must report to the examination center by ${reportingTimeValue} (at least 30 minutes before scheduled time).\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.`
+
+  const instructions = useMemo(() => {
+    const timeStr = (reportingTimeValue && reportingTimeValue.trim()) ? reportingTimeValue.trim() : '09:30 AM IST'
+    const pointOne = `1. Reporting Time: Candidates must report to the examination center by ${timeStr} (at least 30 minutes before scheduled time).`
+    if (!rawInstructions || !rawInstructions.trim()) {
+      return `${pointOne}\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.`
+    }
+    const lines = rawInstructions.split('\n')
+    if (lines[0] && (lines[0].toLowerCase().includes('reporting time') || lines[0].toLowerCase().includes('candidates must arrive'))) {
+      lines[0] = pointOne
+      return lines.join('\n')
+    }
+    return rawInstructions
+  }, [rawInstructions, reportingTimeValue])
 
   const principalName = card.principalName || ''
   const studentSignTitle = card.studentSignLabel || "Candidate Sign"
@@ -641,7 +656,7 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
     section: 'Section :',
     dob: 'Date of Birth :',
     mobileNo: 'Mobile No. :',
-    address: 'Address :',
+    address: 'Exam Center Address :',
     timetableHeading: 'EXAMINATION DATE SHEET & TIME TABLE',
     thSNo: 'S.No.',
     thDate: 'Exam Date',
@@ -703,12 +718,10 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
 
   const photoWidth = card.studentPhotoWidth ? Number(card.studentPhotoWidth) : (card.studentPhotoSize ? Number(card.studentPhotoSize) : 88)
   const photoHeight = card.studentPhotoHeight ? Number(card.studentPhotoHeight) : Math.round(photoWidth * 1.25)
-  const stampSize = card.schoolStampWidth ? Number(card.schoolStampWidth) : 56
   const logoWidth = card.schoolLogoWidth ? Number(card.schoolLogoWidth) : 54
   const logoHeight = card.schoolLogoHeight ? Number(card.schoolLogoHeight) : logoWidth
   const schoolLogo = card.schoolLogo || ''
   const showLogo = card.displayFields?.logo !== false
-  const reportingTimeValue = card.reportingTimeValue || '09:30 AM IST'
   const gateClosureValue = card.gateClosureValue || '09:50 AM (Sharp)'
 
   const qrCodeSize = card.qrCodeSize ? Number(card.qrCodeSize) : 68
@@ -767,18 +780,17 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
   }
 
   const orderList = Array.isArray(card.signatureOrder) && card.signatureOrder.length > 0
-    ? card.signatureOrder
-    : ['studentSign', 'parentSign', 'teacherSign', 'principalSign', 'schoolStamp']
+    ? card.signatureOrder.filter(k => k !== 'schoolStamp')
+    : ['studentSign', 'parentSign', 'teacherSign', 'principalSign']
 
-  const signDefinitions: Record<string, { key: string; label: string; type: 'sign' | 'stamp'; name?: string }> = {
-    principalSign: { key: 'principalSign', label: principalSignTitle, type: 'sign', name: principalName },
-    teacherSign: { key: 'teacherSign', label: teacherSignTitle, type: 'sign' },
-    studentSign: { key: 'studentSign', label: studentSignTitle, type: 'sign' },
-    parentSign: { key: 'parentSign', label: parentSignTitle, type: 'sign' },
-    schoolStamp: { key: 'schoolStamp', label: 'School Stamp', type: 'stamp' }
+  const signDefinitions: Record<string, { key: string; label: string; name?: string }> = {
+    principalSign: { key: 'principalSign', label: principalSignTitle, name: principalName },
+    teacherSign: { key: 'teacherSign', label: teacherSignTitle },
+    studentSign: { key: 'studentSign', label: studentSignTitle },
+    parentSign: { key: 'parentSign', label: parentSignTitle }
   }
 
-  const activeSigns: { key: string; label: string; type: 'sign' | 'stamp'; name?: string }[] = []
+  const activeSigns: { key: string; label: string; name?: string }[] = []
   for (const k of orderList) {
     if (isFieldVisible(k) && signDefinitions[k]) {
       activeSigns.push(signDefinitions[k])
@@ -959,12 +971,6 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
               <LiveEditableText value={labels.examTitle || 'EXAMINATION :'} editable={editable} onSave={val => updateLabel('examTitle', val)} className="inline-block" />{' '}
               <LiveEditableText value={examName} editable={editable} onSave={val => onUpdateField?.('examName', val)} className="inline-block ml-1" />
             </span>
-            {isFieldVisible('reportingTime') && (
-              <span className="flex items-center gap-1">
-                <LiveEditableText value={labels.reportingTime || 'Reporting :'} editable={editable} onSave={val => updateLabel('reportingTime', val)} className="inline-block text-slate-500 font-bold" />{' '}
-                <LiveEditableText value={reportingTimeValue} editable={editable} onSave={val => onUpdateField?.('reportingTimeValue', val)} className="inline-block font-extrabold text-slate-900" />
-              </span>
-            )}
             {isFieldVisible('gateClosure') && (
               <span className="flex items-center gap-1">
                 <LiveEditableText value={labels.gateClosure || 'Gate Closure :'} editable={editable} onSave={val => updateLabel('gateClosure', val)} className="inline-block text-rose-500 font-bold" />{' '}
@@ -1135,15 +1141,16 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
               )}
 
               {isFieldVisible('address') && (
-                <div className="flex items-center col-span-2 min-w-0">
+                <div className="flex items-center col-span-2 min-w-0 py-0.5 px-1.5 rounded" style={{ backgroundColor: tintLight }}>
                   <LiveEditableText
-                    value={labels.address || 'Address :'}
+                    value={labels.address || 'Exam Center Address :'}
                     editable={editable}
                     onSave={val => updateLabel('address', val)}
-                    className="font-extrabold whitespace-nowrap inline-block shrink-0"
+                    className="font-black whitespace-nowrap inline-block shrink-0 text-[10.5px]"
+                    style={{ color: primary }}
                   />
-                  <span className="flex-1 border-b border-dashed border-slate-400 ml-1.5 text-[11px] text-slate-600 px-1 truncate">
-                    {specimenStudent.address}
+                  <span className="flex-1 border-b border-dashed ml-1.5 text-[11px] font-extrabold px-1 truncate" style={{ color: primary, borderColor: borderTint }}>
+                    {schoolAddress}
                   </span>
                 </div>
               )}
@@ -1278,7 +1285,7 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
             </div>
           )}
 
-          {/* Dynamic Signatures & Stamp */}
+          {/* Dynamic Signatures */}
           {activeSigns.length > 0 && (
             <div
               className="flex justify-between items-end gap-3 text-center mt-7 pb-1 text-[8.5px] font-black uppercase text-slate-700"
@@ -1286,34 +1293,18 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
             >
               {activeSigns.map(s => (
                 <div key={s.key} className="flex-1 flex flex-col items-center min-w-[70px]">
-                  {s.type === 'stamp' ? (
-                    <div
-                      className="rounded-full border-2 border-dashed flex flex-col items-center justify-center text-center p-1 text-[6.5px] font-black mb-1.5 leading-tight shadow-2xs shrink-0"
-                      style={{
-                        width: `${stampSize}px`,
-                        height: `${stampSize}px`,
-                        borderColor: primaryColor,
-                        color: primaryColor,
-                        backgroundColor: bgTintLight
-                      }}
-                    >
-                      <span className="text-[6px]">★ SEAL ★</span>
-                      <span className="font-extrabold text-[6.5px]">SCHOOL STAMP</span>
-                    </div>
-                  ) : (
-                    <div className="mb-1.5 min-h-[30px] flex flex-col items-center justify-end" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
-                      {s.key === 'principalSign' && (s.name || principalName) && (
-                        <LiveEditableText
-                          value={s.name || principalName}
-                          editable={editable}
-                          onSave={val => onUpdateField?.('principalName', val)}
-                          className="font-serif italic font-bold text-[11px] text-slate-800 tracking-wider capitalize leading-tight mb-0.5 inline-block"
-                          style={{ fontSize: signatureFontSize }}
-                        />
-                      )}
-                      <div className="w-full h-0.5 border-t border-dashed border-slate-400" />
-                    </div>
-                  )}
+                  <div className="mb-1.5 min-h-[30px] flex flex-col items-center justify-end" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
+                    {s.key === 'principalSign' && (s.name || principalName) && (
+                      <LiveEditableText
+                        value={s.name || principalName}
+                        editable={editable}
+                        onSave={val => onUpdateField?.('principalName', val)}
+                        className="font-serif italic font-bold text-[11px] text-slate-800 tracking-wider capitalize leading-tight mb-0.5 inline-block"
+                        style={{ fontSize: signatureFontSize }}
+                      />
+                    )}
+                    <div className="w-full h-0.5 border-t border-dashed border-slate-400" />
+                  </div>
                   <LiveEditableText
                     value={s.label}
                     editable={editable}
@@ -1332,16 +1323,18 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
       {/* TEMPLATE 2: MODERN DUAL-COLUMN PASS (Academy Split-Column Format)          */}
       {/* ========================================================================= */}
       {templateType === 'modern' && (
-        <div className="flex flex-col sm:flex-row min-h-[580px] border-2" style={{ borderColor: primaryColor }}>
-          {/* Left Column Profile Sidebar */}
-          <div
-            className="w-full sm:w-64 p-5 flex flex-col justify-between border-b sm:border-b-0 sm:border-r"
-            style={{
-              backgroundColor: bgTintLight,
-              borderColor: borderTintStrong
-            }}
-          >
-            <div className="space-y-4">
+        <div className="flex flex-col min-h-[580px] border-2 bg-white" style={{ borderColor: primaryColor }}>
+          {/* Main Dual-Column Body */}
+          <div className="flex flex-col sm:flex-row flex-1">
+            {/* Left Column Profile Sidebar */}
+            <div
+              className="w-full sm:w-64 p-5 flex flex-col justify-start border-b sm:border-b-0 sm:border-r"
+              style={{
+                backgroundColor: bgTintLight,
+                borderColor: borderTintStrong
+              }}
+            >
+              <div className="space-y-4">
               {/* Badge */}
               <div className="flex items-center justify-between">
                 {isFieldVisible('verifiedPass') && (
@@ -1431,28 +1424,6 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                 </div>
               )}
             </div>
-
-            {/* Candidate Specimen Signature & Helpline */}
-            {(isFieldVisible('studentSign') || isFieldVisible('helpline')) && (
-              <div className="pt-3 border-t mt-4" style={{ borderColor: borderTint }}>
-                {isFieldVisible('studentSign') && (
-                  <div className="h-9 border border-dashed rounded-lg bg-white/70 flex items-center justify-center text-[8px] font-bold text-slate-400" style={{ borderColor: borderTintStrong }}>
-                    <LiveEditableText
-                      value={labels.specimenSign || 'Specimen Sign'}
-                      editable={editable}
-                      onSave={val => updateLabel('specimenSign', val)}
-                      className="inline-block"
-                    />
-                  </div>
-                )}
-                {isFieldVisible('helpline') && (
-                  <div className="text-[7.5px] font-semibold text-slate-500 text-center mt-1">
-                    <LiveEditableText value={labels.helpline || 'Helpline :'} editable={editable} onSave={val => updateLabel('helpline', val)} className="inline-block" />{' '}
-                    <span>{specimenStudent.phone}</span>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
           {/* Right Column Content */}
@@ -1542,12 +1513,6 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                     <LiveEditableText value={labels.examTitle || 'EXAM :'} editable={editable} onSave={val => updateLabel('examTitle', val)} className="inline-block" />{' '}
                     <LiveEditableText value={examName} editable={editable} onSave={val => onUpdateField?.('examName', val)} className="inline-block ml-1" />
                   </span>
-                  {isFieldVisible('reportingTime') && (
-                    <span className="flex items-center gap-1">
-                      <LiveEditableText value={labels.reportingTime || 'Reporting :'} editable={editable} onSave={val => updateLabel('reportingTime', val)} className="inline-block text-slate-500 font-bold" />{' '}
-                      <LiveEditableText value={reportingTimeValue} editable={editable} onSave={val => onUpdateField?.('reportingTimeValue', val)} className="inline-block font-extrabold text-slate-900" />
-                    </span>
-                  )}
                   {isFieldVisible('gateClosure') && (
                     <span className="flex items-center gap-1">
                       <LiveEditableText value={labels.gateClosure || 'Gate Closure :'} editable={editable} onSave={val => updateLabel('gateClosure', val)} className="inline-block text-rose-500 font-bold" />{' '}
@@ -1676,12 +1641,12 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                   </div>
                 )}
                 {isFieldVisible('address') && (
-                  <div className="p-2 rounded-lg border bg-slate-50/70 col-span-2 sm:col-span-3" style={{ borderColor: borderTint }}>
-                    <div className="text-[8.5px] font-bold text-slate-400 uppercase">
-                      <LiveEditableText value={labels.address || 'Address'} editable={editable} onSave={val => updateLabel('address', val)} className="inline-block" />
+                  <div className="p-2 rounded-lg border col-span-2 sm:col-span-3 ring-1" style={{ borderColor: primary, backgroundColor: tintLight }}>
+                    <div className="text-[9px] font-black uppercase tracking-wide" style={{ color: primary }}>
+                      <LiveEditableText value={labels.address || 'Exam Center Address'} editable={editable} onSave={val => updateLabel('address', val)} className="inline-block" />
                     </div>
-                    <div className="font-medium text-slate-700 text-[11px] truncate">
-                      {specimenStudent.address}
+                    <div className="font-extrabold text-[11.5px] truncate mt-0.5" style={{ color: primary }}>
+                      {schoolAddress}
                     </div>
                   </div>
                 )}
@@ -1723,9 +1688,7 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                             <td className="py-1 px-2.5 font-bold text-slate-900">{sub.date}</td>
                             <td className="py-1 px-2.5 text-slate-600">{sub.fromTime} - {sub.toTime || '13:00'}</td>
                             <td className="py-1 px-2.5 font-bold" style={{ color: primaryColor }}>{sub.subjectName}</td>
-                            <td className="py-1 px-2.5 text-center">
-                              <span className="inline-block w-14 h-4 border border-dashed rounded bg-slate-50" style={{ borderColor: borderTint }} />
-                            </td>
+                            <td className="py-1 px-2.5 text-center"></td>
                           </tr>
                         ))}
                       </tbody>
@@ -1740,7 +1703,7 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                   style={{ backgroundColor: bgTintSubtle, borderColor: borderTint, fontSize: instructionsFontSize }}
                 >
                   <LiveEditableText
-                    value={labels.instructionsHeading || 'Candidate Instructions:'}
+                    value={labels.instructionsHeading || 'Important Candidate Instructions:'}
                     editable={editable}
                     onSave={val => updateLabel('instructionsHeading', val)}
                     className="font-black uppercase inline-block text-[8px]"
@@ -1757,56 +1720,41 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                   />
                 </div>
               )}
-            </div>
-
-            {/* Bottom Signatures & Stamp */}
-            <div className="pt-3 border-t mt-3 flex items-end justify-between" style={{ borderColor: borderTint, fontSize: signatureFontSize }}>
-              <div className="text-[8px] text-slate-400 font-semibold italic">
-                Official Examination Admit Card
-              </div>
-              <div className="flex items-end gap-4 text-center">
-                {activeSigns.filter(s => s.key !== 'studentSign').map(s => (
-                  <div key={s.key} className="flex flex-col items-center">
-                    {s.type === 'stamp' ? (
-                      <div
-                        className="rounded-full border-2 border-dashed flex flex-col items-center justify-center text-center p-0.5 text-[5.5px] font-black leading-tight shadow-2xs shrink-0"
-                        style={{
-                          width: `${stampSize}px`,
-                          height: `${stampSize}px`,
-                          borderColor: primaryColor,
-                          color: primaryColor,
-                          backgroundColor: bgTintLight
-                        }}
-                      >
-                        <span>STAMP</span>
-                        <span>SEAL</span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
-                        {s.key === 'principalSign' && (s.name || principalName) && (
-                          <LiveEditableText
-                            value={s.name || principalName}
-                            editable={editable}
-                            onSave={val => onUpdateField?.('principalName', val)}
-                            className="font-serif italic font-bold text-[10.5px] text-slate-800 tracking-wider block leading-none mb-0.5 capitalize"
-                            style={{ fontSize: signatureFontSize }}
-                          />
-                        )}
-                        <div className="w-full h-0.5 border-t border-dashed border-slate-400 mb-1" />
-                        <LiveEditableText
-                          value={s.label}
-                          editable={editable}
-                          onSave={val => onUpdateField?.(s.key + 'Label', val)}
-                          className="text-[8px] font-black uppercase text-slate-700 block truncate max-w-[120px]"
-                          style={{ fontSize: signatureFontSize }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
               </div>
             </div>
           </div>
+
+          {/* Full-Width Bottom Signatures Strip */}
+          {activeSigns.length > 0 && (
+            <div
+              className="px-6 py-5 border-t flex items-end justify-between gap-4 bg-slate-50/70"
+              style={{ borderColor: borderTintStrong, fontSize: signatureFontSize }}
+            >
+              {activeSigns.map(s => (
+                <div key={s.key} className="flex-1 flex flex-col items-center min-w-[70px] text-center">
+                  <div className="mb-1.5 min-h-[30px] flex flex-col items-center justify-end" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
+                    {s.key === 'principalSign' && (s.name || principalName) && (
+                      <LiveEditableText
+                        value={s.name || principalName}
+                        editable={editable}
+                        onSave={val => onUpdateField?.('principalName', val)}
+                        className="font-serif italic font-bold text-[11px] text-slate-800 tracking-wider capitalize leading-tight mb-0.5 inline-block"
+                        style={{ fontSize: signatureFontSize }}
+                      />
+                    )}
+                    <div className="w-full h-0.5 border-t border-dashed border-slate-400" />
+                  </div>
+                  <LiveEditableText
+                    value={s.label}
+                    editable={editable}
+                    onSave={val => onUpdateField?.(s.key + 'Label', val)}
+                    className="text-[8.5px] font-black uppercase text-slate-700 block truncate max-w-[140px]"
+                    style={{ fontSize: signatureFontSize }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -1941,12 +1889,6 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
             </div>
             <div className="text-[11px] font-serif font-black uppercase mt-1.5 flex flex-wrap justify-center items-center gap-3" style={{ color: primaryColor }}>
               <span><LiveEditableText value={examName} editable={editable} onSave={val => onUpdateField?.('examName', val)} /></span>
-              {isFieldVisible('reportingTime') && (
-                <span className="text-[10px] text-slate-700 font-sans font-bold flex items-center gap-1">
-                  <LiveEditableText value={labels.reportingTime || 'Reporting :'} editable={editable} onSave={val => updateLabel('reportingTime', val)} className="inline-block text-slate-500" />{' '}
-                  <LiveEditableText value={reportingTimeValue} editable={editable} onSave={val => onUpdateField?.('reportingTimeValue', val)} className="inline-block font-extrabold text-slate-900" />
-                </span>
-              )}
               {isFieldVisible('gateClosure') && (
                 <span className="text-[10px] text-rose-700 font-sans font-bold flex items-center gap-1">
                   <LiveEditableText value={labels.gateClosure || 'Gate Closure :'} editable={editable} onSave={val => updateLabel('gateClosure', val)} className="inline-block text-rose-500" />{' '}
@@ -2136,17 +2078,18 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                 </div>
               )}
 
-              {/* Row 6: Address Spanning Full Width */}
+              {/* Row 6: Exam Center Address Spanning Full Width */}
               {isFieldVisible('address') && (
-                <div className="flex items-center col-span-2 min-w-0 pt-0.5">
+                <div className="flex items-center col-span-2 min-w-0 py-0.5 px-2 rounded" style={{ backgroundColor: tintLight }}>
                   <LiveEditableText
-                    value={labels.address || 'Address :'}
+                    value={labels.address || 'Exam Center Address :'}
                     editable={editable}
                     onSave={val => updateLabel('address', val)}
-                    className="font-serif font-bold text-slate-600 whitespace-nowrap min-w-[110px] shrink-0 inline-block text-[10.5px]"
+                    className="font-serif font-extrabold whitespace-nowrap min-w-[140px] shrink-0 inline-block text-[10.5px]"
+                    style={{ color: primary }}
                   />
-                  <span className="font-serif font-medium text-slate-700 text-[11px] truncate ml-1">
-                    {specimenStudent.address}
+                  <span className="font-serif font-bold text-[11px] truncate ml-1" style={{ color: primary }}>
+                    {schoolAddress}
                   </span>
                 </div>
               )}
@@ -2296,34 +2239,18 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
             <div className="flex justify-around items-end gap-4 text-center mt-7 pt-2 text-[8.5px] font-serif font-black uppercase text-slate-700" style={{ fontSize: signatureFontSize }}>
               {activeSigns.map(s => (
                 <div key={s.key} className="flex-1 flex flex-col items-center">
-                  {s.type === 'stamp' ? (
-                    <div
-                      className="rounded-full border-2 border-dashed flex flex-col items-center justify-center text-center p-1 text-[6.5px] font-black mb-1 leading-tight shrink-0"
-                      style={{
-                        width: `${stampSize}px`,
-                        height: `${stampSize}px`,
-                        borderColor: primaryColor,
-                        color: primaryColor,
-                        backgroundColor: bgTintLight
-                      }}
-                    >
-                      <span>★ OFFICIAL ★</span>
-                      <span>STAMP</span>
-                    </div>
-                  ) : (
-                    <div className="mx-auto mb-1 min-h-[28px] flex flex-col items-center justify-end" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
-                      {s.key === 'principalSign' && (s.name || principalName) && (
-                        <LiveEditableText
-                          value={s.name || principalName}
-                          editable={editable}
-                          onSave={val => onUpdateField?.('principalName', val)}
-                          className="font-serif italic font-bold text-[11px] text-slate-800 tracking-wider capitalize leading-tight mb-0.5 inline-block"
-                          style={{ fontSize: signatureFontSize }}
-                        />
-                      )}
-                      <div className="w-full h-0.5 border-t border-dashed border-slate-400" />
-                    </div>
-                  )}
+                  <div className="mx-auto mb-1 min-h-[28px] flex flex-col items-center justify-end" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
+                    {s.key === 'principalSign' && (s.name || principalName) && (
+                      <LiveEditableText
+                        value={s.name || principalName}
+                        editable={editable}
+                        onSave={val => onUpdateField?.('principalName', val)}
+                        className="font-serif italic font-bold text-[11px] text-slate-800 tracking-wider capitalize leading-tight mb-0.5 inline-block"
+                        style={{ fontSize: signatureFontSize }}
+                      />
+                    )}
+                    <div className="w-full h-0.5 border-t border-dashed border-slate-400" />
+                  </div>
                   <LiveEditableText
                     value={s.label}
                     editable={editable}
@@ -2541,14 +2468,15 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                     </div>
                   )}
                   {isFieldVisible('address') && (
-                    <div className="text-[10px] text-slate-600 pt-0.5 leading-snug">
+                    <div className="text-[10px] p-1.5 rounded leading-snug border" style={{ borderColor: borderTint, backgroundColor: tintLight }}>
                       <LiveEditableText
-                        value={labels.address || 'Address :'}
+                        value={labels.address || 'Exam Center Address :'}
                         editable={editable}
                         onSave={val => updateLabel('address', val)}
-                        className="text-[9.5px] text-slate-500 font-bold uppercase mr-1 inline-block"
+                        className="text-[9.5px] font-black uppercase mr-1 inline-block"
+                        style={{ color: primary }}
                       />
-                      <span className="font-medium text-slate-700">{specimenStudent.address}</span>
+                      <span className="font-bold" style={{ color: primary }}>{schoolAddress}</span>
                     </div>
                   )}
                 </div>
@@ -2608,22 +2536,6 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                         className="text-[9.5px] text-slate-500 font-bold uppercase whitespace-nowrap inline-block"
                       />
                       <span className="font-semibold text-slate-800 whitespace-nowrap">{specimenStudent.enrollmentNo}</span>
-                    </div>
-                  )}
-                  {isFieldVisible('reportingTime') && (
-                    <div className="flex items-baseline gap-1 text-[11px]">
-                      <LiveEditableText
-                        value={labels.reportingTime || 'Reporting Time :'}
-                        editable={editable}
-                        onSave={val => updateLabel('reportingTime', val)}
-                        className="text-[9.5px] text-slate-500 font-bold uppercase whitespace-nowrap inline-block"
-                      />
-                      <LiveEditableText
-                        value={reportingTimeValue}
-                        editable={editable}
-                        onSave={val => onUpdateField?.('reportingTimeValue', val)}
-                        className="font-bold text-slate-900 whitespace-nowrap ml-1 inline-block"
-                      />
                     </div>
                   )}
                   {isFieldVisible('gateClosure') && (
@@ -2706,9 +2618,7 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                         <td className="py-1 px-2 font-bold">{sub.date}</td>
                         <td className="py-1 px-2 text-slate-600">{sub.fromTime} - {sub.toTime || '13:00'}</td>
                         <td className="py-1 px-2 font-bold" style={{ color: primaryColor }}>{sub.subjectName}</td>
-                        <td className="py-1 px-2 text-center">
-                          <span className="inline-block w-16 h-3.5 border border-dashed rounded bg-slate-50" style={{ borderColor: borderTint }} />
-                        </td>
+                        <td className="py-1 px-2 text-center"></td>
                       </tr>
                     ))}
                   </tbody>
@@ -2741,39 +2651,23 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
               </div>
             )}
 
-            {/* Dynamic Signatures & Stamp (Same format as other templates) */}
+            {/* Dynamic Signatures (Same format as other templates) */}
             {activeSigns.length > 0 && (
               <div className="flex justify-between items-end gap-3 text-center mt-6 pt-2 pb-1 text-[8.5px] font-black uppercase text-slate-700" style={{ fontSize: signatureFontSize }}>
                 {activeSigns.map(s => (
                   <div key={s.key} className="flex-1 flex flex-col items-center min-w-[70px]">
-                    {s.type === 'stamp' ? (
-                      <div
-                        className="rounded-full border-2 border-dashed flex flex-col items-center justify-center text-center p-1 text-[6.5px] font-black mb-1.5 leading-tight shadow-2xs shrink-0"
-                        style={{
-                          width: `${stampSize}px`,
-                          height: `${stampSize}px`,
-                          borderColor: primaryColor,
-                          color: primaryColor,
-                          backgroundColor: bgTintLight
-                        }}
-                      >
-                        <span className="text-[6px]">★ SEAL ★</span>
-                        <span className="font-extrabold text-[6.5px]">SCHOOL STAMP</span>
-                      </div>
-                    ) : (
-                      <div className="mb-1.5 min-h-[30px] flex flex-col items-center justify-end" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
-                        {s.key === 'principalSign' && (s.name || principalName) && (
-                          <LiveEditableText
-                            value={s.name || principalName}
-                            editable={editable}
-                            onSave={val => onUpdateField?.('principalName', val)}
-                            className="font-serif italic font-bold text-[11px] text-slate-800 tracking-wider capitalize leading-tight mb-0.5 inline-block"
-                            style={{ fontSize: signatureFontSize }}
-                          />
-                        )}
-                        <div className="w-full h-0.5 border-t border-dashed border-slate-400" />
-                      </div>
-                    )}
+                    <div className="mb-1.5 min-h-[30px] flex flex-col items-center justify-end" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
+                      {s.key === 'principalSign' && (s.name || principalName) && (
+                        <LiveEditableText
+                          value={s.name || principalName}
+                          editable={editable}
+                          onSave={val => onUpdateField?.('principalName', val)}
+                          className="font-serif italic font-bold text-[11px] text-slate-800 tracking-wider capitalize leading-tight mb-0.5 inline-block"
+                          style={{ fontSize: signatureFontSize }}
+                        />
+                      )}
+                      <div className="w-full h-0.5 border-t border-dashed border-slate-400" />
+                    </div>
                     <LiveEditableText
                       value={s.label}
                       editable={editable}
@@ -2973,7 +2867,6 @@ export const AdmitCardMiniPreview: React.FC<AdmitCardMiniPreviewProps> = ({
       teacherSign: true,
       principalSign: true,
       parentSign: true,
-      schoolStamp: false,
       qrCode: true,
       affiliationDetails: true,
       boardFormat: true,
@@ -2981,7 +2874,6 @@ export const AdmitCardMiniPreview: React.FC<AdmitCardMiniPreviewProps> = ({
       centerCode: true,
       helpline: true,
       mottoQuote: true,
-      reportingTime: true,
       gateClosure: true
     }
     return defaults[key] ?? true
@@ -3085,12 +2977,12 @@ export const AdmitCardMiniPreview: React.FC<AdmitCardMiniPreviewProps> = ({
               <div className="flex text-[5px] font-semibold text-slate-700 px-1 py-0.5 justify-between border-b" style={{ borderColor: borderTint, backgroundColor: tintLight }}>
                 <span className="w-12 font-bold">21 Mar 2025</span>
                 <span className="flex-1 pl-1 font-bold text-slate-900">English Core</span>
-                <span className="w-10 text-right text-slate-400">[ &nbsp; &nbsp; ]</span>
+                <span className="w-10 text-right text-slate-400"></span>
               </div>
               <div className="flex text-[5px] font-semibold text-slate-700 px-1 py-0.5 justify-between">
                 <span className="w-12 font-bold">23 Mar 2025</span>
                 <span className="flex-1 pl-1 font-bold text-slate-900">Mathematics</span>
-                <span className="w-10 text-right text-slate-400">[ &nbsp; &nbsp; ]</span>
+                <span className="w-10 text-right text-slate-400"></span>
               </div>
             </div>
           ) : (
@@ -3104,116 +2996,117 @@ export const AdmitCardMiniPreview: React.FC<AdmitCardMiniPreviewProps> = ({
             {isMiniFieldVisible('studentSign') && <span>Candidate Sign</span>}
             <span>Invigilator Sign</span>
             {isMiniFieldVisible('principalSign') && <span>Principal</span>}
-            {isMiniFieldVisible('schoolStamp') && <span>Stamp</span>}
           </div>
         </div>
       )}
 
       {/* 2. MODERN SPLIT PASS MINI PREVIEW */}
       {type === 'modern' && (
-        <div className="w-full h-full flex bg-white text-slate-900 border" style={{ borderColor: primary }}>
-          {/* Left Column Profile Sidebar */}
-          <div
-            className="w-[34%] p-1.5 flex flex-col justify-between border-r text-center"
-            style={{ backgroundColor: tintLight, borderColor: borderTint }}
-          >
-            <div className="space-y-1 flex flex-col items-center">
-              <span className="text-[4.5px] font-black uppercase px-1 py-0.5 rounded text-white shadow-2xs" style={{ backgroundColor: primary }}>
-                VERIFIED PASS
-              </span>
+        <div className="w-full h-full flex flex-col bg-white text-slate-900 border" style={{ borderColor: primary }}>
+          <div className="flex-1 flex overflow-hidden">
+            {/* Left Column Profile Sidebar */}
+            <div
+              className="w-[34%] p-1.5 flex flex-col justify-start border-r text-center"
+              style={{ backgroundColor: tintLight, borderColor: borderTint }}
+            >
+              <div className="space-y-1 flex flex-col items-center">
+                <span className="text-[4.5px] font-black uppercase px-1 py-0.5 rounded text-white shadow-2xs" style={{ backgroundColor: primary }}>
+                  VERIFIED PASS
+                </span>
 
-              {/* Photo */}
-              {isMiniFieldVisible('photo') && (
-                <div className="w-7 h-8 rounded border p-0.5 bg-white shadow-2xs flex flex-col items-center justify-center" style={{ borderColor: primary }}>
-                  <User className="w-4 h-4 text-slate-400" />
-                </div>
-              )}
+                {/* Photo */}
+                {isMiniFieldVisible('photo') && (
+                  <div className="w-7 h-8 rounded border p-0.5 bg-white shadow-2xs flex flex-col items-center justify-center" style={{ borderColor: primary }}>
+                    <User className="w-4 h-4 text-slate-400" />
+                  </div>
+                )}
 
-              {/* Roll No */}
-              {isMiniFieldVisible('rollNo') && (
-                <div className="w-full rounded px-1 py-0.5 text-white shadow-2xs" style={{ backgroundColor: primary }}>
-                  <div className="text-[4px] font-bold text-white/80">ROLL NO</div>
-                  <div className="text-[8px] font-black leading-tight tracking-wider">{rollNo}</div>
-                </div>
-              )}
+                {/* Roll No */}
+                {isMiniFieldVisible('rollNo') && (
+                  <div className="w-full rounded px-1 py-0.5 text-white shadow-2xs" style={{ backgroundColor: primary }}>
+                    <div className="text-[4px] font-bold text-white/80">ROLL NO</div>
+                    <div className="text-[8px] font-black leading-tight tracking-wider">{rollNo}</div>
+                  </div>
+                )}
+              </div>
+
+              {/* QR Code */}
+              <div className="flex flex-col items-center mt-1">
+                <QrCode className="w-4 h-4 text-slate-800" />
+                <span className="text-[3.5px] font-mono text-slate-400 mt-0.5">#ADM-089</span>
+              </div>
             </div>
 
-            {/* QR Code */}
-            <div className="flex flex-col items-center">
-              <QrCode className="w-5 h-5 text-slate-800" />
-              <span className="text-[4px] font-mono text-slate-400 mt-0.5">#ADM-089</span>
+            {/* Right Column Body */}
+            <div className="flex-1 p-1.5 flex flex-col justify-between">
+              <div>
+                <div className="flex items-start justify-between border-b pb-1" style={{ borderColor: borderTint }}>
+                  <div className="flex items-center gap-1">
+                    {isMiniFieldVisible('logo') && (
+                      schoolLogo ? (
+                        <img src={schoolLogo} alt="Logo" className="w-4 h-4 object-contain rounded shrink-0" />
+                      ) : (
+                        <SampleSchoolLogo width={16} height={16} color={primary} className="shrink-0" />
+                      )
+                    )}
+                    <div>
+                      <div className="text-[7.5px] font-black uppercase leading-tight truncate max-w-[95px]" style={{ color: primary }}>
+                        {schoolName}
+                      </div>
+                      <div className="text-[5px] text-slate-500 font-semibold">{examName}</div>
+                    </div>
+                  </div>
+                  <span className="text-[5px] font-black uppercase px-1 py-0.5 rounded text-white shrink-0" style={{ backgroundColor: primary }}>
+                    HALL TICKET
+                  </span>
+                </div>
+
+                {/* Pill Cards */}
+                <div className="grid grid-cols-2 gap-1 my-1">
+                  {isMiniFieldVisible('name') && (
+                    <div className="p-0.5 rounded border bg-slate-50 text-[5px]" style={{ borderColor: borderTint }}>
+                      <div className="text-[4px] text-slate-400 font-bold uppercase">NAME</div>
+                      <div className="font-black text-slate-900 truncate" style={{ color: primary }}>{studentName}</div>
+                    </div>
+                  )}
+                  {isMiniFieldVisible('class') && (
+                    <div className="p-0.5 rounded border bg-slate-50 text-[5px]" style={{ borderColor: borderTint }}>
+                      <div className="text-[4px] text-slate-400 font-bold uppercase">CLASS</div>
+                      <div className="font-bold text-slate-800 truncate">{studentClass} - Sec A</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Mini Timetable */}
+                {showExamTimeTable !== false ? (
+                  <div className="border rounded-md overflow-hidden text-[5px]" style={{ borderColor: borderTint }}>
+                    <div className="px-1 py-0.5 font-black text-white flex justify-between" style={{ backgroundColor: primary }}>
+                      <span>Subject Schedule</span>
+                      <span>Time</span>
+                    </div>
+                    <div className="px-1 py-0.5 flex justify-between font-semibold border-b text-slate-700" style={{ borderColor: borderTint }}>
+                      <span className="font-bold">English Core</span>
+                      <span className="text-slate-500">10:00 - 13:00</span>
+                    </div>
+                    <div className="px-1 py-0.5 flex justify-between font-semibold text-slate-700 bg-slate-50/50">
+                      <span className="font-bold">Mathematics</span>
+                      <span className="text-slate-500">10:00 - 13:00</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-1 text-center text-[5.5px] font-bold text-slate-400 bg-slate-50 rounded border border-dashed" style={{ borderColor: borderTint }}>
+                    Timetable hidden
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Right Column Body */}
-          <div className="flex-1 p-1.5 flex flex-col justify-between">
-            <div>
-              <div className="flex items-start justify-between border-b pb-1" style={{ borderColor: borderTint }}>
-                <div className="flex items-center gap-1">
-                  {isMiniFieldVisible('logo') && (
-                    schoolLogo ? (
-                      <img src={schoolLogo} alt="Logo" className="w-4 h-4 object-contain rounded shrink-0" />
-                    ) : (
-                      <SampleSchoolLogo width={16} height={16} color={primary} className="shrink-0" />
-                    )
-                  )}
-                  <div>
-                    <div className="text-[7.5px] font-black uppercase leading-tight truncate max-w-[95px]" style={{ color: primary }}>
-                      {schoolName}
-                    </div>
-                    <div className="text-[5px] text-slate-500 font-semibold">{examName}</div>
-                  </div>
-                </div>
-                <span className="text-[5px] font-black uppercase px-1 py-0.5 rounded text-white shrink-0" style={{ backgroundColor: primary }}>
-                  HALL TICKET
-                </span>
-              </div>
-
-              {/* Pill Cards */}
-              <div className="grid grid-cols-2 gap-1 my-1">
-                {isMiniFieldVisible('name') && (
-                  <div className="p-0.5 rounded border bg-slate-50 text-[5px]" style={{ borderColor: borderTint }}>
-                    <div className="text-[4px] text-slate-400 font-bold uppercase">NAME</div>
-                    <div className="font-black text-slate-900 truncate" style={{ color: primary }}>{studentName}</div>
-                  </div>
-                )}
-                {isMiniFieldVisible('class') && (
-                  <div className="p-0.5 rounded border bg-slate-50 text-[5px]" style={{ borderColor: borderTint }}>
-                    <div className="text-[4px] text-slate-400 font-bold uppercase">CLASS</div>
-                    <div className="font-bold text-slate-800 truncate">{studentClass} - Sec A</div>
-                  </div>
-                )}
-              </div>
-
-              {/* Mini Timetable */}
-              {showExamTimeTable !== false ? (
-                <div className="border rounded-md overflow-hidden text-[5px]" style={{ borderColor: borderTint }}>
-                  <div className="px-1 py-0.5 font-black text-white flex justify-between" style={{ backgroundColor: primary }}>
-                    <span>Subject Schedule</span>
-                    <span>Time</span>
-                  </div>
-                  <div className="px-1 py-0.5 flex justify-between font-semibold border-b text-slate-700" style={{ borderColor: borderTint }}>
-                    <span className="font-bold">English Core</span>
-                    <span className="text-slate-500">10:00 - 13:00</span>
-                  </div>
-                  <div className="px-1 py-0.5 flex justify-between font-semibold text-slate-700 bg-slate-50/50">
-                    <span className="font-bold">Mathematics</span>
-                    <span className="text-slate-500">10:00 - 13:00</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="py-1 text-center text-[5.5px] font-bold text-slate-400 bg-slate-50 rounded border border-dashed" style={{ borderColor: borderTint }}>
-                  Timetable hidden
-                </div>
-              )}
-            </div>
-
-            {/* Signatures */}
-            <div className="flex justify-between items-center text-[4.5px] font-black text-slate-500 pt-0.5 border-t" style={{ borderColor: borderTint }}>
-              {isMiniFieldVisible('teacherSign') && <span>Teacher Sign</span>}
-              {isMiniFieldVisible('principalSign') && <span className="font-bold" style={{ color: primary }}>Principal Verified ✓</span>}
-              {isMiniFieldVisible('schoolStamp') && <span>Stamp</span>}
-            </div>
+          {/* Full-Width Signatures */}
+          <div className="flex justify-between items-center text-[4.5px] font-black text-slate-500 px-2 py-0.5 border-t" style={{ borderColor: borderTint, backgroundColor: tintLight }}>
+            {isMiniFieldVisible('studentSign') && <span>Candidate Sign</span>}
+            {isMiniFieldVisible('teacherSign') && <span>Teacher Sign</span>}
+            {isMiniFieldVisible('principalSign') && <span className="font-bold" style={{ color: primary }}>Principal Verified ✓</span>}
           </div>
         </div>
       )}
@@ -3264,17 +3157,11 @@ export const AdmitCardMiniPreview: React.FC<AdmitCardMiniPreviewProps> = ({
               {isMiniFieldVisible('admissionNo') && <div><span className="text-slate-500 font-bold">ADM: </span><span className="font-bold text-slate-800">ADM-089</span></div>}
             </div>
 
-            {/* Photo & Seal */}
+            {/* Photo */}
             <div className="flex items-center gap-1 shrink-0">
               {isMiniFieldVisible('photo') && (
                 <div className="w-6 h-7 rounded border border-double flex items-center justify-center bg-white" style={{ borderColor: primary }}>
                   <User className="w-3 h-3 text-slate-400" />
-                </div>
-              )}
-              {isMiniFieldVisible('schoolStamp') && (
-                <div className="w-5 h-5 rounded-full border border-dashed flex flex-col items-center justify-center text-[4px] font-serif font-black text-center leading-none" style={{ borderColor: primary, color: primary }}>
-                  <span>★</span>
-                  <span>SEAL</span>
                 </div>
               )}
             </div>
@@ -3291,12 +3178,12 @@ export const AdmitCardMiniPreview: React.FC<AdmitCardMiniPreviewProps> = ({
               <div className="flex justify-between px-1 py-0.5 border-b font-semibold text-slate-700" style={{ borderColor: borderTint, backgroundColor: tintLight }}>
                 <span className="font-bold">English Core</span>
                 <span>21-Mar-2025</span>
-                <span className="text-slate-400">[ &nbsp; &nbsp; ]</span>
+                <span className="text-slate-400"></span>
               </div>
               <div className="flex justify-between px-1 py-0.5 font-semibold text-slate-700">
                 <span className="font-bold">Mathematics</span>
                 <span>23-Mar-2025</span>
-                <span className="text-slate-400">[ &nbsp; &nbsp; ]</span>
+                <span className="text-slate-400"></span>
               </div>
             </div>
           ) : (
