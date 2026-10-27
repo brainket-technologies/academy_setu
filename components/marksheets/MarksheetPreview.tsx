@@ -74,6 +74,10 @@ export interface MarksheetPreviewProps {
   headingFontSize?: string
   headerDetailsFontSize?: string
   dateOfIssue?: string
+  qrCodeSize?: string | number
+  signatureOrder?: string[]
+  signatureWidth?: string | number
+  signatureFontSize?: string | number
   onUpdateField?: (field: string, value: any) => void
 }
 
@@ -98,6 +102,10 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
   headingFontSize = '14',
   headerDetailsFontSize = '11',
   dateOfIssue = '25/03/2026',
+  qrCodeSize = '72',
+  signatureOrder = ['teacherSign', 'controllerSign', 'parentSign', 'principalSign'],
+  signatureWidth = '110',
+  signatureFontSize = '10',
   className = 'Class 10',
   sectionName = 'Section A',
   studentName = 'Rahul Verma',
@@ -240,6 +248,9 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
     coScholasticAssessmentLabel: "CO-SCHOLASTIC ASSESSMENT",
     coScholasticValLabel: "Grade A (Exemplary)",
     gradeScaleHeading: "GRADE POINT SCALE",
+    percentScaleHeading: "PERCENTAGE REMARKS SCALE",
+    divisionScaleHeading: "DIVISION CLASSIFICATION SCALE",
+    cgpaScaleHeading: "CGPA POINT SCALE",
 
     // Template 4 (Holistic Early Skills)
     holisticHeading: "HOLISTIC SKILLS & DEVELOPMENTAL PROGRESS REPORT",
@@ -264,6 +275,67 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
     const updated = { ...labels, [key]: val }
     setLabels(updated)
     onUpdateField?.('customLabels', updated)
+  }
+
+  // Dynamic signature sequence and configuration
+  const signOrderList = Array.isArray(signatureOrder) && signatureOrder.length > 0
+    ? signatureOrder
+    : ['teacherSign', 'controllerSign', 'parentSign', 'principalSign']
+
+  const signDefinitions: Record<string, {
+    key: string
+    labelKey: string
+    title: string
+    name: string
+    cursiveFont?: boolean
+    isPrincipal?: boolean
+  }> = {
+    teacherSign: {
+      key: 'teacherSign',
+      labelKey: 'teacherSignLabel',
+      title: labels.teacherSignLabel || 'Class Teacher',
+      name: 'Preeti Saxena',
+      cursiveFont: true
+    },
+    controllerSign: {
+      key: 'controllerSign',
+      labelKey: 'examInChargeSignLabel',
+      title: labels.examInChargeSignLabel || 'Exam In-Charge',
+      name: 'Exam Controller'
+    },
+    parentSign: {
+      key: 'parentSign',
+      labelKey: 'parentSignLabel',
+      title: labels.parentSignLabel || 'Parent / Guardian',
+      name: 'Parent Signature'
+    },
+    principalSign: {
+      key: 'principalSign',
+      labelKey: 'principalSignLabel',
+      title: labels.principalSignLabel || 'Principal',
+      name: principalName || 'Principal',
+      isPrincipal: true
+    }
+  }
+
+  const activeMarksheetSigns: Array<{
+    key: string
+    labelKey: string
+    title: string
+    name: string
+    cursiveFont?: boolean
+    isPrincipal?: boolean
+  }> = []
+
+  for (const k of signOrderList) {
+    if (columnsList[k] !== false && signDefinitions[k]) {
+      activeMarksheetSigns.push(signDefinitions[k])
+    }
+  }
+  for (const k of Object.keys(signDefinitions)) {
+    if (columnsList[k] !== false && !signOrderList.includes(k) && signDefinitions[k]) {
+      activeMarksheetSigns.push(signDefinitions[k])
+    }
   }
 
   // Ensure fallback subjects
@@ -405,7 +477,7 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
         title={editable ? 'Click to select / upload institute logo' : undefined}
         className={`shrink-0 flex items-center justify-center relative group overflow-hidden ${customContainerClass || ''} ${
           isRound ? 'rounded-full' : 'rounded-xl'
-        } ${editable ? 'cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all' : ''}`}
+        } ${editable ? 'cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all' : ''}`}
         style={{
           width: `${actualLogoWidth}px`,
           height: `${actualLogoWidth}px`,
@@ -432,6 +504,102 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
             <span>Change</span>
           </div>
         )}
+      </div>
+    )
+  }
+
+  // Render Absolute Bottom Scales (Grade Point Scale, Percentage Remarks, Division, CGPA - based on Step 2 ON toggles)
+  const renderScalesFooter = (extraClass?: string, isRound: boolean = false) => {
+    const scalesToRender: Array<{
+      id: string
+      heading: string
+      labelKey: string
+      items: Array<{ range: string; value: string }>
+      suffix?: string
+    }> = []
+
+    // 1. Subject Grade Range -> Grade Point Scale
+    if (showGradeColumn && gradeRanges && gradeRanges.length > 0) {
+      scalesToRender.push({
+        id: 'grade',
+        heading: labels.gradeScaleHeading || 'GRADE POINT SCALE',
+        labelKey: 'gradeScaleHeading',
+        items: gradeRanges.map(g => ({ range: g.range, value: g.grade }))
+      })
+    }
+
+    // 2. Percentage Remarks Range -> Percentage Remarks Scale
+    if (showPercentage && percentRanges && percentRanges.length > 0) {
+      scalesToRender.push({
+        id: 'percentage',
+        heading: labels.percentScaleHeading || 'PERCENTAGE REMARKS SCALE',
+        labelKey: 'percentScaleHeading',
+        items: percentRanges.map(p => ({ range: p.range, value: p.remark })),
+        suffix: '%'
+      })
+    }
+
+    // 3. Division Remarks Range -> Division Classification Scale
+    if (showDivision && divisionRanges && divisionRanges.length > 0) {
+      scalesToRender.push({
+        id: 'division',
+        heading: labels.divisionScaleHeading || 'DIVISION CLASSIFICATION SCALE',
+        labelKey: 'divisionScaleHeading',
+        items: divisionRanges.map(d => ({ range: d.range, value: d.div })),
+        suffix: '%'
+      })
+    }
+
+    // 4. CGPA Remarks Range -> CGPA Point Scale
+    if (showCgpaColumn && cgpaRanges && cgpaRanges.length > 0) {
+      scalesToRender.push({
+        id: 'cgpa',
+        heading: labels.cgpaScaleHeading || 'CGPA POINT SCALE',
+        labelKey: 'cgpaScaleHeading',
+        items: cgpaRanges.map(c => ({ range: c.range, value: c.cgpa }))
+      })
+    }
+
+    if (scalesToRender.length === 0) return null
+
+    return (
+      <div className={`w-full space-y-1 mt-auto pt-2.5 ${extraClass || ''}`}>
+        {scalesToRender.map(scale => (
+          <div
+            key={scale.id}
+            className={`border overflow-hidden text-[7px] sm:text-[7.5px] font-sans shadow-2xs flex flex-row items-stretch ${
+              isRound ? 'rounded-lg' : 'rounded-xs'
+            }`}
+            style={{ borderColor: borderTint }}
+          >
+            {/* One-Line Indicator Tag (inline badge rather than a block heading) */}
+            <div
+              className="text-white font-extrabold px-2 py-0.5 uppercase tracking-wider text-[6.5px] sm:text-[7px] shrink-0 flex items-center justify-center select-none"
+              style={{ backgroundColor: primary }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-white/90 mr-1 shrink-0 inline-block" />
+              <LiveEditableText
+                value={scale.heading}
+                editable={editable}
+                onSave={val => updateLabel(scale.labelKey, val)}
+                className="inline-block whitespace-nowrap"
+              />
+            </div>
+
+            {/* Inline Scale Ranges & Values */}
+            <div className="flex flex-1 items-center justify-between bg-white py-0.5 px-1 font-semibold min-w-0">
+              {scale.items.map((item, idx) => (
+                <div
+                  key={idx}
+                  className="px-1 py-0.5 flex items-center justify-center gap-0.5 border-r border-slate-200 last:border-r-0 shrink-0 text-[6.5px] sm:text-[7px]"
+                >
+                  <span className="text-slate-600 font-medium">{item.range}{scale.suffix || ''}:</span>
+                  <span className="font-black" style={{ color: primary }}>{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     )
   }
@@ -801,7 +969,7 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
                     </span>
                   )}
                   {columnsList.rank !== false && (
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
                       Rank: #{classRank}
                     </span>
                   )}
@@ -809,9 +977,9 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
               </div>
             </div>
 
-            {/* Quick Widgets: Attendance Indicator + Official QR Code */}
-            <div className="flex items-center gap-3 shrink-0">
-              {columnsList.attendance !== false && (
+            {/* Quick Widgets: Attendance Indicator */}
+            {columnsList.attendance !== false && (
+              <div className="flex items-center shrink-0">
                 <div className="bg-white border rounded-xl px-3 py-2 text-center shadow-2xs min-w-[100px]" style={{ borderColor: borderTint }}>
                   <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">
                     <LiveEditableText
@@ -835,27 +1003,8 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
                     />
                   </span>
                 </div>
-              )}
-
-              {/* Official QR Verification Badge */}
-              <div className="bg-white border rounded-xl p-2 flex flex-col items-center justify-center text-center shadow-2xs" style={{ borderColor: borderTint }}>
-                <ProperQrCode className="w-11 h-11" color={primary} />
-                <span className="text-[6.5px] font-black uppercase tracking-wider mt-0.5" style={{ color: primary }}>
-                  <LiveEditableText
-                    value={labels.qrVerifyLabel || 'Official QR'}
-                    editable={editable}
-                    onSave={val => updateLabel('qrVerifyLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-                <LiveEditableText
-                  value={labels.qrCodeText || 'CODE: MS-2025-042'}
-                  editable={editable}
-                  onSave={val => updateLabel('qrCodeText', val)}
-                  className="text-[6px] font-mono font-bold text-slate-400 inline-block leading-none"
-                />
               </div>
-            </div>
+            )}
           </div>
 
           {/* Bottom Grid: Clear, Spacious Grid of Student Personal Details */}
@@ -962,82 +1111,53 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
 
         {/* Signatures */}
         <div className="flex flex-wrap items-center justify-around gap-6 pt-4 border-t border-slate-100 text-center">
-          {columnsList.teacherSign !== false && (
-            <div className="flex flex-col items-center">
-              <div className="h-9 flex items-end justify-center font-cursive italic text-slate-700 text-sm font-bold border-b border-slate-300 w-40 pb-1">
-                Preeti Saxena
-              </div>
-              <span className="text-[10px] font-black uppercase text-slate-500 mt-1">
+          {activeMarksheetSigns.map(s => (
+            <div key={s.key} className="flex flex-col items-center min-w-[70px]">
+              <div 
+                className="h-8 flex items-end justify-center border-b border-dashed border-slate-400 pb-1"
+                style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}
+              />
+              <span 
+                className="font-black uppercase text-slate-500 mt-1 block"
+                style={{ fontSize: signatureFontSize ? `${signatureFontSize}px` : undefined }}
+              >
                 <LiveEditableText
-                  value={labels.teacherSignLabel || "Class Teacher's Signature"}
+                  value={s.title}
                   editable={editable}
-                  onSave={val => updateLabel('teacherSignLabel', val)}
+                  onSave={val => updateLabel(s.labelKey, val)}
+                  className="inline-block"
+                  style={{ fontSize: signatureFontSize ? `${signatureFontSize}px` : undefined }}
+                />
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer Sub-Bar: Date of Issue & Big Verification QR */}
+        <div className="pt-4 mt-2 border-t border-slate-100 flex items-center justify-between">
+          {columnsList.dateOfIssue !== false ? (
+            <div className="flex items-center gap-1.5 select-none">
+              <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-500">Date of Issue:</span>
+              <span className="font-mono font-bold text-[10.5px] text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200">
+                <LiveEditableText
+                  value={dateOfIssue || new Date().toLocaleDateString('en-GB')}
+                  editable={editable}
+                  onSave={val => onUpdateField?.('dateOfIssue', val)}
                   className="inline-block"
                 />
               </span>
             </div>
-          )}
-          {columnsList.controllerSign !== false && (
-            <div className="flex flex-col items-center">
-              <div className="h-9 flex items-end justify-center font-serif italic text-slate-700 text-sm font-bold border-b border-slate-300 w-40 pb-1">
-                Exam In-Charge
-              </div>
-              <span className="text-[10px] font-black uppercase text-slate-500 mt-1">
-                <LiveEditableText
-                  value={labels.examInChargeSignLabel || "Exam Controller"}
-                  editable={editable}
-                  onSave={val => updateLabel('examInChargeSignLabel', val)}
-                  className="inline-block"
-                />
-              </span>
-            </div>
-          )}
-          {columnsList.parentSign !== false && (
-            <div className="flex flex-col items-center">
-              <div className="h-9 flex items-end justify-center font-serif italic text-slate-700 text-sm font-bold border-b border-slate-300 w-40 pb-1">
-                Parent Signature
-              </div>
-              <span className="text-[10px] font-black uppercase text-slate-500 mt-1">
-                <LiveEditableText
-                  value={labels.parentSignLabel || "Parent / Guardian"}
-                  editable={editable}
-                  onSave={val => updateLabel('parentSignLabel', val)}
-                  className="inline-block"
-                />
-              </span>
-            </div>
-          )}
-          {columnsList.principalSign !== false && (
-            <div className="flex flex-col items-center">
-              <div className="h-9 flex items-end justify-center font-serif italic text-slate-700 text-sm font-bold border-b border-slate-300 w-40 pb-1">
-                {principalName}
-              </div>
-              <span className="text-[10px] font-black uppercase text-slate-500 mt-1">
-                <LiveEditableText
-                  value={labels.principalSignLabel || "Principal's Signature"}
-                  editable={editable}
-                  onSave={val => updateLabel('principalSignLabel', val)}
-                  className="inline-block"
-                />
-              </span>
+          ) : <div />}
+
+          {columnsList.qrCode !== false && (
+            <div className="bg-white p-1 rounded-xl border border-slate-200/90 shadow-2xs select-none flex items-center justify-center shrink-0">
+              <ProperQrCode size={Number(qrCodeSize) || 72} color={primary} className="shrink-0" />
             </div>
           )}
         </div>
 
-        {/* Date of Issue */}
-        {columnsList.dateOfIssue !== false && (
-          <div className="pt-3 text-center">
-            <span className="text-[10px] font-semibold text-slate-400">
-              Date of Issue:{' '}
-              <LiveEditableText
-                value={dateOfIssue || new Date().toLocaleDateString('en-GB')}
-                editable={editable}
-                onSave={val => onUpdateField?.('dateOfIssue', val)}
-                className="font-bold text-slate-600 inline-block"
-              />
-            </span>
-          </div>
-        )}
+        {/* Absolute Bottom: Grade Point & Performance Scales */}
+        {renderScalesFooter("mt-3.5", true)}
       </div>
     )
   }
@@ -1260,55 +1380,8 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
           {/* Overall Performance Card (Percentage, CGPA, Grade, Final Marks) */}
           {renderOverallPerformanceCard('my-4', false)}
 
-          {/* Class Rank Badge, Proper QR & Result Banner */}
-          <div className="flex flex-col sm:flex-row items-center gap-4 my-4 font-sans">
-            {/* Class Rank */}
-            {columnsList.rank !== false && (
-              <div 
-                className="w-26 h-28 rounded-2xl text-white p-2 flex flex-col items-center justify-center text-center shadow-md shrink-0"
-                style={{ backgroundColor: primary }}
-              >
-                <span className="text-[7.5px] font-black uppercase tracking-wider">
-                  <LiveEditableText
-                    value={labels.classRankLabel || 'CLASS RANK'}
-                    editable={editable}
-                    onSave={val => updateLabel('classRankLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-                <span className="text-3xl font-black my-0.5">{classRank}</span>
-                <span className="text-[8.5px] opacity-80">
-                  <LiveEditableText
-                    value={labels.outOfClassLabel || 'out of 45'}
-                    editable={editable}
-                    onSave={val => updateLabel('outOfClassLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-              </div>
-            )}
-
-            {/* Proper QR Code */}
-            <div className="w-24 h-28 rounded-2xl bg-white border p-2 flex flex-col items-center justify-between text-center shadow-xs shrink-0" style={{ borderColor: borderTint }}>
-              <span className="text-[7px] font-black uppercase tracking-wider" style={{ color: primary }}>
-                <LiveEditableText
-                  value={labels.qrVerifyLabel || 'Official Marksheet QR'}
-                  editable={editable}
-                  onSave={val => updateLabel('qrVerifyLabel', val)}
-                  className="inline-block"
-                />
-              </span>
-              <ProperQrCode className="w-16 h-16" color={primary} />
-              <LiveEditableText
-                value={labels.qrCodeText || 'CODE: MS-2025-042'}
-                editable={editable}
-                onSave={val => updateLabel('qrCodeText', val)}
-                className="text-[6.5px] font-mono font-bold text-slate-500 inline-block"
-              />
-            </div>
-
-            {/* Result & Assessment Banner */}
-            <div className="flex-1 w-full space-y-2">
+          {/* Result & Assessment Banner */}
+          <div className="my-4 font-sans space-y-2 w-full">
               {columnsList.result !== false && (
                 <div 
                   className="text-white p-3 text-center font-black text-sm uppercase tracking-wider rounded-sm shadow-xs"
@@ -1358,84 +1431,29 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
                 )}
               </div>
             </div>
-          </div>
-
-          {/* Grade Point Scale */}
-          <div className="border rounded-sm overflow-hidden text-[9px] text-center font-sans my-4" style={{ borderColor: borderTint }}>
-            <div className="text-white font-bold py-1 uppercase tracking-wider" style={{ backgroundColor: primary }}>
-              <LiveEditableText
-                value={labels.gradeScaleHeading || 'GRADE POINT SCALE'}
-                editable={editable}
-                onSave={val => updateLabel('gradeScaleHeading', val)}
-                className="inline-block"
-              />
-            </div>
-            <div className="grid grid-cols-8 divide-x divide-slate-200 bg-white py-1 font-semibold">
-              <div><strong>91-100:</strong> A+</div>
-              <div><strong>81-90:</strong> A</div>
-              <div><strong>71-80:</strong> B+</div>
-              <div><strong>61-70:</strong> B</div>
-              <div><strong>51-60:</strong> C+</div>
-              <div><strong>41-50:</strong> C</div>
-              <div><strong>33-40:</strong> D</div>
-              <div><strong>&lt;33:</strong> E</div>
-            </div>
-          </div>
 
           {/* 4 Signatures */}
-          <div className="flex flex-wrap items-center justify-around gap-4 pt-6 border-t-2 text-center font-sans text-[10px]" style={{ borderColor: primary }}>
-            {columnsList.teacherSign !== false && (
-              <div className="min-w-[110px]">
-                <div className="h-8 border-b border-slate-400 font-cursive italic text-xs font-bold flex items-end justify-center pb-0.5">Preeti Saxena</div>
-                <span className="font-black uppercase text-slate-600 block mt-1">
+          <div className="flex flex-wrap items-center justify-around gap-4 pt-6 mt-4 border-t-2 text-center font-sans text-[10px]" style={{ borderColor: primary }}>
+            {activeMarksheetSigns.map(s => (
+              <div key={s.key} className="min-w-[70px] flex flex-col items-center">
+                <div 
+                  className="h-8 border-b border-dashed border-slate-400 flex items-end justify-center pb-0.5"
+                  style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}
+                />
+                <span 
+                  className="font-black uppercase text-slate-600 block mt-1"
+                  style={{ fontSize: signatureFontSize ? `${signatureFontSize}px` : undefined }}
+                >
                   <LiveEditableText
-                    value={labels.teacherSignLabel || 'Class Teacher'}
+                    value={s.title}
                     editable={editable}
-                    onSave={val => updateLabel('teacherSignLabel', val)}
+                    onSave={val => updateLabel(s.labelKey, val)}
                     className="inline-block"
+                    style={{ fontSize: signatureFontSize ? `${signatureFontSize}px` : undefined }}
                   />
                 </span>
               </div>
-            )}
-            {columnsList.controllerSign !== false && (
-              <div className="min-w-[110px]">
-                <div className="h-8 border-b border-slate-400 font-serif italic text-xs flex items-end justify-center pb-0.5">Exam Board</div>
-                <span className="font-black uppercase text-slate-600 block mt-1">
-                  <LiveEditableText
-                    value={labels.examInChargeSignLabel || 'Exam In-Charge'}
-                    editable={editable}
-                    onSave={val => updateLabel('examInChargeSignLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-              </div>
-            )}
-            {columnsList.parentSign !== false && (
-              <div className="min-w-[110px]">
-                <div className="h-8 border-b border-slate-400 font-serif italic text-xs flex items-end justify-center pb-0.5">Guardian Sign</div>
-                <span className="font-black uppercase text-slate-600 block mt-1">
-                  <LiveEditableText
-                    value={labels.parentSignLabel || 'Parent / Guardian'}
-                    editable={editable}
-                    onSave={val => updateLabel('parentSignLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-              </div>
-            )}
-            {columnsList.principalSign !== false && (
-              <div className="min-w-[110px]">
-                <div className="h-8 border-b border-slate-400 font-serif italic font-bold text-xs flex items-end justify-center pb-0.5">{principalName}</div>
-                <span className="font-black uppercase text-slate-600 block mt-1">
-                  <LiveEditableText
-                    value={labels.principalSignLabel || 'Principal'}
-                    editable={editable}
-                    onSave={val => updateLabel('principalSignLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-              </div>
-            )}
+            ))}
           </div>
 
           {/* Date of Issue & QR Footer Sub-Bar */}
@@ -1454,26 +1472,15 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
               </div>
             ) : <div />}
 
-            <div className="flex items-center gap-2.5 bg-white p-1 rounded-lg border border-slate-200/90 shadow-2xs select-none">
-              <ProperQrCode className="w-8 h-8 shrink-0" color={primary} />
-              <div className="text-left">
-                <span className="text-[7.5px] font-black uppercase tracking-wider block" style={{ color: primary }}>
-                  <LiveEditableText
-                    value={labels.qrVerifyLabel || 'Official Marksheet QR'}
-                    editable={editable}
-                    onSave={val => updateLabel('qrVerifyLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-                <LiveEditableText
-                  value={labels.qrCodeText || 'CODE: MS-2025-042'}
-                  editable={editable}
-                  onSave={val => updateLabel('qrCodeText', val)}
-                  className="text-[7px] font-mono font-bold text-slate-400 inline-block leading-none"
-                />
+            {columnsList.qrCode !== false && (
+              <div className="bg-white p-1 rounded-xl border border-slate-200/90 shadow-2xs select-none flex items-center justify-center shrink-0">
+                <ProperQrCode size={Number(qrCodeSize) || 72} color={primary} className="shrink-0" />
               </div>
-            </div>
+            )}
           </div>
+
+          {/* Absolute Bottom: Grade Point & Performance Scales */}
+          {renderScalesFooter("mt-3.5")}
 
         </div>
       </div>
@@ -1665,16 +1672,11 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
             )}
 
             {/* Proper QR Code Verification Card */}
-            <div className="p-1.5 rounded-2xl border text-center flex flex-col items-center shrink-0 shadow-2xs" style={{ backgroundColor: tintLight, borderColor: borderTint }}>
-              <ProperQrCode className="w-14 h-14" color={primary} />
-              <LiveEditableText
-                value={labels.qrCodeText || 'CODE: MS-2025-042'}
-                editable={editable}
-                onSave={val => updateLabel('qrCodeText', val)}
-                className="text-[6px] font-mono font-bold mt-0.5 inline-block"
-                style={{ color: primary }}
-              />
-            </div>
+            {columnsList.qrCode !== false && (
+              <div className="p-1 rounded-2xl border flex items-center justify-center shrink-0 shadow-2xs bg-white" style={{ borderColor: borderTint }}>
+                <ProperQrCode size={Number(qrCodeSize) || 68} color={primary} className="shrink-0" />
+              </div>
+            )}
           </div>
         </div>
 
@@ -1685,7 +1687,7 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
             style={{ backgroundColor: primary }}
           >
             <div className="flex items-center gap-2">
-              <Star className="w-4 h-4 text-amber-300 fill-amber-300" />
+              <Star className="w-4 h-4 text-blue-300 fill-blue-300" />
               <span>Academic Performance Evaluation</span>
             </div>
             {columnsList.examName !== false && (
@@ -1730,15 +1732,15 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
             <div className="space-y-2 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 font-semibold">Listening & Speaking</span>
-                <div className="flex items-center gap-1.5"><span className="text-amber-500 text-xs">★★★★★</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>A</span></div>
+                <div className="flex items-center gap-1.5"><span className="text-blue-500 text-xs">★★★★★</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>A</span></div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 font-semibold">Phonics & Reading</span>
-                <div className="flex items-center gap-1.5"><span className="text-amber-500 text-xs">★★★★☆</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>B+</span></div>
+                <div className="flex items-center gap-1.5"><span className="text-blue-500 text-xs">★★★★☆</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>B+</span></div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 font-semibold">Creative Writing</span>
-                <div className="flex items-center gap-1.5"><span className="text-amber-500 text-xs">★★★★★</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>A</span></div>
+                <div className="flex items-center gap-1.5"><span className="text-blue-500 text-xs">★★★★★</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>A</span></div>
               </div>
             </div>
           </div>
@@ -1757,15 +1759,15 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
             <div className="space-y-2 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 font-semibold">Number Recognition</span>
-                <div className="flex items-center gap-1.5"><span className="text-amber-500 text-xs">★★★★★</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>A</span></div>
+                <div className="flex items-center gap-1.5"><span className="text-blue-500 text-xs">★★★★★</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>A</span></div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 font-semibold">Counting & Sorting</span>
-                <div className="flex items-center gap-1.5"><span className="text-amber-500 text-xs">★★★★☆</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>B+</span></div>
+                <div className="flex items-center gap-1.5"><span className="text-blue-500 text-xs">★★★★☆</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>B+</span></div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 font-semibold">Problem Solving</span>
-                <div className="flex items-center gap-1.5"><span className="text-amber-500 text-xs">★★★★★</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>A</span></div>
+                <div className="flex items-center gap-1.5"><span className="text-blue-500 text-xs">★★★★★</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>A</span></div>
               </div>
             </div>
           </div>
@@ -1784,15 +1786,15 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
             <div className="space-y-2 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 font-semibold">Arts & Crafts</span>
-                <div className="flex items-center gap-1.5"><span className="text-amber-500 text-xs">★★★★★</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>A</span></div>
+                <div className="flex items-center gap-1.5"><span className="text-blue-500 text-xs">★★★★★</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>A</span></div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 font-semibold">Music & Movement</span>
-                <div className="flex items-center gap-1.5"><span className="text-amber-500 text-xs">★★★★★</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>Outstanding</span></div>
+                <div className="flex items-center gap-1.5"><span className="text-blue-500 text-xs">★★★★★</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>Outstanding</span></div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 font-semibold">Dramatic Play</span>
-                <div className="flex items-center gap-1.5"><span className="text-amber-500 text-xs">★★★★★</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>A</span></div>
+                <div className="flex items-center gap-1.5"><span className="text-blue-500 text-xs">★★★★★</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>A</span></div>
               </div>
             </div>
           </div>
@@ -1811,15 +1813,15 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
             <div className="space-y-2 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 font-semibold">Sharing & Kindness</span>
-                <div className="flex items-center gap-1.5"><span className="text-amber-500 text-xs">★★★★★</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>A</span></div>
+                <div className="flex items-center gap-1.5"><span className="text-blue-500 text-xs">★★★★★</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>A</span></div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 font-semibold">Listening to Instructions</span>
-                <div className="flex items-center gap-1.5"><span className="text-amber-500 text-xs">★★★★☆</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>B+</span></div>
+                <div className="flex items-center gap-1.5"><span className="text-blue-500 text-xs">★★★★☆</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>B+</span></div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 font-semibold">Gross & Fine Motor</span>
-                <div className="flex items-center gap-1.5"><span className="text-amber-500 text-xs">★★★★★</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>A</span></div>
+                <div className="flex items-center gap-1.5"><span className="text-blue-500 text-xs">★★★★★</span><span className="px-1.5 py-0.5 rounded text-[9px] font-bold border" style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}>A</span></div>
               </div>
             </div>
           </div>
@@ -1830,59 +1832,56 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
 
         {/* Parent Feedback & Signature */}
         <div className="pt-4 border-t-2 flex flex-wrap items-center justify-around gap-6 text-center text-xs" style={{ borderColor: borderTint }}>
-          {columnsList.teacherSign !== false && (
-            <div>
-              <div className="h-8 border-b border-slate-300 font-cursive italic text-slate-700 text-sm">Ms. Sarah Lee</div>
-              <span className="text-[10px] font-bold uppercase text-slate-500 mt-1 block">
+          {activeMarksheetSigns.map(s => (
+            <div key={s.key} className="flex flex-col items-center min-w-[70px]">
+              <div 
+                className={`h-8 border-b border-slate-300 italic text-slate-700 flex items-end justify-center pb-0.5 ${
+                  s.cursiveFont ? 'font-cursive text-sm' : 'font-serif text-sm'
+                }`}
+                style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}
+              >
+                {s.name}
+              </div>
+              <span 
+                className="font-bold uppercase text-slate-500 mt-1 block"
+                style={{ fontSize: signatureFontSize ? `${signatureFontSize}px` : undefined }}
+              >
                 <LiveEditableText
-                  value={labels.teacherSignLabel || 'Class Teacher'}
+                  value={s.title}
                   editable={editable}
-                  onSave={val => updateLabel('teacherSignLabel', val)}
+                  onSave={val => updateLabel(s.labelKey, val)}
                   className="inline-block"
+                  style={{ fontSize: signatureFontSize ? `${signatureFontSize}px` : undefined }}
                 />
               </span>
             </div>
-          )}
-          {columnsList.parentSign !== false && (
-            <div>
-              <div className="h-8 border-b border-slate-300 font-cursive italic text-slate-700 text-sm">Parent Sign</div>
-              <span className="text-[10px] font-bold uppercase text-slate-500 mt-1 block">
-                <LiveEditableText
-                  value={labels.parentSignLabel || 'Parent / Guardian Feedback & Signature'}
-                  editable={editable}
-                  onSave={val => updateLabel('parentSignLabel', val)}
-                  className="inline-block"
-                />
-              </span>
+          ))}
+        </div>
+
+        {/* Date of Issue & Official QR Verification Badge */}
+        <div className="pt-3 flex items-center justify-between">
+          {columnsList.dateOfIssue !== false ? (
+            <div className="text-[10px] font-bold text-slate-500">
+              Date of Issue:{' '}
+              <LiveEditableText
+                value={dateOfIssue || new Date().toLocaleDateString('en-GB')}
+                editable={editable}
+                onSave={val => onUpdateField?.('dateOfIssue', val)}
+                className="text-slate-800 font-mono inline-block"
+              />
             </div>
-          )}
-          {columnsList.principalSign !== false && (
-            <div>
-              <div className="h-8 border-b border-slate-300 font-serif italic text-slate-700 text-sm">{principalName}</div>
-              <span className="text-[10px] font-bold uppercase text-slate-500 mt-1 block">
-                <LiveEditableText
-                  value={labels.principalSignLabel || 'Principal / Headmistress'}
-                  editable={editable}
-                  onSave={val => updateLabel('principalSignLabel', val)}
-                  className="inline-block"
-                />
-              </span>
+          ) : <div />}
+
+          {/* Official Verification QR Badge */}
+          {columnsList.qrCode !== false && (
+            <div className="bg-white p-1 rounded-xl border border-slate-200/90 shadow-2xs select-none flex items-center justify-center shrink-0">
+              <ProperQrCode size={Number(qrCodeSize) || 72} color={primary} className="shrink-0" />
             </div>
           )}
         </div>
 
-        {/* Date of Issue */}
-        {columnsList.dateOfIssue !== false && (
-          <div className="pt-3 text-center text-[10px] font-bold text-slate-500">
-            Date of Issue:{' '}
-            <LiveEditableText
-              value={dateOfIssue || new Date().toLocaleDateString('en-GB')}
-              editable={editable}
-              onSave={val => onUpdateField?.('dateOfIssue', val)}
-              className="text-slate-800 font-mono inline-block"
-            />
-          </div>
-        )}
+        {/* Absolute Bottom: Grade Point & Performance Scales */}
+        {renderScalesFooter("mt-3.5", true)}
 
       </div>
     )
@@ -2158,7 +2157,7 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
                   className="inline-block"
                 />
               </span>
-              <span className="font-bold text-amber-700">{classRank}</span>
+              <span className="font-bold text-blue-700">{classRank}</span>
             </div>
           )}
         </div>
@@ -2200,73 +2199,30 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
         <div className="pt-6 mt-5 border-t-2 space-y-5" style={{ borderColor: primary }}>
           {/* Signatures Row: Clean horizontal line, always aligned at baseline */}
           <div className="flex flex-wrap items-end justify-between gap-4 text-center">
-            {/* 1. Class Teacher */}
-            {columnsList.teacherSign !== false && (
-              <div className="flex-1 min-w-[110px] max-w-[160px] flex flex-col items-center">
-                <div className="w-full border-b border-slate-400 mb-1.5 pb-1 text-[11px] font-cursive italic text-slate-700 min-h-[22px] flex items-end justify-center">
-                  Preeti Saxena
-                </div>
-                <span className="text-[10px] font-black uppercase text-slate-600 tracking-wider">
+            {activeMarksheetSigns.map(s => (
+              <div 
+                key={s.key} 
+                className="flex-1 flex flex-col items-center min-w-[70px]"
+                style={{ maxWidth: `${Math.max(Number(signatureWidth) || 110, 180)}px` }}
+              >
+                <div 
+                  className="border-b border-dashed border-slate-400 mb-1.5 pb-1 flex items-end justify-center min-h-[22px]"
+                  style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}
+                />
+                <span 
+                  className="font-black uppercase text-slate-600 tracking-wider block"
+                  style={{ fontSize: signatureFontSize ? `${signatureFontSize}px` : undefined }}
+                >
                   <LiveEditableText
-                    value={labels.teacherSignLabel || 'Class Teacher'}
+                    value={s.title}
                     editable={editable}
-                    onSave={val => updateLabel('teacherSignLabel', val)}
+                    onSave={val => updateLabel(s.labelKey, val)}
                     className="inline-block"
+                    style={{ fontSize: signatureFontSize ? `${signatureFontSize}px` : undefined }}
                   />
                 </span>
               </div>
-            )}
-
-            {/* 2. Exam Controller / In-Charge */}
-            {columnsList.controllerSign !== false && (
-              <div className="flex-1 min-w-[110px] max-w-[160px] flex flex-col items-center">
-                <div className="w-full border-b border-slate-400 mb-1.5 pb-1 text-[11px] font-serif italic text-slate-700 min-h-[22px] flex items-end justify-center">
-                  Exam Controller
-                </div>
-                <span className="text-[10px] font-black uppercase text-slate-600 tracking-wider">
-                  <LiveEditableText
-                    value={labels.examInChargeSignLabel || 'Exam In-Charge'}
-                    editable={editable}
-                    onSave={val => updateLabel('examInChargeSignLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-              </div>
-            )}
-
-            {/* 3. Parent / Guardian Sign */}
-            {columnsList.parentSign && (
-              <div className="flex-1 min-w-[110px] max-w-[160px] flex flex-col items-center">
-                <div className="w-full border-b border-slate-400 mb-1.5 pb-1 text-[11px] font-serif italic text-slate-700 min-h-[22px] flex items-end justify-center">
-                  Parent Signature
-                </div>
-                <span className="text-[10px] font-black uppercase text-slate-600 tracking-wider">
-                  <LiveEditableText
-                    value={labels.parentSignLabel || 'Parent / Guardian'}
-                    editable={editable}
-                    onSave={val => updateLabel('parentSignLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-              </div>
-            )}
-
-            {/* 4. Principal */}
-            {columnsList.principalSign !== false && (
-              <div className="flex-1 min-w-[110px] max-w-[170px] flex flex-col items-center">
-                <div className="w-full border-b border-slate-400 mb-1.5 pb-1 text-[11.5px] font-serif font-black italic text-slate-900 min-h-[22px] flex items-end justify-center">
-                  {principalName}
-                </div>
-                <span className="text-[10px] font-black uppercase text-slate-700 tracking-wider">
-                  <LiveEditableText
-                    value={labels.principalSignLabel || 'Principal'}
-                    editable={editable}
-                    onSave={val => updateLabel('principalSignLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-              </div>
-            )}
+            ))}
           </div>
 
           {/* Footer Sub-Bar: Clean Issue Date & Verified Official QR Badge */}
@@ -2287,26 +2243,15 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
             ) : <div />}
 
             {/* Right: Official Verification QR Badge */}
-            <div className="flex items-center gap-2.5 bg-white p-1.5 rounded-lg border border-slate-200/90 shadow-2xs select-none">
-              <ProperQrCode className="w-10 h-10 shrink-0" color={primary} />
-              <div className="text-left">
-                <span className="text-[8px] font-black uppercase tracking-wider text-slate-600 block leading-tight">
-                  <LiveEditableText
-                    value={labels.qrVerifyLabel || 'Official Marksheet QR'}
-                    editable={editable}
-                    onSave={val => updateLabel('qrVerifyLabel', val)}
-                    className="inline-block"
-                  />
-                </span>
-                <LiveEditableText
-                  value={labels.qrCodeText || 'CODE: MS-2025-042'}
-                  editable={editable}
-                  onSave={val => updateLabel('qrCodeText', val)}
-                  className="text-[7px] font-mono font-bold text-slate-400 block mt-0.5"
-                />
+            {columnsList.qrCode !== false && (
+              <div className="bg-white p-1 rounded-xl border border-slate-200/90 shadow-2xs select-none flex items-center justify-center shrink-0">
+                <ProperQrCode size={Number(qrCodeSize) || 72} color={primary} className="shrink-0" />
               </div>
-            </div>
+            )}
           </div>
+
+          {/* Absolute Bottom: Grade Point & Performance Scales */}
+          {renderScalesFooter("mt-3.5")}
         </div>
 
       </div>
@@ -2356,7 +2301,7 @@ export const MarksheetMiniPreview: React.FC<MarksheetMiniPreviewProps> = ({
     <div
       className={`w-full h-36 rounded-xl overflow-hidden bg-white dark:bg-slate-900 border transition-all duration-300 relative flex flex-col justify-between text-slate-800 dark:text-slate-100 select-none ${
         isSelected
-          ? 'shadow-md ring-2 ring-teal-500/50 scale-[1.01]'
+          ? 'shadow-md ring-2 ring-blue-500/50 scale-[1.01]'
           : 'shadow-2xs hover:shadow-xs'
       }`}
       style={{
@@ -2383,7 +2328,7 @@ export const MarksheetMiniPreview: React.FC<MarksheetMiniPreviewProps> = ({
                 <div className="text-[7.5px] font-black leading-tight uppercase truncate max-w-[120px]" style={{ color: primary }}>
                   {schoolName}
                 </div>
-                <div className="text-[5px] text-amber-800 font-bold leading-none">Affiliated to CBSE • Code: 123456</div>
+                <div className="text-[5px] text-blue-800 font-bold leading-none">Affiliated to CBSE • Code: 123456</div>
               </div>
             </div>
             <span className="text-[5px] font-black uppercase px-1 py-0.5 rounded text-white shrink-0" style={{ backgroundColor: primary }}>
@@ -2591,7 +2536,7 @@ export const MarksheetMiniPreview: React.FC<MarksheetMiniPreviewProps> = ({
       {/* 4. HOLISTIC EARLY SKILLS MINI PREVIEW */}
       {isHolisticSkills && (
         <div
-          className="w-full h-full p-1.5 flex flex-col justify-between bg-gradient-to-b from-sky-50/80 via-white to-amber-50/60 text-slate-800 rounded-lg border-2"
+          className="w-full h-full p-1.5 flex flex-col justify-between bg-gradient-to-b from-sky-50/80 via-white to-blue-50/60 text-slate-800 rounded-lg border-2"
           style={{ borderColor: primary }}
         >
           {/* Header */}
@@ -2604,11 +2549,11 @@ export const MarksheetMiniPreview: React.FC<MarksheetMiniPreviewProps> = ({
                   <SampleSchoolLogo width={16} height={16} color={primary} className="shrink-0" />
                 )
               )}
-              <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-500 shrink-0" />
+              <Star className="w-2.5 h-2.5 fill-blue-400 text-blue-500 shrink-0" />
               <span className="text-[7.5px] font-black uppercase tracking-tight truncate max-w-[120px]" style={{ color: primary }}>
                 {schoolName}
               </span>
-              <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-500 shrink-0" />
+              <Star className="w-2.5 h-2.5 fill-blue-400 text-blue-500 shrink-0" />
             </div>
             <div className="text-[5px] font-bold text-slate-500 uppercase">
               HOLISTIC SKILLS & DEVELOPMENT PROGRESS
@@ -2617,7 +2562,7 @@ export const MarksheetMiniPreview: React.FC<MarksheetMiniPreviewProps> = ({
 
           {/* Child Ribbon */}
           <div className="flex items-center gap-1 bg-white p-1 rounded-md border border-dashed shadow-2xs" style={{ borderColor: borderTint }}>
-            <div className="w-5 h-5 rounded-full border flex items-center justify-center bg-amber-50 shrink-0" style={{ borderColor: primary }}>
+            <div className="w-5 h-5 rounded-full border flex items-center justify-center bg-blue-50 shrink-0" style={{ borderColor: primary }}>
               <User className="w-3 h-3 text-slate-500" />
             </div>
             <div className="flex-1 text-[5.5px] leading-tight">
@@ -2633,25 +2578,25 @@ export const MarksheetMiniPreview: React.FC<MarksheetMiniPreviewProps> = ({
           <div className="grid grid-cols-2 gap-1 text-[5px]">
             <div className="p-0.5 rounded bg-white border flex justify-between items-center" style={{ borderColor: borderTint }}>
               <span className="font-bold text-slate-700 truncate">Cognitive & Logic</span>
-              <span className="text-amber-500 font-bold shrink-0">★★★★★</span>
+              <span className="text-blue-500 font-bold shrink-0">★★★★★</span>
             </div>
             <div className="p-0.5 rounded bg-white border flex justify-between items-center" style={{ borderColor: borderTint }}>
               <span className="font-bold text-slate-700 truncate">Language & Literacy</span>
-              <span className="text-amber-500 font-bold shrink-0">★★★★★</span>
+              <span className="text-blue-500 font-bold shrink-0">★★★★★</span>
             </div>
             <div className="p-0.5 rounded bg-white border flex justify-between items-center" style={{ borderColor: borderTint }}>
               <span className="font-bold text-slate-700 truncate">Creative Expression</span>
-              <span className="text-amber-500 font-bold shrink-0">★★★★☆</span>
+              <span className="text-blue-500 font-bold shrink-0">★★★★☆</span>
             </div>
             <div className="p-0.5 rounded bg-white border flex justify-between items-center" style={{ borderColor: borderTint }}>
               <span className="font-bold text-slate-700 truncate">Social & Emotional</span>
-              <span className="text-amber-500 font-bold shrink-0">★★★★★</span>
+              <span className="text-blue-500 font-bold shrink-0">★★★★★</span>
             </div>
           </div>
 
           {/* Teacher Smiley Footer */}
           <div className="flex justify-between items-center text-[4.5px] font-bold text-slate-600 pt-0.5 border-t" style={{ borderColor: borderTint }}>
-            <span className="text-amber-600">🌟 Teacher: "Inquisitive & joyful learner!"</span>
+            <span className="text-blue-600">🌟 Teacher: "Inquisitive & joyful learner!"</span>
             <span className="font-black" style={{ color: primary }}>Class Teacher & Principal</span>
           </div>
         </div>

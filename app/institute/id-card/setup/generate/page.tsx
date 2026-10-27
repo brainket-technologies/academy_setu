@@ -26,7 +26,8 @@ import {
   Type,
   BookOpen,
   ListOrdered,
-  Image as ImageIcon
+  Image as ImageIcon,
+  QrCode
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -94,6 +95,10 @@ function GenerateIdCardContent() {
   const [schoolLogo, setSchoolLogo] = useState<string | null>(null)
   const [showLogo, setShowLogo] = useState(true)
   const [logoWidth, setLogoWidth] = useState('48')
+  const [photoWidth, setPhotoWidth] = useState('80')
+  const [qrCodeSize, setQrCodeSize] = useState('32')
+  const [signatureWidth, setSignatureWidth] = useState('56')
+  const [showPhoto, setShowPhoto] = useState(true)
   const [schoolNameFontSize, setSchoolNameFontSize] = useState('13')
   const [titleFontSize, setTitleFontSize] = useState('9')
   const [taglineFontSize, setTaglineFontSize] = useState('8')
@@ -101,7 +106,9 @@ function GenerateIdCardContent() {
   const [isAutoFetching, setIsAutoFetching] = useState(false)
   const [autoFetchNotice, setAutoFetchNotice] = useState<string | null>(null)
   const [holderSignName, setHolderSignName] = useState(ID_CARD_ROLE_PREVIEWS[initialRole].holderSignName)
-  const [customLabels, setCustomLabels] = useState<Record<string, string>>({})
+  const [customLabels, setCustomLabels] = useState<Record<string, string>>({
+    holderSignLabel: ID_CARD_ROLE_PREVIEWS[initialRole]?.holderSignLabel || (initialRole === 'Teacher' ? 'Teacher Sign' : initialRole === 'Employee' ? 'Staff Sign' : 'Student Sign')
+  })
 
   // Form Fields
   const [title, setTitle] = useState(ID_CARD_ROLE_PREVIEWS[initialRole].defaultTitle)
@@ -177,6 +184,10 @@ function GenerateIdCardContent() {
               if (match.customLabels?.taglineFontSize) setTaglineFontSize(match.customLabels.taglineFontSize)
               if (match.customLabels?.logoWidth) setLogoWidth(match.customLabels.logoWidth)
               if (match.customLabels?.showLogo !== undefined) setShowLogo(match.customLabels.showLogo !== 'false')
+              if (match.customLabels?.photoWidth) setPhotoWidth(match.customLabels.photoWidth)
+              if (match.customLabels?.qrCodeSize) setQrCodeSize(match.customLabels.qrCodeSize)
+              if (match.customLabels?.signatureWidth) setSignatureWidth(match.customLabels.signatureWidth)
+              if (match.customLabels?.showPhoto !== undefined) setShowPhoto(match.customLabels.showPhoto !== 'false')
             }
           }
         } catch (err) {
@@ -240,13 +251,14 @@ function GenerateIdCardContent() {
     setTitle(persona.defaultTitle)
     setTagline(persona.defaultTagline)
     setHolderSignName(persona.holderSignName)
+    const roleSignLabel = newRole === 'Teacher' ? 'Teacher Sign' : newRole === 'Employee' ? 'Staff Sign' : 'Student Sign'
     setCustomLabels({
       rollNoLabel: newRole === 'Teacher' || newRole === 'Employee' ? 'Department:' : 'Roll No:',
       admNoLabel: newRole === 'Teacher' ? 'Faculty ID:' : newRole === 'Employee' ? 'Staff ID:' : 'Adm No:',
       fatherNameLabel: newRole === 'Teacher' ? 'Qualification:' : newRole === 'Employee' ? 'Work Station:' : "Father's Name:",
       dobLabel: newRole === 'Teacher' || newRole === 'Employee' ? 'Joining Date:' : 'D.O.B:',
       emergencyNoLabel: newRole === 'Teacher' || newRole === 'Employee' ? 'Official Phone:' : 'Emergency No:',
-      holderSignLabel: persona.holderSignLabel
+      holderSignLabel: roleSignLabel
     })
   }
 
@@ -268,6 +280,9 @@ function GenerateIdCardContent() {
     else if (field === 'titleFontSize') setTitleFontSize(String(val))
     else if (field === 'taglineFontSize') setTaglineFontSize(String(val))
     else if (field === 'logoWidth') setLogoWidth(String(val))
+    else if (field === 'photoWidth') setPhotoWidth(String(val))
+    else if (field === 'qrCodeSize') setQrCodeSize(String(val))
+    else if (field === 'signatureWidth') setSignatureWidth(String(val))
   }
 
   const handleSave = async () => {
@@ -307,6 +322,10 @@ function GenerateIdCardContent() {
           ...customLabels,
           showLogo: String(showLogo),
           logoWidth: String(logoWidth),
+          photoWidth: String(photoWidth),
+          qrCodeSize: String(qrCodeSize),
+          signatureWidth: String(signatureWidth),
+          showPhoto: String(showPhoto),
           schoolNameFontSize: String(schoolNameFontSize),
           titleFontSize: String(titleFontSize),
           taglineFontSize: String(taglineFontSize),
@@ -333,8 +352,8 @@ function GenerateIdCardContent() {
         tagline: 'Header Subtitle',
         qr: 'Biometric QR',
         watermark: 'Emblem Watermark',
-        signTitle: 'Teacher Signature (Separate Sign)',
-        signBadge: 'Teaching Faculty',
+        signTitle: 'Teacher / Faculty Signature (Separate Sign)',
+        signBadge: 'Teacher Sign',
         signPlaceholder: 'e.g. Teacher Sign / Dr. Meenakshi'
       }
     }
@@ -350,7 +369,7 @@ function GenerateIdCardContent() {
         qr: 'Security Pass QR',
         watermark: 'Emblem Watermark',
         signTitle: 'Staff Signature (Separate Sign)',
-        signBadge: 'Non-Teaching Staff',
+        signBadge: 'Staff Sign',
         signPlaceholder: 'e.g. Staff Sign / V.S. Rathore'
       }
     }
@@ -364,7 +383,7 @@ function GenerateIdCardContent() {
       tagline: 'Header Subtitle',
       qr: 'Attendance QR',
       watermark: 'Emblem Watermark',
-      signTitle: 'Cardholder / Student Signature (Separate Sign)',
+      signTitle: 'Student Signature (Separate Sign)',
       signBadge: 'Student Sign',
       signPlaceholder: 'e.g. Student Sign / Aarav S.'
     }
@@ -824,223 +843,461 @@ function GenerateIdCardContent() {
             </div>
           ) : (
             <>
-              {/* ─── QUICK LOGO SELECTION & SIZING CONTROLS STUDIO ─── */}
-              <div className="border border-teal-500/30 rounded-2xl bg-white dark:bg-slate-800 p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  {/* Logo Preview Emblem Thumbnail */}
-                  <div 
-                    onClick={() => logoFileInputRef.current?.click()}
-                    title="Click to select or change institute logo"
-                    className="w-12 h-12 rounded-xl bg-white p-1 border-2 border-amber-400 ring-2 ring-slate-100 flex items-center justify-center shrink-0 overflow-hidden cursor-pointer shadow-xs relative group"
-                  >
-                    {schoolLogo ? (
-                      <img src={schoolLogo} alt="Logo" className="w-full h-full object-contain filter drop-shadow-2xs" />
-                    ) : (
-                      <div className="w-full h-full rounded-lg bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex flex-col items-center justify-center text-slate-900 shadow-inner p-0.5">
-                        <Building2 className="w-5 h-5 text-slate-900" />
-                        <span className="text-[5px] font-black uppercase tracking-tighter">LOGO</span>
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 rounded-lg flex flex-col items-center justify-center text-[7px] font-black transition-opacity">
-                      <Upload className="w-3 h-3 mb-0.5" />
-                      <span>Change</span>
+              {/* ─── COMPREHENSIVE ID CARD MEDIA & SIZING STUDIO (LIKE ADMIT CARD & CERTIFICATE) ─── */}
+              <div className="border border-slate-200/90 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-850 p-4 sm:p-5 shadow-xs space-y-4">
+                <input 
+                  ref={logoFileInputRef}
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={handleLogoUpload} 
+                />
+
+                {/* Studio Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                      <Sliders className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                        ID Card Media & Sizing Studio
+                      </h3>
+                      <p className="text-[10.5px] text-slate-400 font-medium">
+                        Adjust Institute Logo, Candidate Photo, Verification QR Code, and Signatures in real time (Like Admit Card)
+                      </p>
                     </div>
                   </div>
 
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
-                        Institute Logo:
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setShowLogo(!showLogo)}
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-all border ${
-                          showLogo 
-                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700' 
-                            : 'bg-slate-100 dark:bg-slate-700 text-slate-500 border-slate-300 dark:border-slate-600'
-                        }`}
-                      >
-                        {showLogo ? '● Visible (ON)' : '○ Hidden (OFF)'}
-                      </button>
-                    </div>
-                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5">
-                      {schoolLogo ? 'Custom institute logo active • Live updates across all 4 ID card designs' : 'Official sample emblem active • Click logo on card or button to upload'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <input
-                    type="file"
-                    ref={logoFileInputRef}
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => logoFileInputRef.current?.click()}
-                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white transition-all shadow-sm flex items-center gap-1.5"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>{schoolLogo ? 'Change Logo' : 'Select / Upload Logo'}</span>
-                  </button>
-                  {schoolLogo && (
-                    <button
-                      type="button"
-                      onClick={() => setSchoolLogo(null)}
-                      className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 text-slate-600 dark:text-slate-300 shadow-2xs"
-                    >
-                      Use Sample
-                    </button>
-                  )}
-                  <div className="flex items-center gap-1.5 pl-2.5 border-l border-slate-200 dark:border-slate-700">
-                    <span className="text-[10.5px] font-bold text-slate-600 dark:text-slate-300">Logo Size:</span>
-                    <input
-                      type="range"
-                      min="28"
-                      max="76"
-                      step="2"
-                      value={Number(logoWidth) || 48}
-                      onChange={e => setLogoWidth(e.target.value)}
-                      className="w-16 sm:w-20 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                    />
-                    <span className="font-mono font-bold text-teal-600 dark:text-teal-400 text-[10.5px] bg-teal-50 dark:bg-teal-950/60 px-1 py-0.5 rounded border border-teal-200 dark:border-teal-800">{logoWidth}px</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* ─── QUICK TYPOGRAPHY & FONT SIZING CONTROLS FOR ID CARD ─── */}
-              <div className="border border-slate-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-800 p-4 shadow-2xs space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/80">
                   <div className="flex items-center gap-2">
-                    <Type className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                    <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
-                      Quick Typography & Font Sizing Controls
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-slate-400 font-semibold hidden md:inline-block">
-                      Customize institute name, card title, and tagline font sizes in real time
-                    </span>
                     <button
                       type="button"
                       onClick={() => {
+                        setLogoWidth('48')
+                        setPhotoWidth('80')
+                        setQrCodeSize('32')
+                        setSignatureWidth('56')
+                        setSchoolNameFontSize('13')
+                        setTitleFontSize('9')
+                        setTaglineFontSize('8')
+                        setShowLogo(true)
+                        setShowPhoto(true)
+                        setPrintQr(true)
+                      }}
+                      className="text-[10.5px] font-bold text-teal-600 hover:text-teal-700 dark:text-teal-400 hover:underline px-2.5 py-1 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors"
+                    >
+                      Reset Standard Sizing
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3 Main Sizing Cards Grid: Logo, Candidate Photo, QR Code (Like Admit Card) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                  
+                  {/* CARD 1: INSTITUTE LOGO SIZING */}
+                  <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Institute Logo</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowLogo(prev => !prev)}
+                          className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase transition-all shadow-2xs ${
+                            showLogo
+                              ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700'
+                          }`}
+                        >
+                          {showLogo ? '● Visible' : '○ Hidden'}
+                        </button>
+                      </div>
+                      <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded border border-teal-200/50 dark:border-teal-800/50">
+                        {logoWidth} px
+                      </span>
+                    </div>
+
+                    {/* Upload & Sample Buttons */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => logoFileInputRef.current?.click()}
+                        className="flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-bold bg-teal-600 hover:bg-teal-700 text-white transition-all shadow-xs flex items-center justify-center gap-1.5"
+                      >
+                        <Upload className="w-3 h-3" />
+                        <span>{schoolLogo ? 'Change Logo' : 'Upload Logo'}</span>
+                      </button>
+                      {schoolLogo && (
+                        <button
+                          type="button"
+                          onClick={() => setSchoolLogo(null)}
+                          className="py-1.5 px-2.5 rounded-lg text-[11px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 text-slate-600 dark:text-slate-300 shadow-2xs"
+                        >
+                          Sample
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Quick Presets */}
+                    <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                      {[
+                        { label: 'S (36px)', size: '36' },
+                        { label: 'M (48px)', size: '48' },
+                        { label: 'L (60px)', size: '60' },
+                        { label: 'XL (76px)', size: '76' }
+                      ].map(p => (
+                        <button
+                          key={p.label}
+                          type="button"
+                          onClick={() => setLogoWidth(p.size)}
+                          className={`py-1 rounded text-[10px] font-bold transition-all ${
+                            logoWidth === p.size
+                              ? 'bg-teal-600 text-white shadow-2xs'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                        >
+                          {p.label.split(' ')[0]}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Slider with - / + */}
+                    <div className="space-y-1 pt-1 text-[11px]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-slate-500 font-semibold w-10 shrink-0 text-[10.5px]">Scale:</span>
+                        <button
+                          type="button"
+                          title="Make Logo smaller"
+                          onClick={() => setLogoWidth(prev => String(Math.max(28, Number(prev) - 2)))}
+                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                        >
+                          -
+                        </button>
+                        <input
+                          type="range"
+                          min="28"
+                          max="76"
+                          step="2"
+                          value={Number(logoWidth) || 48}
+                          onChange={e => setLogoWidth(e.target.value)}
+                          className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                        />
+                        <button
+                          type="button"
+                          title="Make Logo bigger"
+                          onClick={() => setLogoWidth(prev => String(Math.min(76, Number(prev) + 2)))}
+                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                        >
+                          +
+                        </button>
+                        <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-9 text-right text-[10.5px]">{logoWidth}px</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CARD 2: CANDIDATE PHOTO SIZING (LIKE ADMIT CARD) */}
+                  <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Candidate Photo</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowPhoto(prev => !prev)}
+                          className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase transition-all shadow-2xs ${
+                            showPhoto
+                              ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700'
+                          }`}
+                        >
+                          {showPhoto ? '● Visible' : '○ Hidden'}
+                        </button>
+                      </div>
+                      <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded border border-teal-200/50 dark:border-teal-800/50">
+                        {photoWidth} × {Math.round(Number(photoWidth) * 1.15)} px
+                      </span>
+                    </div>
+
+                    {/* Presets like Admit Card */}
+                    <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                      {[
+                        { label: 'S (64px)', size: '64' },
+                        { label: 'M (80px)', size: '80' },
+                        { label: 'L (92px)', size: '92' },
+                        { label: 'XL (104px)', size: '104' }
+                      ].map(p => (
+                        <button
+                          key={p.label}
+                          type="button"
+                          onClick={() => setPhotoWidth(p.size)}
+                          className={`py-1 rounded text-[10px] font-bold transition-all ${
+                            photoWidth === p.size
+                              ? 'bg-teal-600 text-white shadow-2xs'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                        >
+                          {p.label.split(' ')[0]}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Scale Slider with - / + */}
+                    <div className="space-y-1 pt-1 text-[11px]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-slate-500 font-semibold w-10 shrink-0 text-[10.5px]">Size:</span>
+                        <button
+                          type="button"
+                          title="Make Photo smaller"
+                          onClick={() => setPhotoWidth(prev => String(Math.max(56, Number(prev) - 2)))}
+                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                        >
+                          -
+                        </button>
+                        <input
+                          type="range"
+                          min="56"
+                          max="112"
+                          step="2"
+                          value={Number(photoWidth) || 80}
+                          onChange={e => setPhotoWidth(e.target.value)}
+                          className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                        />
+                        <button
+                          type="button"
+                          title="Make Photo bigger"
+                          onClick={() => setPhotoWidth(prev => String(Math.min(112, Number(prev) + 2)))}
+                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                        >
+                          +
+                        </button>
+                        <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-9 text-right text-[10.5px]">{photoWidth}px</span>
+                      </div>
+                      <p className="text-[9.5px] text-slate-400 pt-0.5">
+                        Proportional ID passport ratio with auto-fit styling
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* CARD 3: VERIFICATION QR CODE SIZING (LIKE ADMIT CARD) */}
+                  <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Official QR Code</span>
+                        <button
+                          type="button"
+                          onClick={() => setPrintQr(prev => !prev)}
+                          className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase transition-all shadow-2xs ${
+                            printQr
+                              ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700'
+                          }`}
+                        >
+                          {printQr ? '● Visible' : '○ Hidden'}
+                        </button>
+                      </div>
+                      <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded border border-teal-200/50 dark:border-teal-800/50">
+                        {qrCodeSize} px
+                      </span>
+                    </div>
+
+                    {/* Quick Presets */}
+                    <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                      {[
+                        { label: 'S (24px)', size: '24' },
+                        { label: 'M (32px)', size: '32' },
+                        { label: 'L (40px)', size: '40' },
+                        { label: 'XL (48px)', size: '48' }
+                      ].map(p => (
+                        <button
+                          key={p.label}
+                          type="button"
+                          onClick={() => setQrCodeSize(p.size)}
+                          className={`py-1 rounded text-[10px] font-bold transition-all ${
+                            qrCodeSize === p.size
+                              ? 'bg-teal-600 text-white shadow-2xs'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                        >
+                          {p.label.split(' ')[0]}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Scale Slider */}
+                    <div className="space-y-1 pt-1 text-[11px]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-slate-500 font-semibold w-10 shrink-0 text-[10.5px]">Size:</span>
+                        <button
+                          type="button"
+                          title="Make QR smaller"
+                          onClick={() => setQrCodeSize(prev => String(Math.max(20, Number(prev) - 2)))}
+                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                        >
+                          -
+                        </button>
+                        <input
+                          type="range"
+                          min="20"
+                          max="52"
+                          step="2"
+                          value={Number(qrCodeSize) || 32}
+                          onChange={e => setQrCodeSize(e.target.value)}
+                          className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                        />
+                        <button
+                          type="button"
+                          title="Make QR bigger"
+                          onClick={() => setQrCodeSize(prev => String(Math.min(52, Number(prev) + 2)))}
+                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                        >
+                          +
+                        </button>
+                        <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-9 text-right text-[10.5px]">{qrCodeSize}px</span>
+                      </div>
+                      <p className="text-[9.5px] text-slate-400 pt-0.5">
+                        High-contrast scan matrix with clean vector rendering
+                      </p>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Sub-Card: Signatures Width & Typography Sizing Controls */}
+                <div className="p-3.5 rounded-xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/20 space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/50 dark:border-slate-700/50">
+                    <div className="flex items-center gap-2">
+                      <Type className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                      <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                        Typography & Signatures Fine-Tuning
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSignatureWidth('56')
                         setSchoolNameFontSize('13')
                         setTitleFontSize('9')
                         setTaglineFontSize('8')
                       }}
                       className="text-[10px] font-bold text-teal-600 hover:text-teal-700 underline"
                     >
-                      Reset Defaults
+                      Reset Fonts
                     </button>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {/* 1. School / Institute Name Font Size */}
-                  <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-900/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
-                    <div className="flex items-center gap-1 shrink-0">
-                      <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Institute Name:</span>
-                      <span className="font-mono font-black text-teal-600 dark:text-teal-400 text-[10.5px] bg-teal-50 dark:bg-teal-950/60 px-1 rounded">{schoolNameFontSize}px</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        title="Make Institute Name smaller"
-                        onClick={() => setSchoolNameFontSize(prev => String(Math.max(9, Number(prev) - 1)))}
-                        className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
-                      >
-                        A-
-                      </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* Signature Width */}
+                    <div className="flex items-center justify-between gap-1.5 bg-white dark:bg-slate-800 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700 shadow-2xs">
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Sign Width:</span>
+                        <span className="font-mono font-black text-teal-600 dark:text-teal-400 text-[10.5px] bg-teal-50 dark:bg-teal-950/60 px-1 rounded">{signatureWidth}px</span>
+                      </div>
                       <input
                         type="range"
-                        min="9"
-                        max="20"
-                        step="0.5"
-                        value={Number(schoolNameFontSize) || 13}
-                        onChange={e => setSchoolNameFontSize(e.target.value)}
-                        className="w-14 sm:w-16 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                        min="40"
+                        max="76"
+                        step="2"
+                        value={Number(signatureWidth) || 56}
+                        onChange={e => setSignatureWidth(e.target.value)}
+                        className="w-16 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                       />
-                      <button
-                        type="button"
-                        title="Make Institute Name bigger"
-                        onClick={() => setSchoolNameFontSize(prev => String(Math.min(24, Number(prev) + 1)))}
-                        className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
-                      >
-                        A+
-                      </button>
                     </div>
-                  </div>
 
-                  {/* 2. Card Title Font Size */}
-                  <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-900/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
-                    <div className="flex items-center gap-1 shrink-0">
-                      <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Card Title:</span>
-                      <span className="font-mono font-black text-teal-600 dark:text-teal-400 text-[10.5px] bg-teal-50 dark:bg-teal-950/60 px-1 rounded">{titleFontSize}px</span>
+                    {/* School Name */}
+                    <div className="flex items-center justify-between gap-1.5 bg-white dark:bg-slate-800 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700 shadow-2xs">
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Institute:</span>
+                        <span className="font-mono font-black text-teal-600 dark:text-teal-400 text-[10.5px] bg-teal-50 dark:bg-teal-950/60 px-1 rounded">{schoolNameFontSize}px</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setSchoolNameFontSize(prev => String(Math.max(9, Number(prev) - 1)))}
+                          className="w-4 h-4 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-black text-[9px]"
+                        >
+                          -
+                        </button>
+                        <input
+                          type="range"
+                          min="9"
+                          max="22"
+                          step="0.5"
+                          value={Number(schoolNameFontSize) || 13}
+                          onChange={e => setSchoolNameFontSize(e.target.value)}
+                          className="w-12 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setSchoolNameFontSize(prev => String(Math.min(22, Number(prev) + 1)))}
+                          className="w-4 h-4 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-black text-[9px]"
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        title="Make Card Title smaller"
-                        onClick={() => setTitleFontSize(prev => String(Math.max(7, Number(prev) - 0.5)))}
-                        className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
-                      >
-                        A-
-                      </button>
-                      <input
-                        type="range"
-                        min="7"
-                        max="16"
-                        step="0.5"
-                        value={Number(titleFontSize) || 9}
-                        onChange={e => setTitleFontSize(e.target.value)}
-                        className="w-14 sm:w-16 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                      />
-                      <button
-                        type="button"
-                        title="Make Card Title bigger"
-                        onClick={() => setTitleFontSize(prev => String(Math.min(20, Number(prev) + 0.5)))}
-                        className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
-                      >
-                        A+
-                      </button>
-                    </div>
-                  </div>
 
-                  {/* 3. Subtitle / Tagline Font Size */}
-                  <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-900/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
-                    <div className="flex items-center gap-1 shrink-0">
-                      <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Tagline:</span>
-                      <span className="font-mono font-black text-teal-600 dark:text-teal-400 text-[10.5px] bg-teal-50 dark:bg-teal-950/60 px-1 rounded">{taglineFontSize}px</span>
+                    {/* Card Title */}
+                    <div className="flex items-center justify-between gap-1.5 bg-white dark:bg-slate-800 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700 shadow-2xs">
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Title:</span>
+                        <span className="font-mono font-black text-teal-600 dark:text-teal-400 text-[10.5px] bg-teal-50 dark:bg-teal-950/60 px-1 rounded">{titleFontSize}px</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setTitleFontSize(prev => String(Math.max(7, Number(prev) - 0.5)))}
+                          className="w-4 h-4 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-black text-[9px]"
+                        >
+                          -
+                        </button>
+                        <input
+                          type="range"
+                          min="7"
+                          max="16"
+                          step="0.5"
+                          value={Number(titleFontSize) || 9}
+                          onChange={e => setTitleFontSize(e.target.value)}
+                          className="w-12 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setTitleFontSize(prev => String(Math.min(16, Number(prev) + 0.5)))}
+                          className="w-4 h-4 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-black text-[9px]"
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        title="Make Tagline smaller"
-                        onClick={() => setTaglineFontSize(prev => String(Math.max(6, Number(prev) - 0.5)))}
-                        className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
-                      >
-                        A-
-                      </button>
-                      <input
-                        type="range"
-                        min="6"
-                        max="14"
-                        step="0.5"
-                        value={Number(taglineFontSize) || 8}
-                        onChange={e => setTaglineFontSize(e.target.value)}
-                        className="w-14 sm:w-16 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                      />
-                      <button
-                        type="button"
-                        title="Make Tagline bigger"
-                        onClick={() => setTaglineFontSize(prev => String(Math.min(18, Number(prev) + 0.5)))}
-                        className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
-                      >
-                        A+
-                      </button>
+
+                    {/* Tagline */}
+                    <div className="flex items-center justify-between gap-1.5 bg-white dark:bg-slate-800 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700 shadow-2xs">
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Tagline:</span>
+                        <span className="font-mono font-black text-teal-600 dark:text-teal-400 text-[10.5px] bg-teal-50 dark:bg-teal-950/60 px-1 rounded">{taglineFontSize}px</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setTaglineFontSize(prev => String(Math.max(6, Number(prev) - 0.5)))}
+                          className="w-4 h-4 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-black text-[9px]"
+                        >
+                          -
+                        </button>
+                        <input
+                          type="range"
+                          min="6"
+                          max="14"
+                          step="0.5"
+                          value={Number(taglineFontSize) || 8}
+                          onChange={e => setTaglineFontSize(e.target.value)}
+                          className="w-12 accent-teal-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setTaglineFontSize(prev => String(Math.min(14, Number(prev) + 0.5)))}
+                          className="w-4 h-4 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-black text-[9px]"
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1102,6 +1359,10 @@ function GenerateIdCardContent() {
                   schoolLogo={schoolLogo || undefined}
                   showLogo={showLogo}
                   logoWidth={logoWidth}
+                  photoWidth={photoWidth}
+                  qrCodeSize={qrCodeSize}
+                  signatureWidth={signatureWidth}
+                  showPhoto={showPhoto}
                   schoolNameFontSize={schoolNameFontSize}
                   titleFontSize={titleFontSize}
                   taglineFontSize={taglineFontSize}
@@ -1344,7 +1605,7 @@ function GenerateIdCardContent() {
                   <div className="flex items-center gap-3">
                     <div className="flex-1">
                       <label className="text-[11px] font-semibold text-slate-500 block mb-1">
-                        Sign Label / Cardholder Name
+                        {selectedRole === 'Teacher' ? 'Teacher / Faculty Sign Text' : selectedRole === 'Employee' ? 'Staff Sign Text' : 'Student Sign Text'}
                       </label>
                       <input 
                         type="text" 
@@ -1377,65 +1638,87 @@ function GenerateIdCardContent() {
             <div className="h-px bg-slate-200 dark:bg-slate-700 w-full"></div>
           </div>
 
-          {/* Institute Logo Showcase Box */}
-          <div className="mb-6 p-4 rounded-2xl border border-teal-500/30 bg-teal-50/30 dark:bg-slate-900/40 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              {/* Emblem Preview Container using new High-Contrast Design */}
-              <div className="w-16 h-16 rounded-2xl bg-white p-1.5 shadow-md border-2 border-amber-400 ring-2 ring-white/80 flex items-center justify-center shrink-0 overflow-hidden">
-                {schoolLogo ? (
-                  <img src={schoolLogo} alt="School Logo" className="w-full h-full object-contain filter drop-shadow-2xs" />
-                ) : (
-                  <div className="w-full h-full rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex flex-col items-center justify-center text-slate-900 shadow-inner">
-                    <Building2 className="w-7 h-7 text-slate-900" />
-                    <span className="text-[6.5px] font-black uppercase tracking-tighter mt-0.5">LOGO</span>
+          {/* Auto-Synced Institute Profile & Authority Signatures Notification Banner */}
+          <div className="mb-6 p-4 rounded-2xl border border-teal-500/30 bg-teal-50/30 dark:bg-slate-900/40 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-teal-200/50 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-md shrink-0">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                      Default Institute Information & Authority Signatures
+                    </h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Auto-Synced from Profile
+                    </span>
                   </div>
-                )}
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Institute identity, campus address, contact helpline and authority signatures are loaded automatically from default profile settings.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
-                  <span>Institute Logo (Header Showcase Emblem)</span>
-                  <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">
-                    High-Contrast Display
-                  </span>
-                </h4>
-                <p className="text-[11px] text-slate-500 font-medium">
-                  {schoolLogo ? 'Official logo loaded and rendered in high-contrast header frame' : 'No custom logo uploaded yet — showing default campus crest'}
-                </p>
-                {schoolLogo && (
-                  <button
-                    type="button"
-                    onClick={() => setSchoolLogo(null)}
-                    className="text-[10.5px] text-red-500 hover:text-red-600 font-bold mt-1 inline-block"
-                  >
-                    Remove Logo
-                  </button>
-                )}
-              </div>
-            </div>
 
-            <div className="flex items-center gap-2.5 self-stretch sm:self-auto justify-end">
               <button
                 type="button"
                 onClick={handleManualAutoFetch}
                 disabled={isAutoFetching}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 text-xs font-bold transition-colors flex items-center gap-1.5 shadow-2xs"
+                className="px-3 py-1.5 rounded-xl border border-teal-200 dark:border-teal-700 bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 hover:bg-teal-50 text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs shrink-0 self-start sm:self-center"
               >
                 <RotateCw className={`w-3.5 h-3.5 ${isAutoFetching ? 'animate-spin text-teal-600' : ''}`} />
-                <span>Auto-Fetch Logo</span>
+                <span>Re-sync Defaults</span>
               </button>
-              <label className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer">
-                <Upload className="w-3.5 h-3.5" />
-                <span>Upload Logo</span>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handleLogoUpload}
-                  className="hidden" 
-                />
-              </label>
             </div>
+
+            {/* Quick Overview Summary Chips */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1">
+              <div className="p-2 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700 shadow-2xs">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Institute</span>
+                <span className="text-xs font-black text-slate-800 dark:text-slate-200 truncate block" title={schoolName}>
+                  {schoolName || 'Not Set'}
+                </span>
+              </div>
+              <div className="p-2 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700 shadow-2xs">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Campus Address</span>
+                <span className="text-xs font-black text-slate-800 dark:text-slate-200 truncate block" title={schoolAddress}>
+                  {schoolAddress || 'Campus Road'}
+                </span>
+              </div>
+              <div className="p-2 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700 shadow-2xs">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Authority Sign</span>
+                <span className="text-xs font-black text-slate-800 dark:text-slate-200 truncate block" title={principalName}>
+                  {principalName || 'Principal'}
+                </span>
+              </div>
+              <div className="p-2 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700 shadow-2xs">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Contact Phone</span>
+                <span className="text-xs font-black text-slate-800 dark:text-slate-200 truncate block" title={schoolPhone}>
+                  {schoolPhone || 'N/A'}
+                </span>
+              </div>
+              <div className="p-2 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700 shadow-2xs">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Official Email</span>
+                <span className="text-xs font-black text-slate-800 dark:text-slate-200 truncate block" title={schoolEmail}>
+                  {schoolEmail || 'N/A'}
+                </span>
+              </div>
+              <div className="p-2 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700 shadow-2xs">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Affiliation Code</span>
+                <span className="text-xs font-black text-slate-800 dark:text-slate-200 truncate block" title={affiliationCode}>
+                  {affiliationCode || 'CBSE-213089'}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 pt-1">
+              <span className="font-bold text-teal-600 dark:text-teal-400">Tip:</span> 
+              To adjust any specific wording for this card design, you can click directly on the live card canvas preview above to edit texts in real time.
+            </p>
           </div>
 
+          {/* Card-Specific Parameters: Title, Tagline & Session */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="flex flex-col gap-2">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Card Header Title <span className="text-red-500">*</span></label>
@@ -1469,77 +1752,6 @@ function GenerateIdCardContent() {
                 <option value="2026-27">2026-27</option>
                 <option value="2027-28">2027-28</option>
               </select>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Institute / School Name <span className="text-red-500">*</span></label>
-              <input 
-                type="text" 
-                value={schoolName}
-                onChange={(e) => setSchoolName(e.target.value)}
-                placeholder="Enter Institute Name" 
-                className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm outline-none focus:border-teal-500 transition-all text-slate-700 dark:text-slate-200" 
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Campus Address</label>
-              <input 
-                type="text" 
-                value={schoolAddress}
-                onChange={(e) => setSchoolAddress(e.target.value)}
-                placeholder="Enter Address" 
-                className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm outline-none focus:border-teal-500 transition-all text-slate-700 dark:text-slate-200" 
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Principal / Authority Sign Name</label>
-              <input 
-                type="text" 
-                value={principalName}
-                onChange={(e) => setPrincipalName(e.target.value)}
-                placeholder="e.g. K.Singhal" 
-                className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm outline-none focus:border-teal-500 transition-all text-slate-700 dark:text-slate-200" 
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Cardholder / Student Sign Name <span className="text-[10px] text-teal-600 font-semibold">(Separate Sign)</span></label>
-              <input 
-                type="text" 
-                value={holderSignName}
-                onChange={(e) => setHolderSignName(e.target.value)}
-                placeholder="e.g. Cardholder / Student Sign" 
-                className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm outline-none focus:border-teal-500 transition-all text-slate-700 dark:text-slate-200" 
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Contact Helpline Phone</label>
-              <input 
-                type="text" 
-                value={schoolPhone}
-                onChange={(e) => setSchoolPhone(e.target.value)}
-                placeholder="Enter Phone Number" 
-                className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm outline-none focus:border-teal-500 transition-all text-slate-700 dark:text-slate-200" 
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Official Email</label>
-              <input 
-                type="email" 
-                value={schoolEmail}
-                onChange={(e) => setSchoolEmail(e.target.value)}
-                placeholder="Enter Email" 
-                className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm outline-none focus:border-teal-500 transition-all text-slate-700 dark:text-slate-200" 
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Affiliation Code / ID</label>
-              <input 
-                type="text" 
-                value={affiliationCode}
-                onChange={(e) => setAffiliationCode(e.target.value)}
-                placeholder="e.g. CBSE-213089" 
-                className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm outline-none focus:border-teal-500 transition-all text-slate-700 dark:text-slate-200" 
-              />
             </div>
           </div>
 

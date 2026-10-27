@@ -18,6 +18,7 @@ import {
   CertificateTypeData,
   IssuedCertificateData
 } from './actions'
+import { fetchInstituteName } from '@/app/institute/actions'
 import { 
   CertificateDesign1, 
   CertificateDesign2, 
@@ -48,6 +49,12 @@ function isClassMatch(a: string, b: string): boolean {
   return false
 }
 
+function isSectionMatch(a: string, b: string): boolean {
+  if (!a || !b) return false
+  const cleanA = String(a).trim().toLowerCase().replace(/^section\s*/i, '')
+  const cleanB = String(b).trim().toLowerCase().replace(/^section\s*/i, '')
+  return cleanA === cleanB
+}
 
 // Helper to load institute added classes (no default mock classes)
 function loadInstituteAddedClasses(): string[] {
@@ -154,7 +161,7 @@ export default function AllCertificatePage() {
   const [formSectionName, setFormSectionName] = useState('')
   const [formFatherName, setFormFatherName] = useState('')
   const [formRollNo, setFormRollNo] = useState('')
-  const [formExam, setFormExam] = useState('Annual Examination 2025-26')
+  const [formExam, setFormExam] = useState('Good Character & Conduct')
   const [formCertNo, setFormCertNo] = useState('')
   const [formIssueDate, setFormIssueDate] = useState(new Date().toISOString().split('T')[0])
   const [formRemarks, setFormRemarks] = useState('For outstanding academic excellence and exemplary conduct.')
@@ -186,11 +193,16 @@ export default function AllCertificatePage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [certRes, typesRes, stdRes] = await Promise.all([
+      const [certRes, typesRes, stdRes, instRes] = await Promise.all([
         fetchIssuedCertificates(),
         fetchCertificateTypes(),
-        fetchStudentsForCertificate()
+        fetchStudentsForCertificate(),
+        fetchInstituteName()
       ])
+
+      if (instRes && typeof instRes === 'string') {
+        setFormSchoolName(instRes)
+      }
 
       if (certRes.success && certRes.data) {
         setCertificates(certRes.data)
@@ -280,11 +292,43 @@ export default function AllCertificatePage() {
     setFormHiddenFields(t.hiddenFields || [])
     setFormNarrativeTemplate(t.content || '')
 
-    // Auto next number
+    // Auto next number strictly generated from Certificate Type setup (prefix + start sequence)
     const prefix = t.prefix || 'CER/2025/'
     const startSequence = parseInt(t.startNo || '101', 10) || 101
-    const nextSeq = startSequence + currentCerts.length
+
+    let highestSeq = startSequence - 1
+    currentCerts.forEach(c => {
+      const isThisType = (t.id && c.certificateTypeId === t.id) || 
+                         (t.title && c.title === t.title) ||
+                         (prefix && c.certificateNo && c.certificateNo.startsWith(prefix))
+      if (isThisType && c.certificateNo) {
+        const numPart = c.certificateNo.replace(prefix, '')
+        const num = parseInt(numPart, 10)
+        if (!isNaN(num) && num > highestSeq) {
+          highestSeq = num
+        }
+      }
+    })
+    const nextSeq = Math.max(startSequence, highestSeq + 1)
     setFormCertNo(`${prefix}${nextSeq}`)
+
+    // Smart default for Exam / Event / Honor Reason based on certificate type title
+    const lowerTitle = (t.title || '').toLowerCase()
+    let defaultReason = 'Good Character & Conduct'
+    if (lowerTitle.includes('sport') || lowerTitle.includes('cricket') || lowerTitle.includes('athletic')) {
+      defaultReason = 'Excellence in Cricket & Sports'
+    } else if (lowerTitle.includes('character') || lowerTitle.includes('conduct')) {
+      defaultReason = 'Good Character & Conduct'
+    } else if (lowerTitle.includes('bravery') || lowerTitle.includes('courage')) {
+      defaultReason = 'Outstanding Bravery & Gallantry Distinction'
+    } else if (lowerTitle.includes('merit') || lowerTitle.includes('academic') || lowerTitle.includes('achieve')) {
+      defaultReason = 'Outstanding Academic Performance'
+    } else if (lowerTitle.includes('completion') || lowerTitle.includes('leaving') || lowerTitle.includes('transfer')) {
+      defaultReason = 'Course & Curriculum Completion'
+    } else if (lowerTitle.includes('participation')) {
+      defaultReason = 'Active Participation & Merit'
+    }
+    setFormExam(defaultReason)
 
     // If type has specific classes, default class to first applicable class
     if (Array.isArray(t.classes) && t.classes.length > 0 && !t.classes.includes('All Classes')) {
@@ -301,7 +345,7 @@ export default function AllCertificatePage() {
   const handleTypeChange = (typeId: string) => {
     const found = certTypes.find(t => String(t.id) === String(typeId))
     if (found) {
-      applyCertificateType(found)
+      applyCertificateType(found, certificates)
     }
   }
 
@@ -334,11 +378,69 @@ export default function AllCertificatePage() {
     return certTypes.find(t => String(t.id) === String(selectedTypeId)) || certTypes[0]
   }, [certTypes, selectedTypeId])
 
-  // Filter students based on selected class (Only added students for this class)
+  // Available sections dynamically loaded for the chosen class
+  const availableSectionsForClass = useMemo(() => {
+    const secSet = new Set<string>()
+
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('school_masters_sections')
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          if (Array.isArray(parsed)) {
+            parsed
+              .filter((s: any) => !s.deleted && (!formClassName || !s.className || isClassMatch(s.className, formClassName)))
+              .forEach((s: any) => {
+                const name = (s.sectionName || s.name || '').trim()
+                if (name) secSet.add(name)
+              })
+          }
+        }
+      } catch (e) {}
+
+      try {
+        const saved2 = localStorage.getItem('school_sections')
+        if (saved2) {
+          const parsed = JSON.parse(saved2)
+          if (Array.isArray(parsed)) {
+            parsed.forEach((s: any) => {
+              const name = typeof s === 'string' ? s.trim() : (s.name || s.sectionName || '').trim()
+              if (name) secSet.add(name)
+            })
+          }
+        }
+      } catch (e) {}
+    }
+
+    // Add sections from enrolled students matching this class
+    students
+      .filter(s => !formClassName || isClassMatch(s.className, formClassName))
+      .forEach(s => {
+        const sec = (s.section || '').trim()
+        if (sec) secSet.add(sec)
+      })
+
+    // If still empty, provide standard fallback sections
+    if (secSet.size === 0) {
+      ['A', 'B', 'C', 'D'].forEach(s => secSet.add(s))
+    }
+
+    return Array.from(secSet).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+  }, [formClassName, students])
+
+  // Filter students based on selected class AND section
   const filteredStudentsForModal = useMemo(() => {
-    if (!formClassName) return students
-    return students.filter(s => isClassMatch(s.className, formClassName))
-  }, [students, formClassName])
+    return students.filter(s => {
+      if (formClassName && !isClassMatch(s.className, formClassName)) {
+        return false
+      }
+      if (formSectionName && formSectionName !== 'ALL') {
+        if (!s.section) return false
+        if (!isSectionMatch(s.section, formSectionName)) return false
+      }
+      return true
+    })
+  }, [students, formClassName, formSectionName])
 
   // Dynamic Content with Merge Tag Placeholders Replaced Live
   const dynamicLiveContent = useMemo(() => {
@@ -350,8 +452,11 @@ export default function AllCertificatePage() {
     tmpl = tmpl.replace(/\{Class\}/gi, formClassName || '[Class]')
     tmpl = tmpl.replace(/\{Roll No\}/gi, formRollNo || '[Roll No]')
     tmpl = tmpl.replace(/\{Date\}/gi, formIssueDate || '[Date]')
-    tmpl = tmpl.replace(/\{Exam\}/gi, formExam || '[Academic Examination]')
-    tmpl = tmpl.replace(/\{Achievement Detail\}/gi, formRemarks || 'exemplary performance')
+    tmpl = tmpl.replace(/\{Exam\}/gi, formExam || '[Honor Reason]')
+    tmpl = tmpl.replace(/\{Reason\}/gi, formExam || '[Honor Reason]')
+    tmpl = tmpl.replace(/\{Event\}/gi, formExam || '[Event]')
+    tmpl = tmpl.replace(/\{Honor Reason\}/gi, formExam || '[Honor Reason]')
+    tmpl = tmpl.replace(/\{Achievement Detail\}/gi, formExam || formRemarks || 'exemplary performance')
     tmpl = tmpl.replace(/\{Academic Session\}/gi, '2025-2026')
     tmpl = tmpl.replace(/\{Admission No\}/gi, formRollNo || '[Admission No]')
     return tmpl
@@ -508,6 +613,7 @@ export default function AllCertificatePage() {
       principalName: cert.principalName || 'Dr. S. K. Sharma',
       principalLabel: cert.principalLabel || 'Principal & Director',
       awarder: cert.principalLabel || 'Principal / Director',
+      examName: cert.exam || undefined,
       showQr: true,
       showSeal: true,
       hiddenFields: cert.hiddenFields || []
@@ -953,7 +1059,7 @@ export default function AllCertificatePage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Class Dropdown (Only Added Classes) */}
+                      {/* 1. Target Class / Standard */}
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                           Target Class / Standard <span className="text-red-500">*</span>
@@ -963,16 +1069,10 @@ export default function AllCertificatePage() {
                           onChange={(e) => {
                             const newClass = e.target.value
                             setFormClassName(newClass)
-                            if (selectedStudentId) {
-                              const currentStd = students.find(s => String(s.id) === String(selectedStudentId))
-                              if (currentStd && currentStd.className && !isClassMatch(currentStd.className, newClass)) {
-                                setSelectedStudentId('')
-                                setFormStudentName('')
-                                setFormSectionName('')
-                                setFormFatherName('')
-                                setFormRollNo('')
-                              }
-                            }
+                            setSelectedStudentId('')
+                            setFormStudentName('')
+                            setFormFatherName('')
+                            setFormRollNo('')
                           }}
                           className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 shadow-xs"
                         >
@@ -983,25 +1083,61 @@ export default function AllCertificatePage() {
                         </select>
                       </div>
 
-                      {/* Enrolled Student Dropdown (Only Added Students) */}
+                      {/* 2. Target Section (Comes immediately after Class) */}
                       <div className="flex flex-col gap-1.5">
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                            Select Enrolled Student
+                            Target Section
                           </label>
                           <span className="text-[10px] text-slate-400 font-normal">
-                            {filteredStudentsForModal.length} student{filteredStudentsForModal.length === 1 ? '' : 's'} available
+                            Filter by section
+                          </span>
+                        </div>
+                        <select
+                          value={formSectionName}
+                          onChange={(e) => {
+                            const newSec = e.target.value
+                            setFormSectionName(newSec)
+                            if (selectedStudentId) {
+                              const currentStd = students.find(s => String(s.id) === String(selectedStudentId))
+                              if (currentStd && currentStd.section && newSec && !isSectionMatch(currentStd.section, newSec)) {
+                                setSelectedStudentId('')
+                                setFormStudentName('')
+                                setFormFatherName('')
+                                setFormRollNo('')
+                              }
+                            }
+                          }}
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 shadow-xs"
+                        >
+                          <option value="">-- All Sections --</option>
+                          {availableSectionsForClass.map(sec => (
+                            <option key={sec} value={sec}>
+                              {sec.toLowerCase().startsWith('section') ? sec : `Section ${sec}`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* 3. Enrolled Student Dropdown (Populated based on Class & Section) */}
+                      <div className="flex flex-col gap-1.5 md:col-span-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            Select Enrolled Student <span className="text-red-500">*</span>
+                          </label>
+                          <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold">
+                            {filteredStudentsForModal.length} student{filteredStudentsForModal.length === 1 ? '' : 's'} available {formClassName ? `in ${formClassName}` : ''}{formSectionName ? ` (Section ${formSectionName})` : ''}
                           </span>
                         </div>
                         <select
                           value={selectedStudentId}
                           onChange={(e) => handleStudentChange(e.target.value)}
-                          className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-teal-500 shadow-xs"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 shadow-xs"
                         >
                           <option value="">-- Choose from Enrolled Students --</option>
                           {filteredStudentsForModal.length === 0 ? (
                             <option value="" disabled>
-                              No enrolled students found {formClassName ? `in ${formClassName}` : ''}
+                              No enrolled students found {formClassName ? `in ${formClassName}` : ''}{formSectionName ? ` (Section ${formSectionName})` : ''}
                             </option>
                           ) : (
                             filteredStudentsForModal.map(s => (
@@ -1013,7 +1149,7 @@ export default function AllCertificatePage() {
                         </select>
                       </div>
 
-                      {/* Student Full Name - NOT EDITABLE ON SELECT OF STUDENT */}
+                      {/* 4. Student Full Name - Auto-captured or editable */}
                       <div className="flex flex-col gap-1.5">
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -1041,34 +1177,7 @@ export default function AllCertificatePage() {
                         />
                       </div>
 
-                      {/* Section - NOT EDITABLE ON SELECT OF STUDENT */}
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                            Section
-                          </label>
-                          {selectedStudentId && (
-                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
-                              <Lock className="w-2.5 h-2.5" /> Auto-captured (Locked)
-                            </span>
-                          )}
-                        </div>
-                        <input
-                          type="text"
-                          disabled={!!selectedStudentId}
-                          readOnly={!!selectedStudentId}
-                          value={formSectionName}
-                          onChange={(e) => setFormSectionName(e.target.value)}
-                          placeholder={selectedStudentId ? "Auto-captured from student record" : "e.g. Section A"}
-                          className={`w-full px-3.5 py-2 rounded-xl border text-xs font-semibold outline-none shadow-xs transition-colors ${
-                            selectedStudentId
-                              ? 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 cursor-not-allowed select-none'
-                              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:border-teal-500'
-                          }`}
-                        />
-                      </div>
-
-                      {/* Father Name - NOT EDITABLE ON SELECT OF STUDENT */}
+                      {/* 5. Father / Guardian Name */}
                       <div className="flex flex-col gap-1.5">
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -1095,8 +1204,8 @@ export default function AllCertificatePage() {
                         />
                       </div>
 
-                      {/* Roll / Reg ID - NOT EDITABLE ON SELECT OF STUDENT */}
-                      <div className="flex flex-col gap-1.5">
+                      {/* 6. Roll No / Reg ID */}
+                      <div className="flex flex-col gap-1.5 md:col-span-2">
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                             Roll No / Reg ID
@@ -1138,31 +1247,66 @@ export default function AllCertificatePage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Exam / Reason */}
                       <div className="flex flex-col gap-1.5 md:col-span-2">
-                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                          Exam / Event / Honor Reason <span className="text-red-500">*</span>
-                        </label>
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            Exam / Event / Honor Reason <span className="text-red-500">*</span>
+                          </label>
+                          <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold">
+                            Shows on Certificate Badge & Narrative
+                          </span>
+                        </div>
                         <input
                           type="text"
                           required
                           value={formExam}
                           onChange={(e) => setFormExam(e.target.value)}
-                          placeholder="e.g. Annual Academic Examination 2025-26"
+                          placeholder="e.g. Good Character & Conduct, Excellence in Cricket & Sports..."
                           className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-teal-500 shadow-xs"
                         />
+                        {/* Quick Preset Suggestion Chips */}
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {[
+                            'Good Character & Conduct',
+                            'Excellence in Cricket & Sports',
+                            'Outstanding Academic Performance',
+                            'Inter-School Championship Winner',
+                            'Exemplary Leadership & Service',
+                            'Active Participation & Merit'
+                          ].map(preset => (
+                            <button
+                              key={preset}
+                              type="button"
+                              onClick={() => setFormExam(preset)}
+                              className={`text-[10px] px-2.5 py-1 rounded-lg border font-semibold transition-all ${
+                                formExam === preset
+                                  ? 'bg-teal-100 dark:bg-teal-950/60 border-teal-300 dark:border-teal-700 text-teal-800 dark:text-teal-300'
+                                  : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300'
+                              }`}
+                            >
+                              {preset}
+                            </button>
+                          ))}
+                        </div>
                       </div>
 
-                      {/* Certificate Number */}
+                      {/* Certificate Number - Auto-generated according to Type Setup, Not Editable */}
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                          Certificate Number <span className="text-red-500">*</span>
-                        </label>
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            Certificate Number <span className="text-red-500">*</span>
+                          </label>
+                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
+                            <Lock className="w-2.5 h-2.5" /> Auto-generated (Locked)
+                          </span>
+                        </div>
                         <input
                           type="text"
                           required
+                          readOnly
+                          disabled
                           value={formCertNo}
-                          onChange={(e) => setFormCertNo(e.target.value)}
-                          placeholder="e.g. CER/2025/101"
-                          className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono font-bold text-teal-600 outline-none focus:border-teal-500 shadow-xs"
+                          placeholder="Auto-generated according to setup"
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/80 text-xs font-mono font-bold text-teal-700 dark:text-teal-400 outline-none shadow-xs cursor-not-allowed select-none"
                         />
                       </div>
 
@@ -1300,6 +1444,7 @@ export default function AllCertificatePage() {
                           schoolName={formSchoolName}
                           schoolAddress={formSchoolAddress}
                           studentName={formStudentName || 'Student Name'}
+                          examName={formExam}
                           content={dynamicLiveContent}
                           date={formIssueDate}
                           principalName={formPrincipalName}
@@ -1311,6 +1456,7 @@ export default function AllCertificatePage() {
                             else if (field === 'content') setFormNarrativeTemplate(val)
                             else if (field === 'principalName') setFormPrincipalName(val)
                             else if (field === 'date') setFormIssueDate(val)
+                            else if (field === 'examName') setFormExam(val)
                           }}
                         />
                       )}
@@ -1322,6 +1468,7 @@ export default function AllCertificatePage() {
                           schoolName={formSchoolName}
                           schoolAddress={formSchoolAddress}
                           studentName={formStudentName || 'Student Name'}
+                          examName={formExam}
                           content={dynamicLiveContent}
                           date={formIssueDate}
                           principalName={formPrincipalName}
@@ -1333,6 +1480,7 @@ export default function AllCertificatePage() {
                             else if (field === 'content') setFormNarrativeTemplate(val)
                             else if (field === 'principalName') setFormPrincipalName(val)
                             else if (field === 'date') setFormIssueDate(val)
+                            else if (field === 'examName') setFormExam(val)
                           }}
                         />
                       )}
@@ -1344,6 +1492,7 @@ export default function AllCertificatePage() {
                           schoolName={formSchoolName}
                           schoolAddress={formSchoolAddress}
                           studentName={formStudentName || 'Student Name'}
+                          examName={formExam}
                           content={dynamicLiveContent}
                           date={formIssueDate}
                           principalName={formPrincipalName}
@@ -1355,6 +1504,7 @@ export default function AllCertificatePage() {
                             else if (field === 'content') setFormNarrativeTemplate(val)
                             else if (field === 'principalName') setFormPrincipalName(val)
                             else if (field === 'date') setFormIssueDate(val)
+                            else if (field === 'examName') setFormExam(val)
                           }}
                         />
                       )}
@@ -1366,6 +1516,7 @@ export default function AllCertificatePage() {
                           schoolName={formSchoolName}
                           schoolAddress={formSchoolAddress}
                           studentName={formStudentName || 'Student Name'}
+                          examName={formExam}
                           content={dynamicLiveContent}
                           date={formIssueDate}
                           principalName={formPrincipalName}
@@ -1377,6 +1528,7 @@ export default function AllCertificatePage() {
                             else if (field === 'content') setFormNarrativeTemplate(val)
                             else if (field === 'principalName') setFormPrincipalName(val)
                             else if (field === 'date') setFormIssueDate(val)
+                            else if (field === 'examName') setFormExam(val)
                           }}
                         />
                       )}

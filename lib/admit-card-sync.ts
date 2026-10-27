@@ -92,7 +92,7 @@ const DEFAULT_DISPLAY_FIELDS = {
 }
 
 const DEFAULT_INSTRUCTIONS =
-  '1. Candidates must arrive at the examination center 30 minutes before the scheduled time.\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.'
+  '1. Reporting & Gate Closure Time: Candidates must report to the examination center by 09:30 AM IST. Gate closure time is 09:50 AM (Sharp).\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.'
 
 export function getStoredAdmitCards(): AdmitCardConfig[] {
   if (typeof window === 'undefined') return []

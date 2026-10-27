@@ -101,6 +101,7 @@ export default function UnifiedExamAdmitHub({
   const [selectedClass, setSelectedClass] = useState('ALL')
   const [selectedTemplate, setSelectedTemplate] = useState('ALL')
   const [selectedSession, setSelectedSession] = useState('2025-2026')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'UPCOMING' | 'RESULT_PENDING' | 'FULLY_COMPLETED'>('ALL')
 
   // Search & Filter state for Admit Cards
   const [admitSearchQuery, setAdmitSearchQuery] = useState('')
@@ -630,33 +631,39 @@ export default function UnifiedExamAdmitHub({
     return Array.from(set)
   }, [setups])
 
+  // Helper to determine status for an exam setup
+  const getExamSetupStatus = (s: ExamMarksheetSetupRecord): 'UPCOMING' | 'RESULT_PENDING' | 'FULLY_COMPLETED' => {
+    if (s.lockExam || s.config?.status === 'Completed' || s.config?.status === 'Fully Completed') {
+      return 'FULLY_COMPLETED'
+    }
+    const today = new Date().setHours(0, 0, 0, 0)
+    const raw = s.examDate || s.config?.examDate || s.date
+    if (raw) {
+      try {
+        const d = new Date(raw)
+        if (!isNaN(d.getTime())) {
+          if (d.getTime() >= today) {
+            return 'UPCOMING'
+          } else {
+            return 'RESULT_PENDING'
+          }
+        }
+      } catch (e) {}
+    }
+    return 'UPCOMING'
+  }
+
   // Statistics for Overview Cards: Total, Upcoming, Result Pending, Fully Completed
   const examStats = useMemo(() => {
-    const today = new Date().setHours(0, 0, 0, 0)
     let upcoming = 0
     let resultPending = 0
     let fullyCompleted = 0
 
     setups.forEach(s => {
-      if (s.lockExam || s.config?.status === 'Completed' || s.config?.status === 'Fully Completed') {
-        fullyCompleted++
-        return
-      }
-      const raw = s.examDate || s.config?.examDate || s.date
-      if (raw) {
-        try {
-          const d = new Date(raw)
-          if (!isNaN(d.getTime())) {
-            if (d.getTime() >= today) {
-              upcoming++
-            } else {
-              resultPending++
-            }
-            return
-          }
-        } catch (e) {}
-      }
-      upcoming++
+      const st = getExamSetupStatus(s)
+      if (st === 'FULLY_COMPLETED') fullyCompleted++
+      else if (st === 'RESULT_PENDING') resultPending++
+      else upcoming++
     })
 
     return {
@@ -686,10 +693,11 @@ export default function UnifiedExamAdmitHub({
         item.config?.className === selectedClass
       const matchesTemplate = selectedTemplate === 'ALL' || item.templateName === selectedTemplate
       const matchesSession = !selectedSession || item.session === selectedSession
+      const matchesStatus = statusFilter === 'ALL' || getExamSetupStatus(item) === statusFilter
 
-      return matchesSearch && matchesGroup && matchesClass && matchesTemplate && matchesSession
+      return matchesSearch && matchesGroup && matchesClass && matchesTemplate && matchesSession && matchesStatus
     })
-  }, [setups, searchQuery, selectedGroup, selectedClass, selectedTemplate, selectedSession])
+  }, [setups, searchQuery, selectedGroup, selectedClass, selectedTemplate, selectedSession, statusFilter])
 
   // Filtered Admit Cards
   const filteredAdmitCards = useMemo(() => {
@@ -807,15 +815,29 @@ export default function UnifiedExamAdmitHub({
         </div>
       </div>
 
-      {/* Synchronized Metrics Summary: Total, Upcoming, Result Pending, Fully Completed */}
+      {/* Synchronized Metrics Summary: Total, Upcoming, Result Pending, Fully Completed (Clickable Filters) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Metric 1: Total */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 rounded-2xl shadow-2xs hover:shadow-xs transition-all relative overflow-hidden group">
+        <button
+          type="button"
+          onClick={() => setStatusFilter('ALL')}
+          className={`p-5 rounded-2xl transition-all relative overflow-hidden group text-left cursor-pointer border ${
+            statusFilter === 'ALL'
+              ? 'bg-white dark:bg-slate-900 border-teal-500 ring-2 ring-teal-500/30 shadow-md'
+              : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-teal-300 dark:hover:border-teal-700 shadow-2xs hover:shadow-xs'
+          } active:scale-[0.98]`}
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+            <span className={`text-[11px] font-black uppercase tracking-wider ${
+              statusFilter === 'ALL' ? 'text-teal-700 dark:text-teal-300' : 'text-slate-400 dark:text-slate-500'
+            }`}>
               Total Exams
             </span>
-            <div className="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform ${
+              statusFilter === 'ALL'
+                ? 'bg-teal-600 text-white shadow-xs'
+                : 'bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400'
+            }`}>
               <Layers className="w-4 h-4" />
             </div>
           </div>
@@ -827,18 +849,39 @@ export default function UnifiedExamAdmitHub({
               Total Setups
             </span>
           </div>
-          <p className="text-[10.5px] text-slate-400 mt-1">
-            All configured examination schemes
-          </p>
-        </div>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-[10.5px] text-slate-400">
+              All configured examination schemes
+            </p>
+            {statusFilter === 'ALL' && (
+              <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 px-1.5 py-0.5 rounded-md border border-teal-200 dark:border-teal-800">
+                Active
+              </span>
+            )}
+          </div>
+        </button>
 
         {/* Metric 2: Upcoming */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 rounded-2xl shadow-2xs hover:shadow-xs transition-all relative overflow-hidden group">
+        <button
+          type="button"
+          onClick={() => setStatusFilter(prev => prev === 'UPCOMING' ? 'ALL' : 'UPCOMING')}
+          className={`p-5 rounded-2xl transition-all relative overflow-hidden group text-left cursor-pointer border ${
+            statusFilter === 'UPCOMING'
+              ? 'bg-blue-50/20 dark:bg-blue-950/20 border-blue-500 ring-2 ring-blue-500/30 shadow-md'
+              : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 shadow-2xs hover:shadow-xs'
+          } active:scale-[0.98]`}
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+            <span className={`text-[11px] font-black uppercase tracking-wider ${
+              statusFilter === 'UPCOMING' ? 'text-blue-700 dark:text-blue-300' : 'text-slate-400 dark:text-slate-500'
+            }`}>
               Upcoming Exams
             </span>
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform ${
+              statusFilter === 'UPCOMING'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400'
+            }`}>
               <Calendar className="w-4 h-4" />
             </div>
           </div>
@@ -850,18 +893,39 @@ export default function UnifiedExamAdmitHub({
               Upcoming
             </span>
           </div>
-          <p className="text-[10.5px] text-slate-400 mt-1">
-            Scheduled dates & admit cards ready
-          </p>
-        </div>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-[10.5px] text-slate-400">
+              Scheduled dates & admit cards ready
+            </p>
+            {statusFilter === 'UPCOMING' && (
+              <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded-md border border-blue-200 dark:border-blue-800">
+                Active Filter
+              </span>
+            )}
+          </div>
+        </button>
 
         {/* Metric 3: Result Pending */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 rounded-2xl shadow-2xs hover:shadow-xs transition-all relative overflow-hidden group">
+        <button
+          type="button"
+          onClick={() => setStatusFilter(prev => prev === 'RESULT_PENDING' ? 'ALL' : 'RESULT_PENDING')}
+          className={`p-5 rounded-2xl transition-all relative overflow-hidden group text-left cursor-pointer border ${
+            statusFilter === 'RESULT_PENDING'
+              ? 'bg-amber-50/20 dark:bg-amber-950/20 border-amber-500 ring-2 ring-amber-500/30 shadow-md'
+              : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-700 shadow-2xs hover:shadow-xs'
+          } active:scale-[0.98]`}
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+            <span className={`text-[11px] font-black uppercase tracking-wider ${
+              statusFilter === 'RESULT_PENDING' ? 'text-amber-700 dark:text-amber-300' : 'text-slate-400 dark:text-slate-500'
+            }`}>
               Result Pending
             </span>
-            <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform ${
+              statusFilter === 'RESULT_PENDING'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400'
+            }`}>
               <Clock className="w-4 h-4" />
             </div>
           </div>
@@ -873,18 +937,39 @@ export default function UnifiedExamAdmitHub({
               Result Pending
             </span>
           </div>
-          <p className="text-[10.5px] text-slate-400 mt-1">
-            Exams conducted, awaiting evaluation
-          </p>
-        </div>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-[10.5px] text-slate-400">
+              Exams conducted, awaiting evaluation
+            </p>
+            {statusFilter === 'RESULT_PENDING' && (
+              <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
+                Active Filter
+              </span>
+            )}
+          </div>
+        </button>
 
         {/* Metric 4: Fully Completed */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 rounded-2xl shadow-2xs hover:shadow-xs transition-all relative overflow-hidden group">
+        <button
+          type="button"
+          onClick={() => setStatusFilter(prev => prev === 'FULLY_COMPLETED' ? 'ALL' : 'FULLY_COMPLETED')}
+          className={`p-5 rounded-2xl transition-all relative overflow-hidden group text-left cursor-pointer border ${
+            statusFilter === 'FULLY_COMPLETED'
+              ? 'bg-emerald-50/20 dark:bg-emerald-950/20 border-emerald-500 ring-2 ring-emerald-500/30 shadow-md'
+              : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700 shadow-2xs hover:shadow-xs'
+          } active:scale-[0.98]`}
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+            <span className={`text-[11px] font-black uppercase tracking-wider ${
+              statusFilter === 'FULLY_COMPLETED' ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-400 dark:text-slate-500'
+            }`}>
               Fully Completed
             </span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform ${
+              statusFilter === 'FULLY_COMPLETED'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
+            }`}>
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
@@ -896,10 +981,17 @@ export default function UnifiedExamAdmitHub({
               Fully Completed
             </span>
           </div>
-          <p className="text-[10.5px] text-slate-400 mt-1">
-            Marksheets & certificates generated
-          </p>
-        </div>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-[10.5px] text-slate-400">
+              Marksheets & certificates generated
+            </p>
+            {statusFilter === 'FULLY_COMPLETED' && (
+              <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                Active Filter
+              </span>
+            )}
+          </div>
+        </button>
       </div>
 
       {/* ============================================================== */}
@@ -1009,25 +1101,27 @@ export default function UnifiedExamAdmitHub({
                 ))}
               </select>
 
-              {/* Template Filter */}
-              <select
-                value={selectedTemplate}
-                onChange={e => setSelectedTemplate(e.target.value)}
-                className="px-3 py-2 bg-slate-50/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-teal-500 transition-all cursor-pointer"
-              >
-                <option value="ALL">All Templates</option>
-                {uniqueTemplates.map(t => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
+              {statusFilter !== 'ALL' && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 text-xs font-bold shadow-2xs">
+                  <span>Filter: {statusFilter === 'UPCOMING' ? 'Upcoming' : statusFilter === 'RESULT_PENDING' ? 'Result Pending' : 'Fully Completed'}</span>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('ALL')}
+                    className="p-0.5 rounded-md hover:bg-teal-100 dark:hover:bg-teal-900 transition-colors"
+                    title="Clear status filter"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
 
-              {(selectedGroup !== 'ALL' || selectedClass !== 'ALL' || selectedTemplate !== 'ALL' || searchQuery) && (
+              {(selectedGroup !== 'ALL' || selectedClass !== 'ALL' || statusFilter !== 'ALL' || searchQuery) && (
                 <button
                   type="button"
                   onClick={() => {
                     setSelectedGroup('ALL')
                     setSelectedClass('ALL')
-                    setSelectedTemplate('ALL')
+                    setStatusFilter('ALL')
                     setSearchQuery('')
                   }}
                   className="text-xs text-teal-600 hover:text-teal-700 dark:text-teal-400 font-bold px-2 py-1 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors"
@@ -1038,14 +1132,6 @@ export default function UnifiedExamAdmitHub({
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <Link
-                href="/institute/exam-marksheet/setup/create"
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Create Setup (Wizard)</span>
-              </Link>
-
               <button
                 type="button"
                 onClick={loadAllData}
@@ -1568,8 +1654,11 @@ export default function UnifiedExamAdmitHub({
                   subjects={previewSetup.config?.subjects}
                   percentRanges={previewSetup.config?.percentRanges}
                   gradeRanges={previewSetup.config?.gradeRanges}
+                  divisionRanges={previewSetup.config?.divisionRanges}
                   cgpaRanges={previewSetup.config?.cgpaRanges}
                   enableGrade={previewSetup.config?.enableGradeRemarks ?? true}
+                  enablePercentage={previewSetup.config?.enablePercentRemarks ?? true}
+                  enableDivision={previewSetup.config?.enableDivisionRemarks ?? true}
                   enableCgpa={previewSetup.config?.enableCgpa ?? false}
                   schoolName={previewSetup.config?.schoolDetails?.schoolName}
                   affiliateTo={previewSetup.config?.schoolDetails?.affiliateTo}
@@ -1582,6 +1671,7 @@ export default function UnifiedExamAdmitHub({
                   showHeaderSign={previewSetup.config?.showHeaderSign ?? true}
                   classRank={previewSetup.config?.rank || '3'}
                   columnsList={previewSetup.config?.columnsList}
+                  themeColor={previewSetup.config?.marksheetThemeColor || previewSetup.config?.themeColor}
                 />
               </div>
             </div>
@@ -1746,7 +1836,7 @@ export default function UnifiedExamAdmitHub({
                             schoolStamp: false
                           },
                           status: 'Active',
-                          instructions: '1. Candidates must arrive at the examination center 30 minutes before scheduled time.\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices are strictly prohibited in the exam hall.',
+                          instructions: '1. Reporting & Gate Closure Time: Candidates must report to the examination center by 09:30 AM IST. Gate closure time is 09:50 AM (Sharp).\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices are strictly prohibited in the exam hall.',
                           showExamTimeTable: true,
                           noOfPrintPerPage: '1',
                           headerNameFontSize: '22',
@@ -2096,7 +2186,7 @@ export default function UnifiedExamAdmitHub({
                                     schoolStamp: false
                                   },
                                   status: 'Active',
-                                  instructions: '1. Candidates must arrive at the examination center 30 minutes before scheduled time.\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices are strictly prohibited in the exam hall.',
+                                  instructions: '1. Reporting & Gate Closure Time: Candidates must report to the examination center by 09:30 AM IST. Gate closure time is 09:50 AM (Sharp).\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices are strictly prohibited in the exam hall.',
                                   showExamTimeTable: true,
                                   noOfPrintPerPage: '1',
                                   headerNameFontSize: '22',

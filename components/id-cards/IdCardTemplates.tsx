@@ -25,6 +25,23 @@ export function parseFontSize(size?: number | string): string | undefined {
   return `${num}px`
 }
 
+export function getRoleBasedHolderSignLabel(role?: string, customLabel?: string): string {
+  if (customLabel && customLabel.trim() && customLabel.trim().toLowerCase() !== 'holder sign') {
+    return customLabel.trim()
+  }
+  const cleanRole = (role || '').trim().toLowerCase()
+  if (cleanRole === 'teacher') return 'Teacher Sign'
+  if (cleanRole === 'faculty') return 'Faculty Sign'
+  if (cleanRole === 'employee' || cleanRole === 'staff') return 'Staff Sign'
+  if (cleanRole === 'admin' || cleanRole === 'administrator') return 'Admin Sign'
+  if (cleanRole === 'student') return 'Student Sign'
+  if (cleanRole && cleanRole !== 'universal') {
+    const cap = cleanRole.charAt(0).toUpperCase() + cleanRole.slice(1)
+    return `${cap} Sign`
+  }
+  return 'Student Sign'
+}
+
 export const ID_CARD_COLOR_PRESETS = [
   { name: 'Sky Blue', hex: '#0284C7' },
   { name: 'Ocean Teal', hex: '#0F766E' },
@@ -53,6 +70,10 @@ export interface IdCardCustomProps {
   schoolLogo?: string
   showLogo?: boolean
   logoWidth?: number | string
+  photoWidth?: number | string
+  qrCodeSize?: number | string
+  signatureWidth?: number | string
+  showPhoto?: boolean
   schoolNameFontSize?: number | string
   titleFontSize?: number | string
   taglineFontSize?: number | string
@@ -94,6 +115,10 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
   schoolLogo,
   showLogo = true,
   logoWidth,
+  photoWidth,
+  qrCodeSize,
+  signatureWidth,
+  showPhoto = true,
   schoolNameFontSize,
   titleFontSize,
   taglineFontSize,
@@ -126,6 +151,9 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
   const tintLight = hexToRgba(primary, 0.08)
   const borderTint = hexToRgba(primary, 0.3)
   const actualLogoWidth = Number(logoWidth) || 48
+  const actualPhotoWidth = Number(photoWidth) || 80
+  const actualQrSize = Number(qrCodeSize) || 32
+  const actualSigWidth = Number(signatureWidth) || 56
 
   const role = data?.role || 'Student'
   const student = {
@@ -283,27 +311,33 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
         )}
 
         {/* Student Photo */}
-        <div className="relative mb-1.5 mt-0.5">
-          <div 
-            className="w-20 h-20 rounded-xl border-[2.5px] bg-slate-100 overflow-hidden shadow-md relative"
-            style={{ borderColor: primary }}
-          >
-            <img 
-              src={student.photo} 
-              alt={student.name}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none'
+        {showPhoto !== false && (
+          <div className="relative mb-1.5 mt-0.5">
+            <div 
+              className="rounded-xl border-[2.5px] bg-slate-100 overflow-hidden shadow-md relative"
+              style={{ 
+                borderColor: primary,
+                width: `${actualPhotoWidth}px`,
+                height: `${Math.round(actualPhotoWidth * 1.05)}px`
               }}
-            />
-            <div className="absolute inset-0 flex items-center justify-center text-slate-400 -z-10">
-              <User className="w-8 h-8" />
+            >
+              <img 
+                src={student.photo} 
+                alt={student.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none'
+                }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center text-slate-400 -z-10">
+                <User className="w-8 h-8" />
+              </div>
+            </div>
+            <div className="absolute -bottom-1.5 -right-1.5 bg-emerald-500 text-white rounded-full p-0.5 border-2 border-white shadow-sm">
+              <ShieldCheck className="w-3 h-3" />
             </div>
           </div>
-          <div className="absolute -bottom-1.5 -right-1.5 bg-emerald-500 text-white rounded-full p-0.5 border-2 border-white shadow-sm">
-            <ShieldCheck className="w-3 h-3" />
-          </div>
-        </div>
+        )}
 
         {/* Student Name & Class */}
         <h3 className="font-black text-sm tracking-wide text-center uppercase leading-snug" style={{ color: primary }}>
@@ -404,7 +438,7 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
       <div className="bg-slate-100/90 border-t border-slate-200 px-2.5 py-1.5 flex items-center justify-between mt-auto relative z-10 gap-2">
         {showQr ? (
           <div className="bg-white p-1 rounded-md border border-slate-200 shadow-xs flex items-center gap-1 shrink-0">
-            <ProperQrCode className="w-8 h-8" color={primary} />
+            <ProperQrCode className="shrink-0" style={{ width: `${actualQrSize}px`, height: `${actualQrSize}px` }} color={primary} />
             <div className="text-[6.5px] text-slate-400 font-mono leading-none">
               <p>VERIFIED</p>
               <p>ID #{student.admNo.slice(-4)}</p>
@@ -416,7 +450,7 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
           {/* Cardholder / Student Separate Signature */}
           {showHolderSign && (
             <div className="text-center flex flex-col items-center">
-              <div className="h-5 w-14 relative flex items-center justify-center">
+              <div className="h-5 relative flex items-center justify-center" style={{ width: `${actualSigWidth}px` }}>
                 <span className="font-serif italic font-semibold text-[10px] text-slate-700 rotate-[-2deg]">
                   <LiveEditableText
                     value={holderSignName || student.name.split(' ')[0]}
@@ -426,9 +460,9 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
                   />
                 </span>
               </div>
-              <p className="text-[6.5px] font-black text-slate-600 uppercase tracking-tighter border-t border-slate-300 pt-0.5 w-14 text-center">
+              <p className="text-[6.5px] font-black text-slate-600 uppercase tracking-tighter border-t border-slate-300 pt-0.5 text-center" style={{ width: `${actualSigWidth}px` }}>
                 <LiveEditableText
-                  value={labels.holderSignLabel || (student.role === 'Teacher' ? 'Teacher Sign' : student.role === 'Employee' ? 'Staff Sign' : 'Holder Sign')}
+                  value={getRoleBasedHolderSignLabel(student.role, labels.holderSignLabel)}
                   editable={editable}
                   onSave={val => updateLabel('holderSignLabel', val)}
                   className="inline-block"
@@ -440,7 +474,7 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
           {/* Authority / Principal Signature */}
           {showPrincipalSign && (
             <div className="text-right flex flex-col items-end">
-              <div className="h-5 w-16 relative flex items-center justify-center">
+              <div className="h-5 relative flex items-center justify-center" style={{ width: `${actualSigWidth + 8}px` }}>
                 {principalSign ? (
                   <img src={principalSign} alt="Principal Signature" className="max-h-5 max-w-full object-contain drop-shadow-xs" />
                 ) : (
@@ -454,7 +488,7 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
                   </span>
                 )}
               </div>
-              <p className="text-[6.5px] font-black text-slate-600 uppercase tracking-tighter border-t border-slate-300 pt-0.5 w-16 text-center">
+              <p className="text-[6.5px] font-black text-slate-600 uppercase tracking-tighter border-t border-slate-300 pt-0.5 text-center" style={{ width: `${actualSigWidth + 8}px` }}>
                 <LiveEditableText
                   value={labels.principalSignLabel || 'Principal Sign'}
                   editable={editable}
@@ -509,6 +543,10 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
   schoolLogo,
   showLogo = true,
   logoWidth,
+  photoWidth,
+  qrCodeSize,
+  signatureWidth,
+  showPhoto = true,
   schoolNameFontSize,
   titleFontSize,
   taglineFontSize,
@@ -540,6 +578,9 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
   const tintLight = hexToRgba(primary, 0.08)
   const borderTint = hexToRgba(primary, 0.3)
   const actualLogoWidth = Number(logoWidth) || 52
+  const actualPhotoWidth = Number(photoWidth) || 88
+  const actualQrSize = Number(qrCodeSize) || 24
+  const actualSigWidth = Number(signatureWidth) || 56
 
   const student = {
     name: data?.name || 'ANANYA VERMA',
@@ -670,33 +711,39 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
         )}
 
         {/* Left: Photo & Identification */}
-        <div className="w-26 flex flex-col items-center justify-between shrink-0 py-0.5">
-          <div 
-            className="w-22 h-26 rounded-xl border-2 p-0.5 bg-white shadow-md relative"
-            style={{ borderColor: primary }}
-          >
-            <img 
-              src={student.photo} 
-              alt={student.name}
-              className="w-full h-full object-cover rounded-lg"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none'
-              }}
-            />
-            <div className="absolute inset-0 flex items-center justify-center text-slate-400 -z-10">
-              <User className="w-8 h-8" />
-            </div>
+        <div className="flex flex-col items-center justify-between shrink-0 py-0.5" style={{ width: `${Math.max(actualPhotoWidth + 6, 88)}px` }}>
+          {showPhoto !== false && (
             <div 
-              className="absolute -bottom-2 -left-2 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-wider"
-              style={{ backgroundColor: primary }}
+              className="rounded-xl border-2 p-0.5 bg-white shadow-md relative shrink-0"
+              style={{ 
+                borderColor: primary,
+                width: `${actualPhotoWidth}px`,
+                height: `${Math.round(actualPhotoWidth * 1.18)}px`
+              }}
             >
-              STUDENT
+              <img 
+                src={student.photo} 
+                alt={student.name}
+                className="w-full h-full object-cover rounded-lg"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none'
+                }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center text-slate-400 -z-10">
+                <User className="w-8 h-8" />
+              </div>
+              <div 
+                className="absolute -bottom-2 -left-2 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-wider"
+                style={{ backgroundColor: primary }}
+              >
+                STUDENT
+              </div>
             </div>
-          </div>
+          )}
 
           {showQr && (
             <div className="flex items-center gap-1.5 bg-slate-50 border p-1 rounded-md mt-2 w-full justify-center shadow-2xs" style={{ borderColor: borderTint }}>
-              <ProperQrCode className="w-6 h-6" color={primary} />
+              <ProperQrCode style={{ width: `${actualQrSize}px`, height: `${actualQrSize}px` }} color={primary} />
               <div className="text-[6.5px] font-mono leading-tight" style={{ color: primary }}>
                 <div>SCAN TO</div>
                 <div className="font-bold">VERIFY</div>
@@ -814,7 +861,7 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
               {/* Separate Holder Signature */}
               {showHolderSign && (
                 <div className="text-center">
-                  <div className="h-5 flex items-center justify-center">
+                  <div className="h-5 flex items-center justify-center" style={{ width: `${actualSigWidth}px` }}>
                     <span className="font-serif italic font-semibold text-[10px] rotate-[-2deg] text-slate-700">
                       <LiveEditableText
                         value={holderSignName || student.name.split(' ')[0]}
@@ -824,9 +871,9 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
                       />
                     </span>
                   </div>
-                  <p className="text-[6.5px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 w-14 text-center">
+                  <p className="text-[6.5px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 text-center" style={{ width: `${actualSigWidth}px` }}>
                     <LiveEditableText
-                      value={labels.holderSignLabel || 'Holder Sign'}
+                      value={getRoleBasedHolderSignLabel(data?.role || 'Student', labels.holderSignLabel)}
                       editable={editable}
                       onSave={val => updateLabel('holderSignLabel', val)}
                       className="inline-block"
@@ -838,7 +885,7 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
               {/* Authority Signature */}
               {showPrincipalSign && (
                 <div className="text-right">
-                  <div className="h-5 flex items-center justify-end">
+                  <div className="h-5 flex items-center justify-end" style={{ width: `${actualSigWidth + 8}px` }}>
                     {principalSign ? (
                       <img src={principalSign} alt="Principal Signature" className="max-h-5 max-w-full object-contain drop-shadow-xs" />
                     ) : (
@@ -852,7 +899,7 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
                       </span>
                     )}
                   </div>
-                  <p className="text-[6.5px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 w-16 text-center">
+                  <p className="text-[6.5px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 text-center" style={{ width: `${actualSigWidth + 8}px` }}>
                     <LiveEditableText
                       value={labels.principalSignLabel || 'Principal Sign'}
                       editable={editable}
@@ -930,6 +977,10 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
   schoolLogo,
   showLogo = true,
   logoWidth,
+  photoWidth,
+  qrCodeSize,
+  signatureWidth,
+  showPhoto = true,
   schoolNameFontSize,
   titleFontSize,
   taglineFontSize,
@@ -945,6 +996,9 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
   const tintLight = hexToRgba(primary, 0.08)
   const borderTint = hexToRgba(primary, 0.25)
   const actualLogoWidth = Number(logoWidth) || 48
+  const actualPhotoWidth = Number(photoWidth) || 80
+  const actualQrSize = Number(qrCodeSize) || 32
+  const actualSigWidth = Number(signatureWidth) || 56
   const labels = customLabels || {}
 
   const updateLabel = (key: string, val: string) => {
@@ -1102,30 +1156,36 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
         )}
 
         {/* Faculty Photo */}
-        <div className="relative mb-1.5 mt-0.5">
-          <div 
-            className="w-20 h-20 rounded-full border-[3px] bg-slate-50 p-0.5 shadow-md relative overflow-hidden"
-            style={{ borderColor: primary }}
-          >
-            <img 
-              src={teacher.photo} 
-              alt={teacher.name}
-              className="w-full h-full object-cover rounded-full"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none'
+        {showPhoto !== false && (
+          <div className="relative mb-1.5 mt-0.5">
+            <div 
+              className="rounded-full border-[3px] bg-slate-50 p-0.5 shadow-md relative overflow-hidden"
+              style={{ 
+                borderColor: primary,
+                width: `${actualPhotoWidth}px`,
+                height: `${actualPhotoWidth}px`
               }}
-            />
-            <div className="absolute inset-0 flex items-center justify-center text-slate-400 -z-10">
-              <User className="w-8 h-8" />
+            >
+              <img 
+                src={teacher.photo} 
+                alt={teacher.name}
+                className="w-full h-full object-cover rounded-full"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none'
+                }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center text-slate-400 -z-10">
+                <User className="w-8 h-8" />
+              </div>
+            </div>
+            <div 
+              className="absolute bottom-0 right-0 text-white text-[7px] font-black px-1.5 py-0.5 rounded-full border border-white shadow-sm uppercase tracking-wider"
+              style={{ backgroundColor: primary }}
+            >
+              FACULTY
             </div>
           </div>
-          <div 
-            className="absolute bottom-0 right-0 text-white text-[7px] font-black px-1.5 py-0.5 rounded-full border border-white shadow-sm uppercase tracking-wider"
-            style={{ backgroundColor: primary }}
-          >
-            FACULTY
-          </div>
-        </div>
+        )}
 
         {/* Teacher Name & Designation */}
         <h3 className="font-black text-sm tracking-wide text-center uppercase leading-snug" style={{ color: primary }}>
@@ -1225,7 +1285,7 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
       <div className="bg-slate-50 border-t border-slate-200 px-2.5 py-1.5 flex items-center justify-between mt-auto relative z-10 gap-2">
         {showQr ? (
           <div className="bg-white p-1 rounded-md border border-slate-200 shadow-xs flex items-center gap-1 shrink-0">
-            <ProperQrCode className="w-8 h-8" color={primary} />
+            <ProperQrCode style={{ width: `${actualQrSize}px`, height: `${actualQrSize}px` }} color={primary} />
             <div className="text-[6.5px] font-mono leading-none" style={{ color: primary }}>
               <p>BIOMETRIC</p>
               <p className="font-bold">VERIFIED</p>
@@ -1237,7 +1297,7 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
           {/* Separate Holder Signature */}
           {showHolderSign && (
             <div className="text-center flex flex-col items-center">
-              <div className="h-5 w-14 relative flex items-center justify-center">
+              <div className="h-5 relative flex items-center justify-center" style={{ width: `${actualSigWidth}px` }}>
                 <span className="font-serif italic font-semibold text-[10px] text-slate-700 rotate-[-2deg]">
                   <LiveEditableText
                     value={holderSignName || teacher.name.split(' ')[0]}
@@ -1247,9 +1307,9 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
                   />
                 </span>
               </div>
-              <p className="text-[6.5px] font-black text-slate-600 uppercase tracking-tighter border-t border-slate-300 pt-0.5 w-14 text-center">
+              <p className="text-[6.5px] font-black text-slate-600 uppercase tracking-tighter border-t border-slate-300 pt-0.5 text-center" style={{ width: `${actualSigWidth}px` }}>
                 <LiveEditableText
-                  value={labels.holderSignLabel || 'Holder Sign'}
+                  value={getRoleBasedHolderSignLabel(data?.role || 'Teacher', labels.holderSignLabel)}
                   editable={editable}
                   onSave={val => updateLabel('holderSignLabel', val)}
                   className="inline-block"
@@ -1261,7 +1321,7 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
           {/* Authority / Principal Signature */}
           {showPrincipalSign && (
             <div className="text-right flex flex-col items-end">
-              <div className="h-5 w-16 relative flex items-center justify-center">
+              <div className="h-5 relative flex items-center justify-center" style={{ width: `${actualSigWidth + 8}px` }}>
                 {principalSign ? (
                   <img src={principalSign} alt="Authority Signature" className="max-h-5 max-w-full object-contain drop-shadow-xs" />
                 ) : (
@@ -1275,7 +1335,7 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
                   </span>
                 )}
               </div>
-              <p className="text-[6.5px] font-black text-slate-600 uppercase tracking-tighter">
+              <p className="text-[6.5px] font-black text-slate-600 uppercase tracking-tighter text-center" style={{ width: `${actualSigWidth + 8}px` }}>
                 <LiveEditableText
                   value={labels.principalSignLabel || 'Authorized Signatory'}
                   editable={editable}
@@ -1974,6 +2034,10 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
   schoolLogo,
   showLogo = true,
   logoWidth,
+  photoWidth,
+  qrCodeSize,
+  signatureWidth,
+  showPhoto = true,
   schoolNameFontSize,
   titleFontSize,
   taglineFontSize,
@@ -1989,6 +2053,9 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
   const tintLight = hexToRgba(primary, 0.08)
   const borderTint = hexToRgba(primary, 0.25)
   const actualLogoWidth = Number(logoWidth) || 52
+  const actualPhotoWidth = Number(photoWidth) || 88
+  const actualQrSize = Number(qrCodeSize) || 26
+  const actualSigWidth = Number(signatureWidth) || 56
   const labels = customLabels || {}
 
   const updateLabel = (key: string, val: string) => {
@@ -2128,36 +2195,42 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
         )}
 
         {/* Left Column: Photo & Security QR */}
-        <div className="w-26 flex flex-col items-center justify-between shrink-0 py-0.5">
-          <div 
-            className="w-22 h-26 rounded-xl border-2 p-0.5 bg-white shadow-md relative"
-            style={{ borderColor: primary }}
-          >
-            <img 
-              src={staff.photo} 
-              alt={staff.name}
-              className="w-full h-full object-cover rounded-lg"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none'
-              }}
-            />
-            <div className="absolute inset-0 flex items-center justify-center text-slate-400 -z-10">
-              <User className="w-8 h-8" />
-            </div>
+        <div className="flex flex-col items-center justify-between shrink-0 py-0.5" style={{ width: `${Math.max(actualPhotoWidth + 6, 88)}px` }}>
+          {showPhoto !== false && (
             <div 
-              className="absolute -bottom-2 -left-2 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm"
-              style={{ backgroundColor: primary }}
+              className="rounded-xl border-2 p-0.5 bg-white shadow-md relative shrink-0"
+              style={{ 
+                borderColor: primary,
+                width: `${actualPhotoWidth}px`,
+                height: `${Math.round(actualPhotoWidth * 1.18)}px`
+              }}
             >
-              EMPLOYEE
+              <img 
+                src={staff.photo} 
+                alt={staff.name}
+                className="w-full h-full object-cover rounded-lg"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none'
+                }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center text-slate-400 -z-10">
+                <User className="w-8 h-8" />
+              </div>
+              <div 
+                className="absolute -bottom-2 -left-2 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm"
+                style={{ backgroundColor: primary }}
+              >
+                EMPLOYEE
+              </div>
             </div>
-          </div>
+          )}
 
           {showQr && (
             <div 
               className="flex items-center gap-1.5 bg-slate-50 border p-1 rounded-md mt-2 w-full justify-center"
               style={{ borderColor: borderTint }}
             >
-              <ProperQrCode className="w-6 h-6" color={primary} />
+              <ProperQrCode style={{ width: `${actualQrSize}px`, height: `${actualQrSize}px` }} color={primary} />
               <div className="text-[6.5px] font-mono leading-tight" style={{ color: primary }}>
                 <div>SECURITY PASS</div>
                 <div className="font-bold">GATE 01-04</div>
@@ -2275,7 +2348,7 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
               {/* Separate Holder Signature */}
               {showHolderSign && (
                 <div className="text-center">
-                  <div className="h-5 flex items-center justify-center">
+                  <div className="h-5 flex items-center justify-center" style={{ width: `${actualSigWidth}px` }}>
                     <span className="font-serif italic font-semibold text-[10px] rotate-[-2deg] text-slate-700">
                       <LiveEditableText
                         value={holderSignName || staff.name.split(' ')[0]}
@@ -2285,9 +2358,9 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
                       />
                     </span>
                   </div>
-                  <p className="text-[6.5px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 w-14 text-center">
+                  <p className="text-[6.5px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 text-center" style={{ width: `${actualSigWidth}px` }}>
                     <LiveEditableText
-                      value={labels.holderSignLabel || 'Holder Sign'}
+                      value={getRoleBasedHolderSignLabel(data?.role || 'Employee', labels.holderSignLabel)}
                       editable={editable}
                       onSave={val => updateLabel('holderSignLabel', val)}
                       className="inline-block"
@@ -2299,7 +2372,7 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
               {/* Authority Signature */}
               {showPrincipalSign && (
                 <div className="text-right">
-                  <div className="h-5 flex items-center justify-end">
+                  <div className="h-5 flex items-center justify-end" style={{ width: `${actualSigWidth + 8}px` }}>
                     {principalSign ? (
                       <img src={principalSign} alt="Authority Signature" className="max-h-5 max-w-full object-contain drop-shadow-xs" />
                     ) : (
@@ -2313,7 +2386,7 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
                       </span>
                     )}
                   </div>
-                  <p className="text-[6.5px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 w-16 text-center">
+                  <p className="text-[6.5px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 text-center" style={{ width: `${actualSigWidth + 8}px` }}>
                     <LiveEditableText
                       value={labels.principalSignLabel || 'Registrar / Principal'}
                       editable={editable}
@@ -2772,8 +2845,15 @@ export const UniversalIdCardRender: React.FC<IdCardCustomProps & { designId?: nu
 }) => {
   const roleKey = (cardFor && cardFor in ID_CARD_ROLE_PREVIEWS ? cardFor : 'Student') as IdCardRole
   const personaData = ID_CARD_ROLE_PREVIEWS[roleKey]
+  const effectiveRole = cardFor || props.data?.role || roleKey
+  const defaultSignLabel = getRoleBasedHolderSignLabel(effectiveRole, props.customLabels?.holderSignLabel)
+  const mergedCustomLabels = {
+    ...props.customLabels,
+    holderSignLabel: defaultSignLabel
+  }
   const mergedProps = {
     ...props,
+    customLabels: mergedCustomLabels,
     data: props.data || personaData
   }
   if (designId === 1) return <IdCardDesign1Vertical {...mergedProps} />

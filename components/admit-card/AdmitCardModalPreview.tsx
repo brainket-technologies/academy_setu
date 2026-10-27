@@ -416,7 +416,7 @@ export const LiveEditableText: React.FC<LiveEditableTextProps> = ({
         suppressContentEditableWarning
         spellCheck={false}
         title={title}
-        className={`${className} outline-none cursor-pointer transition-all rounded-xs hover:outline hover:outline-1 hover:outline-dashed hover:outline-amber-500/80 hover:bg-amber-50/60 dark:hover:bg-amber-950/30 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white focus:text-slate-900 print:outline-none print:ring-0 print:bg-transparent`}
+        className={`${className} outline-none cursor-pointer transition-all rounded-xs hover:outline hover:outline-1 hover:outline-dashed hover:outline-blue-500/80 hover:bg-blue-50/60 dark:hover:bg-blue-950/30 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white focus:text-slate-900 print:outline-none print:ring-0 print:bg-transparent`}
         style={mergedStyle}
         onClick={() => {
           setShowSizeTooltip(true)
@@ -469,7 +469,7 @@ export const LiveEditableText: React.FC<LiveEditableTextProps> = ({
               e.stopPropagation()
               handleSizeChange(-1)
             }}
-            className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 text-amber-300 font-black text-xs flex items-center justify-center border border-slate-700 transition-all cursor-pointer"
+            className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 text-blue-300 font-black text-xs flex items-center justify-center border border-slate-700 transition-all cursor-pointer"
           >
             A-
           </button>
@@ -484,7 +484,7 @@ export const LiveEditableText: React.FC<LiveEditableTextProps> = ({
               e.stopPropagation()
               handleSizeChange(1)
             }}
-            className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 text-amber-300 font-black text-xs flex items-center justify-center border border-slate-700 transition-all cursor-pointer"
+            className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 active:scale-95 text-blue-300 font-black text-xs flex items-center justify-center border border-slate-700 transition-all cursor-pointer"
           >
             A+
           </button>
@@ -535,6 +535,7 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
 
   // Helper to accurately determine field visibility from checkboxes
   const isFieldVisible = (key: string): boolean => {
+    if (key === 'gateClosure') return true
     if (fields && typeof fields[key] === 'boolean') {
       return fields[key]
     }
@@ -604,22 +605,30 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
   const classNameStr = card.className || 'Class X'
   const admitLabel = card.admitCardLabel || 'ADMIT CARD • HALL TICKET'
   const reportingTimeValue = card.reportingTimeValue || '09:30 AM IST'
+  const gateClosureValue = card.gateClosureValue || '09:50 AM (Sharp)'
+  const defaultPointOne = `1. Reporting & Gate Closure Time: Candidates must report to the examination center by ${reportingTimeValue}. Gate closure time is ${gateClosureValue}.`
   const rawInstructions = card.instructions !== undefined && card.instructions !== null ? card.instructions :
-    `1. Reporting Time: Candidates must report to the examination center by ${reportingTimeValue} (at least 30 minutes before scheduled time).\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.`
+    `${defaultPointOne}\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.`
 
   const instructions = useMemo(() => {
     const timeStr = (reportingTimeValue && reportingTimeValue.trim()) ? reportingTimeValue.trim() : '09:30 AM IST'
-    const pointOne = `1. Reporting Time: Candidates must report to the examination center by ${timeStr} (at least 30 minutes before scheduled time).`
+    const gateStr = (gateClosureValue && gateClosureValue.trim()) ? gateClosureValue.trim() : '09:50 AM (Sharp)'
+    const pointOne = `1. Reporting & Gate Closure Time: Candidates must report to the examination center by ${timeStr}. Gate closure time is ${gateStr}.`
     if (!rawInstructions || !rawInstructions.trim()) {
       return `${pointOne}\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.`
     }
     const lines = rawInstructions.split('\n')
-    if (lines[0] && (lines[0].toLowerCase().includes('reporting time') || lines[0].toLowerCase().includes('candidates must arrive'))) {
+    if (lines[0] && (
+      lines[0].toLowerCase().includes('reporting') ||
+      lines[0].toLowerCase().includes('gate closure') ||
+      lines[0].toLowerCase().includes('candidates must') ||
+      lines[0].toLowerCase().includes('30 minute')
+    )) {
       lines[0] = pointOne
       return lines.join('\n')
     }
     return rawInstructions
-  }, [rawInstructions, reportingTimeValue])
+  }, [rawInstructions, reportingTimeValue, gateClosureValue])
 
   const principalName = card.principalName || ''
   const studentSignTitle = card.studentSignLabel || "Candidate Sign"
@@ -722,7 +731,6 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
   const logoHeight = card.schoolLogoHeight ? Number(card.schoolLogoHeight) : logoWidth
   const schoolLogo = card.schoolLogo || ''
   const showLogo = card.displayFields?.logo !== false
-  const gateClosureValue = card.gateClosureValue || '09:50 AM (Sharp)'
 
   const qrCodeSize = card.qrCodeSize ? Number(card.qrCodeSize) : 68
   const signatureWidth = card.signatureWidth ? Number(card.signatureWidth) : 95
@@ -756,7 +764,7 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
         }}
         title={editable ? 'Click to upload or change institute logo' : undefined}
         className={`shrink-0 flex items-center justify-center relative group ${customClass || ''} ${
-          editable ? 'cursor-pointer hover:ring-2 hover:ring-teal-500 rounded-lg p-0.5 transition-all' : ''
+          editable ? 'cursor-pointer hover:ring-2 hover:ring-blue-500 rounded-lg p-0.5 transition-all' : ''
         }`}
       >
         {schoolLogo ? (
@@ -1293,16 +1301,7 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
             >
               {activeSigns.map(s => (
                 <div key={s.key} className="flex-1 flex flex-col items-center min-w-[70px]">
-                  <div className="mb-1.5 min-h-[30px] flex flex-col items-center justify-end" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
-                    {s.key === 'principalSign' && (s.name || principalName) && (
-                      <LiveEditableText
-                        value={s.name || principalName}
-                        editable={editable}
-                        onSave={val => onUpdateField?.('principalName', val)}
-                        className="font-serif italic font-bold text-[11px] text-slate-800 tracking-wider capitalize leading-tight mb-0.5 inline-block"
-                        style={{ fontSize: signatureFontSize }}
-                      />
-                    )}
+                  <div className="mb-1.5 min-h-[24px] flex flex-col items-center justify-end" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
                     <div className="w-full h-0.5 border-t border-dashed border-slate-400" />
                   </div>
                   <LiveEditableText
@@ -1732,16 +1731,7 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
             >
               {activeSigns.map(s => (
                 <div key={s.key} className="flex-1 flex flex-col items-center min-w-[70px] text-center">
-                  <div className="mb-1.5 min-h-[30px] flex flex-col items-center justify-end" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
-                    {s.key === 'principalSign' && (s.name || principalName) && (
-                      <LiveEditableText
-                        value={s.name || principalName}
-                        editable={editable}
-                        onSave={val => onUpdateField?.('principalName', val)}
-                        className="font-serif italic font-bold text-[11px] text-slate-800 tracking-wider capitalize leading-tight mb-0.5 inline-block"
-                        style={{ fontSize: signatureFontSize }}
-                      />
-                    )}
+                  <div className="mb-1.5 min-h-[24px] flex flex-col items-center justify-end" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
                     <div className="w-full h-0.5 border-t border-dashed border-slate-400" />
                   </div>
                   <LiveEditableText
@@ -1802,7 +1792,7 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
                   }}
                   title={editable ? 'Click to upload or change institute logo' : undefined}
                   className={`rounded-full border-2 flex items-center justify-center shadow-xs overflow-hidden p-1 relative group ${
-                    editable ? 'cursor-pointer hover:ring-2 hover:ring-teal-500' : ''
+                    editable ? 'cursor-pointer hover:ring-2 hover:ring-blue-500' : ''
                   }`}
                   style={{
                     width: `${Math.max(logoWidth + 12, 56)}px`,
@@ -2239,16 +2229,7 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
             <div className="flex justify-around items-end gap-4 text-center mt-7 pt-2 text-[8.5px] font-serif font-black uppercase text-slate-700" style={{ fontSize: signatureFontSize }}>
               {activeSigns.map(s => (
                 <div key={s.key} className="flex-1 flex flex-col items-center">
-                  <div className="mx-auto mb-1 min-h-[28px] flex flex-col items-center justify-end" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
-                    {s.key === 'principalSign' && (s.name || principalName) && (
-                      <LiveEditableText
-                        value={s.name || principalName}
-                        editable={editable}
-                        onSave={val => onUpdateField?.('principalName', val)}
-                        className="font-serif italic font-bold text-[11px] text-slate-800 tracking-wider capitalize leading-tight mb-0.5 inline-block"
-                        style={{ fontSize: signatureFontSize }}
-                      />
-                    )}
+                  <div className="mx-auto mb-1 min-h-[24px] flex flex-col items-center justify-end" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
                     <div className="w-full h-0.5 border-t border-dashed border-slate-400" />
                   </div>
                   <LiveEditableText
@@ -2656,16 +2637,7 @@ export const AdmitCardPaper: React.FC<AdmitCardPaperProps> = ({
               <div className="flex justify-between items-end gap-3 text-center mt-6 pt-2 pb-1 text-[8.5px] font-black uppercase text-slate-700" style={{ fontSize: signatureFontSize }}>
                 {activeSigns.map(s => (
                   <div key={s.key} className="flex-1 flex flex-col items-center min-w-[70px]">
-                    <div className="mb-1.5 min-h-[30px] flex flex-col items-center justify-end" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
-                      {s.key === 'principalSign' && (s.name || principalName) && (
-                        <LiveEditableText
-                          value={s.name || principalName}
-                          editable={editable}
-                          onSave={val => onUpdateField?.('principalName', val)}
-                          className="font-serif italic font-bold text-[11px] text-slate-800 tracking-wider capitalize leading-tight mb-0.5 inline-block"
-                          style={{ fontSize: signatureFontSize }}
-                        />
-                      )}
+                    <div className="mb-1.5 min-h-[24px] flex flex-col items-center justify-end" style={{ width: `${signatureWidth}px`, maxWidth: '100%' }}>
                       <div className="w-full h-0.5 border-t border-dashed border-slate-400" />
                     </div>
                     <LiveEditableText
@@ -2755,13 +2727,13 @@ export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({
                   {card.templateStyle || 'Classic Board'}
                 </span>
                 {editable && (
-                  <span className="px-2 py-0.5 rounded text-[8px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                  <span className="px-2 py-0.5 rounded text-[8px] font-bold bg-blue-500/10 text-blue-600 border border-blue-500/20">
                     Interactive Label Editing Enabled
                   </span>
                 )}
               </div>
               <p className="text-[10px] text-slate-400">
-                Exam: <span className="font-bold text-slate-700 dark:text-slate-300">{card.examName}</span> • Class: <span className="font-bold text-teal-600">{card.className}</span> ({card.session})
+                Exam: <span className="font-bold text-slate-700 dark:text-slate-300">{card.examName}</span> • Class: <span className="font-bold text-blue-600">{card.className}</span> ({card.session})
               </p>
             </div>
           </div>
@@ -2801,7 +2773,7 @@ export const AdmitCardModalPreview: React.FC<AdmitCardModalPreviewProps> = ({
         {/* Modal Footer Info */}
         <div className="px-6 py-3 bg-white dark:bg-slate-850 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
           <span>Admit Card ID: #{card.id} • Status: <strong className="text-emerald-600">{card.status}</strong></span>
-          <span className="text-[11px] font-semibold text-teal-600">Simultaneously synced with Exam Setup</span>
+          <span className="text-[11px] font-semibold text-blue-600">Simultaneously synced with Exam Setup</span>
         </div>
 
       </div>
@@ -2898,7 +2870,7 @@ export const AdmitCardMiniPreview: React.FC<AdmitCardMiniPreviewProps> = ({
     <div
       className={`w-full h-36 rounded-xl overflow-hidden bg-white dark:bg-slate-900 border transition-all duration-300 relative flex flex-col justify-between text-slate-800 dark:text-slate-100 select-none ${
         isSelected
-          ? 'shadow-md ring-2 ring-teal-500/50 scale-[1.01]'
+          ? 'shadow-md ring-2 ring-blue-500/50 scale-[1.01]'
           : 'shadow-2xs hover:shadow-xs'
       }`}
       style={{

@@ -56,33 +56,34 @@ export const TEMPLATE_SPECIFIC_FIELD_KEYS: Record<string, string[]> = {
   'Classic Board': [
     'name', 'fatherName', 'motherName', 'dob', 'class', 'section', 'rollNo', 'admissionNo',
     'registrationNo', 'enrollmentNo', 'mobileNo', 'address', 'photo', 'qrCode',
-    'affiliationDetails', 'boardFormat', 'gateClosure'
+    'affiliationDetails', 'boardFormat'
   ],
   'Modern Split Pass': [
     'name', 'fatherName', 'motherName', 'dob', 'class', 'section', 'rollNo', 'admissionNo',
     'registrationNo', 'enrollmentNo', 'mobileNo', 'address', 'photo', 'qrCode',
-    'verifiedPass', 'centerCode', 'helpline', 'gateClosure'
+    'verifiedPass', 'centerCode', 'helpline'
   ],
   'Executive Heritage': [
     'name', 'fatherName', 'motherName', 'dob', 'class', 'section', 'rollNo', 'admissionNo',
     'registrationNo', 'enrollmentNo', 'mobileNo', 'address', 'photo', 'qrCode',
-    'mottoQuote', 'gateClosure'
+    'mottoQuote'
   ],
   'Compact Minimalist': [
     'name', 'fatherName', 'motherName', 'dob', 'class', 'section', 'rollNo', 'admissionNo',
     'registrationNo', 'enrollmentNo', 'mobileNo', 'address', 'photo', 'qrCode',
-    'centerCode', 'gateClosure'
+    'centerCode'
   ]
 }
 
-export const applyReportingTimeToInstructions = (currentText: string, repTime: string) => {
+export const applyReportingTimeToInstructions = (currentText: string, repTime?: string, gateTime?: string) => {
   const timeStr = repTime && repTime.trim() ? repTime.trim() : '09:30 AM IST'
-  const pointOne = `1. Reporting Time: Candidates must report to the examination center by ${timeStr} (at least 30 minutes before scheduled time).`
+  const gateStr = gateTime && gateTime.trim() ? gateTime.trim() : '09:50 AM (Sharp)'
+  const pointOne = `1. Reporting & Gate Closure Time: Candidates must report to the examination center by ${timeStr}. Gate closure time is ${gateStr}.`
   if (!currentText || !currentText.trim()) {
     return `${pointOne}\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.`
   }
   const lines = currentText.split('\n')
-  if (lines.length > 0 && lines[0].trim().startsWith('1.')) {
+  if (lines.length > 0 && (lines[0].trim().startsWith('1.') || lines[0].toLowerCase().includes('reporting') || lines[0].toLowerCase().includes('closure') || lines[0].toLowerCase().includes('candidates must') || lines[0].toLowerCase().includes('30 minute'))) {
     lines[0] = pointOne
     return lines.join('\n')
   }
@@ -140,7 +141,8 @@ const MARKSHEET_DISPLAY_FIELDS_KEYS = [
   { key: 'examName', label: 'Exam Name' },
   { key: 'rank', label: 'Class Rank' },
   { key: 'result', label: 'Result Status' },
-  { key: 'dateOfIssue', label: 'Date of Issue' }
+  { key: 'dateOfIssue', label: 'Date of Issue' },
+  { key: 'qrCode', label: 'Verification QR' }
 ]
 
 // Certificate field keys for Display Fields (Signatures have their own dedicated section below)
@@ -263,7 +265,7 @@ function AddSetupWizardContent() {
   // 5 Step Wizard: Exams -> Marks & Grade -> Admit Card Setup -> Marksheet Design -> Certificate Design
   const [currentStep, setCurrentStep] = useState<StepType>('Exams')
   const [selectedTemplate, setSelectedTemplate] = useState('CBSE Royal Emerald')
-  const [marksheetThemeColor, setMarksheetThemeColor] = useState('#065f46')
+  const [marksheetThemeColor, setMarksheetThemeColor] = useState('#1e3a8a')
   const [admitTemplateStyle, setAdmitTemplateStyle] = useState('Classic Board')
   const [admitThemeColor, setAdmitThemeColor] = useState('#1e3a8a')
 
@@ -427,9 +429,28 @@ function AddSetupWizardContent() {
         if (s.config?.certSubtitleFontSize) setCertSubtitleFontSize(s.config.certSubtitleFontSize)
         if (s.config?.certDateLabel) setCertDateLabel(s.config.certDateLabel)
         if (s.config?.certCustomLabels) setCertCustomLabelsState(s.config.certCustomLabels)
+        if (s.config?.certSignatureWidth) setCertSignatureWidth(String(s.config.certSignatureWidth))
+        if (s.config?.certSignatureFontSize) setCertSignatureFontSize(String(s.config.certSignatureFontSize))
+        if (s.config?.certSchoolStampWidth) setCertSchoolStampWidth(String(s.config.certSchoolStampWidth))
+        if (s.config?.marksheetSchoolStampWidth) setMarksheetSchoolStampWidth(String(s.config.marksheetSchoolStampWidth))
+        if (s.config?.certSignatureOrder && Array.isArray(s.config.certSignatureOrder)) {
+          const standardCertKeys = ['teacherSign', 'controllerSign', 'secondarySign', 'parentSign', 'studentSign', 'principalSign']
+          const filtered = s.config.certSignatureOrder.filter((k: string) => standardCertKeys.includes(k))
+          const missing = standardCertKeys.filter(k => !filtered.includes(k))
+          setCertSignatureOrder([...filtered, ...missing])
+        }
         if (typeof s.lockExam === 'boolean') setLockExam(s.lockExam)
         if (s.config?.admitCardSettings?.admitLabel) setAdmitLabel(s.config.admitCardSettings.admitLabel)
-        if (s.config?.admitCardSettings?.instructions) setAdmitInstructions(s.config.admitCardSettings.instructions)
+        if (s.config?.admitCardSettings?.instructions) {
+          const inst = s.config.admitCardSettings.instructions
+          const rTime = s.config?.admitCardSettings?.reportingTimeValue || '09:30 AM IST'
+          const gTime = s.config?.admitCardSettings?.gateClosureValue || '09:50 AM (Sharp)'
+          if (inst.toLowerCase().includes('30 minute') || inst.toLowerCase().includes('30 min')) {
+            setAdmitInstructions(applyReportingTimeToInstructions(inst, rTime, gTime))
+          } else {
+            setAdmitInstructions(inst)
+          }
+        }
         if (s.config?.admitCardSettings?.displayFields) setAdmitDisplayFields(s.config.admitCardSettings.displayFields)
         if (typeof s.config?.admitCardSettings?.showExamTimeTable === 'boolean') setShowExamTimeTableOnAdmit(s.config.admitCardSettings.showExamTimeTable)
         if (s.config?.admitCardSettings?.studentPhotoWidth) {
@@ -504,6 +525,16 @@ function AddSetupWizardContent() {
         if (s.config?.marksheetHeaderNameFontSize) setMarksheetHeaderNameFontSize(String(s.config.marksheetHeaderNameFontSize))
         if (s.config?.marksheetHeadingFontSize) setMarksheetHeadingFontSize(String(s.config.marksheetHeadingFontSize))
         if (s.config?.marksheetHeaderDetailsFontSize) setMarksheetHeaderDetailsFontSize(String(s.config.marksheetHeaderDetailsFontSize))
+        if (s.config?.marksheetQrCodeSize) setMarksheetQrCodeSize(String(s.config.marksheetQrCodeSize))
+        if (s.config?.certQrCodeSize) setCertQrCodeSize(String(s.config.certQrCodeSize))
+        if (s.config?.marksheetSignatureOrder && Array.isArray(s.config.marksheetSignatureOrder)) {
+          const standardKeys = ['teacherSign', 'controllerSign', 'parentSign', 'principalSign']
+          const filtered = s.config.marksheetSignatureOrder.filter((k: string) => standardKeys.includes(k))
+          const missing = standardKeys.filter((k: string) => !filtered.includes(k))
+          setMarksheetSignatureOrder([...filtered, ...missing])
+        }
+        if (s.config?.marksheetSignatureWidth) setMarksheetSignatureWidth(String(s.config.marksheetSignatureWidth))
+        if (s.config?.marksheetSignatureFontSize) setMarksheetSignatureFontSize(String(s.config.marksheetSignatureFontSize))
 
         if (s.marksGrade) setMarksGrade(s.marksGrade as any)
         if (s.config?.marksGrade) setMarksGrade(s.config.marksGrade as any)
@@ -700,7 +731,7 @@ function AddSetupWizardContent() {
   const [admitCardStatus, setAdmitCardStatus] = useState(true)
   const [showExamTimeTableOnAdmit, setShowExamTimeTableOnAdmit] = useState(true)
   const [admitInstructions, setAdmitInstructions] = useState(
-    '1. Reporting Time: Candidates must report to the examination center by 09:30 AM IST (at least 30 minutes before scheduled time).\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.'
+    '1. Reporting & Gate Closure Time: Candidates must report to the examination center by 09:30 AM IST. Gate closure time is 09:50 AM (Sharp).\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.'
   )
   const [admitLabel, setAdmitLabel] = useState('Admit Card')
   const [admitReportingTime, setAdmitReportingTime] = useState('09:30 AM IST')
@@ -732,6 +763,8 @@ function AddSetupWizardContent() {
   const [admitSignatureWidth, setAdmitSignatureWidth] = useState('100')
   const [admitSignatureFontSize, setAdmitSignatureFontSize] = useState('9')
   const [admitQrCodeSize, setAdmitQrCodeSize] = useState('72')
+  const [marksheetQrCodeSize, setMarksheetQrCodeSize] = useState('72')
+  const [certQrCodeSize, setCertQrCodeSize] = useState('72')
   const [admitSizingStudioTab, setAdmitSizingStudioTab] = useState<'media' | 'signs' | 'text'>('media')
   const [marksheetSizingStudioTab, setMarksheetSizingStudioTab] = useState<'media' | 'signs' | 'text'>('media')
   const [admitSchoolStampWidth, setAdmitSchoolStampWidth] = useState('56')
@@ -747,6 +780,23 @@ function AddSetupWizardContent() {
     updated[index] = updated[targetIndex]
     updated[targetIndex] = temp
     setAdmitSignatureOrder(updated)
+  }
+
+  const [marksheetSignatureWidth, setMarksheetSignatureWidth] = useState('110')
+  const [marksheetSignatureFontSize, setMarksheetSignatureFontSize] = useState('10')
+  const [marksheetSchoolStampWidth, setMarksheetSchoolStampWidth] = useState('56')
+  const [marksheetSignatureOrder, setMarksheetSignatureOrder] = useState<string[]>([
+    'teacherSign', 'controllerSign', 'parentSign', 'principalSign'
+  ])
+
+  const moveMarksheetSignature = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction
+    if (targetIndex < 0 || targetIndex >= marksheetSignatureOrder.length) return
+    const updated = [...marksheetSignatureOrder]
+    const temp = updated[index]
+    updated[index] = updated[targetIndex]
+    updated[targetIndex] = temp
+    setMarksheetSignatureOrder(updated)
   }
   const [admitCustomLabels, setAdmitCustomLabels] = useState<Record<string, string>>({})
   const [marksheetCustomLabels, setMarksheetCustomLabels] = useState<Record<string, string>>({})
@@ -786,6 +836,10 @@ function AddSetupWizardContent() {
     else if (field === 'headingFontSize') setMarksheetHeadingFontSize(String(value))
     else if (field === 'headerDetailsFontSize') setMarksheetHeaderDetailsFontSize(String(value))
     else if (field === 'logoWidth') setLogoWidth(String(value))
+    else if (field === 'qrCodeSize') setMarksheetQrCodeSize(String(value))
+    else if (field === 'signatureWidth') setMarksheetSignatureWidth(String(value))
+    else if (field === 'signatureFontSize') setMarksheetSignatureFontSize(String(value))
+    else if (field === 'signatureOrder') setMarksheetSignatureOrder(value)
     else if (field === 'triggerLogoUpload') {
       marksheetLogoFileInputRef.current?.click()
     }
@@ -800,9 +854,12 @@ function AddSetupWizardContent() {
     else if (field === 'admitCardLabel') setAdmitLabel(value)
     else if (field === 'reportingTimeValue') {
       setAdmitReportingTime(value)
-      setAdmitInstructions(prev => applyReportingTimeToInstructions(prev, value))
+      setAdmitInstructions(prev => applyReportingTimeToInstructions(prev, value, admitGateClosureTime))
     }
-    else if (field === 'gateClosureValue') setAdmitGateClosureTime(value)
+    else if (field === 'gateClosureValue') {
+      setAdmitGateClosureTime(value)
+      setAdmitInstructions(prev => applyReportingTimeToInstructions(prev, admitReportingTime, value))
+    }
     else if (field === 'examName') setExamName(value)
     else if (field === 'session') setSession(value)
     else if (field === 'instructions') setAdmitInstructions(value)
@@ -857,7 +914,7 @@ function AddSetupWizardContent() {
     percentage: true, cgpa: true, division: true, grade: true, remarks: true, rank: true,
     result: true, teacherSign: true, controllerSign: true, principalSign: true,
     attendance: true, dateOfIssue: true, parentSign: true,
-    logo: true
+    logo: true, qrCode: true
   })
 
   const handleMarksheetCheckboxChange = (key: string) => {
@@ -1187,6 +1244,28 @@ function AddSetupWizardContent() {
   const [certSchoolNameFontSize, setCertSchoolNameFontSize] = useState('14')
   const [certTitleFontSize, setCertTitleFontSize] = useState('30')
   const [certSubtitleFontSize, setCertSubtitleFontSize] = useState('11')
+  const [certSignatureWidth, setCertSignatureWidth] = useState('110')
+  const [certSignatureFontSize, setCertSignatureFontSize] = useState('8')
+  const [certSchoolStampWidth, setCertSchoolStampWidth] = useState('72')
+  const [certSizingStudioTab, setCertSizingStudioTab] = useState<'media' | 'signs' | 'text'>('signs')
+  const [certSignatureOrder, setCertSignatureOrder] = useState<string[]>([
+    'teacherSign',
+    'controllerSign',
+    'secondarySign',
+    'parentSign',
+    'studentSign',
+    'principalSign'
+  ])
+
+  const moveCertSignature = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction
+    if (targetIndex < 0 || targetIndex >= certSignatureOrder.length) return
+    const updated = [...certSignatureOrder]
+    const temp = updated[index]
+    updated[index] = updated[targetIndex]
+    updated[targetIndex] = temp
+    setCertSignatureOrder(updated)
+  }
   const [certDisplayFields, setCertDisplayFields] = useState<Record<string, boolean>>({
     schoolName: true,
     logo: true,
@@ -1224,7 +1303,7 @@ function AddSetupWizardContent() {
   const [certTeacherSignName, setCertTeacherSignName] = useState('Mrs. Kavita Verma')
   const [certControllerSignLabel, setCertControllerSignLabel] = useState('Exam Controller')
   const [certControllerSignName, setCertControllerSignName] = useState('Mr. R. K. Saxena')
-  const [certSecondarySignLabel, setCertSecondarySignLabel] = useState('Coordinator / In-Charge')
+  const [certSecondarySignLabel, setCertSecondarySignLabel] = useState('Authority Signature')
   const [certSecondarySignName, setCertSecondarySignName] = useState('Authorized Signatory')
   const [certParentSignLabel, setCertParentSignLabel] = useState("Parent's Signature")
   const [certParentSignName, setCertParentSignName] = useState('Parent / Guardian')
@@ -1328,7 +1407,7 @@ function AddSetupWizardContent() {
       controllerSignLabel: certControllerSignLabel || 'Exam Controller',
       controllerSignName: certControllerSignName || 'Mr. R. K. Saxena',
       secondarySignName: certSecondarySignName || 'Authorized Signatory',
-      secondarySignLabel: certSecondarySignLabel || 'Coordinator / In-Charge',
+      secondarySignLabel: certSecondarySignLabel || 'Authority Signature',
       parentSignLabel: certParentSignLabel || "Parent's Signature",
       parentSignName: certParentSignName || 'Parent / Guardian',
       studentSignLabel: certStudentSignLabel || "Student's Signature",
@@ -1482,6 +1561,11 @@ function AddSetupWizardContent() {
           marksheetHeaderNameFontSize,
           marksheetHeadingFontSize,
           marksheetHeaderDetailsFontSize,
+          marksheetQrCodeSize,
+          certQrCodeSize,
+          marksheetSignatureOrder,
+          marksheetSignatureWidth,
+          marksheetSignatureFontSize,
           schoolDetails: {
             schoolName,
             affiliateTo,
@@ -1516,6 +1600,11 @@ function AddSetupWizardContent() {
           certSchoolNameFontSize,
           certTitleFontSize,
           certSubtitleFontSize,
+          certSignatureWidth,
+          certSignatureFontSize,
+          certSignatureOrder,
+          certSchoolStampWidth,
+          marksheetSchoolStampWidth,
           certCustomLabels: certCustomLabelsState,
           lockClasses,
           admitCardSettings: {
@@ -1598,7 +1687,7 @@ function AddSetupWizardContent() {
           <button 
             onClick={handleSaveSetup}
             disabled={isSubmitting}
-            className="flex items-center gap-2 px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm disabled:opacity-50"
           >
             {isSubmitting ? (
               <>
@@ -1621,7 +1710,7 @@ function AddSetupWizardContent() {
           <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-slate-200 -translate-y-1/2 z-0"></div>
           {/* Active progress bar line foreground */}
           <div 
-            className="absolute top-1/2 left-4 h-0.5 bg-teal-600 -translate-y-1/2 z-0 transition-all duration-300"
+            className="absolute top-1/2 left-4 h-0.5 bg-blue-600 -translate-y-1/2 z-0 transition-all duration-300"
             style={{ 
               width: `${(STEPS.indexOf(currentStep) / (STEPS.length - 1)) * 100}%`
             }}
@@ -1638,14 +1727,14 @@ function AddSetupWizardContent() {
                 title={`Jump to step ${idx + 1}: ${step}`}
               >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border transition-all group-hover:scale-105 ${
-                  isActive ? 'bg-teal-600 border-teal-600 text-white shadow-md ring-2 ring-teal-500/20' :
-                  isCompleted ? 'bg-teal-100 border-teal-500 text-teal-600 font-bold' :
-                  'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 group-hover:border-teal-400'
+                  isActive ? 'bg-blue-600 border-blue-600 text-white shadow-md ring-2 ring-blue-500/20' :
+                  isCompleted ? 'bg-blue-100 border-blue-500 text-blue-600 font-bold' :
+                  'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 group-hover:border-blue-400'
                 }`}>
                   {isCompleted ? '✓' : idx + 1}
                 </div>
                 <span className={`text-[10px] font-black uppercase tracking-wider transition-colors ${
-                  isActive ? 'text-teal-600' : 'text-slate-400 group-hover:text-slate-600'
+                  isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'
                 }`}>
                   {step}
                 </span>
@@ -1666,7 +1755,7 @@ function AddSetupWizardContent() {
             <div className="bg-slate-50/70 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-800 gap-2">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-teal-600 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
+                  <div className="w-8 h-8 rounded-xl bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
                     1
                   </div>
                   <div>
@@ -1696,7 +1785,7 @@ function AddSetupWizardContent() {
                     <button
                       type="button"
                       onClick={() => setIsGroupModalOpen(true)}
-                      className="text-[11px] font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1 transition-colors"
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors"
                     >
                       <Plus className="w-3 h-3" /> New Group
                     </button>
@@ -1704,7 +1793,7 @@ function AddSetupWizardContent() {
                   <select 
                     value={groupName}
                     onChange={e => setGroupName(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-bold text-slate-800 dark:text-slate-100 shadow-xs"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-blue-500 font-bold text-slate-800 dark:text-slate-100 shadow-xs"
                   >
                     {availableGroups.map(g => (
                       <option key={g} value={g}>{g}</option>
@@ -1719,7 +1808,7 @@ function AddSetupWizardContent() {
                     placeholder="e.g. Final Term Examination 2025-26"
                     value={examName}
                     onChange={e => setExamName(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-bold text-slate-800 dark:text-slate-100 shadow-xs placeholder:text-slate-400"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-blue-500 font-bold text-slate-800 dark:text-slate-100 shadow-xs placeholder:text-slate-400"
                     required
                   />
                 </div>
@@ -1729,7 +1818,7 @@ function AddSetupWizardContent() {
             {/* ==================== 2. CLASS, SECTIONS & SUBJECT SCHEDULE ==================== */}
             <div className="bg-slate-50/70 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-5">
               <div className="flex items-center gap-3 pb-3 border-b border-slate-200/80 dark:border-slate-800">
-                <div className="w-8 h-8 rounded-xl bg-teal-600 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
                   2
                 </div>
                 <div>
@@ -1768,7 +1857,7 @@ function AddSetupWizardContent() {
                       <select 
                         value={cls.className}
                         onChange={e => handleClassChange(cls.id, e.target.value)}
-                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-bold text-slate-800 dark:text-slate-100 shadow-xs cursor-pointer"
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-blue-500 font-bold text-slate-800 dark:text-slate-100 shadow-xs cursor-pointer"
                         required
                       >
                         <option value="">-- Choose Added Class --</option>
@@ -1808,7 +1897,7 @@ function AddSetupWizardContent() {
                               <label className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-2">
                                 <span>Applicable Sections (Multi-Select)</span>
                                 <span className="text-red-500">*</span>
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                                   {cls.sections.length} Selected
                                 </span>
                               </label>
@@ -1816,7 +1905,7 @@ function AddSetupWizardContent() {
                               <button
                                 type="button"
                                 onClick={() => handleSelectAllSections(cls.id, availableSecs)}
-                                className="text-[11px] font-bold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer"
+                                className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                               >
                                 {allSelected ? 'Deselect All' : 'Select All Sections'}
                               </button>
@@ -1833,8 +1922,8 @@ function AddSetupWizardContent() {
                                     onClick={() => handleToggleSection(cls.id, sec)}
                                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 shadow-xs cursor-pointer ${
                                       isChecked 
-                                        ? 'bg-teal-600 text-white border-teal-600 ring-2 ring-teal-500/20' 
-                                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400 hover:bg-slate-50'
+                                        ? 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-500/20' 
+                                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-blue-400 hover:bg-slate-50'
                                     }`}
                                   >
                                     <Check className={`w-3.5 h-3.5 stroke-[3] transition-all ${isChecked ? 'opacity-100' : 'opacity-20'}`} />
@@ -1867,7 +1956,7 @@ function AddSetupWizardContent() {
                           <select 
                             value={sub.subjectName}
                             onChange={e => handleSubjectChange(cls.id, sub.id, 'subjectName', e.target.value)}
-                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold bg-white dark:bg-slate-900"
+                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-blue-500 font-semibold bg-white dark:bg-slate-900"
                             required
                           >
                             <option value="">Select Subject</option>
@@ -1887,7 +1976,7 @@ function AddSetupWizardContent() {
                             type="date"
                             value={sub.examDate || ''}
                             onChange={e => handleSubjectChange(cls.id, sub.id, 'examDate', e.target.value)}
-                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900"
+                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-blue-500 font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900"
                           />
                         </div>
 
@@ -1906,14 +1995,14 @@ function AddSetupWizardContent() {
                               value={sub.startTime || sub.fromTime || ''}
                               onChange={e => handleSubjectChange(cls.id, sub.id, 'startTime', e.target.value)}
                               title="Start Time (From)"
-                              className="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900"
+                              className="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-blue-500 font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900"
                             />
                             <input 
                               type="time"
                               value={sub.endTime || sub.toTime || ''}
                               onChange={e => handleSubjectChange(cls.id, sub.id, 'endTime', e.target.value)}
                               title="End Time (To)"
-                              className="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900"
+                              className="w-full px-2.5 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-blue-500 font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900"
                             />
                           </div>
                         </div>
@@ -1926,7 +2015,7 @@ function AddSetupWizardContent() {
                               type="button"
                               onClick={() => handleSubjectChange(cls.id, sub.id, 'practicalColumn', !sub.practicalColumn)}
                               className={`w-9 h-5 rounded-full relative transition-colors ${
-                                sub.practicalColumn ? 'bg-teal-600' : 'bg-slate-200 dark:bg-slate-700'
+                                sub.practicalColumn ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'
                               }`}
                               title={sub.practicalColumn ? 'Practical Enabled (Theory + Practical)' : 'Practical Disabled (Theory Only)'}
                             >
@@ -1946,7 +2035,7 @@ function AddSetupWizardContent() {
                               placeholder="100"
                               value={sub.theoryMarks || sub.maxMarks || '100'}
                               onChange={e => handleSubjectChange(cls.id, sub.id, 'theoryMarks', e.target.value)}
-                              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-teal-500 font-bold text-center bg-white dark:bg-slate-900"
+                              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-blue-500 font-bold text-center bg-white dark:bg-slate-900"
                             />
                           </div>
                         ) : (
@@ -1959,7 +2048,7 @@ function AddSetupWizardContent() {
                                 placeholder="70"
                                 value={sub.theoryMarks ?? ''}
                                 onChange={e => handleSubjectChange(cls.id, sub.id, 'theoryMarks', e.target.value)}
-                                className="w-full px-2 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-teal-500 font-bold text-center bg-white dark:bg-slate-900"
+                                className="w-full px-2 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-blue-500 font-bold text-center bg-white dark:bg-slate-900"
                               />
                             </div>
 
@@ -1971,14 +2060,14 @@ function AddSetupWizardContent() {
                                 placeholder="30"
                                 value={sub.practicalMarks ?? ''}
                                 onChange={e => handleSubjectChange(cls.id, sub.id, 'practicalMarks', e.target.value)}
-                                className="w-full px-2 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-teal-500 font-bold text-center bg-white dark:bg-slate-900"
+                                className="w-full px-2 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:border-blue-500 font-bold text-center bg-white dark:bg-slate-900"
                               />
                             </div>
 
                             {/* Auto Calculated Max Marks */}
                             <div className="flex flex-col gap-1.5 lg:col-span-1">
                               <div className="flex items-center justify-between">
-                                <label className="text-[10px] font-bold text-teal-700 dark:text-teal-400 uppercase tracking-wider truncate" title="Auto Max Marks">
+                                <label className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider truncate" title="Auto Max Marks">
                                   Max Marks
                                 </label>
                               </div>
@@ -1986,7 +2075,7 @@ function AddSetupWizardContent() {
                                 type="text" 
                                 readOnly
                                 value={sub.maxMarks || '100'}
-                                className="w-full px-1.5 py-2 border border-teal-200 dark:border-teal-800 rounded-lg text-xs font-black text-center bg-teal-50/70 dark:bg-teal-950/40 text-teal-900 dark:text-teal-200 cursor-not-allowed select-none shadow-2xs"
+                                className="w-full px-1.5 py-2 border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-black text-center bg-blue-50/70 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 cursor-not-allowed select-none shadow-2xs"
                                 title="Auto Calculated (Theory + Practical)"
                               />
                             </div>
@@ -2013,7 +2102,7 @@ function AddSetupWizardContent() {
                       <button 
                         type="button"
                         onClick={() => handleAddSubject(cls.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg text-[10px] font-bold border border-teal-100 transition-colors"
+                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[10px] font-bold border border-blue-100 transition-colors"
                       >
                         <Plus className="w-3.5 h-3.5" /> Add Subject row
                       </button>
@@ -2025,7 +2114,7 @@ function AddSetupWizardContent() {
               <button 
                 type="button"
                 onClick={handleAddClass}
-                className="w-full flex items-center justify-center gap-2 py-3.5 border-2 border-dashed border-teal-600 text-teal-600 rounded-2xl hover:bg-teal-50/50 transition-colors text-xs font-bold"
+                className="w-full flex items-center justify-center gap-2 py-3.5 border-2 border-dashed border-blue-600 text-blue-600 rounded-2xl hover:bg-blue-50/50 transition-colors text-xs font-bold"
               >
                 <Plus className="w-4 h-4" /> Add Class
               </button>
@@ -2036,7 +2125,7 @@ function AddSetupWizardContent() {
           <div className="bg-slate-50/70 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-5">
             <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-teal-600 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
                   3
                 </div>
                 <div>
@@ -2048,7 +2137,7 @@ function AddSetupWizardContent() {
                   </p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                 Active
               </span>
             </div>
@@ -2063,7 +2152,7 @@ function AddSetupWizardContent() {
                   type="date"
                   value={dateOfExam}
                   onChange={e => handleExamDateChange(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-blue-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
                   required
                 />
                 <span className="text-[10px] text-slate-400">Date exam notice is published</span>
@@ -2078,7 +2167,7 @@ function AddSetupWizardContent() {
                   type="date"
                   value={admitCardDate}
                   onChange={e => setAdmitCardDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-blue-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
                   required
                 />
                 <span className="text-[10px] text-slate-400">Date hall tickets are available</span>
@@ -2093,7 +2182,7 @@ function AddSetupWizardContent() {
                   type="date" 
                   value={lastDateToEnter}
                   onChange={e => setLastDateToEnter(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-blue-500 font-semibold text-slate-700 dark:text-slate-200 shadow-xs"
                 />
                 <span className="text-[10px] text-slate-400">Official result declaration date</span>
               </div>
@@ -2108,7 +2197,7 @@ function AddSetupWizardContent() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 uppercase tracking-wider">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 uppercase tracking-wider">
                     Step 2 of 5
                   </span>
                   <h2 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
@@ -2130,7 +2219,7 @@ function AddSetupWizardContent() {
                     onClick={() => setMarksGrade(scheme)}
                     className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
                       marksGrade === scheme
-                        ? 'bg-white dark:bg-slate-900 text-teal-700 dark:text-teal-400 shadow-xs'
+                        ? 'bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-400 shadow-xs'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                     }`}
                   >
@@ -2157,7 +2246,7 @@ function AddSetupWizardContent() {
                     Percentage Remarks Range
                   </span>
                   {enablePercentRemarks && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                       {percentRanges.length} rules
                     </span>
                   )}
@@ -2167,7 +2256,7 @@ function AddSetupWizardContent() {
                   {/* ON / OFF Toggle */}
                   <div className="flex items-center gap-2">
                     <span className={`text-[10px] font-black uppercase tracking-wider ${
-                      enablePercentRemarks ? 'text-teal-700 dark:text-teal-400' : 'text-slate-400'
+                      enablePercentRemarks ? 'text-blue-700 dark:text-blue-400' : 'text-slate-400'
                     }`}>
                       {enablePercentRemarks ? 'ON' : 'OFF'}
                     </span>
@@ -2181,7 +2270,7 @@ function AddSetupWizardContent() {
                         else if (expandedSection === 'percent') setExpandedSection(null)
                       }}
                       className={`w-9 h-5 rounded-full relative transition-colors ${
-                        enablePercentRemarks ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'
+                        enablePercentRemarks ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'
                       }`}
                       title={enablePercentRemarks ? 'Turn OFF Percentage Remarks' : 'Turn ON Percentage Remarks'}
                     >
@@ -2221,7 +2310,7 @@ function AddSetupWizardContent() {
                           setPercentRanges(updated)
                         }}
                         placeholder="85-100"
-                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-800 dark:text-slate-100"
+                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-blue-500 font-semibold text-slate-800 dark:text-slate-100"
                       />
                       <input 
                         type="text" 
@@ -2232,7 +2321,7 @@ function AddSetupWizardContent() {
                           setPercentRanges(updated)
                         }}
                         placeholder="Remark"
-                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-800 dark:text-slate-100"
+                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-blue-500 font-semibold text-slate-800 dark:text-slate-100"
                       />
                       <button
                         type="button"
@@ -2253,7 +2342,7 @@ function AddSetupWizardContent() {
                     <button
                       type="button"
                       onClick={() => setPercentRanges([...percentRanges, { range: '', remark: '' }])}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 dark:hover:bg-teal-900/50 border border-teal-200 dark:border-teal-800 rounded-lg transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded-lg transition-colors"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       Add Remark Range
@@ -2280,7 +2369,7 @@ function AddSetupWizardContent() {
                     Subject Grade Range
                   </span>
                   {enableGradeRemarks && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                       {gradeRanges.length} rules
                     </span>
                   )}
@@ -2290,7 +2379,7 @@ function AddSetupWizardContent() {
                   {/* ON / OFF Toggle */}
                   <div className="flex items-center gap-2">
                     <span className={`text-[10px] font-black uppercase tracking-wider ${
-                      enableGradeRemarks ? 'text-teal-700 dark:text-teal-400' : 'text-slate-400'
+                      enableGradeRemarks ? 'text-blue-700 dark:text-blue-400' : 'text-slate-400'
                     }`}>
                       {enableGradeRemarks ? 'ON' : 'OFF'}
                     </span>
@@ -2304,7 +2393,7 @@ function AddSetupWizardContent() {
                         else if (expandedSection === 'grade') setExpandedSection(null)
                       }}
                       className={`w-9 h-5 rounded-full relative transition-colors ${
-                        enableGradeRemarks ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'
+                        enableGradeRemarks ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'
                       }`}
                       title={enableGradeRemarks ? 'Turn OFF Subject Grade Range' : 'Turn ON Subject Grade Range'}
                     >
@@ -2344,7 +2433,7 @@ function AddSetupWizardContent() {
                           setGradeRanges(updated)
                         }}
                         placeholder="91-100"
-                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-800 dark:text-slate-100"
+                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-blue-500 font-semibold text-slate-800 dark:text-slate-100"
                       />
                       <input 
                         type="text" 
@@ -2355,7 +2444,7 @@ function AddSetupWizardContent() {
                           setGradeRanges(updated)
                         }}
                         placeholder="A+"
-                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-800 dark:text-slate-100"
+                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-blue-500 font-semibold text-slate-800 dark:text-slate-100"
                       />
                       <button
                         type="button"
@@ -2376,7 +2465,7 @@ function AddSetupWizardContent() {
                     <button
                       type="button"
                       onClick={() => setGradeRanges([...gradeRanges, { range: '', grade: '' }])}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 dark:hover:bg-teal-900/50 border border-teal-200 dark:border-teal-800 rounded-lg transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded-lg transition-colors"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       Add Grade Range
@@ -2403,7 +2492,7 @@ function AddSetupWizardContent() {
                     Division Remarks Range
                   </span>
                   {enableDivisionRemarks && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                       {divisionRanges.length} rules
                     </span>
                   )}
@@ -2413,7 +2502,7 @@ function AddSetupWizardContent() {
                   {/* ON / OFF Toggle */}
                   <div className="flex items-center gap-2">
                     <span className={`text-[10px] font-black uppercase tracking-wider ${
-                      enableDivisionRemarks ? 'text-teal-700 dark:text-teal-400' : 'text-slate-400'
+                      enableDivisionRemarks ? 'text-blue-700 dark:text-blue-400' : 'text-slate-400'
                     }`}>
                       {enableDivisionRemarks ? 'ON' : 'OFF'}
                     </span>
@@ -2427,7 +2516,7 @@ function AddSetupWizardContent() {
                         else if (expandedSection === 'division') setExpandedSection(null)
                       }}
                       className={`w-9 h-5 rounded-full relative transition-colors ${
-                        enableDivisionRemarks ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'
+                        enableDivisionRemarks ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'
                       }`}
                       title={enableDivisionRemarks ? 'Turn OFF Division Remarks Range' : 'Turn ON Division Remarks Range'}
                     >
@@ -2467,7 +2556,7 @@ function AddSetupWizardContent() {
                           setDivisionRanges(updated)
                         }}
                         placeholder="75-100"
-                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-800 dark:text-slate-100"
+                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-blue-500 font-semibold text-slate-800 dark:text-slate-100"
                       />
                       <input 
                         type="text" 
@@ -2478,7 +2567,7 @@ function AddSetupWizardContent() {
                           setDivisionRanges(updated)
                         }}
                         placeholder="1st"
-                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-800 dark:text-slate-100"
+                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-blue-500 font-semibold text-slate-800 dark:text-slate-100"
                       />
                       <button
                         type="button"
@@ -2499,7 +2588,7 @@ function AddSetupWizardContent() {
                     <button
                       type="button"
                       onClick={() => setDivisionRanges([...divisionRanges, { range: '', div: '' }])}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 dark:hover:bg-teal-900/50 border border-teal-200 dark:border-teal-800 rounded-lg transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded-lg transition-colors"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       Add Division Range
@@ -2526,7 +2615,7 @@ function AddSetupWizardContent() {
                     CGPA Range
                   </span>
                   {enableCgpa && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                       {cgpaRanges.length} rules
                     </span>
                   )}
@@ -2536,7 +2625,7 @@ function AddSetupWizardContent() {
                   {/* ON / OFF Toggle */}
                   <div className="flex items-center gap-2">
                     <span className={`text-[10px] font-black uppercase tracking-wider ${
-                      enableCgpa ? 'text-teal-700 dark:text-teal-400' : 'text-slate-400'
+                      enableCgpa ? 'text-blue-700 dark:text-blue-400' : 'text-slate-400'
                     }`}>
                       {enableCgpa ? 'ON' : 'OFF'}
                     </span>
@@ -2550,7 +2639,7 @@ function AddSetupWizardContent() {
                         else if (expandedSection === 'cgpa') setExpandedSection(null)
                       }}
                       className={`w-9 h-5 rounded-full relative transition-colors ${
-                        enableCgpa ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'
+                        enableCgpa ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'
                       }`}
                       title={enableCgpa ? 'Turn OFF CGPA Range' : 'Turn ON CGPA Range'}
                     >
@@ -2627,7 +2716,7 @@ function AddSetupWizardContent() {
                           setCgpaRanges(updated)
                         }}
                         placeholder="91-100"
-                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-800 dark:text-slate-100"
+                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-blue-500 font-semibold text-slate-800 dark:text-slate-100"
                       />
                       <input 
                         type="text" 
@@ -2638,7 +2727,7 @@ function AddSetupWizardContent() {
                           setCgpaRanges(updated)
                         }}
                         placeholder="10.0"
-                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-teal-500 font-semibold text-slate-800 dark:text-slate-100"
+                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs outline-none focus:border-blue-500 font-semibold text-slate-800 dark:text-slate-100"
                       />
                       <button
                         type="button"
@@ -2659,7 +2748,7 @@ function AddSetupWizardContent() {
                     <button
                       type="button"
                       onClick={() => setCgpaRanges([...cgpaRanges, { range: '', cgpa: '' }])}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 dark:hover:bg-teal-900/50 border border-teal-200 dark:border-teal-800 rounded-lg transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded-lg transition-colors"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       Add CGPA Range
@@ -2678,7 +2767,7 @@ function AddSetupWizardContent() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 uppercase tracking-wider">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 uppercase tracking-wider">
                     Step 3 of 5
                   </span>
                   <h2 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
@@ -2693,9 +2782,9 @@ function AddSetupWizardContent() {
               <button
                 type="button"
                 onClick={() => handlePreviewAdmitCard(admitTemplateStyle)}
-                className="flex items-center gap-2 px-4 py-2 bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/50 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 rounded-xl text-xs font-bold transition-all shadow-xs shrink-0"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-bold transition-all shadow-xs shrink-0"
               >
-                <Eye className="w-4 h-4 text-teal-600 dark:text-teal-400" /> Live Hall Ticket Preview
+                <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Live Hall Ticket Preview
               </button>
             </div>
 
@@ -2781,7 +2870,7 @@ function AddSetupWizardContent() {
                         title={`${preset.name} (${preset.hex})`}
                         className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
                           isSelected
-                            ? 'ring-2 ring-teal-500 border-transparent text-white shadow-xs'
+                            ? 'ring-2 ring-blue-500 border-transparent text-white shadow-xs'
                             : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-400'
                         }`}
                         style={isSelected ? { backgroundColor: preset.hex } : {}}
@@ -2807,7 +2896,7 @@ function AddSetupWizardContent() {
                     Choose from 4 authentic academic admit card layouts — customizable with your chosen theme color
                   </p>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                   4 Unique Layouts Available
                 </span>
               </div>
@@ -2821,7 +2910,7 @@ function AddSetupWizardContent() {
                       onClick={() => setAdmitTemplateStyle('Classic Board')}
                       className={`cursor-pointer rounded-2xl border p-3 sm:p-4 flex flex-col justify-between gap-2.5 transition-all relative ${
                         isSelected 
-                          ? 'border-2 bg-teal-50/20 ring-2 ring-teal-500/20 shadow-md' 
+                          ? 'border-2 bg-blue-50/20 ring-2 ring-blue-500/20 shadow-md' 
                           : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                       }`}
                       style={isSelected ? { borderColor: admitThemeColor } : {}}
@@ -2832,10 +2921,10 @@ function AddSetupWizardContent() {
                         </span>
                         {isSelected && (
                           <div className="flex items-center gap-1">
-                            <span className="text-[8.5px] font-black text-teal-700 dark:text-teal-300 bg-teal-100 dark:bg-teal-950 px-1.5 py-0.5 rounded-full">
+                            <span className="text-[8.5px] font-black text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 px-1.5 py-0.5 rounded-full">
                               Active
                             </span>
-                            <CheckCircle2 className="w-4 h-4 text-teal-600" />
+                            <CheckCircle2 className="w-4 h-4 text-blue-600" />
                           </div>
                         )}
                       </div>
@@ -2861,7 +2950,7 @@ function AddSetupWizardContent() {
                         <span className="text-[10px] font-semibold text-slate-500 mt-0.5 block">Traditional Board Layout • Official Dual Border & Crest</span>
                       </div>
                       
-                      <span className="text-[9px] text-center font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 py-1 rounded-lg">
+                      <span className="text-[9px] text-center font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 py-1 rounded-lg">
                         Full Matrix + Specimen Sign Box
                       </span>
 
@@ -2872,9 +2961,9 @@ function AddSetupWizardContent() {
                             e.stopPropagation()
                             handlePreviewAdmitCard('Classic Board')
                           }}
-                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-teal-600 hover:text-white text-teal-700 dark:text-teal-400 font-bold text-[11px] border border-teal-200 dark:border-teal-800 hover:border-teal-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-700 dark:text-blue-400 font-bold text-[11px] border border-blue-200 dark:border-blue-800 hover:border-blue-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
                         >
-                          <Eye className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                          <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:text-white group-hover:scale-110 transition-all" />
                           <span>Preview Full Template</span>
                         </button>
                       </div>
@@ -2890,7 +2979,7 @@ function AddSetupWizardContent() {
                       onClick={() => setAdmitTemplateStyle('Modern Split Pass')}
                       className={`cursor-pointer rounded-2xl border p-3 sm:p-4 flex flex-col justify-between gap-2.5 transition-all relative ${
                         isSelected 
-                          ? 'border-2 bg-teal-50/20 ring-2 ring-teal-500/20 shadow-md' 
+                          ? 'border-2 bg-blue-50/20 ring-2 ring-blue-500/20 shadow-md' 
                           : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                       }`}
                       style={isSelected ? { borderColor: admitThemeColor } : {}}
@@ -2901,10 +2990,10 @@ function AddSetupWizardContent() {
                         </span>
                         {isSelected && (
                           <div className="flex items-center gap-1">
-                            <span className="text-[8.5px] font-black text-teal-700 dark:text-teal-300 bg-teal-100 dark:bg-teal-950 px-1.5 py-0.5 rounded-full">
+                            <span className="text-[8.5px] font-black text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 px-1.5 py-0.5 rounded-full">
                               Active
                             </span>
-                            <CheckCircle2 className="w-4 h-4 text-teal-600" />
+                            <CheckCircle2 className="w-4 h-4 text-blue-600" />
                           </div>
                         )}
                       </div>
@@ -2930,7 +3019,7 @@ function AddSetupWizardContent() {
                         <span className="text-[10px] font-semibold text-slate-500 mt-0.5 block">Dual-Column Format • Student Profile Sidebar & QR</span>
                       </div>
 
-                      <span className="text-[9px] text-center font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 py-1 rounded-lg">
+                      <span className="text-[9px] text-center font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 py-1 rounded-lg">
                         Left Profile Bar + Card Tiles
                       </span>
 
@@ -2941,9 +3030,9 @@ function AddSetupWizardContent() {
                             e.stopPropagation()
                             handlePreviewAdmitCard('Modern Split Pass')
                           }}
-                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-teal-600 hover:text-white text-teal-700 dark:text-teal-400 font-bold text-[11px] border border-teal-200 dark:border-teal-800 hover:border-teal-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-700 dark:text-blue-400 font-bold text-[11px] border border-blue-200 dark:border-blue-800 hover:border-blue-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
                         >
-                          <Eye className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                          <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:text-white group-hover:scale-110 transition-all" />
                           <span>Preview Full Template</span>
                         </button>
                       </div>
@@ -2959,7 +3048,7 @@ function AddSetupWizardContent() {
                       onClick={() => setAdmitTemplateStyle('Executive Heritage')}
                       className={`cursor-pointer rounded-2xl border p-3 sm:p-4 flex flex-col justify-between gap-2.5 transition-all relative ${
                         isSelected 
-                          ? 'border-2 bg-teal-50/20 ring-2 ring-teal-500/20 shadow-md' 
+                          ? 'border-2 bg-blue-50/20 ring-2 ring-blue-500/20 shadow-md' 
                           : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                       }`}
                       style={isSelected ? { borderColor: admitThemeColor } : {}}
@@ -2970,10 +3059,10 @@ function AddSetupWizardContent() {
                         </span>
                         {isSelected && (
                           <div className="flex items-center gap-1">
-                            <span className="text-[8.5px] font-black text-teal-700 dark:text-teal-300 bg-teal-100 dark:bg-teal-950 px-1.5 py-0.5 rounded-full">
+                            <span className="text-[8.5px] font-black text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 px-1.5 py-0.5 rounded-full">
                               Active
                             </span>
-                            <CheckCircle2 className="w-4 h-4 text-teal-600" />
+                            <CheckCircle2 className="w-4 h-4 text-blue-600" />
                           </div>
                         )}
                       </div>
@@ -2999,7 +3088,7 @@ function AddSetupWizardContent() {
                         <span className="text-[10px] font-semibold text-slate-500 mt-0.5 block">Prestigious Certificate Format • Ornate Double Filigree</span>
                       </div>
 
-                      <span className="text-[9px] text-center font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 py-1 rounded-lg">
+                      <span className="text-[9px] text-center font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 py-1 rounded-lg">
                         Crest Seal + Declaration Block
                       </span>
 
@@ -3010,9 +3099,9 @@ function AddSetupWizardContent() {
                             e.stopPropagation()
                             handlePreviewAdmitCard('Executive Heritage')
                           }}
-                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-teal-600 hover:text-white text-teal-700 dark:text-teal-400 font-bold text-[11px] border border-teal-200 dark:border-teal-800 hover:border-teal-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-700 dark:text-blue-400 font-bold text-[11px] border border-blue-200 dark:border-blue-800 hover:border-blue-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
                         >
-                          <Eye className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                          <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:text-white group-hover:scale-110 transition-all" />
                           <span>Preview Full Template</span>
                         </button>
                       </div>
@@ -3028,7 +3117,7 @@ function AddSetupWizardContent() {
                       onClick={() => setAdmitTemplateStyle('Compact Minimalist')}
                       className={`cursor-pointer rounded-2xl border p-3 sm:p-4 flex flex-col justify-between gap-2.5 transition-all relative ${
                         isSelected 
-                          ? 'border-2 bg-teal-50/20 ring-2 ring-teal-500/20 shadow-md' 
+                          ? 'border-2 bg-blue-50/20 ring-2 ring-blue-500/20 shadow-md' 
                           : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                       }`}
                       style={isSelected ? { borderColor: admitThemeColor } : {}}
@@ -3039,10 +3128,10 @@ function AddSetupWizardContent() {
                         </span>
                         {isSelected && (
                           <div className="flex items-center gap-1">
-                            <span className="text-[8.5px] font-black text-teal-700 dark:text-teal-300 bg-teal-100 dark:bg-teal-950 px-1.5 py-0.5 rounded-full">
+                            <span className="text-[8.5px] font-black text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 px-1.5 py-0.5 rounded-full">
                               Active
                             </span>
-                            <CheckCircle2 className="w-4 h-4 text-teal-600" />
+                            <CheckCircle2 className="w-4 h-4 text-blue-600" />
                           </div>
                         )}
                       </div>
@@ -3068,7 +3157,7 @@ function AddSetupWizardContent() {
                         <span className="text-[10px] font-semibold text-slate-500 mt-0.5 block">High-Density Slip • Barcode Header & Tear-Off Stub</span>
                       </div>
 
-                      <span className="text-[9px] text-center font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 py-1 rounded-lg">
+                      <span className="text-[9px] text-center font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 py-1 rounded-lg">
                         Tear-Off Stub + Fast Print
                       </span>
 
@@ -3079,9 +3168,9 @@ function AddSetupWizardContent() {
                             e.stopPropagation()
                             handlePreviewAdmitCard('Compact Minimalist')
                           }}
-                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-teal-600 hover:text-white text-teal-700 dark:text-teal-400 font-bold text-[11px] border border-teal-200 dark:border-teal-800 hover:border-teal-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-700 dark:text-blue-400 font-bold text-[11px] border border-blue-200 dark:border-blue-800 hover:border-blue-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
                         >
-                          <Eye className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                          <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:text-white group-hover:scale-110 transition-all" />
                           <span>Preview Full Template</span>
                         </button>
                       </div>
@@ -3094,14 +3183,14 @@ function AddSetupWizardContent() {
               <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm mt-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-600/20 shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/20 shrink-0">
                       <QrCode className="w-5 h-5" />
                     </div>
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide flex items-center gap-2">
                           <span>Live Admit Card Preview •</span>
-                          <span className="text-teal-600 dark:text-teal-400">{admitTemplateStyle}</span>
+                          <span className="text-blue-600 dark:text-blue-400">{admitTemplateStyle}</span>
                           <span
                             className="px-2 py-0.5 rounded text-[8.5px] font-black uppercase text-white shadow-2xs font-mono"
                             style={{ backgroundColor: admitThemeColor }}
@@ -3109,7 +3198,7 @@ function AddSetupWizardContent() {
                             {admitThemeColor}
                           </span>
                         </h4>
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300">
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300">
                           ⚡ Auto-Updating
                         </span>
                       </div>
@@ -3117,7 +3206,7 @@ function AddSetupWizardContent() {
                         <p className="text-[11px] text-slate-500">
                           Selecting any template style or color above automatically updates this live printable hall ticket preview in real time.
                         </p>
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20 shadow-2xs">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/10 text-blue-600 border border-blue-500/20 shadow-2xs">
                           ⚡ Click any label to edit text live
                         </span>
                       </div>
@@ -3127,7 +3216,7 @@ function AddSetupWizardContent() {
                   <button
                     type="button"
                     onClick={() => handlePreviewAdmitCard(admitTemplateStyle)}
-                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0"
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0"
                   >
                     <Eye className="w-4 h-4" /> Open Full Screen / Print
                   </button>
@@ -3138,11 +3227,11 @@ function AddSetupWizardContent() {
                   {/* Studio Header - Sticky so tabs never scroll off-screen */}
                   <div className="sticky top-2 z-20 bg-white/95 dark:bg-slate-850/95 backdrop-blur-md p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-xs flex flex-wrap items-center justify-between gap-3 pb-3">
                     <div className="flex items-center gap-2">
-                      <Sliders className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                      <Sliders className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                       <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">
                         Admit Card Sizing & Typography Studio
                       </span>
-                      <span className="text-[9px] font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 px-2 py-0.5 rounded-full border border-teal-200/50 dark:border-teal-800/50">
+                      <span className="text-[9px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded-full border border-blue-200/50 dark:border-blue-800/50">
                         Live Sync Across All 4 Templates
                       </span>
                     </div>
@@ -3154,7 +3243,7 @@ function AddSetupWizardContent() {
                         onClick={() => setAdmitSizingStudioTab('media')}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all ${
                           admitSizingStudioTab === 'media'
-                            ? 'bg-teal-600 text-white shadow-xs'
+                            ? 'bg-blue-600 text-white shadow-xs'
                             : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
@@ -3166,7 +3255,7 @@ function AddSetupWizardContent() {
                         onClick={() => setAdmitSizingStudioTab('signs')}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all ${
                           admitSizingStudioTab === 'signs'
-                            ? 'bg-teal-600 text-white shadow-xs'
+                            ? 'bg-blue-600 text-white shadow-xs'
                             : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
@@ -3178,7 +3267,7 @@ function AddSetupWizardContent() {
                         onClick={() => setAdmitSizingStudioTab('text')}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all ${
                           admitSizingStudioTab === 'text'
-                            ? 'bg-teal-600 text-white shadow-xs'
+                            ? 'bg-blue-600 text-white shadow-xs'
                             : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
@@ -3191,7 +3280,7 @@ function AddSetupWizardContent() {
                       <button
                         type="button"
                         onClick={() => logoFileInputRef.current?.click()}
-                        className="px-2.5 py-1 rounded-lg text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white transition-all shadow-2xs flex items-center gap-1.5"
+                        className="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-2xs flex items-center gap-1.5"
                       >
                         <Upload className="w-3.5 h-3.5" />
                         <span>{admitSchoolLogo ? 'Change Logo' : 'Upload Logo'}</span>
@@ -3219,7 +3308,7 @@ function AddSetupWizardContent() {
                         <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Institute Logo Size</span>
-                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-200/50 dark:border-teal-800/50">
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
                               {admitSchoolLogoWidth} × {admitSchoolLogoHeight} px
                             </span>
                           </div>
@@ -3241,7 +3330,7 @@ function AddSetupWizardContent() {
                                 }}
                                 className={`py-1 rounded text-[10px] font-bold transition-all ${
                                   admitSchoolLogoWidth === p.size
-                                    ? 'bg-teal-600 text-white shadow-2xs'
+                                    ? 'bg-blue-600 text-white shadow-2xs'
                                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                               >
@@ -3261,7 +3350,7 @@ function AddSetupWizardContent() {
                                 step="2"
                                 value={Number(admitSchoolLogoWidth) || 60}
                                 onChange={e => setAdmitSchoolLogoWidth(e.target.value)}
-                                className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                               />
                               <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitSchoolLogoWidth}px</span>
                             </div>
@@ -3274,9 +3363,52 @@ function AddSetupWizardContent() {
                                 step="2"
                                 value={Number(admitSchoolLogoHeight) || 60}
                                 onChange={e => setAdmitSchoolLogoHeight(e.target.value)}
-                                className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                               />
                               <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitSchoolLogoHeight}px</span>
+                            </div>
+                          </div>
+
+                          {/* Logo Position & Content Alignment */}
+                          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-800 text-[11px]">
+                            <div className="space-y-1">
+                              <label className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wide">Logo Position</label>
+                              <div className="grid grid-cols-3 gap-1">
+                                {(['left', 'center', 'right'] as const).map(pos => (
+                                  <button
+                                    key={pos}
+                                    type="button"
+                                    onClick={() => setAdmitLogoPosition(pos)}
+                                    className={`py-1 rounded text-[10px] font-bold capitalize transition-all border ${
+                                      admitLogoPosition === pos
+                                        ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-blue-400'
+                                    }`}
+                                  >
+                                    {pos}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wide">Content Align</label>
+                              <div className="grid grid-cols-3 gap-1">
+                                {(['left', 'center', 'right'] as const).map(pos => (
+                                  <button
+                                    key={pos}
+                                    type="button"
+                                    onClick={() => setAdmitContentPosition(pos)}
+                                    className={`py-1 rounded text-[10px] font-bold capitalize transition-all border ${
+                                      admitContentPosition === pos
+                                        ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-blue-400'
+                                    }`}
+                                  >
+                                    {pos}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -3285,7 +3417,7 @@ function AddSetupWizardContent() {
                         <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Official QR Code Size</span>
-                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-200/50 dark:border-teal-800/50">
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
                               {admitQrCodeSize} px
                             </span>
                           </div>
@@ -3304,7 +3436,7 @@ function AddSetupWizardContent() {
                                 onClick={() => setAdmitQrCodeSize(p.size)}
                                 className={`py-1 rounded text-[10px] font-bold transition-all ${
                                   admitQrCodeSize === p.size
-                                    ? 'bg-teal-600 text-white shadow-2xs'
+                                    ? 'bg-blue-600 text-white shadow-2xs'
                                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                               >
@@ -3323,11 +3455,24 @@ function AddSetupWizardContent() {
                                 step="2"
                                 value={Number(admitQrCodeSize) || 72}
                                 onChange={e => setAdmitQrCodeSize(e.target.value)}
-                                className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                               />
                               <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitQrCodeSize}px</span>
                             </div>
-                            <p className="text-[10px] text-slate-400 mt-2">Scales QR matrix cleanly without pixel blur.</p>
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800 mt-2">
+                              <p className="text-[10px] text-slate-400">Scales QR matrix cleanly without pixel blur.</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMarksheetQrCodeSize(admitQrCodeSize)
+                                  setCertQrCodeSize(admitQrCodeSize)
+                                  toast.success(`Applied ${admitQrCodeSize}px QR size across Admit Card, Marksheet & Certificate!`)
+                                }}
+                                className="text-[9.5px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline shrink-0"
+                              >
+                                Apply to all templates
+                              </button>
+                            </div>
                           </div>
                         </div>
 
@@ -3335,7 +3480,7 @@ function AddSetupWizardContent() {
                         <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Candidate Photo Size</span>
-                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-200/50 dark:border-teal-800/50">
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
                               {admitStudentPhotoWidth} × {admitStudentPhotoHeight} px
                             </span>
                           </div>
@@ -3355,7 +3500,7 @@ function AddSetupWizardContent() {
                                 }}
                                 className={`py-1 rounded text-[9.5px] font-bold transition-all ${
                                   admitStudentPhotoWidth === p.w
-                                    ? 'bg-teal-600 text-white shadow-2xs'
+                                    ? 'bg-blue-600 text-white shadow-2xs'
                                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                               >
@@ -3374,7 +3519,7 @@ function AddSetupWizardContent() {
                                 step="2"
                                 value={Number(admitStudentPhotoWidth) || 96}
                                 onChange={e => setAdmitStudentPhotoWidth(e.target.value)}
-                                className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                               />
                               <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitStudentPhotoWidth}px</span>
                             </div>
@@ -3387,9 +3532,32 @@ function AddSetupWizardContent() {
                                 step="2"
                                 value={Number(admitStudentPhotoHeight) || 120}
                                 onChange={e => setAdmitStudentPhotoHeight(e.target.value)}
-                                className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                               />
                               <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitStudentPhotoHeight}px</span>
+                            </div>
+                          </div>
+
+                          {/* Photo Placement */}
+                          <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wide">Photo Placement:</span>
+                              <div className="flex items-center gap-1">
+                                {(['left', 'right'] as const).map(pos => (
+                                  <button
+                                    key={pos}
+                                    type="button"
+                                    onClick={() => setAdmitPhotoPosition(pos)}
+                                    className={`px-2.5 py-1 rounded text-[10px] font-bold capitalize transition-all border ${
+                                      admitPhotoPosition === pos
+                                        ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-blue-400'
+                                    }`}
+                                  >
+                                    {pos} Side
+                                  </button>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -3405,7 +3573,7 @@ function AddSetupWizardContent() {
                         <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Line Width</span>
-                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-200/50 dark:border-teal-800/50">
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
                               {admitSignatureWidth} px
                             </span>
                           </div>
@@ -3423,7 +3591,7 @@ function AddSetupWizardContent() {
                                 onClick={() => setAdmitSignatureWidth(p.size)}
                                 className={`py-1 rounded text-[10px] font-bold transition-all ${
                                   admitSignatureWidth === p.size
-                                    ? 'bg-teal-600 text-white shadow-2xs'
+                                    ? 'bg-blue-600 text-white shadow-2xs'
                                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                               >
@@ -3442,7 +3610,7 @@ function AddSetupWizardContent() {
                                 step="5"
                                 value={Number(admitSignatureWidth) || 100}
                                 onChange={e => setAdmitSignatureWidth(e.target.value)}
-                                className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                               />
                               <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitSignatureWidth}px</span>
                             </div>
@@ -3454,7 +3622,7 @@ function AddSetupWizardContent() {
                         <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">School Stamp / Seal Diameter</span>
-                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-200/50 dark:border-teal-800/50">
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
                               {admitSchoolStampWidth} px
                             </span>
                           </div>
@@ -3472,7 +3640,7 @@ function AddSetupWizardContent() {
                                 onClick={() => setAdmitSchoolStampWidth(p.size)}
                                 className={`py-1 rounded text-[10px] font-bold transition-all ${
                                   admitSchoolStampWidth === p.size
-                                    ? 'bg-teal-600 text-white shadow-2xs'
+                                    ? 'bg-blue-600 text-white shadow-2xs'
                                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                               >
@@ -3491,7 +3659,7 @@ function AddSetupWizardContent() {
                                 step="2"
                                 value={Number(admitSchoolStampWidth) || 56}
                                 onChange={e => setAdmitSchoolStampWidth(e.target.value)}
-                                className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                               />
                               <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitSchoolStampWidth}px</span>
                             </div>
@@ -3503,7 +3671,7 @@ function AddSetupWizardContent() {
                         <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Text Font Size</span>
-                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-200/50 dark:border-teal-800/50">
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
                               {admitSignatureFontSize} px
                             </span>
                           </div>
@@ -3521,7 +3689,7 @@ function AddSetupWizardContent() {
                                 onClick={() => setAdmitSignatureFontSize(p.size)}
                                 className={`py-1 rounded text-[10px] font-bold transition-all ${
                                   admitSignatureFontSize === p.size
-                                    ? 'bg-teal-600 text-white shadow-2xs'
+                                    ? 'bg-blue-600 text-white shadow-2xs'
                                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                               >
@@ -3540,7 +3708,7 @@ function AddSetupWizardContent() {
                                 step="0.5"
                                 value={Number(admitSignatureFontSize) || 9}
                                 onChange={e => setAdmitSignatureFontSize(e.target.value)}
-                                className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                               />
                               <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitSignatureFontSize}px</span>
                             </div>
@@ -3559,7 +3727,7 @@ function AddSetupWizardContent() {
                         <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">1. School / Institute Name</span>
-                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400">{admitHeaderNameFontSize} px</span>
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400">{admitHeaderNameFontSize} px</span>
                           </div>
                           <div className="flex items-center gap-2 text-[11px]">
                             <input
@@ -3569,7 +3737,7 @@ function AddSetupWizardContent() {
                               step="1"
                               value={Number(admitHeaderNameFontSize) || 24}
                               onChange={e => setAdmitHeaderNameFontSize(e.target.value)}
-                              className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                             />
                             <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitHeaderNameFontSize}px</span>
                           </div>
@@ -3579,7 +3747,7 @@ function AddSetupWizardContent() {
                         <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">2. School Address & Sub-Header</span>
-                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400">{admitHeaderDetailsFontSize} px</span>
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400">{admitHeaderDetailsFontSize} px</span>
                           </div>
                           <div className="flex items-center gap-2 text-[11px]">
                             <input
@@ -3589,7 +3757,7 @@ function AddSetupWizardContent() {
                               step="0.5"
                               value={Number(admitHeaderDetailsFontSize) || 10}
                               onChange={e => setAdmitHeaderDetailsFontSize(e.target.value)}
-                              className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                             />
                             <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitHeaderDetailsFontSize}px</span>
                           </div>
@@ -3599,7 +3767,7 @@ function AddSetupWizardContent() {
                         <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">3. "Admit Card" Title Banner</span>
-                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400">{admitHeadingFontSize} px</span>
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400">{admitHeadingFontSize} px</span>
                           </div>
                           <div className="flex items-center gap-2 text-[11px]">
                             <input
@@ -3609,7 +3777,7 @@ function AddSetupWizardContent() {
                               step="1"
                               value={Number(admitHeadingFontSize) || 14}
                               onChange={e => setAdmitHeadingFontSize(e.target.value)}
-                              className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                             />
                             <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitHeadingFontSize}px</span>
                           </div>
@@ -3619,7 +3787,7 @@ function AddSetupWizardContent() {
                         <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">4. Candidate Info (Roll, Name, etc.)</span>
-                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400">{admitStudentDetailsFontSize} px</span>
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400">{admitStudentDetailsFontSize} px</span>
                           </div>
                           <div className="flex items-center gap-2 text-[11px]">
                             <input
@@ -3629,7 +3797,7 @@ function AddSetupWizardContent() {
                               step="0.5"
                               value={Number(admitStudentDetailsFontSize) || 12}
                               onChange={e => setAdmitStudentDetailsFontSize(e.target.value)}
-                              className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                             />
                             <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitStudentDetailsFontSize}px</span>
                           </div>
@@ -3639,7 +3807,7 @@ function AddSetupWizardContent() {
                         <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">5. Timetable & Exam Datesheet</span>
-                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400">{admitTimetableDetailsFontSize} px</span>
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400">{admitTimetableDetailsFontSize} px</span>
                           </div>
                           <div className="flex items-center gap-2 text-[11px]">
                             <input
@@ -3649,7 +3817,7 @@ function AddSetupWizardContent() {
                               step="0.5"
                               value={Number(admitTimetableDetailsFontSize) || 11}
                               onChange={e => setAdmitTimetableDetailsFontSize(e.target.value)}
-                              className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                             />
                             <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitTimetableDetailsFontSize}px</span>
                           </div>
@@ -3659,7 +3827,7 @@ function AddSetupWizardContent() {
                         <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">6. Important Instructions Text</span>
-                            <span className="text-[10px] font-mono font-black text-teal-600 dark:text-teal-400">{admitDefaultFontSize} px</span>
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400">{admitDefaultFontSize} px</span>
                           </div>
                           <div className="flex items-center gap-2 text-[11px]">
                             <input
@@ -3669,7 +3837,7 @@ function AddSetupWizardContent() {
                               step="0.5"
                               value={Number(admitDefaultFontSize) || 9}
                               onChange={e => setAdmitDefaultFontSize(e.target.value)}
-                              className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                             />
                             <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitDefaultFontSize}px</span>
                           </div>
@@ -3752,16 +3920,16 @@ function AddSetupWizardContent() {
                   <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide">
                     Select Fields to Display on Student Admit Card
                   </span>
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200/50 dark:border-teal-800/50">
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/50 dark:border-blue-800/50">
                     Template: {admitTemplateStyle}
                   </span>
                 </div>
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-teal-600 hover:text-teal-700 select-none">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-blue-600 hover:text-blue-700 select-none">
                   <input
                     type="checkbox"
                     checked={isAdmitAllSelected}
                     onChange={e => handleAdmitSelectAllChange(e.target.checked)}
-                    className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500 rounded"
+                    className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500 rounded"
                   />
                   <span>Select All Fields</span>
                 </label>
@@ -3770,14 +3938,14 @@ function AddSetupWizardContent() {
                 {availableAdmitFields.map(f => (
                   <label key={f.key} className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all cursor-pointer ${
                     admitDisplayFields[f.key] !== false 
-                      ? 'bg-teal-50/50 dark:bg-teal-950/20 border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-200 shadow-2xs' 
+                      ? 'bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 shadow-2xs' 
                       : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 opacity-70'
                   }`}>
                     <input
                       type="checkbox"
                       checked={admitDisplayFields[f.key] !== false}
                       onChange={() => handleAdmitCheckboxChange(f.key)}
-                      className="w-3.5 h-3.5 text-teal-600 border-slate-300 focus:ring-teal-500 rounded"
+                      className="w-3.5 h-3.5 text-blue-600 border-slate-300 focus:ring-blue-500 rounded"
                     />
                     <span className="truncate">{f.label}</span>
                   </label>
@@ -3791,7 +3959,7 @@ function AddSetupWizardContent() {
                 <div>
                   <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
                     <span>Authority Signatures Setup</span>
-                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300">
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
                       Custom Order
                     </span>
                   </h4>
@@ -3806,21 +3974,21 @@ function AddSetupWizardContent() {
                   <button
                     type="button"
                     onClick={() => setAdmitSignatureOrder(['studentSign', 'parentSign', 'teacherSign', 'principalSign'])}
-                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-teal-500 hover:text-teal-600 transition-all shadow-2xs"
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-500 hover:text-blue-600 transition-all shadow-2xs"
                   >
                     Student First
                   </button>
                   <button
                     type="button"
                     onClick={() => setAdmitSignatureOrder(['principalSign', 'teacherSign', 'parentSign', 'studentSign'])}
-                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-teal-500 hover:text-teal-600 transition-all shadow-2xs"
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-500 hover:text-blue-600 transition-all shadow-2xs"
                   >
                     Principal First
                   </button>
                   <button
                     type="button"
                     onClick={() => setAdmitSignatureOrder(['studentSign', 'teacherSign', 'parentSign', 'principalSign'])}
-                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-teal-500 hover:text-teal-600 transition-all shadow-2xs"
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-500 hover:text-blue-600 transition-all shadow-2xs"
                   >
                     Principal Last
                   </button>
@@ -3842,7 +4010,7 @@ function AddSetupWizardContent() {
                     <React.Fragment key={key}>
                       <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10.5px] font-bold shrink-0 transition-all border ${
                         isEnabled 
-                          ? 'bg-teal-50 dark:bg-teal-950/60 border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-300' 
+                          ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300' 
                           : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400 line-through'
                       }`}>
                         <span className="w-4 h-4 rounded-full bg-white dark:bg-slate-800 text-[9px] font-black flex items-center justify-center shadow-2xs border border-slate-200 dark:border-slate-700">
@@ -3871,20 +4039,20 @@ function AddSetupWizardContent() {
                         key={key} 
                         className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
                           admitDisplayFields.principalSign 
-                            ? 'bg-white dark:bg-slate-800 border-teal-300 dark:border-teal-700/80 shadow-xs ring-1 ring-teal-500/15' 
+                            ? 'bg-white dark:bg-slate-800 border-blue-300 dark:border-blue-700/80 shadow-xs ring-1 ring-blue-500/15' 
                             : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
                         }`}
                       >
                         <div>
                           <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
                             <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 rounded-full bg-teal-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+                              <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                                 {idx + 1}
                               </span>
                               <span className="text-xs font-black text-slate-800 dark:text-slate-100">Principal Sign</span>
                               <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                 admitDisplayFields.principalSign 
-                                  ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                                  ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
                                   : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
                               }`}>
                                 {admitDisplayFields.principalSign ? 'ON' : 'OFF'}
@@ -3893,18 +4061,18 @@ function AddSetupWizardContent() {
                             <button
                               type="button"
                               onClick={() => handleAdmitCheckboxChange('principalSign')}
-                              className={`w-10 h-5.5 rounded-full relative transition-colors ${admitDisplayFields.principalSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                              className={`w-10 h-5.5 rounded-full relative transition-colors ${admitDisplayFields.principalSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
                             >
                               <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${admitDisplayFields.principalSign ? 'left-5' : 'left-0.5'}`} />
                             </button>
                           </div>
 
                           {/* Auto-fetch Institute Detail Pill */}
-                          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200/80 dark:border-teal-800/80 text-[10.5px] text-teal-800 dark:text-teal-200 mb-2.5">
-                            <Sparkles className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/80 text-[10.5px] text-blue-800 dark:text-blue-200 mb-2.5">
+                            <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                             <div className="truncate">
                               <span className="text-slate-500 dark:text-slate-400 text-[10px] block">Auto-fetched from Institute:</span>
-                              <span className="font-extrabold capitalize text-teal-700 dark:text-teal-300">{principalName || 'fahad'}</span>
+                              <span className="font-extrabold capitalize text-blue-700 dark:text-blue-300">{principalName || 'fahad'}</span>
                             </div>
                           </div>
 
@@ -3915,7 +4083,7 @@ function AddSetupWizardContent() {
                                 <button
                                   type="button"
                                   onClick={() => setAdmitPrincipalSignLabel(`Principal's Sign. (${principalName})`)}
-                                  className="text-[9px] font-bold text-teal-600 hover:text-teal-700 underline"
+                                  className="text-[9px] font-bold text-blue-600 hover:text-blue-700 underline"
                                 >
                                   + Add Name
                                 </button>
@@ -3927,7 +4095,7 @@ function AddSetupWizardContent() {
                               onChange={e => setAdmitPrincipalSignLabel(e.target.value)}
                               disabled={!admitDisplayFields.principalSign}
                               placeholder="Principal's Sign."
-                              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
+                              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
                             />
                           </div>
                         </div>
@@ -3940,7 +4108,7 @@ function AddSetupWizardContent() {
                               type="button"
                               disabled={isFirst}
                               onClick={() => moveSignature(idx, -1)}
-                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-teal-50 dark:bg-slate-700 dark:hover:bg-teal-950 text-slate-700 hover:text-teal-700 dark:text-slate-300 dark:hover:text-teal-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
                               title="Move Left"
                             >
                               <MoveLeft className="w-3 h-3" /> Move Left
@@ -3949,7 +4117,7 @@ function AddSetupWizardContent() {
                               type="button"
                               disabled={isLast}
                               onClick={() => moveSignature(idx, 1)}
-                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-teal-50 dark:bg-slate-700 dark:hover:bg-teal-950 text-slate-700 hover:text-teal-700 dark:text-slate-300 dark:hover:text-teal-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
                               title="Move Right"
                             >
                               Move Right <MoveRight className="w-3 h-3" />
@@ -3967,20 +4135,20 @@ function AddSetupWizardContent() {
                         key={key} 
                         className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
                           admitDisplayFields.teacherSign 
-                            ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
+                            ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
                             : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
                         }`}
                       >
                         <div>
                           <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
                             <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 rounded-full bg-teal-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+                              <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                                 {idx + 1}
                               </span>
                               <span className="text-xs font-black text-slate-800 dark:text-slate-100">Teacher Sign</span>
                               <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                 admitDisplayFields.teacherSign 
-                                  ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                                  ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
                                   : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
                               }`}>
                                 {admitDisplayFields.teacherSign ? 'ON' : 'OFF'}
@@ -3989,7 +4157,7 @@ function AddSetupWizardContent() {
                             <button
                               type="button"
                               onClick={() => handleAdmitCheckboxChange('teacherSign')}
-                              className={`w-10 h-5.5 rounded-full relative transition-colors ${admitDisplayFields.teacherSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                              className={`w-10 h-5.5 rounded-full relative transition-colors ${admitDisplayFields.teacherSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
                             >
                               <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${admitDisplayFields.teacherSign ? 'left-5' : 'left-0.5'}`} />
                             </button>
@@ -4002,7 +4170,7 @@ function AddSetupWizardContent() {
                               onChange={e => setAdmitTeacherSignLabel(e.target.value)}
                               disabled={!admitDisplayFields.teacherSign}
                               placeholder="Class Teacher's Sign."
-                              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
+                              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
                             />
                           </div>
                         </div>
@@ -4015,7 +4183,7 @@ function AddSetupWizardContent() {
                               type="button"
                               disabled={isFirst}
                               onClick={() => moveSignature(idx, -1)}
-                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-teal-50 dark:bg-slate-700 dark:hover:bg-teal-950 text-slate-700 hover:text-teal-700 dark:text-slate-300 dark:hover:text-teal-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
                               title="Move Left"
                             >
                               <MoveLeft className="w-3 h-3" /> Move Left
@@ -4024,7 +4192,7 @@ function AddSetupWizardContent() {
                               type="button"
                               disabled={isLast}
                               onClick={() => moveSignature(idx, 1)}
-                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-teal-50 dark:bg-slate-700 dark:hover:bg-teal-950 text-slate-700 hover:text-teal-700 dark:text-slate-300 dark:hover:text-teal-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
                               title="Move Right"
                             >
                               Move Right <MoveRight className="w-3 h-3" />
@@ -4042,20 +4210,20 @@ function AddSetupWizardContent() {
                         key={key} 
                         className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
                           admitDisplayFields.studentSign 
-                            ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
+                            ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
                             : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
                         }`}
                       >
                         <div>
                           <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
                             <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 rounded-full bg-teal-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+                              <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                                 {idx + 1}
                               </span>
                               <span className="text-xs font-black text-slate-800 dark:text-slate-100">Student Sign</span>
                               <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                 admitDisplayFields.studentSign 
-                                  ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                                  ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
                                   : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
                               }`}>
                                 {admitDisplayFields.studentSign ? 'ON' : 'OFF'}
@@ -4064,7 +4232,7 @@ function AddSetupWizardContent() {
                             <button
                               type="button"
                               onClick={() => handleAdmitCheckboxChange('studentSign')}
-                              className={`w-10 h-5.5 rounded-full relative transition-colors ${admitDisplayFields.studentSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                              className={`w-10 h-5.5 rounded-full relative transition-colors ${admitDisplayFields.studentSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
                             >
                               <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${admitDisplayFields.studentSign ? 'left-5' : 'left-0.5'}`} />
                             </button>
@@ -4077,7 +4245,7 @@ function AddSetupWizardContent() {
                               onChange={e => setAdmitStudentSignLabel(e.target.value)}
                               disabled={!admitDisplayFields.studentSign}
                               placeholder="Student's Sign."
-                              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
+                              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
                             />
                           </div>
                         </div>
@@ -4090,7 +4258,7 @@ function AddSetupWizardContent() {
                               type="button"
                               disabled={isFirst}
                               onClick={() => moveSignature(idx, -1)}
-                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-teal-50 dark:bg-slate-700 dark:hover:bg-teal-950 text-slate-700 hover:text-teal-700 dark:text-slate-300 dark:hover:text-teal-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
                               title="Move Left"
                             >
                               <MoveLeft className="w-3 h-3" /> Move Left
@@ -4099,7 +4267,7 @@ function AddSetupWizardContent() {
                               type="button"
                               disabled={isLast}
                               onClick={() => moveSignature(idx, 1)}
-                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-teal-50 dark:bg-slate-700 dark:hover:bg-teal-950 text-slate-700 hover:text-teal-700 dark:text-slate-300 dark:hover:text-teal-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
                               title="Move Right"
                             >
                               Move Right <MoveRight className="w-3 h-3" />
@@ -4117,20 +4285,20 @@ function AddSetupWizardContent() {
                         key={key} 
                         className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
                           admitDisplayFields.parentSign 
-                            ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
+                            ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
                             : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
                         }`}
                       >
                         <div>
                           <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
                             <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 rounded-full bg-teal-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+                              <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                                 {idx + 1}
                               </span>
                               <span className="text-xs font-black text-slate-800 dark:text-slate-100">Parent Sign</span>
                               <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                 admitDisplayFields.parentSign 
-                                  ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
+                                  ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
                                   : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
                               }`}>
                                 {admitDisplayFields.parentSign ? 'ON' : 'OFF'}
@@ -4139,7 +4307,7 @@ function AddSetupWizardContent() {
                             <button
                               type="button"
                               onClick={() => handleAdmitCheckboxChange('parentSign')}
-                              className={`w-10 h-5.5 rounded-full relative transition-colors ${admitDisplayFields.parentSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                              className={`w-10 h-5.5 rounded-full relative transition-colors ${admitDisplayFields.parentSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
                             >
                               <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${admitDisplayFields.parentSign ? 'left-5' : 'left-0.5'}`} />
                             </button>
@@ -4152,7 +4320,7 @@ function AddSetupWizardContent() {
                               onChange={e => setAdmitParentSignLabel(e.target.value)}
                               disabled={!admitDisplayFields.parentSign}
                               placeholder="Parent's Sign."
-                              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
+                              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
                             />
                           </div>
                         </div>
@@ -4165,7 +4333,7 @@ function AddSetupWizardContent() {
                               type="button"
                               disabled={isFirst}
                               onClick={() => moveSignature(idx, -1)}
-                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-teal-50 dark:bg-slate-700 dark:hover:bg-teal-950 text-slate-700 hover:text-teal-700 dark:text-slate-300 dark:hover:text-teal-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
                               title="Move Left"
                             >
                               <MoveLeft className="w-3 h-3" /> Move Left
@@ -4174,7 +4342,7 @@ function AddSetupWizardContent() {
                               type="button"
                               disabled={isLast}
                               onClick={() => moveSignature(idx, 1)}
-                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-teal-50 dark:bg-slate-700 dark:hover:bg-teal-950 text-slate-700 hover:text-teal-700 dark:text-slate-300 dark:hover:text-teal-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
                               title="Move Right"
                             >
                               Move Right <MoveRight className="w-3 h-3" />
@@ -4206,7 +4374,7 @@ function AddSetupWizardContent() {
                     value={admitLabel}
                     onChange={e => setAdmitLabel(e.target.value)}
                     placeholder="Admit Card"
-                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-bold text-slate-800 dark:text-slate-100 shadow-xs"
+                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-blue-500 font-bold text-slate-800 dark:text-slate-100 shadow-xs"
                   />
                   <span className="text-[10px] text-slate-400">Heading printed on hall ticket</span>
                 </div>
@@ -4219,7 +4387,7 @@ function AddSetupWizardContent() {
                   <button
                     type="button"
                     onClick={() => setAdmitCardStatus(!admitCardStatus)}
-                    className={`w-10 h-5.5 rounded-full relative transition-colors ${admitCardStatus ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                    className={`w-10 h-5.5 rounded-full relative transition-colors ${admitCardStatus ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
                   >
                     <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${admitCardStatus ? 'left-5' : 'left-0.5'}`}></div>
                   </button>
@@ -4233,7 +4401,7 @@ function AddSetupWizardContent() {
                   <button
                     type="button"
                     onClick={() => setShowExamTimeTableOnAdmit(!showExamTimeTableOnAdmit)}
-                    className={`w-10 h-5.5 rounded-full relative transition-colors ${showExamTimeTableOnAdmit ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                    className={`w-10 h-5.5 rounded-full relative transition-colors ${showExamTimeTableOnAdmit ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
                   >
                     <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showExamTimeTableOnAdmit ? 'left-5' : 'left-0.5'}`}></div>
                   </button>
@@ -4245,7 +4413,7 @@ function AddSetupWizardContent() {
               <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 space-y-3">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800">
                   <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                    <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                     <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
                       Exam Center Reporting & Gate Closure Timings
                     </span>
@@ -4259,7 +4427,7 @@ function AddSetupWizardContent() {
                     <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
                         <span>Reporting Time</span>
-                        <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold">(Auto in Instruction #1)</span>
+                        <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">(Auto in Instruction #1)</span>
                       </span>
                       <span className="text-[10px] font-normal text-slate-400">e.g. 09:30 AM IST</span>
                     </label>
@@ -4270,22 +4438,29 @@ function AddSetupWizardContent() {
                       onChange={e => {
                         const val = e.target.value
                         setAdmitReportingTime(val)
-                        setAdmitInstructions(prev => applyReportingTimeToInstructions(prev, val))
+                        setAdmitInstructions(prev => applyReportingTimeToInstructions(prev, val, admitGateClosureTime))
                       }}
-                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 shadow-2xs"
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none focus:border-blue-500 shadow-2xs"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                      <span>Gate Closure Time</span>
+                      <span className="flex items-center gap-1.5">
+                        <span>Gate Closure Time</span>
+                        <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">(Auto in Instruction #1)</span>
+                      </span>
                       <span className="text-[10px] font-normal text-slate-400">e.g. 09:50 AM (Sharp)</span>
                     </label>
                     <input
                       type="text"
                       placeholder="09:50 AM (Sharp)"
                       value={admitGateClosureTime}
-                      onChange={e => setAdmitGateClosureTime(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 shadow-2xs"
+                      onChange={e => {
+                        const val = e.target.value
+                        setAdmitGateClosureTime(val)
+                        setAdmitInstructions(prev => applyReportingTimeToInstructions(prev, admitReportingTime, val))
+                      }}
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none focus:border-blue-500 shadow-2xs"
                     />
                   </div>
                 </div>
@@ -4295,349 +4470,15 @@ function AddSetupWizardContent() {
               <div className="flex flex-col gap-1.5 pt-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Important Candidate Instructions</label>
-                  <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold">Point #1 auto-syncs with Reporting Time</span>
+                  <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">Point #1 auto-syncs with Reporting & Gate Closure Times</span>
                 </div>
                 <textarea
                   rows={4}
                   placeholder="Write official examination instructions for students..."
                   value={admitInstructions}
                   onChange={e => setAdmitInstructions(e.target.value)}
-                  className="w-full p-4 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-xs leading-relaxed"
+                  className="w-full p-4 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-blue-500 font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-xs leading-relaxed"
                 />
-              </div>
-
-              {/* Candidate Photo, Institute Logo & Official Stamp Dimensions Panel */}
-              <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-850 p-5 space-y-4 shadow-xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 flex items-center justify-center text-teal-600 dark:text-teal-400">
-                      <Sliders className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
-                        <span>Candidate Photo, Institute Logo & Official Stamp Dimensions</span>
-                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300">
-                          Live Responsive
-                        </span>
-                      </h4>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Customize width & height of candidate photo, institute logo scale, and diameter of the institutional seal in real time.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
-                  {/* Photo Dimensions Card */}
-                  <div className="p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3.5">
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800">
-                      <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                        <span className="text-xs font-black text-slate-800 dark:text-slate-100">Student Photo Dimensions</span>
-                      </div>
-                      <span className="px-2 py-0.5 rounded-md font-mono text-[10px] font-bold bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300">
-                        {admitStudentPhotoWidth}px × {admitStudentPhotoHeight}px
-                      </span>
-                    </div>
-
-                    {/* Quick Presets */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Quick Presets</label>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                        {[
-                          { label: 'Compact', w: '80', h: '100' },
-                          { label: 'Standard', w: '96', h: '120' },
-                          { label: 'Passport', w: '110', h: '135' },
-                          { label: 'Large', w: '125', h: '160' },
-                        ].map(p => {
-                          const isActive = admitStudentPhotoWidth === p.w && admitStudentPhotoHeight === p.h
-                          return (
-                            <button
-                              key={p.label}
-                              type="button"
-                              onClick={() => {
-                                setAdmitStudentPhotoWidth(p.w)
-                                setAdmitStudentPhotoHeight(p.h)
-                                setAdmitStudentPhotoSize(p.w)
-                              }}
-                              className={`px-2 py-1.5 rounded-lg text-[10.5px] font-bold transition-all border ${
-                                isActive 
-                                  ? 'bg-teal-600 text-white border-teal-600 shadow-xs' 
-                                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400'
-                              }`}
-                            >
-                              <div>{p.label}</div>
-                              <div className="text-[9px] opacity-75">{p.w}×{p.h}</div>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Photo Position Selector */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Photo Placement</label>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {[
-                          { id: 'left', label: 'Left Side' },
-                          { id: 'right', label: 'Right Side' }
-                        ].map(pos => {
-                          const isActive = admitPhotoPosition === pos.id
-                          return (
-                            <button
-                              key={pos.id}
-                              type="button"
-                              onClick={() => setAdmitPhotoPosition(pos.id as any)}
-                              className={`px-2 py-1.5 rounded-lg text-[10.5px] font-bold transition-all border ${
-                                isActive 
-                                  ? 'bg-teal-600 text-white border-teal-600 shadow-xs' 
-                                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400'
-                              }`}
-                            >
-                              {pos.label}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      {/* Width Slider */}
-                      <div className="space-y-1.5 bg-white dark:bg-slate-800/80 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700/60">
-                        <div className="flex items-center justify-between text-[11px] font-bold">
-                          <span className="text-slate-600 dark:text-slate-300">Photo Width</span>
-                          <span className="font-mono text-teal-600 dark:text-teal-400 font-extrabold">{admitStudentPhotoWidth} px</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="60"
-                          max="160"
-                          step="2"
-                          value={Number(admitStudentPhotoWidth) || 96}
-                          onChange={e => {
-                            setAdmitStudentPhotoWidth(e.target.value)
-                            setAdmitStudentPhotoSize(e.target.value)
-                          }}
-                          className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                        />
-                      </div>
-
-                      {/* Height Slider */}
-                      <div className="space-y-1.5 bg-white dark:bg-slate-800/80 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700/60">
-                        <div className="flex items-center justify-between text-[11px] font-bold">
-                          <span className="text-slate-600 dark:text-slate-300">Photo Height</span>
-                          <span className="font-mono text-teal-600 dark:text-teal-400 font-extrabold">{admitStudentPhotoHeight} px</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="75"
-                          max="200"
-                          step="2"
-                          value={Number(admitStudentPhotoHeight) || 120}
-                          onChange={e => setAdmitStudentPhotoHeight(e.target.value)}
-                          className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Institute Logo & Adjustment Card */}
-                  <div className="p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3.5 flex flex-col justify-between">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800">
-                        <div className="flex items-center gap-2">
-                          <School className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                          <span className="text-xs font-black text-slate-800 dark:text-slate-100">Institute Logo</span>
-                        </div>
-                        <span className="px-2 py-0.5 rounded-md font-mono text-[10px] font-bold bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300">
-                          {admitSchoolLogoWidth}px Width
-                        </span>
-                      </div>
-
-                      {/* Logo Preview & Upload Section */}
-                      <div className="p-3 bg-white dark:bg-slate-800/80 rounded-xl border border-slate-200/70 dark:border-slate-700/60 flex items-center gap-3">
-                        <div className="w-14 h-14 rounded-lg bg-slate-50 dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center p-1 shrink-0 overflow-hidden shadow-2xs">
-                          {admitSchoolLogo ? (
-                            <img src={admitSchoolLogo} alt="Logo" className="w-full h-full object-contain" />
-                          ) : (
-                            <SampleSchoolLogo width={44} height={44} color={admitThemeColor} />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">
-                            {admitSchoolLogo ? 'Custom Logo Uploaded' : 'Sample Academy Logo Active'}
-                          </div>
-                          <div className="text-[9.5px] text-slate-500 dark:text-slate-400 mt-0.5">
-                            {admitSchoolLogo ? 'Appearing in all 4 templates' : 'Auto fallback if not uploaded'}
-                          </div>
-                          <div className="flex items-center gap-2 mt-2">
-                            <input
-                              type="file"
-                              ref={logoFileInputRef}
-                              accept="image/*"
-                              className="hidden"
-                              onChange={e => {
-                                const file = e.target.files?.[0]
-                                if (file) {
-                                  const reader = new FileReader()
-                                  reader.onload = () => {
-                                    if (typeof reader.result === 'string') {
-                                      setAdmitSchoolLogo(reader.result)
-                                      toast.success('Institute Logo uploaded successfully!')
-                                    }
-                                  }
-                                  reader.readAsDataURL(file)
-                                }
-                              }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => logoFileInputRef.current?.click()}
-                              className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-teal-600 hover:bg-teal-700 text-white transition-all shadow-2xs flex items-center gap-1"
-                            >
-                              <Upload className="w-3 h-3" />
-                              <span>{admitSchoolLogo ? 'Change' : 'Upload Logo'}</span>
-                            </button>
-                            {admitSchoolLogo && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setAdmitSchoolLogo('')
-                                  toast.info('Reverted to Sample Academy Logo')
-                                }}
-                                className="px-2 py-1 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-600 dark:text-slate-300 transition-all"
-                              >
-                                Use Sample
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Quick Presets */}
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Size Presets</label>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                          {[
-                            { label: 'Compact', size: '48' },
-                            { label: 'Standard', size: '60' },
-                            { label: 'Medium', size: '76' },
-                            { label: 'Large', size: '96' }
-                          ].map(p => {
-                            const isActive = admitSchoolLogoWidth === p.size
-                            return (
-                              <button
-                                key={p.label}
-                                type="button"
-                                onClick={() => setAdmitSchoolLogoWidth(p.size)}
-                                className={`px-2 py-1.5 rounded-lg text-[10.5px] font-bold transition-all border ${
-                                  isActive
-                                    ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
-                                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400'
-                                }`}
-                              >
-                                <div>{p.label}</div>
-                                <div className="text-[9px] opacity-75">{p.size}px</div>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Logo Position Selector */}
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Logo Position</label>
-                        <div className="grid grid-cols-3 gap-1.5">
-                          {[
-                            { id: 'left', label: 'Left' },
-                            { id: 'center', label: 'Center' },
-                            { id: 'right', label: 'Right' }
-                          ].map(pos => {
-                            const isActive = admitLogoPosition === pos.id
-                            return (
-                              <button
-                                key={pos.id}
-                                type="button"
-                                onClick={() => setAdmitLogoPosition(pos.id as any)}
-                                className={`px-2 py-1.5 rounded-lg text-[10.5px] font-bold transition-all border ${
-                                  isActive
-                                    ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
-                                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400'
-                                }`}
-                              >
-                                {pos.label}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Header Content Alignment */}
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Content Alignment</label>
-                        <div className="grid grid-cols-3 gap-1.5">
-                          {[
-                            { id: 'left', label: 'Left' },
-                            { id: 'center', label: 'Center' },
-                            { id: 'right', label: 'Right' }
-                          ].map(pos => {
-                            const isActive = admitContentPosition === pos.id
-                            return (
-                              <button
-                                key={pos.id}
-                                type="button"
-                                onClick={() => setAdmitContentPosition(pos.id as any)}
-                                className={`px-2 py-1.5 rounded-lg text-[10.5px] font-bold transition-all border ${
-                                  isActive
-                                    ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
-                                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400'
-                                }`}
-                              >
-                                {pos.label}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {/* Logo Width Slider */}
-                        <div className="space-y-1.5 bg-white dark:bg-slate-800/80 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700/60">
-                          <div className="flex items-center justify-between text-[11px] font-bold">
-                            <span className="text-slate-600 dark:text-slate-300">Logo Width</span>
-                            <span className="font-mono text-teal-600 dark:text-teal-400 font-extrabold">{admitSchoolLogoWidth} px</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="36"
-                            max="140"
-                            step="2"
-                            value={Number(admitSchoolLogoWidth) || 60}
-                            onChange={e => setAdmitSchoolLogoWidth(e.target.value)}
-                            className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                          />
-                        </div>
-
-                        {/* Logo Height Slider */}
-                        <div className="space-y-1.5 bg-white dark:bg-slate-800/80 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700/60">
-                          <div className="flex items-center justify-between text-[11px] font-bold">
-                            <span className="text-slate-600 dark:text-slate-300">Logo Height</span>
-                            <span className="font-mono text-teal-600 dark:text-teal-400 font-extrabold">{admitSchoolLogoHeight} px</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="36"
-                            max="140"
-                            step="2"
-                            value={Number(admitSchoolLogoHeight) || 60}
-                            onChange={e => setAdmitSchoolLogoHeight(e.target.value)}
-                            className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
 
             </div>
@@ -4652,7 +4493,7 @@ function AddSetupWizardContent() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 uppercase tracking-wider">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 uppercase tracking-wider">
                     Step 4 of 5
                   </span>
                   <h2 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
@@ -4667,9 +4508,9 @@ function AddSetupWizardContent() {
               <button
                 type="button"
                 onClick={() => handlePreviewMarksheet(selectedTemplate)}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/50 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-xl text-xs font-bold transition-all shadow-xs shrink-0"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-bold transition-all shadow-xs shrink-0"
               >
-                <Eye className="w-4 h-4 text-purple-600 dark:text-purple-400" /> Live Marksheet Preview
+                <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Live Marksheet Preview
               </button>
             </div>
 
@@ -4679,7 +4520,7 @@ function AddSetupWizardContent() {
               <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-xs">
+                    <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
                       <Palette className="w-4 h-4" />
                     </div>
                     <div>
@@ -4751,7 +4592,7 @@ function AddSetupWizardContent() {
                         title={`${preset.name} (${preset.hex})`}
                         className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
                           isSelected
-                            ? 'ring-2 ring-purple-500 border-transparent text-white shadow-xs'
+                            ? 'ring-2 ring-blue-500 border-transparent text-white shadow-xs'
                             : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-400'
                         }`}
                         style={isSelected ? { backgroundColor: preset.hex } : {}}
@@ -4777,7 +4618,7 @@ function AddSetupWizardContent() {
                     Choose from 3 professionally crafted academic marksheet layouts — customizable with your chosen theme color
                   </p>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                   3 Templates Available
                 </span>
               </div>
@@ -4792,7 +4633,7 @@ function AddSetupWizardContent() {
                       onClick={() => setSelectedTemplate('CBSE Royal Emerald')}
                       className={`cursor-pointer rounded-2xl border p-3 sm:p-4 flex flex-col justify-between gap-2.5 transition-all relative ${
                         isSelected 
-                          ? 'border-2 bg-purple-50/20 ring-2 ring-purple-500/20 shadow-md' 
+                          ? 'border-2 bg-blue-50/20 ring-2 ring-blue-500/20 shadow-md' 
                           : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                       }`}
                       style={isSelected ? { borderColor: marksheetThemeColor } : {}}
@@ -4803,10 +4644,10 @@ function AddSetupWizardContent() {
                         </span>
                         {isSelected && (
                           <div className="flex items-center gap-1">
-                            <span className="text-[8.5px] font-black text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-950 px-1.5 py-0.5 rounded-full">
+                            <span className="text-[8.5px] font-black text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 px-1.5 py-0.5 rounded-full">
                               Active
                             </span>
-                            <CheckCircle2 className="w-4 h-4 text-purple-600" />
+                            <CheckCircle2 className="w-4 h-4 text-blue-600" />
                           </div>
                         )}
                       </div>
@@ -4828,7 +4669,7 @@ function AddSetupWizardContent() {
                         <span className="text-[10px] font-semibold text-slate-500 mt-0.5 block">Official Board Format • Gold Crest</span>
                       </div>
                       
-                      <span className="text-[9px] text-center font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 py-1 rounded-lg">
+                      <span className="text-[9px] text-center font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 py-1 rounded-lg">
                         Part 1 Scholastic + Part 2 Co-Scholastic
                       </span>
 
@@ -4839,9 +4680,9 @@ function AddSetupWizardContent() {
                             e.stopPropagation()
                             handlePreviewMarksheet('CBSE Royal Emerald')
                           }}
-                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-purple-600 hover:text-white text-purple-700 dark:text-purple-400 font-bold text-[11px] border border-purple-200 dark:border-purple-800 hover:border-purple-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-700 dark:text-blue-400 font-bold text-[11px] border border-blue-200 dark:border-blue-800 hover:border-blue-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
                         >
-                          <Eye className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                          <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:text-white group-hover:scale-110 transition-all" />
                           <span>Preview Full Template</span>
                         </button>
                       </div>
@@ -4857,21 +4698,21 @@ function AddSetupWizardContent() {
                       onClick={() => setSelectedTemplate('Minimalist Modern')}
                       className={`cursor-pointer rounded-2xl border p-3 sm:p-4 flex flex-col justify-between gap-2.5 transition-all relative ${
                         isSelected 
-                          ? 'border-2 bg-purple-50/20 ring-2 ring-purple-500/20 shadow-md' 
+                          ? 'border-2 bg-blue-50/20 ring-2 ring-blue-500/20 shadow-md' 
                           : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                       }`}
                       style={isSelected ? { borderColor: marksheetThemeColor } : {}}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-teal-100 text-teal-800 border border-teal-200">
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-100 text-blue-800 border border-blue-200">
                           Canva / Pinterest
                         </span>
                         {isSelected && (
                           <div className="flex items-center gap-1">
-                            <span className="text-[8.5px] font-black text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-950 px-1.5 py-0.5 rounded-full">
+                            <span className="text-[8.5px] font-black text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 px-1.5 py-0.5 rounded-full">
                               Active
                             </span>
-                            <CheckCircle2 className="w-4 h-4 text-purple-600" />
+                            <CheckCircle2 className="w-4 h-4 text-blue-600" />
                           </div>
                         )}
                       </div>
@@ -4893,7 +4734,7 @@ function AddSetupWizardContent() {
                         <span className="text-[10px] font-semibold text-slate-500 mt-0.5 block">Teal & Slate • KPI Badges</span>
                       </div>
 
-                      <span className="text-[9px] text-center font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 py-1 rounded-lg">
+                      <span className="text-[9px] text-center font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 py-1 rounded-lg">
                         Attendance Meter + Progress Bars
                       </span>
 
@@ -4904,9 +4745,9 @@ function AddSetupWizardContent() {
                             e.stopPropagation()
                             handlePreviewMarksheet('Minimalist Modern')
                           }}
-                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-purple-600 hover:text-white text-purple-700 dark:text-purple-400 font-bold text-[11px] border border-purple-200 dark:border-purple-800 hover:border-purple-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-700 dark:text-blue-400 font-bold text-[11px] border border-blue-200 dark:border-blue-800 hover:border-blue-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
                         >
-                          <Eye className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                          <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:text-white group-hover:scale-110 transition-all" />
                           <span>Preview Full Template</span>
                         </button>
                       </div>
@@ -4922,7 +4763,7 @@ function AddSetupWizardContent() {
                       onClick={() => setSelectedTemplate('Dual-Term Consolidated')}
                       className={`cursor-pointer rounded-2xl border p-3 sm:p-4 flex flex-col justify-between gap-2.5 transition-all relative ${
                         isSelected 
-                          ? 'border-2 bg-purple-50/20 ring-2 ring-purple-500/20 shadow-md' 
+                          ? 'border-2 bg-blue-50/20 ring-2 ring-blue-500/20 shadow-md' 
                           : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                       }`}
                       style={isSelected ? { borderColor: marksheetThemeColor } : {}}
@@ -4933,10 +4774,10 @@ function AddSetupWizardContent() {
                         </span>
                         {isSelected && (
                           <div className="flex items-center gap-1">
-                            <span className="text-[8.5px] font-black text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-950 px-1.5 py-0.5 rounded-full">
+                            <span className="text-[8.5px] font-black text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 px-1.5 py-0.5 rounded-full">
                               Active
                             </span>
-                            <CheckCircle2 className="w-4 h-4 text-purple-600" />
+                            <CheckCircle2 className="w-4 h-4 text-blue-600" />
                           </div>
                         )}
                       </div>
@@ -4958,7 +4799,7 @@ function AddSetupWizardContent() {
                         <span className="text-[10px] font-semibold text-slate-500 mt-0.5 block">Burgundy & Navy • Term 1 vs 2</span>
                       </div>
 
-                      <span className="text-[9px] text-center font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 py-1 rounded-lg">
+                      <span className="text-[9px] text-center font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 py-1 rounded-lg">
                         Class Rank #3 + 4 Signatures
                       </span>
 
@@ -4969,9 +4810,9 @@ function AddSetupWizardContent() {
                             e.stopPropagation()
                             handlePreviewMarksheet('Dual-Term Consolidated')
                           }}
-                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-purple-600 hover:text-white text-purple-700 dark:text-purple-400 font-bold text-[11px] border border-purple-200 dark:border-purple-800 hover:border-purple-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-700 dark:text-blue-400 font-bold text-[11px] border border-blue-200 dark:border-blue-800 hover:border-blue-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
                         >
-                          <Eye className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                          <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:text-white group-hover:scale-110 transition-all" />
                           <span>Preview Full Template</span>
                         </button>
                       </div>
@@ -4984,14 +4825,14 @@ function AddSetupWizardContent() {
               <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm mt-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-600/20 shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/20 shrink-0">
                       <Sparkles className="w-5 h-5" />
                     </div>
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide flex items-center gap-2">
                           <span>Live Marksheet Preview •</span>
-                          <span className="text-purple-600 dark:text-purple-400">{selectedTemplate}</span>
+                          <span className="text-blue-600 dark:text-blue-400">{selectedTemplate}</span>
                           <span
                             className="px-2 py-0.5 rounded text-[8.5px] font-black uppercase text-white shadow-2xs font-mono"
                             style={{ backgroundColor: marksheetThemeColor }}
@@ -4999,10 +4840,10 @@ function AddSetupWizardContent() {
                             {marksheetThemeColor}
                           </span>
                         </h4>
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300">
                           ⚡ Auto-Updating
                         </span>
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/60">
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300/60">
                           ✍️ Click Any Label to Edit Live
                         </span>
                       </div>
@@ -5014,7 +4855,7 @@ function AddSetupWizardContent() {
                   <button
                     type="button"
                     onClick={() => handlePreviewMarksheet(selectedTemplate)}
-                    className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-purple-600/20 shrink-0"
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-blue-600/20 shrink-0"
                   >
                     <Eye className="w-3.5 h-3.5" />
                     <span>Open Full Screen / Print</span>
@@ -5022,17 +4863,17 @@ function AddSetupWizardContent() {
                 </div>
 
                 {/* MARKSHEET SIZING & TYPOGRAPHY STUDIO (UNIFORM WITH ADMIT CARD) */}
-                <div className="border border-purple-200/90 dark:border-purple-800/80 rounded-2xl bg-white dark:bg-slate-850 p-4 sm:p-5 shadow-xs space-y-4">
+                <div className="border border-blue-200/90 dark:border-blue-800/80 rounded-2xl bg-white dark:bg-slate-850 p-4 sm:p-5 shadow-xs space-y-4">
                   {/* Studio Top Control Strip */}
                   <div className="flex flex-col md:flex-row md:items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 gap-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                      <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400">
                         <Sliders className="w-4 h-4" />
                       </div>
                       <div>
                         <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
                           <span>Marksheet Sizing & Typography Studio</span>
-                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300">
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
                             Live Controls
                           </span>
                         </h4>
@@ -5049,7 +4890,7 @@ function AddSetupWizardContent() {
                         onClick={() => setMarksheetSizingStudioTab('media')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                           marksheetSizingStudioTab === 'media'
-                            ? 'bg-purple-600 text-white shadow-xs'
+                            ? 'bg-blue-600 text-white shadow-xs'
                             : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
@@ -5061,7 +4902,7 @@ function AddSetupWizardContent() {
                         onClick={() => setMarksheetSizingStudioTab('signs')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                           marksheetSizingStudioTab === 'signs'
-                            ? 'bg-purple-600 text-white shadow-xs'
+                            ? 'bg-blue-600 text-white shadow-xs'
                             : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
@@ -5073,7 +4914,7 @@ function AddSetupWizardContent() {
                         onClick={() => setMarksheetSizingStudioTab('text')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                           marksheetSizingStudioTab === 'text'
-                            ? 'bg-purple-600 text-white shadow-xs'
+                            ? 'bg-blue-600 text-white shadow-xs'
                             : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
@@ -5086,7 +4927,7 @@ function AddSetupWizardContent() {
                       <button
                         type="button"
                         onClick={() => marksheetLogoFileInputRef.current?.click()}
-                        className="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white transition-all shadow-2xs flex items-center gap-1.5"
+                        className="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-2xs flex items-center gap-1.5"
                       >
                         <Upload className="w-3.5 h-3.5" />
                         <span>{admitSchoolLogo ? 'Change Logo' : 'Upload Logo'}</span>
@@ -5109,12 +4950,12 @@ function AddSetupWizardContent() {
                   {/* TAB 1: LOGO & MEDIA SIZING */}
                   {marksheetSizingStudioTab === 'media' && (
                     <div className="space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         {/* Logo Sizing Box */}
                         <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Institute Logo Width</span>
-                            <span className="text-[10px] font-mono font-black text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-1.5 py-0.5 rounded border border-purple-200/50 dark:border-purple-800/50">
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
                               {logoWidth} px
                             </span>
                           </div>
@@ -5133,7 +4974,7 @@ function AddSetupWizardContent() {
                                 onClick={() => setLogoWidth(p.size)}
                                 className={`py-1 rounded text-[10px] font-bold transition-all ${
                                   logoWidth === p.size
-                                    ? 'bg-purple-600 text-white shadow-2xs'
+                                    ? 'bg-blue-600 text-white shadow-2xs'
                                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                               >
@@ -5153,7 +4994,7 @@ function AddSetupWizardContent() {
                                 step="2"
                                 value={Number(logoWidth) || 60}
                                 onChange={e => setLogoWidth(e.target.value)}
-                                className="w-full accent-purple-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                               />
                               <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{logoWidth}px</span>
                             </div>
@@ -5164,7 +5005,7 @@ function AddSetupWizardContent() {
                         <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Candidate Photo Size</span>
-                            <span className="text-[10px] font-mono font-black text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-1.5 py-0.5 rounded border border-purple-200/50 dark:border-purple-800/50">
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
                               {photoWidth} × {photoHeight} px
                             </span>
                           </div>
@@ -5184,7 +5025,7 @@ function AddSetupWizardContent() {
                                 }}
                                 className={`py-1 rounded text-[10px] font-bold transition-all ${
                                   photoWidth === p.w
-                                    ? 'bg-purple-600 text-white shadow-2xs'
+                                    ? 'bg-blue-600 text-white shadow-2xs'
                                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                               >
@@ -5203,7 +5044,7 @@ function AddSetupWizardContent() {
                                 step="2"
                                 value={Number(photoWidth) || 70}
                                 onChange={e => setPhotoWidth(e.target.value)}
-                                className="w-full accent-purple-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                               />
                               <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{photoWidth}px</span>
                             </div>
@@ -5216,9 +5057,72 @@ function AddSetupWizardContent() {
                                 step="2"
                                 value={Number(photoHeight) || 90}
                                 onChange={e => setPhotoHeight(e.target.value)}
-                                className="w-full accent-purple-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                               />
                               <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{photoHeight}px</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Official QR Code Sizing Box */}
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Verification QR Size</span>
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                              {marksheetQrCodeSize} px
+                            </span>
+                          </div>
+
+                          {/* Quick Presets */}
+                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                            {[
+                              { label: 'S (56px)', size: '56' },
+                              { label: 'M (72px)', size: '72' },
+                              { label: 'L (88px)', size: '88' },
+                              { label: 'XL (104px)', size: '104' }
+                            ].map(p => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => setMarksheetQrCodeSize(p.size)}
+                                className={`py-1 rounded text-[10px] font-bold transition-all ${
+                                  marksheetQrCodeSize === p.size
+                                    ? 'bg-blue-600 text-white shadow-2xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                {p.label.split(' ')[0]}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="space-y-2 pt-1 text-[11px]">
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Scale:</span>
+                              <input
+                                type="range"
+                                min="48"
+                                max="130"
+                                step="2"
+                                value={Number(marksheetQrCodeSize) || 72}
+                                onChange={e => setMarksheetQrCodeSize(e.target.value)}
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{marksheetQrCodeSize}px</span>
+                            </div>
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800 mt-2">
+                              <p className="text-[10px] text-slate-400">Scales QR matrix cleanly.</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAdmitQrCodeSize(marksheetQrCodeSize)
+                                  setCertQrCodeSize(marksheetQrCodeSize)
+                                  toast.success(`Applied ${marksheetQrCodeSize}px QR size across Marksheet, Admit Card & Certificate!`)
+                                }}
+                                className="text-[9.5px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline shrink-0"
+                              >
+                                Apply to all templates
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -5228,54 +5132,214 @@ function AddSetupWizardContent() {
 
                   {/* TAB 2: SIGNATURES SETUP */}
                   {marksheetSizingStudioTab === 'signs' && (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
+                      {/* Top Row: Quick Toggles */}
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        {/* Principal Toggle */}
                         <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between">
                           <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Principal Sign</span>
                           <button
                             type="button"
                             onClick={() => handleMarksheetCheckboxChange('principalSign')}
-                            className={`w-9 h-5 rounded-full relative transition-colors ${columnsList.principalSign ? 'bg-purple-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                            className={`w-9 h-5 rounded-full relative transition-colors ${columnsList.principalSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
                           >
                             <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-xs ${columnsList.principalSign ? 'left-4.5' : 'left-0.5'}`} />
                           </button>
                         </div>
-                        {/* Teacher Toggle */}
                         <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between">
                           <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Teacher Sign</span>
                           <button
                             type="button"
                             onClick={() => handleMarksheetCheckboxChange('teacherSign')}
-                            className={`w-9 h-5 rounded-full relative transition-colors ${columnsList.teacherSign ? 'bg-purple-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                            className={`w-9 h-5 rounded-full relative transition-colors ${columnsList.teacherSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
                           >
                             <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-xs ${columnsList.teacherSign ? 'left-4.5' : 'left-0.5'}`} />
                           </button>
                         </div>
-                        {/* Controller Toggle */}
                         <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between">
                           <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Controller Sign</span>
                           <button
                             type="button"
                             onClick={() => handleMarksheetCheckboxChange('controllerSign')}
-                            className={`w-9 h-5 rounded-full relative transition-colors ${columnsList.controllerSign ? 'bg-purple-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                            className={`w-9 h-5 rounded-full relative transition-colors ${columnsList.controllerSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
                           >
                             <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-xs ${columnsList.controllerSign ? 'left-4.5' : 'left-0.5'}`} />
                           </button>
                         </div>
-                        {/* Parent Toggle */}
                         <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between">
                           <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Parent Sign</span>
                           <button
                             type="button"
                             onClick={() => handleMarksheetCheckboxChange('parentSign')}
-                            className={`w-9 h-5 rounded-full relative transition-colors ${columnsList.parentSign ? 'bg-purple-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                            className={`w-9 h-5 rounded-full relative transition-colors ${columnsList.parentSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
                           >
                             <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-xs ${columnsList.parentSign ? 'left-4.5' : 'left-0.5'}`} />
                           </button>
                         </div>
                       </div>
-                      <p className="text-[10px] text-slate-400">Toggle any authority signature line on or off in the marksheet.</p>
+
+                      {/* Sizing Controls Grid: Width, Stamp/Seal & Font Size matching Admit Card */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {/* Signature Line Width */}
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Line Width</span>
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                              {marksheetSignatureWidth} px
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                            {[
+                              { label: 'S (75px)', size: '75' },
+                              { label: 'M (100px)', size: '100' },
+                              { label: 'L (130px)', size: '130' },
+                              { label: 'XL (165px)', size: '165' }
+                            ].map(p => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => setMarksheetSignatureWidth(p.size)}
+                                className={`py-1 rounded text-[10px] font-bold transition-all ${
+                                  marksheetSignatureWidth === p.size
+                                    ? 'bg-blue-600 text-white shadow-2xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                {p.label.split(' ')[0]}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="pt-1 text-[11px]">
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Width:</span>
+                              <input
+                                type="range"
+                                min="50"
+                                max="180"
+                                step="5"
+                                value={Number(marksheetSignatureWidth) || 110}
+                                onChange={e => setMarksheetSignatureWidth(e.target.value)}
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{marksheetSignatureWidth}px</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-1">Adjusts width of teacher, controller, parent, and principal sign lines.</p>
+                          </div>
+                        </div>
+
+                        {/* Stamp Seal Diameter */}
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">School Stamp / Seal Diameter</span>
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                              {marksheetSchoolStampWidth} px
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                            {[
+                              { label: 'S (44px)', size: '44' },
+                              { label: 'M (56px)', size: '56' },
+                              { label: 'L (70px)', size: '70' },
+                              { label: 'XL (84px)', size: '84' }
+                            ].map(p => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => setMarksheetSchoolStampWidth(p.size)}
+                                className={`py-1 rounded text-[10px] font-bold transition-all ${
+                                  marksheetSchoolStampWidth === p.size
+                                    ? 'bg-blue-600 text-white shadow-2xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                {p.label.split(' ')[0]}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="pt-1 text-[11px]">
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Diameter:</span>
+                              <input
+                                type="range"
+                                min="36"
+                                max="90"
+                                step="2"
+                                value={Number(marksheetSchoolStampWidth) || 56}
+                                onChange={e => setMarksheetSchoolStampWidth(e.target.value)}
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{marksheetSchoolStampWidth}px</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-1">Scales official verification stamp and seal mark on marksheet.</p>
+                          </div>
+                        </div>
+
+                        {/* Signature Font Size */}
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Title Font Size</span>
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                              {marksheetSignatureFontSize} px
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                            {[
+                              { label: 'S (8px)', size: '8' },
+                              { label: 'M (10px)', size: '10' },
+                              { label: 'L (12px)', size: '12' },
+                              { label: 'XL (14px)', size: '14' }
+                            ].map(p => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => setMarksheetSignatureFontSize(p.size)}
+                                className={`py-1 rounded text-[10px] font-bold transition-all ${
+                                  marksheetSignatureFontSize === p.size
+                                    ? 'bg-blue-600 text-white shadow-2xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                {p.label.split(' ')[0]}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="pt-1 text-[11px]">
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Scale:</span>
+                              <input
+                                type="range"
+                                min="7"
+                                max="16"
+                                step="1"
+                                value={Number(marksheetSignatureFontSize) || 10}
+                                onChange={e => setMarksheetSignatureFontSize(e.target.value)}
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{marksheetSignatureFontSize}px</span>
+                            </div>
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800 mt-2">
+                              <p className="text-[10px] text-slate-400">Controls signature label typography.</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMarksheetSignatureWidth(admitSignatureWidth)
+                                  setMarksheetSchoolStampWidth(admitSchoolStampWidth)
+                                  setMarksheetSignatureFontSize(admitSignatureFontSize)
+                                  toast.success(`Matched Marksheet signature & stamp size to Admit Card (${admitSignatureWidth}px width, ${admitSchoolStampWidth}px stamp, ${admitSignatureFontSize}px font)!`)
+                                }}
+                                className="text-[9.5px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline shrink-0"
+                              >
+                                Match Admit Card Size
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -5290,7 +5354,7 @@ function AddSetupWizardContent() {
                             setMarksheetHeadingFontSize('14')
                             setMarksheetHeaderDetailsFontSize('11')
                           }}
-                          className="text-[10px] font-bold text-purple-600 hover:text-purple-700 underline"
+                          className="text-[10px] font-bold text-blue-600 hover:text-blue-700 underline"
                         >
                           Reset Defaults
                         </button>
@@ -5300,7 +5364,7 @@ function AddSetupWizardContent() {
                         <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
                           <div className="flex items-center gap-1 shrink-0">
                             <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Institute Name:</span>
-                            <span className="font-mono font-black text-purple-600 dark:text-purple-400 text-[10.5px] bg-purple-50 dark:bg-purple-950/60 px-1 rounded">{marksheetHeaderNameFontSize}px</span>
+                            <span className="font-mono font-black text-blue-600 dark:text-blue-400 text-[10.5px] bg-blue-50 dark:bg-blue-950/60 px-1 rounded">{marksheetHeaderNameFontSize}px</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <button
@@ -5318,7 +5382,7 @@ function AddSetupWizardContent() {
                               step="1"
                               value={Number(marksheetHeaderNameFontSize) || 22}
                               onChange={e => setMarksheetHeaderNameFontSize(e.target.value)}
-                              className="w-14 sm:w-16 accent-purple-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              className="w-14 sm:w-16 accent-blue-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                             />
                             <button
                               type="button"
@@ -5335,7 +5399,7 @@ function AddSetupWizardContent() {
                         <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
                           <div className="flex items-center gap-1 shrink-0">
                             <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Report Title:</span>
-                            <span className="font-mono font-black text-purple-600 dark:text-purple-400 text-[10.5px] bg-purple-50 dark:bg-purple-950/60 px-1 rounded">{marksheetHeadingFontSize}px</span>
+                            <span className="font-mono font-black text-blue-600 dark:text-blue-400 text-[10.5px] bg-blue-50 dark:bg-blue-950/60 px-1 rounded">{marksheetHeadingFontSize}px</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <button
@@ -5353,7 +5417,7 @@ function AddSetupWizardContent() {
                               step="1"
                               value={Number(marksheetHeadingFontSize) || 14}
                               onChange={e => setMarksheetHeadingFontSize(e.target.value)}
-                              className="w-14 sm:w-16 accent-purple-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              className="w-14 sm:w-16 accent-blue-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                             />
                             <button
                               type="button"
@@ -5370,7 +5434,7 @@ function AddSetupWizardContent() {
                         <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
                           <div className="flex items-center gap-1 shrink-0">
                             <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Details/Subheader:</span>
-                            <span className="font-mono font-black text-purple-600 dark:text-purple-400 text-[10.5px] bg-purple-50 dark:bg-purple-950/60 px-1 rounded">{marksheetHeaderDetailsFontSize}px</span>
+                            <span className="font-mono font-black text-blue-600 dark:text-blue-400 text-[10.5px] bg-blue-50 dark:bg-blue-950/60 px-1 rounded">{marksheetHeaderDetailsFontSize}px</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <button
@@ -5388,7 +5452,7 @@ function AddSetupWizardContent() {
                               step="0.5"
                               value={Number(marksheetHeaderDetailsFontSize) || 11}
                               onChange={e => setMarksheetHeaderDetailsFontSize(e.target.value)}
-                              className="w-14 sm:w-16 accent-purple-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              className="w-14 sm:w-16 accent-blue-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                             />
                             <button
                               type="button"
@@ -5450,6 +5514,10 @@ function AddSetupWizardContent() {
                         cgpa: enableCgpa
                       }}
                       editable={true}
+                      qrCodeSize={marksheetQrCodeSize}
+                      signatureOrder={marksheetSignatureOrder}
+                      signatureWidth={marksheetSignatureWidth}
+                      signatureFontSize={marksheetSignatureFontSize}
                       customLabels={marksheetCustomLabels}
                       onUpdateField={handleMarksheetFieldUpdate}
                     />
@@ -5465,16 +5533,16 @@ function AddSetupWizardContent() {
                   <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide">
                     Select Fields to Display on Marksheet
                   </span>
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200/50 dark:border-teal-800/50">
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/50 dark:border-blue-800/50">
                     Template: {selectedTemplate}
                   </span>
                 </div>
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-teal-600 hover:text-teal-700 select-none">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-blue-600 hover:text-blue-700 select-none">
                   <input
                     type="checkbox"
                     checked={isMarksheetAllSelected}
                     onChange={e => handleMarksheetSelectAllChange(e.target.checked)}
-                    className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500 rounded"
+                    className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500 rounded"
                   />
                   <span>Select All Fields</span>
                 </label>
@@ -5485,14 +5553,14 @@ function AddSetupWizardContent() {
                   return (
                     <label key={f.key} className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all cursor-pointer ${
                       isChecked 
-                        ? 'bg-teal-50/50 dark:bg-teal-950/20 border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-200 shadow-2xs' 
+                        ? 'bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 shadow-2xs' 
                         : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 opacity-70'
                     }`}>
                       <input
                         type="checkbox"
                         checked={isChecked}
                         onChange={() => handleMarksheetCheckboxChange(f.key)}
-                        className="w-3.5 h-3.5 text-teal-600 border-slate-300 focus:ring-teal-500 rounded"
+                        className="w-3.5 h-3.5 text-blue-600 border-slate-300 focus:ring-blue-500 rounded"
                       />
                       <span className="truncate">{f.label}</span>
                     </label>
@@ -5501,234 +5569,423 @@ function AddSetupWizardContent() {
               </div>
             </div>
 
-            {/* Authority Signatures Configuration (Uniform Sign Box Cards Matching Admit Card) */}
+            {/* Authority Signatures Configuration (Dynamic Reordering & Sizing Matching Admit Card) */}
             <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/50 p-5 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-800 gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-800 gap-3">
                 <div>
                   <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
                     <span>Authority Signatures Setup</span>
-                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300">
-                      Custom Titles
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
+                      Custom Order & Size
                     </span>
                   </h4>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                    Enable or disable required signatures with individual ON / OFF switches and customize their printed titles.
+                    Enable or disable required signatures and arrange their left-to-right printing sequence using the Move buttons.
                   </p>
+                </div>
+
+                {/* Sequence Presets */}
+                <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mr-1">Order Presets:</span>
+                  <button
+                    type="button"
+                    onClick={() => setMarksheetSignatureOrder(['teacherSign', 'controllerSign', 'parentSign', 'principalSign'])}
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-500 hover:text-blue-600 transition-all shadow-2xs"
+                  >
+                    Teacher First
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMarksheetSignatureOrder(['principalSign', 'controllerSign', 'teacherSign', 'parentSign'])}
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-500 hover:text-blue-600 transition-all shadow-2xs"
+                  >
+                    Principal First
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMarksheetSignatureOrder(['teacherSign', 'parentSign', 'controllerSign', 'principalSign'])}
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-500 hover:text-blue-600 transition-all shadow-2xs"
+                  >
+                    Principal Last
+                  </button>
                 </div>
               </div>
 
+              {/* Live Sequence Ribbon Indicator */}
+              <div className="flex items-center gap-1.5 p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 overflow-x-auto">
+                <span className="text-[10px] font-black uppercase text-slate-400 px-2 shrink-0">Print Sequence:</span>
+                {marksheetSignatureOrder.map((key, idx) => {
+                  const labelMap: Record<string, string> = {
+                    teacherSign: "Teacher's Sign",
+                    controllerSign: "Controller's Sign",
+                    parentSign: "Parent's Sign",
+                    principalSign: "Principal's Sign"
+                  }
+                  const isEnabled = key === 'parentSign' ? !!columnsList.parentSign : (columnsList as any)[key] !== false
+                  return (
+                    <React.Fragment key={key}>
+                      <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10.5px] font-bold shrink-0 transition-all border ${
+                        isEnabled 
+                          ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300' 
+                          : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400 line-through'
+                      }`}>
+                        <span className="w-4 h-4 rounded-full bg-white dark:bg-slate-800 text-[9px] font-black flex items-center justify-center shadow-2xs border border-slate-200 dark:border-slate-700">
+                          {idx + 1}
+                        </span>
+                        <span>{labelMap[key] || key}</span>
+                      </div>
+                      {idx < marksheetSignatureOrder.length - 1 && (
+                        <span className="text-slate-300 dark:text-slate-600 text-xs shrink-0">→</span>
+                      )}
+                    </React.Fragment>
+                  )
+                })}
+              </div>
+
+              {/* Dynamically Ordered Signature Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
-                {/* 1. Principal Sign (FIRST PLACE - Auto-fetched from Institute Details) */}
-                <div className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
-                  columnsList.principalSign 
-                    ? 'bg-white dark:bg-slate-800 border-teal-300 dark:border-teal-700/80 shadow-xs ring-1 ring-teal-500/15' 
-                    : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
-                }`}>
-                  <div>
-                    <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-teal-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
-                          1
-                        </span>
-                        <span className="text-xs font-black text-slate-800 dark:text-slate-100">Principal Sign</span>
-                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                {marksheetSignatureOrder.map((key, idx) => {
+                  const isFirst = idx === 0
+                  const isLast = idx === marksheetSignatureOrder.length - 1
+
+                  if (key === 'principalSign') {
+                    return (
+                      <div 
+                        key={key} 
+                        className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
                           columnsList.principalSign 
-                            ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
-                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
-                        }`}>
-                          {columnsList.principalSign ? 'ON' : 'OFF'}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleMarksheetCheckboxChange('principalSign')}
-                        className={`w-10 h-5.5 rounded-full relative transition-colors ${columnsList.principalSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                            ? 'bg-white dark:bg-slate-800 border-blue-300 dark:border-blue-700/80 shadow-xs ring-1 ring-blue-500/15' 
+                            : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                        }`}
                       >
-                        <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${columnsList.principalSign ? 'left-5' : 'left-0.5'}`} />
-                      </button>
-                    </div>
+                        <div>
+                          <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+                                {idx + 1}
+                              </span>
+                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">Principal Sign</span>
+                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                columnsList.principalSign 
+                                  ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
+                                  : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                              }`}>
+                                {columnsList.principalSign ? 'ON' : 'OFF'}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleMarksheetCheckboxChange('principalSign')}
+                              className={`w-10 h-5.5 rounded-full relative transition-colors ${columnsList.principalSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                            >
+                              <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${columnsList.principalSign ? 'left-5' : 'left-0.5'}`} />
+                            </button>
+                          </div>
 
-                    {/* Auto-fetch Institute Detail Pill */}
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200/80 dark:border-teal-800/80 text-[10.5px] text-teal-800 dark:text-teal-200 mb-2.5">
-                      <Sparkles className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-                      <div className="truncate">
-                        <span className="text-slate-500 dark:text-slate-400 text-[10px] block">Auto-fetched from Institute:</span>
-                        <span className="font-extrabold capitalize text-teal-700 dark:text-teal-300">{principalName || 'Principal'}</span>
+                          {/* Auto-fetch Institute Detail Pill */}
+                          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/80 text-[10.5px] text-blue-800 dark:text-blue-200 mb-2.5">
+                            <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                            <div className="truncate">
+                              <span className="text-slate-500 dark:text-slate-400 text-[10px] block">Auto-fetched from Institute:</span>
+                              <span className="font-extrabold capitalize text-blue-700 dark:text-blue-300">{principalName || 'Principal'}</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                              {principalName && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const val = `Principal (${principalName})`
+                                    setMarksheetPrincipalSignLabel(val)
+                                    handleMarksheetFieldUpdate('customLabels', { principalSignLabel: val })
+                                  }}
+                                  className="text-[9px] font-bold text-blue-600 hover:text-blue-700 underline"
+                                >
+                                  + Add Name
+                                </button>
+                              )}
+                            </div>
+                            <input
+                              type="text"
+                              value={marksheetPrincipalSignLabel}
+                              onChange={e => {
+                                setMarksheetPrincipalSignLabel(e.target.value)
+                                handleMarksheetFieldUpdate('customLabels', { principalSignLabel: e.target.value })
+                              }}
+                              disabled={!columnsList.principalSign}
+                              placeholder="Principal's Signature"
+                              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Reorder Buttons */}
+                        <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-700/60 text-[10px] font-bold">
+                          <span className="text-slate-400">Position #{idx + 1}</span>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              disabled={isFirst}
+                              onClick={() => moveMarksheetSignature(idx, -1)}
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                              title="Move Left"
+                            >
+                              <MoveLeft className="w-3 h-3" /> Move Left
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isLast}
+                              onClick={() => moveMarksheetSignature(idx, 1)}
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                              title="Move Right"
+                            >
+                              Move Right <MoveRight className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )
+                  }
 
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
-                        {principalName && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const val = `Principal (${principalName})`
-                              setMarksheetPrincipalSignLabel(val)
-                              handleMarksheetFieldUpdate('customLabels', { principalSignLabel: val })
-                            }}
-                            className="text-[9px] font-bold text-teal-600 hover:text-teal-700 underline"
-                          >
-                            + Add Name
-                          </button>
-                        )}
-                      </div>
-                      <input
-                        type="text"
-                        value={marksheetPrincipalSignLabel}
-                        onChange={e => {
-                          setMarksheetPrincipalSignLabel(e.target.value)
-                          handleMarksheetFieldUpdate('customLabels', { principalSignLabel: e.target.value })
-                        }}
-                        disabled={!columnsList.principalSign}
-                        placeholder="Principal's Signature"
-                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. Class Teacher Sign */}
-                <div className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
-                  columnsList.teacherSign 
-                    ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
-                    : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
-                }`}>
-                  <div>
-                    <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-teal-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
-                          2
-                        </span>
-                        <span className="text-xs font-black text-slate-800 dark:text-slate-100">Class Teacher Sign</span>
-                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                  if (key === 'teacherSign') {
+                    return (
+                      <div 
+                        key={key} 
+                        className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
                           columnsList.teacherSign 
-                            ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
-                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
-                        }`}>
-                          {columnsList.teacherSign ? 'ON' : 'OFF'}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleMarksheetCheckboxChange('teacherSign')}
-                        className={`w-10 h-5.5 rounded-full relative transition-colors ${columnsList.teacherSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                            ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
+                            : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                        }`}
                       >
-                        <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${columnsList.teacherSign ? 'left-5' : 'left-0.5'}`} />
-                      </button>
-                    </div>
+                        <div>
+                          <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+                                {idx + 1}
+                              </span>
+                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">Class Teacher Sign</span>
+                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                columnsList.teacherSign 
+                                  ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
+                                  : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                              }`}>
+                                {columnsList.teacherSign ? 'ON' : 'OFF'}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleMarksheetCheckboxChange('teacherSign')}
+                              className={`w-10 h-5.5 rounded-full relative transition-colors ${columnsList.teacherSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                            >
+                              <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${columnsList.teacherSign ? 'left-5' : 'left-0.5'}`} />
+                            </button>
+                          </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
-                      <input
-                        type="text"
-                        value={marksheetTeacherSignLabel}
-                        onChange={e => {
-                          setMarksheetTeacherSignLabel(e.target.value)
-                          handleMarksheetFieldUpdate('customLabels', { teacherSignLabel: e.target.value })
-                        }}
-                        disabled={!columnsList.teacherSign}
-                        placeholder="Class Teacher's Signature"
-                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
-                      />
-                    </div>
-                  </div>
-                </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                            <input
+                              type="text"
+                              value={marksheetTeacherSignLabel}
+                              onChange={e => {
+                                setMarksheetTeacherSignLabel(e.target.value)
+                                handleMarksheetFieldUpdate('customLabels', { teacherSignLabel: e.target.value })
+                              }}
+                              disabled={!columnsList.teacherSign}
+                              placeholder="Class Teacher's Signature"
+                              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                            />
+                          </div>
+                        </div>
 
-                {/* 3. Examination Controller / In-Charge Sign */}
-                <div className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
-                  columnsList.controllerSign 
-                    ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
-                    : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
-                }`}>
-                  <div>
-                    <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-teal-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
-                          3
-                        </span>
-                        <span className="text-xs font-black text-slate-800 dark:text-slate-100">Exam Controller Sign</span>
-                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        {/* Reorder Buttons */}
+                        <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-700/60 text-[10px] font-bold">
+                          <span className="text-slate-400">Position #{idx + 1}</span>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              disabled={isFirst}
+                              onClick={() => moveMarksheetSignature(idx, -1)}
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                              title="Move Left"
+                            >
+                              <MoveLeft className="w-3 h-3" /> Move Left
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isLast}
+                              onClick={() => moveMarksheetSignature(idx, 1)}
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                              title="Move Right"
+                            >
+                              Move Right <MoveRight className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  if (key === 'controllerSign') {
+                    return (
+                      <div 
+                        key={key} 
+                        className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
                           columnsList.controllerSign 
-                            ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
-                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
-                        }`}>
-                          {columnsList.controllerSign ? 'ON' : 'OFF'}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleMarksheetCheckboxChange('controllerSign')}
-                        className={`w-10 h-5.5 rounded-full relative transition-colors ${columnsList.controllerSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                            ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
+                            : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                        }`}
                       >
-                        <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${columnsList.controllerSign ? 'left-5' : 'left-0.5'}`} />
-                      </button>
-                    </div>
+                        <div>
+                          <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+                                {idx + 1}
+                              </span>
+                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">Exam Controller Sign</span>
+                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                columnsList.controllerSign 
+                                  ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
+                                  : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                              }`}>
+                                {columnsList.controllerSign ? 'ON' : 'OFF'}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleMarksheetCheckboxChange('controllerSign')}
+                              className={`w-10 h-5.5 rounded-full relative transition-colors ${columnsList.controllerSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                            >
+                              <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${columnsList.controllerSign ? 'left-5' : 'left-0.5'}`} />
+                            </button>
+                          </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
-                      <input
-                        type="text"
-                        value={marksheetControllerSignLabel}
-                        onChange={e => {
-                          setMarksheetControllerSignLabel(e.target.value)
-                          handleMarksheetFieldUpdate('customLabels', { examInChargeSignLabel: e.target.value })
-                        }}
-                        disabled={!columnsList.controllerSign}
-                        placeholder="Exam In-Charge / Controller"
-                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
-                      />
-                    </div>
-                  </div>
-                </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                            <input
+                              type="text"
+                              value={marksheetControllerSignLabel}
+                              onChange={e => {
+                                setMarksheetControllerSignLabel(e.target.value)
+                                handleMarksheetFieldUpdate('customLabels', { examInChargeSignLabel: e.target.value })
+                              }}
+                              disabled={!columnsList.controllerSign}
+                              placeholder="Exam In-Charge / Controller"
+                              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                            />
+                          </div>
+                        </div>
 
-                {/* 4. Parent / Guardian Sign */}
-                <div className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
-                  columnsList.parentSign 
-                    ? 'bg-white dark:bg-slate-800 border-teal-200 dark:border-teal-800/80 shadow-xs ring-1 ring-teal-500/10' 
-                    : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
-                }`}>
-                  <div>
-                    <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-teal-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
-                          4
-                        </span>
-                        <span className="text-xs font-black text-slate-800 dark:text-slate-100">Parent Sign</span>
-                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        {/* Reorder Buttons */}
+                        <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-700/60 text-[10px] font-bold">
+                          <span className="text-slate-400">Position #{idx + 1}</span>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              disabled={isFirst}
+                              onClick={() => moveMarksheetSignature(idx, -1)}
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                              title="Move Left"
+                            >
+                              <MoveLeft className="w-3 h-3" /> Move Left
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isLast}
+                              onClick={() => moveMarksheetSignature(idx, 1)}
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                              title="Move Right"
+                            >
+                              Move Right <MoveRight className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  if (key === 'parentSign') {
+                    return (
+                      <div 
+                        key={key} 
+                        className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
                           columnsList.parentSign 
-                            ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
-                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
-                        }`}>
-                          {columnsList.parentSign ? 'ON' : 'OFF'}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleMarksheetCheckboxChange('parentSign')}
-                        className={`w-10 h-5.5 rounded-full relative transition-colors ${columnsList.parentSign ? 'bg-teal-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                            ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
+                            : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                        }`}
                       >
-                        <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${columnsList.parentSign ? 'left-5' : 'left-0.5'}`} />
-                      </button>
-                    </div>
+                        <div>
+                          <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+                                {idx + 1}
+                              </span>
+                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">Parent Sign</span>
+                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                columnsList.parentSign 
+                                  ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
+                                  : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                              }`}>
+                                {columnsList.parentSign ? 'ON' : 'OFF'}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleMarksheetCheckboxChange('parentSign')}
+                              className={`w-10 h-5.5 rounded-full relative transition-colors ${columnsList.parentSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                            >
+                              <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${columnsList.parentSign ? 'left-5' : 'left-0.5'}`} />
+                            </button>
+                          </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
-                      <input
-                        type="text"
-                        value={marksheetParentSignLabel}
-                        onChange={e => {
-                          setMarksheetParentSignLabel(e.target.value)
-                          handleMarksheetFieldUpdate('customLabels', { parentSignLabel: e.target.value })
-                        }}
-                        disabled={!columnsList.parentSign}
-                        placeholder="Parent / Guardian Sign"
-                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-teal-500 transition-all shadow-2xs"
-                      />
-                    </div>
-                  </div>
-                </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                            <input
+                              type="text"
+                              value={marksheetParentSignLabel}
+                              onChange={e => {
+                                setMarksheetParentSignLabel(e.target.value)
+                                handleMarksheetFieldUpdate('customLabels', { parentSignLabel: e.target.value })
+                              }}
+                              disabled={!columnsList.parentSign}
+                              placeholder="Parent / Guardian Sign"
+                              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Reorder Buttons */}
+                        <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-700/60 text-[10px] font-bold">
+                          <span className="text-slate-400">Position #{idx + 1}</span>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              disabled={isFirst}
+                              onClick={() => moveMarksheetSignature(idx, -1)}
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                              title="Move Left"
+                            >
+                              <MoveLeft className="w-3 h-3" /> Move Left
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isLast}
+                              onClick={() => moveMarksheetSignature(idx, 1)}
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                              title="Move Right"
+                            >
+                              Move Right <MoveRight className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  return null
+                })}
               </div>
             </div>
 
@@ -5742,7 +5999,7 @@ function AddSetupWizardContent() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 uppercase tracking-wider">
                     Step 5 of 5
                   </span>
                   <h2 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
@@ -5757,14 +6014,14 @@ function AddSetupWizardContent() {
               <button
                 type="button"
                 onClick={() => handlePreviewCertificate(certTemplate)}
-                className="flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded-xl text-xs font-bold transition-all shadow-xs shrink-0"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-bold transition-all shadow-xs shrink-0"
               >
-                <Eye className="w-4 h-4 text-amber-600 dark:text-amber-400" /> Live Certificate Preview
+                <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Live Certificate Preview
               </button>
             </div>
 
             {/* Certificate Theme Color Customizer */}
-            <div className="bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/60 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-2xs">
+            <div className="bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-800/60 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-2xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div
@@ -5842,7 +6099,7 @@ function AddSetupWizardContent() {
                       title={`${preset.name} (${preset.hex})`}
                       className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
                         isSelected
-                          ? 'ring-2 ring-amber-500 border-transparent text-white shadow-xs'
+                          ? 'ring-2 ring-blue-500 border-transparent text-white shadow-xs'
                           : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-400'
                       }`}
                       style={isSelected ? { backgroundColor: preset.hex } : {}}
@@ -5858,47 +6115,314 @@ function AddSetupWizardContent() {
               </div>
             </div>
 
-            {/* Certificate Brand Logo & Dynamic Scaling */}
-            <div className="bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/60 rounded-2xl p-4 sm:p-5 space-y-4 shadow-2xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-amber-200/50 dark:border-amber-800/50">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-sm shrink-0">
-                    <School className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-                        Certificate Brand Logo
-                      </span>
-                      <span className="px-2 py-0.5 rounded font-mono text-[9px] font-black uppercase text-amber-800 dark:text-amber-200 bg-amber-100 dark:bg-amber-950 border border-amber-300 dark:border-amber-800">
-                        {logoWidth}px Width
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                      Unified logo across all certificate templates with instant preview, sizing presets, and auto-fallback
-                    </p>
-                  </div>
+            {/* ================= 2. TEMPLATE SELECTOR GRID: 3 CERTIFICATE TEMPLATES ================= */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                    Select Certificate Template Style
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Choose from 3 official high-definition landscape academic award certificates with crests & QR validation
+                  </p>
                 </div>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                  3 Templates Available
+                </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                {/* Logo Preview & Action */}
-                <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-amber-200/60 dark:border-amber-800/60 flex items-center gap-3 shadow-2xs">
-                  <div className="w-14 h-14 rounded-lg bg-amber-50/40 dark:bg-slate-800 border border-dashed border-amber-300 dark:border-amber-700 flex items-center justify-center p-1 shrink-0 overflow-hidden shadow-2xs">
-                    {admitSchoolLogo ? (
-                      <img src={admitSchoolLogo} alt="Logo" className="w-full h-full object-contain" />
-                    ) : (
-                      <SampleSchoolLogo width={44} height={44} color={certThemeColor} />
-                    )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* 1. Certificate Design 1 */}
+                {(() => {
+                  const isSelected = certTemplate === 'Certificate Design 1'
+                  return (
+                    <div 
+                      onClick={() => setCertTemplate('Certificate Design 1')}
+                      className={`cursor-pointer rounded-2xl border p-3 sm:p-4 flex flex-col justify-between gap-2.5 transition-all relative ${
+                        isSelected 
+                          ? 'border-2 bg-blue-50/20 ring-2 ring-blue-500/20 shadow-md' 
+                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      }`}
+                      style={isSelected ? { borderColor: certThemeColor } : {}}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-100 text-blue-900 border border-blue-200">
+                          Geometric
+                        </span>
+                        {isSelected && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-[8.5px] font-black text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 px-1.5 py-0.5 rounded-full">
+                              Active
+                            </span>
+                            <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Small Live Preview */}
+                      <CertificateMiniPreview
+                        template="Certificate Design 1"
+                        themeColor={certThemeColor}
+                        schoolName={schoolName || 'COSMOPOLITAN INTER COLLEGE'}
+                        schoolLogo={admitSchoolLogo}
+                        showLogo={certDisplayFields.logo !== false}
+                        studentName="Aarav Sharma"
+                        isSelected={isSelected}
+                      />
+
+                      <div className="text-center my-0.5">
+                        <span className="text-xs font-black text-slate-900 dark:text-slate-100 block">Royal Blue Geometric</span>
+                        <span className="text-[10px] font-semibold text-slate-500 mt-0.5 block">Thin gold inner frame with corner accents</span>
+                      </div>
+
+                      <span className="text-[9px] text-center font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 py-1 rounded-lg">
+                        Official Seal + Geometric Border
+                      </span>
+
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handlePreviewCertificate('Certificate Design 1')
+                          }}
+                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-700 dark:text-blue-400 font-bold text-[11px] border border-blue-200 dark:border-blue-800 hover:border-blue-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                          <span>Preview Full Template</span>
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* 2. Certificate Design 2 */}
+                {(() => {
+                  const isSelected = certTemplate === 'Certificate Design 2'
+                  return (
+                    <div 
+                      onClick={() => setCertTemplate('Certificate Design 2')}
+                      className={`cursor-pointer rounded-2xl border p-3 sm:p-4 flex flex-col justify-between gap-2.5 transition-all relative ${
+                        isSelected 
+                          ? 'border-2 bg-blue-50/20 ring-2 ring-blue-500/20 shadow-md' 
+                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      }`}
+                      style={isSelected ? { borderColor: certThemeColor } : {}}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-100 text-blue-900 border border-blue-200">
+                          Vintage Gold
+                        </span>
+                        {isSelected && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-[8.5px] font-black text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 px-1.5 py-0.5 rounded-full">
+                              Active
+                            </span>
+                            <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Small Live Preview */}
+                      <CertificateMiniPreview
+                        template="Certificate Design 2"
+                        themeColor={certThemeColor}
+                        schoolName={schoolName || 'COSMOPOLITAN INTER COLLEGE'}
+                        schoolLogo={admitSchoolLogo}
+                        showLogo={certDisplayFields.logo !== false}
+                        studentName="Aarav Sharma"
+                        isSelected={isSelected}
+                      />
+
+                      <div className="text-center my-0.5">
+                        <span className="text-xs font-black text-slate-900 dark:text-slate-100 block">Navy & Gold Corners</span>
+                        <span className="text-[10px] font-semibold text-slate-500 mt-0.5 block">Fleur-de-lis ornate corners & 5 stars</span>
+                      </div>
+
+                      <span className="text-[9px] text-center font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 py-1 rounded-lg">
+                        Fleur-de-lis + Merit Crest
+                      </span>
+
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handlePreviewCertificate('Certificate Design 2')
+                          }}
+                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-700 dark:text-blue-400 font-bold text-[11px] border border-blue-200 dark:border-blue-800 hover:border-blue-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                          <span>Preview Full Template</span>
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* 3. Certificate Design 3 */}
+                {(() => {
+                  const isSelected = certTemplate === 'Certificate Design 3'
+                  return (
+                    <div 
+                      onClick={() => setCertTemplate('Certificate Design 3')}
+                      className={`cursor-pointer rounded-2xl border p-3 sm:p-4 flex flex-col justify-between gap-2.5 transition-all relative ${
+                        isSelected 
+                          ? 'border-2 bg-blue-50/20 ring-2 ring-blue-500/20 shadow-md' 
+                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      }`}
+                      style={isSelected ? { borderColor: certThemeColor } : {}}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-900 border border-emerald-200">
+                          Luxury Emerald
+                        </span>
+                        {isSelected && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-[8.5px] font-black text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 px-1.5 py-0.5 rounded-full">
+                              Active
+                            </span>
+                            <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Small Live Preview */}
+                      <CertificateMiniPreview
+                        template="Certificate Design 3"
+                        themeColor={certThemeColor}
+                        schoolName={schoolName || 'COSMOPOLITAN INTER COLLEGE'}
+                        schoolLogo={admitSchoolLogo}
+                        showLogo={certDisplayFields.logo !== false}
+                        studentName="Aarav Sharma"
+                        isSelected={isSelected}
+                      />
+
+                      <div className="text-center my-0.5">
+                        <span className="text-xs font-black text-slate-900 dark:text-slate-100 block">Ornate Golden Frame</span>
+                        <span className="text-[10px] font-semibold text-slate-500 mt-0.5 block">Modern luxury border with verified badge</span>
+                      </div>
+
+                      <span className="text-[9px] text-center font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 py-1 rounded-lg">
+                        Shield Verification + Gradient Ribbon
+                      </span>
+
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handlePreviewCertificate('Certificate Design 3')
+                          }}
+                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-700 dark:text-blue-400 font-bold text-[11px] border border-blue-200 dark:border-blue-800 hover:border-blue-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:text-white group-hover:scale-110 transition-all" />
+                          <span>Preview Full Template</span>
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+
+              {/* ================= 3. AUTO-UPDATING LIVE CERTIFICATE PREVIEW ================= */}
+              <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm mt-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/20 shrink-0">
+                      <Award className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide flex items-center gap-2">
+                          <span>Live Certificate Preview •</span>
+                          <span className="text-blue-600 dark:text-blue-400">{certTemplate}</span>
+                          <span
+                            className="px-2 py-0.5 rounded text-[8.5px] font-black uppercase text-white shadow-2xs font-mono"
+                            style={{ backgroundColor: certThemeColor }}
+                          >
+                            {certThemeColor}
+                          </span>
+                        </h4>
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300">
+                          ⚡ Auto-Updating
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-[11px] text-slate-500">
+                          Selecting any certificate template style or color above automatically updates this live printable certificate preview in real time.
+                        </p>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/10 text-blue-600 border border-blue-500/20 shadow-2xs">
+                          ⚡ Click any label to edit live
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">
-                      {admitSchoolLogo ? 'Custom Logo Uploaded' : 'Sample Academy Crest Active'}
+                  <button
+                    type="button"
+                    onClick={() => handlePreviewCertificate(certTemplate)}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-blue-600/20 shrink-0"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Open Full Screen / Print</span>
+                  </button>
+                </div>
+
+                {/* ================= 4. SIZING & TYPOGRAPHY STUDIO (MATCHING ADMIT CARD) ================= */}
+                <div className="bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+                  {/* Studio Header */}
+                  <div className="sticky top-2 z-20 bg-white/95 dark:bg-slate-850/95 backdrop-blur-md p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-xs flex flex-wrap items-center justify-between gap-3 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Sliders className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">
+                        Certificate Sizing & Typography Studio
+                      </span>
+                      <span className="text-[9px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded-full border border-blue-200/50 dark:border-blue-800/50">
+                        Live Sync Across All 3 Templates
+                      </span>
                     </div>
-                    <div className="text-[9.5px] text-slate-500 dark:text-slate-400 mt-0.5">
-                      {admitSchoolLogo ? 'Appearing in all 3 certificate styles' : 'Auto fallback if not uploaded'}
+
+                    {/* Studio Category Tabs */}
+                    <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setCertSizingStudioTab('media')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all ${
+                          certSizingStudioTab === 'media'
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                        <span>Logo & QR Sizing</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCertSizingStudioTab('signs')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all ${
+                          certSizingStudioTab === 'signs'
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <Stamp className="w-3.5 h-3.5" />
+                        <span>Signatures & Seal</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCertSizingStudioTab('text')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all ${
+                          certSizingStudioTab === 'text'
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <Type className="w-3.5 h-3.5" />
+                        <span>Main Text Typography</span>
+                      </button>
                     </div>
-                    <div className="flex items-center gap-2 mt-2">
+
+                    <div className="flex items-center gap-2">
                       <input
                         type="file"
                         ref={certLogoFileInputRef}
@@ -5921,10 +6445,10 @@ function AddSetupWizardContent() {
                       <button
                         type="button"
                         onClick={() => certLogoFileInputRef.current?.click()}
-                        className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-600 hover:bg-amber-700 text-white transition-all shadow-2xs flex items-center gap-1"
+                        className="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-2xs flex items-center gap-1.5"
                       >
-                        <Upload className="w-3 h-3" />
-                        <span>{admitSchoolLogo ? 'Change' : 'Upload Logo'}</span>
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{admitSchoolLogo ? 'Change Logo' : 'Upload Logo'}</span>
                       </button>
                       {admitSchoolLogo && (
                         <button
@@ -5933,71 +6457,527 @@ function AddSetupWizardContent() {
                             setAdmitSchoolLogo('')
                             toast.info('Reverted to Sample Academy Crest')
                           }}
-                          className="px-2 py-1 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 transition-all"
+                          className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-600 dark:text-slate-300 transition-all"
                         >
                           Use Sample
                         </button>
                       )}
                     </div>
                   </div>
+
+                  {/* TAB 1: LOGO & QR SIZING */}
+                  {certSizingStudioTab === 'media' && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Logo Sizing Box */}
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Certificate Brand Logo Size</span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleCertCheckboxChange('logo')}
+                                className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase transition-all shadow-2xs ${
+                                  certDisplayFields.logo !== false
+                                    ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                                    : 'bg-slate-200 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700'
+                                }`}
+                              >
+                                {certDisplayFields.logo !== false ? '● Visible' : '○ Hidden'}
+                              </button>
+                              <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                                {logoWidth} px
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                            {[
+                              { label: 'S (48px)', size: '48' },
+                              { label: 'M (60px)', size: '60' },
+                              { label: 'L (76px)', size: '76' },
+                              { label: 'XL (96px)', size: '96' }
+                            ].map(p => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => setLogoWidth(p.size)}
+                                className={`py-1 rounded text-[10px] font-bold transition-all ${
+                                  logoWidth === p.size
+                                    ? 'bg-blue-600 text-white shadow-2xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                {p.label.split(' ')[0]}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="pt-1 text-[11px]">
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Scale:</span>
+                              <input
+                                type="range"
+                                min="32"
+                                max="130"
+                                step="2"
+                                value={Number(logoWidth) || 60}
+                                onChange={e => setLogoWidth(e.target.value)}
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{logoWidth}px</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-1">Unified institute crest appearing across all 3 certificate templates.</p>
+                          </div>
+                        </div>
+
+                        {/* QR Code Sizing Box */}
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Verification QR Code Size</span>
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                              {certQrCodeSize} px
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                            {[
+                              { label: 'S (48px)', size: '48' },
+                              { label: 'M (64px)', size: '64' },
+                              { label: 'L (72px)', size: '72' },
+                              { label: 'XL (96px)', size: '96' }
+                            ].map(p => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => setCertQrCodeSize(p.size)}
+                                className={`py-1 rounded text-[10px] font-bold transition-all ${
+                                  certQrCodeSize === p.size
+                                    ? 'bg-blue-600 text-white shadow-2xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                {p.label.split(' ')[0]}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="pt-1 text-[11px]">
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Scale:</span>
+                              <input
+                                type="range"
+                                min="40"
+                                max="130"
+                                step="2"
+                                value={Number(certQrCodeSize) || 68}
+                                onChange={e => setCertQrCodeSize(e.target.value)}
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{certQrCodeSize}px</span>
+                            </div>
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800 mt-2">
+                              <p className="text-[10px] text-slate-400">Scales high-definition verification QR matrix.</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAdmitQrCodeSize(certQrCodeSize)
+                                  setMarksheetQrCodeSize(certQrCodeSize)
+                                  toast.success(`Applied ${certQrCodeSize}px QR size across Certificate, Marksheet & Admit Card!`)
+                                }}
+                                className="text-[9.5px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline shrink-0"
+                              >
+                                Apply to all templates
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 2: SIGNATURES & SEAL SIZING (Matching Admit Card Layout) */}
+                  {certSizingStudioTab === 'signs' && (
+                    <div className="space-y-4">
+                      {/* Sizing Controls Grid: Width, Stamp/Seal & Font Size matching Admit Card */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {/* Signature Line Width */}
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Line Width</span>
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                              {certSignatureWidth} px
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                            {[
+                              { label: 'S (75px)', size: '75' },
+                              { label: 'M (100px)', size: '100' },
+                              { label: 'L (130px)', size: '130' },
+                              { label: 'XL (165px)', size: '165' }
+                            ].map(p => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => setCertSignatureWidth(p.size)}
+                                className={`py-1 rounded text-[10px] font-bold transition-all ${
+                                  certSignatureWidth === p.size
+                                    ? 'bg-blue-600 text-white shadow-2xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                {p.label.split(' ')[0]}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="pt-1 text-[11px]">
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Width:</span>
+                              <input
+                                type="range"
+                                min="50"
+                                max="180"
+                                step="5"
+                                value={Number(certSignatureWidth) || 110}
+                                onChange={e => setCertSignatureWidth(e.target.value)}
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{certSignatureWidth}px</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-1">Adjusts width of principal, teacher, controller, and authority sign lines.</p>
+                          </div>
+                        </div>
+
+                        {/* Stamp Seal Diameter */}
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">School Stamp / Seal Diameter</span>
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                              {certSchoolStampWidth} px
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                            {[
+                              { label: 'S (44px)', size: '44' },
+                              { label: 'M (56px)', size: '56' },
+                              { label: 'L (70px)', size: '70' },
+                              { label: 'XL (84px)', size: '84' }
+                            ].map(p => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => setCertSchoolStampWidth(p.size)}
+                                className={`py-1 rounded text-[10px] font-bold transition-all ${
+                                  certSchoolStampWidth === p.size
+                                    ? 'bg-blue-600 text-white shadow-2xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                {p.label.split(' ')[0]}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="pt-1 text-[11px]">
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Diameter:</span>
+                              <input
+                                type="range"
+                                min="36"
+                                max="90"
+                                step="2"
+                                value={Number(certSchoolStampWidth) || 56}
+                                onChange={e => setCertSchoolStampWidth(e.target.value)}
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{certSchoolStampWidth}px</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-1">Scales circular gold/merit official verification seal mark on certificate.</p>
+                          </div>
+                        </div>
+
+                        {/* Signature Font Size */}
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Text Font Size</span>
+                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                              {certSignatureFontSize} px
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                            {[
+                              { label: '8px', size: '8' },
+                              { label: '9px', size: '9' },
+                              { label: '10px', size: '10' },
+                              { label: '11px', size: '11' }
+                            ].map(p => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => setCertSignatureFontSize(p.size)}
+                                className={`py-1 rounded text-[10px] font-bold transition-all ${
+                                  certSignatureFontSize === p.size
+                                    ? 'bg-blue-600 text-white shadow-2xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                {p.label}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="pt-1 text-[11px]">
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Scale:</span>
+                              <input
+                                type="range"
+                                min="7"
+                                max="14"
+                                step="0.5"
+                                value={Number(certSignatureFontSize) || 9}
+                                onChange={e => setCertSignatureFontSize(e.target.value)}
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{certSignatureFontSize}px</span>
+                            </div>
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800 mt-2">
+                              <p className="text-[10px] text-slate-400">Controls signatory titles & designations.</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCertSignatureWidth(admitSignatureWidth)
+                                  setCertSchoolStampWidth(admitSchoolStampWidth)
+                                  setCertSignatureFontSize(admitSignatureFontSize)
+                                  toast.success(`Matched Certificate signature & seal size to Admit Card (${admitSignatureWidth}px width, ${admitSchoolStampWidth}px seal, ${admitSignatureFontSize}px font)!`)
+                                }}
+                                className="text-[9.5px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline shrink-0"
+                              >
+                                Match Admit Card Size
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 3: MAIN TEXT TYPOGRAPHY */}
+                  {certSizingStudioTab === 'text' && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                          Main Typography Sizing Sliders
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCertSchoolNameFontSize('14')
+                            setCertTitleFontSize('30')
+                            setCertSubtitleFontSize('11')
+                          }}
+                          className="text-[10px] font-bold text-blue-600 hover:text-blue-700 underline"
+                        >
+                          Reset Defaults
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {/* 1. School / Institute Name Font Size */}
+                        <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Institute Name:</span>
+                            <span className="font-mono font-black text-blue-600 dark:text-blue-400 text-[10.5px] bg-blue-50 dark:bg-blue-950/60 px-1 rounded">{certSchoolNameFontSize}px</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              title="Make Institute Name smaller"
+                              onClick={() => setCertSchoolNameFontSize(prev => String(Math.max(10, Number(prev) - 1)))}
+                              className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                            >
+                              A-
+                            </button>
+                            <input
+                              type="range"
+                              min="10"
+                              max="28"
+                              step="1"
+                              value={Number(certSchoolNameFontSize) || 14}
+                              onChange={e => setCertSchoolNameFontSize(e.target.value)}
+                              className="w-14 sm:w-16 accent-blue-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                            />
+                            <button
+                              type="button"
+                              title="Make Institute Name bigger"
+                              onClick={() => setCertSchoolNameFontSize(prev => String(Math.min(36, Number(prev) + 1)))}
+                              className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                            >
+                              A+
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 2. Certificate Title Font Size */}
+                        <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Certificate Title:</span>
+                            <span className="font-mono font-black text-blue-600 dark:text-blue-400 text-[10.5px] bg-blue-50 dark:bg-blue-950/60 px-1 rounded">{certTitleFontSize}px</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              title="Make Certificate Title smaller"
+                              onClick={() => setCertTitleFontSize(prev => String(Math.max(16, Number(prev) - 2)))}
+                              className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                            >
+                              A-
+                            </button>
+                            <input
+                              type="range"
+                              min="16"
+                              max="48"
+                              step="1"
+                              value={Number(certTitleFontSize) || 30}
+                              onChange={e => setCertTitleFontSize(e.target.value)}
+                              className="w-14 sm:w-16 accent-blue-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                            />
+                            <button
+                              type="button"
+                              title="Make Certificate Title bigger"
+                              onClick={() => setCertTitleFontSize(prev => String(Math.min(54, Number(prev) + 2)))}
+                              className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                            >
+                              A+
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 3. Subtitle / Tagline Font Size */}
+                        <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Subtitle / Tagline:</span>
+                            <span className="font-mono font-black text-blue-600 dark:text-blue-400 text-[10.5px] bg-blue-50 dark:bg-blue-950/60 px-1 rounded">{certSubtitleFontSize}px</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              title="Make Subtitle smaller"
+                              onClick={() => setCertSubtitleFontSize(prev => String(Math.max(8, Number(prev) - 1)))}
+                              className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                            >
+                              A-
+                            </button>
+                            <input
+                              type="range"
+                              min="8"
+                              max="20"
+                              step="0.5"
+                              value={Number(certSubtitleFontSize) || 11}
+                              onChange={e => setCertSubtitleFontSize(e.target.value)}
+                              className="w-14 sm:w-16 accent-blue-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                            />
+                            <button
+                              type="button"
+                              title="Make Subtitle bigger"
+                              onClick={() => setCertSubtitleFontSize(prev => String(Math.min(26, Number(prev) + 1)))}
+                              className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
+                            >
+                              A+
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Sizing Presets & Slider */}
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Logo Size Presets</label>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {[
-                        { label: 'Compact', size: '48' },
-                        { label: 'Standard', size: '60' },
-                        { label: 'Medium', size: '76' },
-                        { label: 'Large', size: '96' }
-                      ].map(p => {
-                        const isActive = logoWidth === p.size
-                        return (
-                          <button
-                            key={p.label}
-                            type="button"
-                            onClick={() => setLogoWidth(p.size)}
-                            className={`px-1.5 py-1.5 rounded-lg text-[10.5px] font-bold transition-all border text-center ${
-                              isActive
-                                ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
-                                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-amber-400'
-                            }`}
-                          >
-                            <div>{p.label}</div>
-                            <div className="text-[9px] opacity-75">{p.size}px</div>
-                          </button>
-                        )
-                      })}
+                {/* Live Paper Viewport */}
+                <div className="overflow-x-auto flex justify-center py-4 bg-slate-200/60 dark:bg-slate-950/80 rounded-2xl p-4 sm:p-6 border border-slate-200/80 dark:border-slate-800/80 shadow-inner">
+                  <div className="w-full flex justify-center items-center overflow-hidden min-h-[520px]">
+                    <div 
+                      className="transition-transform duration-200 flex items-center justify-center origin-top shrink-0 scale-[0.62] sm:scale-[0.82] lg:scale-[0.92]"
+                    >
+                      <CertificatePaper
+                        template={certTemplate}
+                        themeColor={certThemeColor}
+                        schoolName={schoolName || 'COSMOPOLITAN INTER COLLEGE'}
+                        schoolLogo={admitSchoolLogo}
+                        logoWidth={Number(logoWidth) || 60}
+                        showLogo={certDisplayFields.logo !== false}
+                        schoolNameFontSize={certSchoolNameFontSize}
+                        titleFontSize={certTitleFontSize}
+                        subtitleFontSize={certSubtitleFontSize}
+                        title={certTitle}
+                        subtitle={certSubtitle}
+                        presentedTo={certPresentedTo}
+                        content={certDescription}
+                        editable={true}
+                        signatureWidth={certSignatureWidth}
+                        signatureFontSize={certSignatureFontSize}
+                        signatureOrder={certSignatureOrder}
+                        sealSize={certSchoolStampWidth}
+                        onUpdateField={(field, val) => {
+                          if (field === 'title') setCertTitle(val)
+                          if (field === 'subtitle') setCertSubtitle(val)
+                          if (field === 'content') setCertDescription(val)
+                          if (field === 'schoolName') setSchoolName(val)
+                          if (field === 'date') setCertDateOfIssue(val)
+                          if (field === 'triggerLogoUpload') certLogoFileInputRef.current?.click()
+                          if (field === 'schoolNameFontSize') setCertSchoolNameFontSize(String(val))
+                          if (field === 'titleFontSize') setCertTitleFontSize(String(val))
+                          if (field === 'subtitleFontSize') setCertSubtitleFontSize(String(val))
+                          if (field === 'qrCodeSize') setCertQrCodeSize(String(val))
+                        }}
+                        onUpdateLabel={(key, val) => {
+                          if (key === 'presented_to') setCertPresentedTo(val)
+                          setCertCustomLabelsState(prev => ({ ...prev, [key]: val }))
+                        }}
+                        studentName="Aarav Sharma"
+                        fatherName="Rajesh Sharma"
+                        motherName="Sunita Sharma"
+                        rollNo="24"
+                        admissionNo="ADM-2025-108"
+                        className={classes[0]?.className || 'Class X'}
+                        section={classes[0]?.sections?.[0] || 'Section A'}
+                        dob="15/08/2010"
+                        gender="Male"
+                        studentPhoto=""
+                        examName={examName || 'Final Term Examination'}
+                        session={session || '2025-2026'}
+                        date={certDateOfIssue || dateOfExam || '15 October 2026'}
+                        awarder={certPrincipalSignLabel || "Principal & Director"}
+                        principalName={certPrincipalName || principalName || 'Dr. S. K. Sharma'}
+                        principalLabel={certPrincipalSignLabel || "Principal & Director"}
+                        teacherSignName={certTeacherSignName}
+                        teacherSignLabel={certTeacherSignLabel}
+                        controllerSignName={certControllerSignName}
+                        controllerSignLabel={certControllerSignLabel}
+                        secondarySignName={certSecondarySignName || 'Authorized Signatory'}
+                        secondarySignLabel={certSecondarySignLabel || 'Authority Signature'}
+                        parentSignName={certParentSignName}
+                        parentSignLabel={certParentSignLabel}
+                        studentSignLabel={certStudentSignLabel}
+                        showSeal={certDisplayFields.officialSeal}
+                        showQr={certDisplayFields.qrCode}
+                        qrCodeSize={certQrCodeSize}
+                        hiddenFields={certHiddenFields}
+                        customLabels={certCustomLabels}
+                      />
                     </div>
-                  </div>
-
-                  {/* Logo Slider */}
-                  <div className="space-y-1.5 bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-amber-200/60 dark:border-amber-800/60">
-                    <div className="flex items-center justify-between text-[11px] font-bold">
-                      <span className="text-slate-600 dark:text-slate-300">Live Width Slider</span>
-                      <span className="font-mono text-amber-600 dark:text-amber-400 font-extrabold">{logoWidth} px</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="36"
-                      max="130"
-                      step="2"
-                      value={Number(logoWidth) || 60}
-                      onChange={e => setLogoWidth(e.target.value)}
-                      className="w-full accent-amber-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                    />
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Certificate Content & Narrative Text Setup */}
-            <div className="bg-white dark:bg-slate-900 border border-amber-200/90 dark:border-amber-800/70 rounded-2xl p-4 sm:p-5 space-y-4 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-amber-200/50 dark:border-amber-800/40 gap-2">
+            <div className="bg-white dark:bg-slate-900 border border-blue-200/90 dark:border-blue-800/70 rounded-2xl p-4 sm:p-5 space-y-4 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-blue-200/50 dark:border-blue-800/40 gap-2">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs shrink-0">
                     <FileText className="w-4 h-4" />
                   </div>
                   <div>
@@ -6009,8 +6989,8 @@ function AddSetupWizardContent() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-[10.5px] text-amber-800 dark:text-amber-300 font-bold self-start sm:self-auto">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-[10.5px] text-blue-800 dark:text-blue-300 font-bold self-start sm:self-auto">
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                   <span>Click text on preview below to edit live</span>
                 </div>
               </div>
@@ -6030,7 +7010,7 @@ function AddSetupWizardContent() {
                     value={certTitle}
                     onChange={e => setCertTitle(e.target.value)}
                     placeholder="CERTIFICATE OF ACHIEVEMENT"
-                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-slate-50/50 dark:bg-slate-800/70 font-bold text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:border-amber-500 transition-all shadow-2xs"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-slate-50/50 dark:bg-slate-800/70 font-bold text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 transition-all shadow-2xs"
                   />
                   {/* Quick Suggestions */}
                   <div className="flex flex-wrap gap-1 pt-1">
@@ -6047,7 +7027,7 @@ function AddSetupWizardContent() {
                         onClick={() => setCertTitle(titlePreset)}
                         className={`text-[9.5px] px-2 py-0.5 rounded-lg border font-semibold transition-all ${
                           certTitle === titlePreset 
-                            ? 'bg-amber-100 dark:bg-amber-950/60 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300' 
+                            ? 'bg-blue-100 dark:bg-blue-950/60 border-blue-300 dark:border-blue-700 text-blue-800 dark:text-blue-300' 
                             : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300'
                         }`}
                       >
@@ -6070,7 +7050,7 @@ function AddSetupWizardContent() {
                     value={certSubtitle}
                     onChange={e => setCertSubtitle(e.target.value)}
                     placeholder="IN RECOGNITION OF ACADEMIC EXCELLENCE"
-                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-slate-50/50 dark:bg-slate-800/70 font-semibold text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:border-amber-500 transition-all shadow-2xs"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-slate-50/50 dark:bg-slate-800/70 font-semibold text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 transition-all shadow-2xs"
                   />
                   {/* Quick Suggestions */}
                   <div className="flex flex-wrap gap-1 pt-1">
@@ -6086,7 +7066,7 @@ function AddSetupWizardContent() {
                         onClick={() => setCertSubtitle(subPreset)}
                         className={`text-[9.5px] px-2 py-0.5 rounded-lg border font-semibold transition-all ${
                           certSubtitle === subPreset 
-                            ? 'bg-amber-100 dark:bg-amber-950/60 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300' 
+                            ? 'bg-blue-100 dark:bg-blue-950/60 border-blue-300 dark:border-blue-700 text-blue-800 dark:text-blue-300' 
                             : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300'
                         }`}
                       >
@@ -6110,7 +7090,7 @@ function AddSetupWizardContent() {
                   value={certPresentedTo}
                   onChange={e => setCertPresentedTo(e.target.value)}
                   placeholder="THIS CERTIFICATE IS PROUDLY PRESENTED TO"
-                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-slate-50/50 dark:bg-slate-800/70 font-semibold text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:border-amber-500 transition-all shadow-2xs"
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-slate-50/50 dark:bg-slate-800/70 font-semibold text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 transition-all shadow-2xs"
                 />
                 <div className="flex flex-wrap gap-1 pt-1">
                   {[
@@ -6125,7 +7105,7 @@ function AddSetupWizardContent() {
                       onClick={() => setCertPresentedTo(pres)}
                       className={`text-[9.5px] px-2 py-0.5 rounded-lg border font-semibold transition-all ${
                         certPresentedTo === pres 
-                          ? 'bg-amber-100 dark:bg-amber-950/60 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300' 
+                          ? 'bg-blue-100 dark:bg-blue-950/60 border-blue-300 dark:border-blue-700 text-blue-800 dark:text-blue-300' 
                           : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300'
                       }`}
                     >
@@ -6148,7 +7128,7 @@ function AddSetupWizardContent() {
                   value={certDescription}
                   onChange={e => setCertDescription(e.target.value)}
                   placeholder="This certificate is proudly awarded in recognition of outstanding performance, exemplary dedication, and commendable achievement during the academic session."
-                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-slate-50/50 dark:bg-slate-800/70 font-medium text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 focus:border-amber-500 transition-all shadow-2xs leading-relaxed"
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-slate-50/50 dark:bg-slate-800/70 font-medium text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-500 transition-all shadow-2xs leading-relaxed"
                 />
 
                 {/* Quick Narrative Presets */}
@@ -6160,16 +7140,16 @@ function AddSetupWizardContent() {
                     <button
                       type="button"
                       onClick={() => setCertDescription('This certificate is proudly awarded in recognition of outstanding performance, exemplary dedication, and commendable achievement during the academic session.')}
-                      className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 hover:border-amber-400 dark:hover:border-amber-600 text-left transition-all group"
+                      className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 hover:border-blue-400 dark:hover:border-blue-600 text-left transition-all group"
                     >
-                      <div className="text-[10px] font-bold text-amber-700 dark:text-amber-400 group-hover:underline">Academic Excellence</div>
+                      <div className="text-[10px] font-bold text-blue-700 dark:text-blue-400 group-hover:underline">Academic Excellence</div>
                       <div className="text-[9px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">Proudly awarded in recognition of outstanding performance and commendable achievement...</div>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setCertDescription('This is to certify that the student named above has satisfactorily completed the prescribed curriculum and demonstrated commendable academic achievement during the academic session.')}
-                      className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 hover:border-amber-400 dark:hover:border-amber-600 text-left transition-all group"
+                      className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 hover:border-blue-400 dark:hover:border-blue-600 text-left transition-all group"
                     >
                       <div className="text-[10px] font-bold text-blue-700 dark:text-blue-400 group-hover:underline">Standard "To Certify That"</div>
                       <div className="text-[9px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">This is to certify that the student has satisfactorily completed the prescribed curriculum...</div>
@@ -6178,16 +7158,16 @@ function AddSetupWizardContent() {
                     <button
                       type="button"
                       onClick={() => setCertDescription('Conferred with high distinction in recognition of securing top honors, extraordinary scholastic merit, and exemplary conduct in the annual examination.')}
-                      className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 hover:border-amber-400 dark:hover:border-amber-600 text-left transition-all group"
+                      className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 hover:border-blue-400 dark:hover:border-blue-600 text-left transition-all group"
                     >
-                      <div className="text-[10px] font-bold text-purple-700 dark:text-purple-400 group-hover:underline">Merit & Rank Distinction</div>
+                      <div className="text-[10px] font-bold text-blue-700 dark:text-blue-400 group-hover:underline">Merit & Rank Distinction</div>
                       <div className="text-[9px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">Conferred with high distinction in recognition of securing top honors and extraordinary scholastic merit...</div>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setCertDescription('Presented in high appreciation for active participation, dedicated sportsmanship, and outstanding contribution to institutional activities and co-curricular programs.')}
-                      className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 hover:border-amber-400 dark:hover:border-amber-600 text-left transition-all group"
+                      className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 hover:border-blue-400 dark:hover:border-blue-600 text-left transition-all group"
                     >
                       <div className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 group-hover:underline">Sports & Co-Curricular</div>
                       <div className="text-[9px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">In high appreciation for active participation, sportsmanship, and outstanding contribution...</div>
@@ -6208,12 +7188,12 @@ function AddSetupWizardContent() {
                     Check or uncheck individual student credentials or layout elements to show or hide them dynamically on the printable certificate preview. Signatures are managed below.
                   </p>
                 </div>
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-amber-600 hover:text-amber-700 select-none shrink-0 bg-amber-50 dark:bg-amber-950/40 px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800/60 shadow-2xs">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-blue-600 hover:text-blue-700 select-none shrink-0 bg-blue-50 dark:bg-blue-950/40 px-3 py-1.5 rounded-xl border border-blue-200 dark:border-blue-800/60 shadow-2xs">
                   <input
                     type="checkbox"
                     checked={isCertAllSelected}
                     onChange={e => handleCertSelectAllChange(e.target.checked)}
-                    className="w-4 h-4 text-amber-600 border-slate-300 focus:ring-amber-500 rounded"
+                    className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500 rounded"
                   />
                   <span>Master Select All ({CERTIFICATE_DISPLAY_FIELDS_KEYS.length} Fields)</span>
                 </label>
@@ -6280,17 +7260,17 @@ function AddSetupWizardContent() {
               </div>
 
               {/* Category 2: Institutional & General Layout Fields */}
-              <div className="p-4 rounded-2xl border border-amber-200/80 dark:border-amber-800/60 bg-amber-50/20 dark:bg-amber-950/10 space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-amber-200/50 dark:border-amber-800/40">
+              <div className="p-4 rounded-2xl border border-blue-200/80 dark:border-blue-800/60 bg-blue-50/20 dark:bg-blue-950/10 space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-blue-200/50 dark:border-blue-800/40">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg bg-amber-600 text-white flex items-center justify-center shadow-xs">
+                    <div className="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
                       <School className="w-3.5 h-3.5" />
                     </div>
                     <div>
                       <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
                         Institutional & General Layout
                       </span>
-                      <span className="ml-2 text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950 px-2 py-0.5 rounded-full">
+                      <span className="ml-2 text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 px-2 py-0.5 rounded-full">
                         {CERTIFICATE_DISPLAY_FIELDS_KEYS.filter(f => f.category === 'institutional').length} Layout Items
                       </span>
                     </div>
@@ -6299,7 +7279,7 @@ function AddSetupWizardContent() {
                     <button
                       type="button"
                       onClick={() => handleCertCategoryToggle('institutional', true)}
-                      className="text-amber-600 hover:underline"
+                      className="text-blue-600 hover:underline"
                     >
                       Show All
                     </button>
@@ -6322,7 +7302,7 @@ function AddSetupWizardContent() {
                         key={f.key} 
                         className={`flex items-center gap-2.5 p-2 rounded-xl border transition-all cursor-pointer select-none ${
                           isChecked 
-                            ? 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 text-amber-950 dark:text-amber-200 shadow-2xs font-bold' 
+                            ? 'bg-blue-50/80 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700 text-blue-950 dark:text-blue-200 shadow-2xs font-bold' 
                             : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 font-medium hover:border-slate-300 opacity-80'
                         }`}
                       >
@@ -6330,7 +7310,7 @@ function AddSetupWizardContent() {
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => handleCertCheckboxChange(f.key)}
-                          className="w-3.5 h-3.5 text-amber-600 border-slate-300 focus:ring-amber-500 rounded"
+                          className="w-3.5 h-3.5 text-blue-600 border-slate-300 focus:ring-blue-500 rounded"
                         />
                         <span className="truncate">{f.label}</span>
                       </label>
@@ -6342,392 +7322,640 @@ function AddSetupWizardContent() {
 
             {/* AUTHORITY SIGNATURES (CHOOSE ANY 4) & OFFICIAL SEAL SETUP CARDS */}
             {(() => {
-              const certActiveSignKeys = ['principalSign', 'teacherSign', 'controllerSign', 'secondarySign', 'parentSign', 'studentSign'].filter(k => !!certDisplayFields[k])
-              const getCertSignSlot = (key: string) => {
-                const idx = certActiveSignKeys.indexOf(key)
-                return idx >= 0 ? idx + 1 : null
+              const certActiveSignKeys = certSignatureOrder.filter(k => !!certDisplayFields[k])
+
+              const labelMap: Record<string, string> = {
+                principalSign: 'Principal Sign',
+                teacherSign: 'Class Teacher',
+                controllerSign: 'Exam Controller',
+                secondarySign: 'Authority Signature',
+                parentSign: 'Parent / Guardian',
+                studentSign: 'Student Sign Line'
               }
 
               return (
-                <div className="border border-amber-200/80 dark:border-amber-800/60 rounded-2xl overflow-hidden bg-amber-50/30 dark:bg-slate-900/50 p-5 space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-amber-200/60 dark:border-slate-800 gap-2">
+                <div className="border border-blue-200/80 dark:border-blue-800/60 rounded-2xl overflow-hidden bg-blue-50/30 dark:bg-slate-900/50 p-5 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-blue-200/60 dark:border-slate-800 gap-2">
                     <div>
                       <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
-                        <Stamp className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                        <span>Authority Signatures Setup</span>
-                        <span className="text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                        <Stamp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        <span>Authority Signatures & Verification Setup</span>
+                        <span className="text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-700">
                           {certActiveSignKeys.length} / 4 Active
                         </span>
                       </h4>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Choose any 4 official signatories to print on the certificate footer with dedicated ON / OFF switches, custom names, and designations.
+                        Enable or disable required signatories and arrange their left-to-right printing sequence using the Move buttons.
                       </p>
+                    </div>
+
+                    {/* Sequence Presets */}
+                    <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mr-1">Order Presets:</span>
+                      <button
+                        type="button"
+                        onClick={() => setCertSignatureOrder(['teacherSign', 'controllerSign', 'secondarySign', 'principalSign', 'parentSign', 'studentSign'])}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-500 hover:text-blue-600 transition-all shadow-2xs"
+                      >
+                        Teacher First
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCertSignatureOrder(['principalSign', 'teacherSign', 'controllerSign', 'secondarySign', 'parentSign', 'studentSign'])}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-500 hover:text-blue-600 transition-all shadow-2xs"
+                      >
+                        Principal First
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCertSignatureOrder(['teacherSign', 'controllerSign', 'secondarySign', 'studentSign', 'parentSign', 'principalSign'])}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-blue-500 hover:text-blue-600 transition-all shadow-2xs"
+                      >
+                        Principal Last
+                      </button>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
-                    {/* 1. Principal / Director Sign */}
-                    <div className={`p-4 rounded-2xl border transition-all ${
-                      certDisplayFields.principalSign 
-                        ? 'bg-white dark:bg-slate-800 border-amber-300 dark:border-amber-700/80 shadow-xs ring-1 ring-amber-500/15' 
-                        : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
-                    }`}>
-                      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
-                        <div className="flex items-center gap-2">
-                          {getCertSignSlot('principalSign') && (
-                            <span className="w-5 h-5 rounded-full bg-amber-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
-                              {getCertSignSlot('principalSign')}
-                            </span>
-                          )}
-                          <span className="text-xs font-black text-slate-800 dark:text-slate-100">Principal Sign</span>
-                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                            certDisplayFields.principalSign 
-                              ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300' 
-                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                  {/* Live Sequence Ribbon Indicator */}
+                  <div className="flex items-center gap-1.5 p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 overflow-x-auto">
+                    <span className="text-[10px] font-black uppercase text-slate-400 px-2 shrink-0">Print Sequence:</span>
+                    {certSignatureOrder.map((key, idx) => {
+                      const isEnabled = !!certDisplayFields[key]
+                      return (
+                        <React.Fragment key={key}>
+                          <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10.5px] font-bold shrink-0 transition-all border ${
+                            isEnabled 
+                              ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300' 
+                              : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400 line-through'
                           }`}>
-                            {certDisplayFields.principalSign ? 'ON' : 'OFF'}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleCertCheckboxChange('principalSign')}
-                          className={`w-10 h-5.5 rounded-full relative transition-colors ${certDisplayFields.principalSign ? 'bg-amber-600' : 'bg-slate-300 dark:bg-slate-700'}`}
-                        >
-                          <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${certDisplayFields.principalSign ? 'left-5' : 'left-0.5'}`} />
-                        </button>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200/80 dark:border-amber-800/80 text-[10.5px] text-amber-800 dark:text-amber-200 mb-2.5">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                        <div className="truncate">
-                          <span className="text-slate-500 dark:text-slate-400 text-[10px] block">Auto-fetched from Institute:</span>
-                          <span className="font-extrabold capitalize text-amber-700 dark:text-amber-300">{principalName || 'Principal'}</span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signatory Name</label>
-                            {principalName && (
-                              <button
-                                type="button"
-                                onClick={() => setCertPrincipalName(principalName)}
-                                className="text-[9px] font-bold text-amber-600 hover:text-amber-700 underline"
-                              >
-                                + Use Institute
-                              </button>
-                            )}
+                            <span className="w-4 h-4 rounded-full bg-white dark:bg-slate-800 text-[9px] font-black flex items-center justify-center shadow-2xs border border-slate-200 dark:border-slate-700">
+                              {idx + 1}
+                            </span>
+                            <span>{labelMap[key] || key}</span>
                           </div>
-                          <input
-                            type="text"
-                            value={certPrincipalName}
-                            onChange={e => setCertPrincipalName(e.target.value)}
-                            disabled={!certDisplayFields.principalSign}
-                            placeholder={principalName || 'Dr. S. K. Sharma'}
-                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-amber-500 transition-all shadow-2xs"
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label / Title</label>
-                          <input
-                            type="text"
-                            value={certPrincipalSignLabel}
-                            onChange={e => setCertPrincipalSignLabel(e.target.value)}
-                            disabled={!certDisplayFields.principalSign}
-                            placeholder="Principal & Director"
-                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-amber-500 transition-all shadow-2xs"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 2. Class Teacher Sign */}
-                    <div className={`p-4 rounded-2xl border transition-all ${
-                      certDisplayFields.teacherSign 
-                        ? 'bg-white dark:bg-slate-800 border-amber-300 dark:border-amber-700/80 shadow-xs ring-1 ring-amber-500/15' 
-                        : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
-                    }`}>
-                      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
-                        <div className="flex items-center gap-2">
-                          {getCertSignSlot('teacherSign') && (
-                            <span className="w-5 h-5 rounded-full bg-amber-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
-                              {getCertSignSlot('teacherSign')}
-                            </span>
+                          {idx < certSignatureOrder.length - 1 && (
+                            <span className="text-slate-300 dark:text-slate-600 text-xs shrink-0">→</span>
                           )}
-                          <span className="text-xs font-black text-slate-800 dark:text-slate-100">Class Teacher</span>
-                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                            certDisplayFields.teacherSign 
-                              ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300' 
-                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
-                          }`}>
-                            {certDisplayFields.teacherSign ? 'ON' : 'OFF'}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleCertCheckboxChange('teacherSign')}
-                          className={`w-10 h-5.5 rounded-full relative transition-colors ${certDisplayFields.teacherSign ? 'bg-amber-600' : 'bg-slate-300 dark:bg-slate-700'}`}
-                        >
-                          <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${certDisplayFields.teacherSign ? 'left-5' : 'left-0.5'}`} />
-                        </button>
-                      </div>
+                        </React.Fragment>
+                      )
+                    })}
+                  </div>
 
-                      <div className="space-y-2">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Teacher's Name</label>
-                          <input
-                            type="text"
-                            value={certTeacherSignName}
-                            onChange={e => setCertTeacherSignName(e.target.value)}
-                            disabled={!certDisplayFields.teacherSign}
-                            placeholder="Mrs. Kavita Verma"
-                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-amber-500 transition-all shadow-2xs"
-                          />
-                        </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
+                    {certSignatureOrder.map((key, idx) => {
+                      const isFirst = idx === 0
+                      const isLast = idx === certSignatureOrder.length - 1
 
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
-                          <input
-                            type="text"
-                            value={certTeacherSignLabel}
-                            onChange={e => setCertTeacherSignLabel(e.target.value)}
-                            disabled={!certDisplayFields.teacherSign}
-                            placeholder="Class Teacher's Sign"
-                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-amber-500 transition-all shadow-2xs"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                      if (key === 'principalSign') {
+                        return (
+                          <div 
+                            key={key} 
+                            className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
+                              certDisplayFields.principalSign 
+                                ? 'bg-white dark:bg-slate-800 border-blue-300 dark:border-blue-700/80 shadow-xs ring-1 ring-blue-500/15' 
+                                : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+                                    {idx + 1}
+                                  </span>
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">Principal Sign</span>
+                                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                    certDisplayFields.principalSign 
+                                      ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
+                                      : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                                  }`}>
+                                    {certDisplayFields.principalSign ? 'ON' : 'OFF'}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCertCheckboxChange('principalSign')}
+                                  className={`w-10 h-5.5 rounded-full relative transition-colors ${certDisplayFields.principalSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                >
+                                  <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${certDisplayFields.principalSign ? 'left-5' : 'left-0.5'}`} />
+                                </button>
+                              </div>
 
-                    {/* 3. Exam Controller Sign */}
-                    <div className={`p-4 rounded-2xl border transition-all ${
-                      certDisplayFields.controllerSign 
-                        ? 'bg-white dark:bg-slate-800 border-amber-300 dark:border-amber-700/80 shadow-xs ring-1 ring-amber-500/15' 
-                        : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
-                    }`}>
-                      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
-                        <div className="flex items-center gap-2">
-                          {getCertSignSlot('controllerSign') && (
-                            <span className="w-5 h-5 rounded-full bg-amber-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
-                              {getCertSignSlot('controllerSign')}
-                            </span>
-                          )}
-                          <span className="text-xs font-black text-slate-800 dark:text-slate-100">Exam Controller</span>
-                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                            certDisplayFields.controllerSign 
-                              ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300' 
-                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
-                          }`}>
-                            {certDisplayFields.controllerSign ? 'ON' : 'OFF'}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleCertCheckboxChange('controllerSign')}
-                          className={`w-10 h-5.5 rounded-full relative transition-colors ${certDisplayFields.controllerSign ? 'bg-amber-600' : 'bg-slate-300 dark:bg-slate-700'}`}
-                        >
-                          <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${certDisplayFields.controllerSign ? 'left-5' : 'left-0.5'}`} />
-                        </button>
-                      </div>
+                              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/80 text-[10.5px] text-blue-800 dark:text-blue-200 mb-2.5">
+                                <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                <div className="truncate">
+                                  <span className="text-slate-500 dark:text-slate-400 text-[10px] block">Auto-fetched from Institute:</span>
+                                  <span className="font-extrabold capitalize text-blue-700 dark:text-blue-300">{principalName || 'Principal'}</span>
+                                </div>
+                              </div>
 
-                      <div className="space-y-2">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Controller Name</label>
-                          <input
-                            type="text"
-                            value={certControllerSignName}
-                            onChange={e => setCertControllerSignName(e.target.value)}
-                            disabled={!certDisplayFields.controllerSign}
-                            placeholder="Mr. R. K. Saxena"
-                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-amber-500 transition-all shadow-2xs"
-                          />
-                        </div>
+                              <div className="space-y-2">
+                                <div className="space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signatory Name</label>
+                                    {principalName && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setCertPrincipalName(principalName)}
+                                        className="text-[9px] font-bold text-blue-600 hover:text-blue-700 underline"
+                                      >
+                                        + Use Institute
+                                      </button>
+                                    )}
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={certPrincipalName}
+                                    onChange={e => setCertPrincipalName(e.target.value)}
+                                    disabled={!certDisplayFields.principalSign}
+                                    placeholder={principalName || 'Dr. S. K. Sharma'}
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                                  />
+                                </div>
 
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
-                          <input
-                            type="text"
-                            value={certControllerSignLabel}
-                            onChange={e => setCertControllerSignLabel(e.target.value)}
-                            disabled={!certDisplayFields.controllerSign}
-                            placeholder="Exam Controller"
-                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-amber-500 transition-all shadow-2xs"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label / Title</label>
+                                  <input
+                                    type="text"
+                                    value={certPrincipalSignLabel}
+                                    onChange={e => setCertPrincipalSignLabel(e.target.value)}
+                                    disabled={!certDisplayFields.principalSign}
+                                    placeholder="Principal & Director"
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                                  />
+                                </div>
+                              </div>
+                            </div>
 
-                    {/* 4. Coordinator / In-Charge Sign */}
-                    <div className={`p-4 rounded-2xl border transition-all ${
-                      certDisplayFields.secondarySign 
-                        ? 'bg-white dark:bg-slate-800 border-amber-200 dark:border-amber-800/80 shadow-xs ring-1 ring-amber-500/10' 
-                        : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
-                    }`}>
-                      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
-                        <div className="flex items-center gap-2">
-                          {getCertSignSlot('secondarySign') && (
-                            <span className="w-5 h-5 rounded-full bg-amber-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
-                              {getCertSignSlot('secondarySign')}
-                            </span>
-                          )}
-                          <span className="text-xs font-black text-slate-800 dark:text-slate-100">Coordinator / In-Charge</span>
-                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                            certDisplayFields.secondarySign 
-                              ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300' 
-                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
-                          }`}>
-                            {certDisplayFields.secondarySign ? 'ON' : 'OFF'}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleCertCheckboxChange('secondarySign')}
-                          className={`w-10 h-5.5 rounded-full relative transition-colors ${certDisplayFields.secondarySign ? 'bg-amber-600' : 'bg-slate-300 dark:bg-slate-700'}`}
-                        >
-                          <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${certDisplayFields.secondarySign ? 'left-5' : 'left-0.5'}`} />
-                        </button>
-                      </div>
+                            {/* Reorder Buttons */}
+                            <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-700/60 text-[10px] font-bold">
+                              <span className="text-slate-400">Position #{idx + 1}</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  disabled={isFirst}
+                                  onClick={() => moveCertSignature(idx, -1)}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                                  title="Move Left"
+                                >
+                                  <MoveLeft className="w-3 h-3" /> Move Left
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isLast}
+                                  onClick={() => moveCertSignature(idx, 1)}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                                  title="Move Right"
+                                >
+                                  Move Right <MoveRight className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      }
 
-                      <div className="space-y-2">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signatory Name</label>
-                          <input
-                            type="text"
-                            value={certSecondarySignName}
-                            onChange={e => setCertSecondarySignName(e.target.value)}
-                            disabled={!certDisplayFields.secondarySign}
-                            placeholder="Authorized Signatory"
-                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-amber-500 transition-all shadow-2xs"
-                          />
-                        </div>
+                      if (key === 'teacherSign') {
+                        return (
+                          <div 
+                            key={key} 
+                            className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
+                              certDisplayFields.teacherSign 
+                                ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
+                                : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+                                    {idx + 1}
+                                  </span>
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">Class Teacher</span>
+                                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                    certDisplayFields.teacherSign 
+                                      ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
+                                      : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                                  }`}>
+                                    {certDisplayFields.teacherSign ? 'ON' : 'OFF'}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCertCheckboxChange('teacherSign')}
+                                  className={`w-10 h-5.5 rounded-full relative transition-colors ${certDisplayFields.teacherSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                >
+                                  <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${certDisplayFields.teacherSign ? 'left-5' : 'left-0.5'}`} />
+                                </button>
+                              </div>
 
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signatory Title / Role</label>
-                          <input
-                            type="text"
-                            value={certSecondarySignLabel}
-                            onChange={e => setCertSecondarySignLabel(e.target.value)}
-                            disabled={!certDisplayFields.secondarySign}
-                            placeholder="Coordinator / In-Charge"
-                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-amber-500 transition-all shadow-2xs"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                              <div className="space-y-2">
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Teacher's Name</label>
+                                  <input
+                                    type="text"
+                                    value={certTeacherSignName}
+                                    onChange={e => setCertTeacherSignName(e.target.value)}
+                                    disabled={!certDisplayFields.teacherSign}
+                                    placeholder="Mrs. Kavita Verma"
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                                  />
+                                </div>
 
-                    {/* 5. Parent / Guardian Sign */}
-                    <div className={`p-4 rounded-2xl border transition-all ${
-                      certDisplayFields.parentSign 
-                        ? 'bg-white dark:bg-slate-800 border-amber-200 dark:border-amber-800/80 shadow-xs ring-1 ring-amber-500/10' 
-                        : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
-                    }`}>
-                      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
-                        <div className="flex items-center gap-2">
-                          {getCertSignSlot('parentSign') && (
-                            <span className="w-5 h-5 rounded-full bg-amber-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
-                              {getCertSignSlot('parentSign')}
-                            </span>
-                          )}
-                          <span className="text-xs font-black text-slate-800 dark:text-slate-100">Parent / Guardian</span>
-                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                            certDisplayFields.parentSign 
-                              ? 'bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300' 
-                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
-                          }`}>
-                            {certDisplayFields.parentSign ? 'ON' : 'OFF'}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleCertCheckboxChange('parentSign')}
-                          className={`w-10 h-5.5 rounded-full relative transition-colors ${certDisplayFields.parentSign ? 'bg-amber-600' : 'bg-slate-300 dark:bg-slate-700'}`}
-                        >
-                          <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${certDisplayFields.parentSign ? 'left-5' : 'left-0.5'}`} />
-                        </button>
-                      </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                                  <input
+                                    type="text"
+                                    value={certTeacherSignLabel}
+                                    onChange={e => setCertTeacherSignLabel(e.target.value)}
+                                    disabled={!certDisplayFields.teacherSign}
+                                    placeholder="Class Teacher's Sign"
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                                  />
+                                </div>
+                              </div>
+                            </div>
 
-                      <div className="space-y-2">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signatory Name / Label</label>
-                          <input
-                            type="text"
-                            value={certParentSignName}
-                            onChange={e => setCertParentSignName(e.target.value)}
-                            disabled={!certDisplayFields.parentSign}
-                            placeholder="Parent / Guardian"
-                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-amber-500 transition-all shadow-2xs"
-                          />
-                        </div>
+                            {/* Reorder Buttons */}
+                            <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-700/60 text-[10px] font-bold">
+                              <span className="text-slate-400">Position #{idx + 1}</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  disabled={isFirst}
+                                  onClick={() => moveCertSignature(idx, -1)}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                                  title="Move Left"
+                                >
+                                  <MoveLeft className="w-3 h-3" /> Move Left
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isLast}
+                                  onClick={() => moveCertSignature(idx, 1)}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                                  title="Move Right"
+                                >
+                                  Move Right <MoveRight className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      }
 
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Title</label>
-                          <input
-                            type="text"
-                            value={certParentSignLabel}
-                            onChange={e => setCertParentSignLabel(e.target.value)}
-                            disabled={!certDisplayFields.parentSign}
-                            placeholder="Parent's Signature"
-                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-amber-500 transition-all shadow-2xs"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                      if (key === 'controllerSign') {
+                        return (
+                          <div 
+                            key={key} 
+                            className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
+                              certDisplayFields.controllerSign 
+                                ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
+                                : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+                                    {idx + 1}
+                                  </span>
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">Exam Controller</span>
+                                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                    certDisplayFields.controllerSign 
+                                      ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
+                                      : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                                  }`}>
+                                    {certDisplayFields.controllerSign ? 'ON' : 'OFF'}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCertCheckboxChange('controllerSign')}
+                                  className={`w-10 h-5.5 rounded-full relative transition-colors ${certDisplayFields.controllerSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                >
+                                  <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${certDisplayFields.controllerSign ? 'left-5' : 'left-0.5'}`} />
+                                </button>
+                              </div>
 
-                    {/* 6. Student Signature Line */}
-                    <div className={`p-4 rounded-2xl border transition-all ${
-                      certDisplayFields.studentSign 
-                        ? 'bg-white dark:bg-slate-800 border-amber-200 dark:border-amber-800/80 shadow-xs ring-1 ring-amber-500/10' 
-                        : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
-                    }`}>
-                      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
-                        <div className="flex items-center gap-2">
-                          {getCertSignSlot('studentSign') && (
-                            <span className="w-5 h-5 rounded-full bg-amber-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
-                              {getCertSignSlot('studentSign')}
-                            </span>
-                          )}
-                          <span className="text-xs font-black text-slate-800 dark:text-slate-100">Student Sign Line</span>
-                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
-                            certDisplayFields.studentSign 
-                              ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
-                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
-                          }`}>
-                            {certDisplayFields.studentSign ? 'ON' : 'OFF'}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleCertCheckboxChange('studentSign')}
-                          className={`w-10 h-5.5 rounded-full relative transition-colors ${certDisplayFields.studentSign ? 'bg-amber-600' : 'bg-slate-300 dark:bg-slate-700'}`}
-                        >
-                          <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${certDisplayFields.studentSign ? 'left-5' : 'left-0.5'}`} />
-                        </button>
-                      </div>
+                              <div className="space-y-2">
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Controller Name</label>
+                                  <input
+                                    type="text"
+                                    value={certControllerSignName}
+                                    onChange={e => setCertControllerSignName(e.target.value)}
+                                    disabled={!certDisplayFields.controllerSign}
+                                    placeholder="Mr. R. K. Saxena"
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                                  />
+                                </div>
 
-                      <div className="space-y-2">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Line Label</label>
-                          <input
-                            type="text"
-                            value={certStudentSignLabel}
-                            onChange={e => setCertStudentSignLabel(e.target.value)}
-                            disabled={!certDisplayFields.studentSign}
-                            placeholder="Student's Signature"
-                            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-amber-500 transition-all shadow-2xs"
-                          />
-                        </div>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 italic">
-                          Provides candidate signature verification line on the certificate footer.
-                        </p>
-                      </div>
-                    </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                                  <input
+                                    type="text"
+                                    value={certControllerSignLabel}
+                                    onChange={e => setCertControllerSignLabel(e.target.value)}
+                                    disabled={!certDisplayFields.controllerSign}
+                                    placeholder="Exam Controller"
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                                  />
+                                </div>
+                              </div>
+                            </div>
 
+                            {/* Reorder Buttons */}
+                            <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-700/60 text-[10px] font-bold">
+                              <span className="text-slate-400">Position #{idx + 1}</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  disabled={isFirst}
+                                  onClick={() => moveCertSignature(idx, -1)}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                                  title="Move Left"
+                                >
+                                  <MoveLeft className="w-3 h-3" /> Move Left
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isLast}
+                                  onClick={() => moveCertSignature(idx, 1)}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                                  title="Move Right"
+                                >
+                                  Move Right <MoveRight className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      if (key === 'secondarySign') {
+                        return (
+                          <div 
+                            key={key} 
+                            className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
+                              certDisplayFields.secondarySign 
+                                ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
+                                : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+                                    {idx + 1}
+                                  </span>
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">Authority Signature</span>
+                                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                    certDisplayFields.secondarySign 
+                                      ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
+                                      : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                                  }`}>
+                                    {certDisplayFields.secondarySign ? 'ON' : 'OFF'}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCertCheckboxChange('secondarySign')}
+                                  className={`w-10 h-5.5 rounded-full relative transition-colors ${certDisplayFields.secondarySign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                >
+                                  <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${certDisplayFields.secondarySign ? 'left-5' : 'left-0.5'}`} />
+                                </button>
+                              </div>
+
+                              <div className="space-y-2">
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signatory Name</label>
+                                  <input
+                                    type="text"
+                                    value={certSecondarySignName}
+                                    onChange={e => setCertSecondarySignName(e.target.value)}
+                                    disabled={!certDisplayFields.secondarySign}
+                                    placeholder="Authorized Signatory"
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                                  />
+                                </div>
+
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signatory Title / Role</label>
+                                  <input
+                                    type="text"
+                                    value={certSecondarySignLabel}
+                                    onChange={e => setCertSecondarySignLabel(e.target.value)}
+                                    disabled={!certDisplayFields.secondarySign}
+                                    placeholder="Authority Signature"
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Reorder Buttons */}
+                            <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-700/60 text-[10px] font-bold">
+                              <span className="text-slate-400">Position #{idx + 1}</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  disabled={isFirst}
+                                  onClick={() => moveCertSignature(idx, -1)}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                                  title="Move Left"
+                                >
+                                  <MoveLeft className="w-3 h-3" /> Move Left
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isLast}
+                                  onClick={() => moveCertSignature(idx, 1)}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                                  title="Move Right"
+                                >
+                                  Move Right <MoveRight className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      if (key === 'parentSign') {
+                        return (
+                          <div 
+                            key={key} 
+                            className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
+                              certDisplayFields.parentSign 
+                                ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
+                                : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+                                    {idx + 1}
+                                  </span>
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">Parent / Guardian</span>
+                                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                    certDisplayFields.parentSign 
+                                      ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
+                                      : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                                  }`}>
+                                    {certDisplayFields.parentSign ? 'ON' : 'OFF'}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCertCheckboxChange('parentSign')}
+                                  className={`w-10 h-5.5 rounded-full relative transition-colors ${certDisplayFields.parentSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                >
+                                  <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${certDisplayFields.parentSign ? 'left-5' : 'left-0.5'}`} />
+                                </button>
+                              </div>
+
+                              <div className="space-y-2">
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signatory Name / Label</label>
+                                  <input
+                                    type="text"
+                                    value={certParentSignName}
+                                    onChange={e => setCertParentSignName(e.target.value)}
+                                    disabled={!certDisplayFields.parentSign}
+                                    placeholder="Parent / Guardian"
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                                  />
+                                </div>
+
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Title</label>
+                                  <input
+                                    type="text"
+                                    value={certParentSignLabel}
+                                    onChange={e => setCertParentSignLabel(e.target.value)}
+                                    disabled={!certDisplayFields.parentSign}
+                                    placeholder="Parent's Signature"
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Reorder Buttons */}
+                            <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-700/60 text-[10px] font-bold">
+                              <span className="text-slate-400">Position #{idx + 1}</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  disabled={isFirst}
+                                  onClick={() => moveCertSignature(idx, -1)}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                                  title="Move Left"
+                                >
+                                  <MoveLeft className="w-3 h-3" /> Move Left
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isLast}
+                                  onClick={() => moveCertSignature(idx, 1)}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                                  title="Move Right"
+                                >
+                                  Move Right <MoveRight className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      if (key === 'studentSign') {
+                        return (
+                          <div 
+                            key={key} 
+                            className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
+                              certDisplayFields.studentSign 
+                                ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
+                                : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+                                    {idx + 1}
+                                  </span>
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">Student Sign Line</span>
+                                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                    certDisplayFields.studentSign 
+                                      ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
+                                      : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                                  }`}>
+                                    {certDisplayFields.studentSign ? 'ON' : 'OFF'}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCertCheckboxChange('studentSign')}
+                                  className={`w-10 h-5.5 rounded-full relative transition-colors ${certDisplayFields.studentSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                >
+                                  <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${certDisplayFields.studentSign ? 'left-5' : 'left-0.5'}`} />
+                                </button>
+                              </div>
+
+                              <div className="space-y-2">
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Line Label</label>
+                                  <input
+                                    type="text"
+                                    value={certStudentSignLabel}
+                                    onChange={e => setCertStudentSignLabel(e.target.value)}
+                                    disabled={!certDisplayFields.studentSign}
+                                    placeholder="Student's Signature"
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                                  />
+                                </div>
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 italic">
+                                  Provides candidate signature verification line on the certificate footer.
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Reorder Buttons */}
+                            <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-700/60 text-[10px] font-bold">
+                              <span className="text-slate-400">Position #{idx + 1}</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  disabled={isFirst}
+                                  onClick={() => moveCertSignature(idx, -1)}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                                  title="Move Left"
+                                >
+                                  <MoveLeft className="w-3 h-3" /> Move Left
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isLast}
+                                  onClick={() => moveCertSignature(idx, 1)}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                                  title="Move Right"
+                                >
+                                  Move Right <MoveRight className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      return null
+                    })}
                 {/* 7. Official Gold Seal / Crest */}
                 <div className={`p-4 rounded-2xl border transition-all ${
                   certDisplayFields.officialSeal 
-                    ? 'bg-white dark:bg-slate-800 border-amber-200 dark:border-amber-800/80 shadow-xs ring-1 ring-amber-500/10' 
+                    ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
                     : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
                 }`}>
                   <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
@@ -6735,7 +7963,7 @@ function AddSetupWizardContent() {
                       <span className="text-xs font-black text-slate-800 dark:text-slate-100">Official Seal</span>
                       <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                         certDisplayFields.officialSeal 
-                          ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300' 
+                          ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
                           : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
                       }`}>
                         {certDisplayFields.officialSeal ? 'ON' : 'OFF'}
@@ -6744,7 +7972,7 @@ function AddSetupWizardContent() {
                     <button
                       type="button"
                       onClick={() => handleCertCheckboxChange('officialSeal')}
-                      className={`w-10 h-5.5 rounded-full relative transition-colors ${certDisplayFields.officialSeal ? 'bg-amber-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                      className={`w-10 h-5.5 rounded-full relative transition-colors ${certDisplayFields.officialSeal ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
                     >
                       <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${certDisplayFields.officialSeal ? 'left-5' : 'left-0.5'}`} />
                     </button>
@@ -6759,11 +7987,11 @@ function AddSetupWizardContent() {
                         onChange={e => setCertSealLabel(e.target.value)}
                         disabled={!certDisplayFields.officialSeal}
                         placeholder="ACADEMIC EXCELLENCE"
-                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-amber-500 transition-all shadow-2xs uppercase"
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs uppercase"
                       />
                     </div>
-                    <div className="p-2 rounded-xl bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200/50 dark:border-amber-800/40 text-[10px] text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-                      <Award className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                    <div className="p-2 rounded-xl bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200/50 dark:border-blue-800/40 text-[10px] text-blue-800 dark:text-blue-300 flex items-center gap-1.5">
+                      <Award className="w-3.5 h-3.5 shrink-0 text-blue-600" />
                       <span>Vector 300 DPI Institutional Crest with themed ribbon</span>
                     </div>
                   </div>
@@ -6772,7 +8000,7 @@ function AddSetupWizardContent() {
                 {/* 8. Date of Issue */}
                 <div className={`p-4 rounded-2xl border transition-all ${
                   certDisplayFields.dateOfIssue 
-                    ? 'bg-white dark:bg-slate-800 border-amber-200 dark:border-amber-800/80 shadow-xs ring-1 ring-amber-500/10' 
+                    ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
                     : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
                 }`}>
                   <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
@@ -6780,7 +8008,7 @@ function AddSetupWizardContent() {
                       <span className="text-xs font-black text-slate-800 dark:text-slate-100">Date of Issue</span>
                       <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                         certDisplayFields.dateOfIssue 
-                          ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300' 
+                          ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
                           : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
                       }`}>
                         {certDisplayFields.dateOfIssue ? 'ON' : 'OFF'}
@@ -6789,7 +8017,7 @@ function AddSetupWizardContent() {
                     <button
                       type="button"
                       onClick={() => handleCertCheckboxChange('dateOfIssue')}
-                      className={`w-10 h-5.5 rounded-full relative transition-colors ${certDisplayFields.dateOfIssue ? 'bg-amber-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                      className={`w-10 h-5.5 rounded-full relative transition-colors ${certDisplayFields.dateOfIssue ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
                     >
                       <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${certDisplayFields.dateOfIssue ? 'left-5' : 'left-0.5'}`} />
                     </button>
@@ -6804,7 +8032,7 @@ function AddSetupWizardContent() {
                         onChange={e => setCertDateLabel(e.target.value)}
                         disabled={!certDisplayFields.dateOfIssue}
                         placeholder="Date of Issue"
-                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-amber-500 transition-all shadow-2xs"
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
                       />
                     </div>
                     <div className="space-y-1">
@@ -6815,7 +8043,7 @@ function AddSetupWizardContent() {
                         onChange={e => setCertDateOfIssue(e.target.value)}
                         disabled={!certDisplayFields.dateOfIssue}
                         placeholder="e.g. 15 October 2026"
-                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-amber-500 transition-all shadow-2xs"
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
                       />
                     </div>
                   </div>
@@ -6824,531 +8052,6 @@ function AddSetupWizardContent() {
             </div>
           )
         })()}
-
-            {/* Template Selector Grid: 3 Certificate Templates */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-                    Select Certificate Template Style
-                  </h3>
-                  <p className="text-[11px] text-slate-400">
-                    Choose from 3 official high-definition landscape academic award certificates with crests & QR validation
-                  </p>
-                </div>
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                  3 Templates Available
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* 1. Certificate Design 1 */}
-                {(() => {
-                  const isSelected = certTemplate === 'Certificate Design 1'
-                  return (
-                    <div 
-                      onClick={() => setCertTemplate('Certificate Design 1')}
-                      className={`cursor-pointer rounded-2xl border p-3 sm:p-4 flex flex-col justify-between gap-2.5 transition-all relative ${
-                        isSelected 
-                          ? 'border-2 bg-amber-50/20 ring-2 ring-amber-500/20 shadow-md' 
-                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                      }`}
-                      style={isSelected ? { borderColor: certThemeColor } : {}}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-100 text-blue-900 border border-blue-200">
-                          Geometric
-                        </span>
-                        {isSelected && (
-                          <div className="flex items-center gap-1">
-                            <span className="text-[8.5px] font-black text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950 px-1.5 py-0.5 rounded-full">
-                              Active
-                            </span>
-                            <CheckCircle2 className="w-4 h-4 text-amber-600" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Small Live Preview */}
-                      <CertificateMiniPreview
-                        template="Certificate Design 1"
-                        themeColor={certThemeColor}
-                        schoolName={schoolName || 'COSMOPOLITAN INTER COLLEGE'}
-                        schoolLogo={admitSchoolLogo}
-                        showLogo={certDisplayFields.logo !== false}
-                        studentName="Aarav Sharma"
-                        isSelected={isSelected}
-                      />
-
-                      <div className="text-center my-0.5">
-                        <span className="text-xs font-black text-slate-900 dark:text-slate-100 block">Royal Blue Geometric</span>
-                        <span className="text-[10px] font-semibold text-slate-500 mt-0.5 block">Thin gold inner frame with corner accents</span>
-                      </div>
-
-                      <span className="text-[9px] text-center font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 py-1 rounded-lg">
-                        Official Seal + Geometric Border
-                      </span>
-
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handlePreviewCertificate('Certificate Design 1')
-                          }}
-                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-600 hover:text-white text-amber-700 dark:text-amber-400 font-bold text-[11px] border border-amber-200 dark:border-amber-800 hover:border-amber-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
-                        >
-                          <Eye className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 group-hover:text-white group-hover:scale-110 transition-all" />
-                          <span>Preview Full Template</span>
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })()}
-
-                {/* 2. Certificate Design 2 */}
-                {(() => {
-                  const isSelected = certTemplate === 'Certificate Design 2'
-                  return (
-                    <div 
-                      onClick={() => setCertTemplate('Certificate Design 2')}
-                      className={`cursor-pointer rounded-2xl border p-3 sm:p-4 flex flex-col justify-between gap-2.5 transition-all relative ${
-                        isSelected 
-                          ? 'border-2 bg-amber-50/20 ring-2 ring-amber-500/20 shadow-md' 
-                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                      }`}
-                      style={isSelected ? { borderColor: certThemeColor } : {}}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-100 text-amber-900 border border-amber-200">
-                          Vintage Gold
-                        </span>
-                        {isSelected && (
-                          <div className="flex items-center gap-1">
-                            <span className="text-[8.5px] font-black text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950 px-1.5 py-0.5 rounded-full">
-                              Active
-                            </span>
-                            <CheckCircle2 className="w-4 h-4 text-amber-600" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Small Live Preview */}
-                      <CertificateMiniPreview
-                        template="Certificate Design 2"
-                        themeColor={certThemeColor}
-                        schoolName={schoolName || 'COSMOPOLITAN INTER COLLEGE'}
-                        schoolLogo={admitSchoolLogo}
-                        showLogo={certDisplayFields.logo !== false}
-                        studentName="Aarav Sharma"
-                        isSelected={isSelected}
-                      />
-
-                      <div className="text-center my-0.5">
-                        <span className="text-xs font-black text-slate-900 dark:text-slate-100 block">Navy & Gold Corners</span>
-                        <span className="text-[10px] font-semibold text-slate-500 mt-0.5 block">Fleur-de-lis ornate corners & 5 stars</span>
-                      </div>
-
-                      <span className="text-[9px] text-center font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 py-1 rounded-lg">
-                        Fleur-de-lis + Merit Crest
-                      </span>
-
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handlePreviewCertificate('Certificate Design 2')
-                          }}
-                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-600 hover:text-white text-amber-700 dark:text-amber-400 font-bold text-[11px] border border-amber-200 dark:border-amber-800 hover:border-amber-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
-                        >
-                          <Eye className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 group-hover:text-white group-hover:scale-110 transition-all" />
-                          <span>Preview Full Template</span>
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })()}
-
-                {/* 3. Certificate Design 3 */}
-                {(() => {
-                  const isSelected = certTemplate === 'Certificate Design 3'
-                  return (
-                    <div 
-                      onClick={() => setCertTemplate('Certificate Design 3')}
-                      className={`cursor-pointer rounded-2xl border p-3 sm:p-4 flex flex-col justify-between gap-2.5 transition-all relative ${
-                        isSelected 
-                          ? 'border-2 bg-amber-50/20 ring-2 ring-amber-500/20 shadow-md' 
-                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                      }`}
-                      style={isSelected ? { borderColor: certThemeColor } : {}}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-900 border border-emerald-200">
-                          Luxury Emerald
-                        </span>
-                        {isSelected && (
-                          <div className="flex items-center gap-1">
-                            <span className="text-[8.5px] font-black text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950 px-1.5 py-0.5 rounded-full">
-                              Active
-                            </span>
-                            <CheckCircle2 className="w-4 h-4 text-amber-600" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Small Live Preview */}
-                      <CertificateMiniPreview
-                        template="Certificate Design 3"
-                        themeColor={certThemeColor}
-                        schoolName={schoolName || 'COSMOPOLITAN INTER COLLEGE'}
-                        schoolLogo={admitSchoolLogo}
-                        showLogo={certDisplayFields.logo !== false}
-                        studentName="Aarav Sharma"
-                        isSelected={isSelected}
-                      />
-
-                      <div className="text-center my-0.5">
-                        <span className="text-xs font-black text-slate-900 dark:text-slate-100 block">Ornate Golden Frame</span>
-                        <span className="text-[10px] font-semibold text-slate-500 mt-0.5 block">Modern luxury border with verified badge</span>
-                      </div>
-
-                      <span className="text-[9px] text-center font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 py-1 rounded-lg">
-                        Shield Verification + Gradient Ribbon
-                      </span>
-
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handlePreviewCertificate('Certificate Design 3')
-                          }}
-                          className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-amber-600 hover:text-white text-amber-700 dark:text-amber-400 font-bold text-[11px] border border-amber-200 dark:border-amber-800 hover:border-amber-600 flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
-                        >
-                          <Eye className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 group-hover:text-white group-hover:scale-110 transition-all" />
-                          <span>Preview Full Template</span>
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })()}
-              </div>
-
-              {/* Auto-Updating Live Certificate Preview at Bottom of Template Selector */}
-              <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-sm mt-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-amber-600 text-white flex items-center justify-center shadow-md shadow-amber-600/20 shrink-0">
-                      <Award className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide flex items-center gap-2">
-                          <span>Live Certificate Preview •</span>
-                          <span className="text-amber-600 dark:text-amber-400">{certTemplate}</span>
-                          <span
-                            className="px-2 py-0.5 rounded text-[8.5px] font-black uppercase text-white shadow-2xs font-mono"
-                            style={{ backgroundColor: certThemeColor }}
-                          >
-                            {certThemeColor}
-                          </span>
-                        </h4>
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                          ⚡ Auto-Updating
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        Selecting any certificate template style or color above automatically updates this live printable certificate preview in real time.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handlePreviewCertificate(certTemplate)}
-                    className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-amber-600/20 shrink-0"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>Open Full Screen / Print</span>
-                  </button>
-                </div>
-
-                {/* Quick Logo & Branding Controls Bar for Certificate */}
-                <div className="border border-amber-200/90 dark:border-amber-800/80 rounded-2xl bg-amber-50/40 dark:bg-amber-950/20 p-3 sm:p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-white dark:bg-slate-800 border border-dashed border-amber-300 dark:border-amber-700 flex items-center justify-center p-1 shrink-0 overflow-hidden shadow-2xs">
-                      {admitSchoolLogo ? (
-                        <img src={admitSchoolLogo} alt="Logo" className="w-full h-full object-contain rounded" />
-                      ) : (
-                        <SampleSchoolLogo width={34} height={34} color={certThemeColor} />
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
-                          Certificate Brand Logo
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleCertCheckboxChange('logo')}
-                          className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase transition-all shadow-2xs ${
-                            certDisplayFields.logo !== false
-                              ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
-                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700'
-                          }`}
-                        >
-                          {certDisplayFields.logo !== false ? '● Visible (ON)' : '○ Hidden (OFF)'}
-                        </button>
-                      </div>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        {admitSchoolLogo ? 'Custom brand logo active • Updates all certificate styles live' : 'Official sample emblem active • Click logo on template or button to upload'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => certLogoFileInputRef.current?.click()}
-                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white transition-all shadow-sm flex items-center gap-1.5"
-                    >
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>{admitSchoolLogo ? 'Change Logo' : 'Select / Upload Logo'}</span>
-                    </button>
-                    {admitSchoolLogo && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAdmitSchoolLogo('')
-                          toast.info('Reverted to Sample Academy Crest')
-                        }}
-                        className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 text-slate-600 dark:text-slate-300 shadow-2xs"
-                      >
-                        Use Sample
-                      </button>
-                    )}
-                    <div className="flex items-center gap-1.5 pl-2.5 border-l border-amber-200 dark:border-amber-800">
-                      <span className="text-[10.5px] font-bold text-slate-600 dark:text-slate-300">Logo Size:</span>
-                      <input
-                        type="range"
-                        min="32"
-                        max="130"
-                        step="2"
-                        value={Number(logoWidth) || 60}
-                        onChange={e => setLogoWidth(e.target.value)}
-                        className="w-16 sm:w-20 accent-amber-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                      />
-                      <span className="font-mono font-bold text-amber-600 dark:text-amber-400 text-[10.5px] bg-white dark:bg-slate-800 px-1 py-0.5 rounded border border-amber-200 dark:border-amber-800">{logoWidth}px</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Typography & Font Sizing Controls for Certificate */}
-                <div className="border border-slate-200/90 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-850 p-4 shadow-xs space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-2">
-                      <Type className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                      <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wide">
-                        Quick Typography & Font Sizing Controls
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-400 font-semibold">
-                        Customize institute name, certificate title, and subtitle font sizes in real time
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCertSchoolNameFontSize('14')
-                          setCertTitleFontSize('30')
-                          setCertSubtitleFontSize('11')
-                        }}
-                        className="text-[10px] font-bold text-amber-600 hover:text-amber-700 underline ml-2"
-                      >
-                        Reset Defaults
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {/* 1. School / Institute Name Font Size */}
-                    <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Institute Name:</span>
-                        <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-[10.5px] bg-amber-50 dark:bg-amber-950/60 px-1 rounded">{certSchoolNameFontSize}px</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          title="Make Institute Name smaller"
-                          onClick={() => setCertSchoolNameFontSize(prev => String(Math.max(10, Number(prev) - 1)))}
-                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
-                        >
-                          A-
-                        </button>
-                        <input
-                          type="range"
-                          min="10"
-                          max="28"
-                          step="1"
-                          value={Number(certSchoolNameFontSize) || 14}
-                          onChange={e => setCertSchoolNameFontSize(e.target.value)}
-                          className="w-14 sm:w-16 accent-amber-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                        />
-                        <button
-                          type="button"
-                          title="Make Institute Name bigger"
-                          onClick={() => setCertSchoolNameFontSize(prev => String(Math.min(36, Number(prev) + 1)))}
-                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
-                        >
-                          A+
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 2. Certificate Title Font Size */}
-                    <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Certificate Title:</span>
-                        <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-[10.5px] bg-amber-50 dark:bg-amber-950/60 px-1 rounded">{certTitleFontSize}px</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          title="Make Certificate Title smaller"
-                          onClick={() => setCertTitleFontSize(prev => String(Math.max(16, Number(prev) - 2)))}
-                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
-                        >
-                          A-
-                        </button>
-                        <input
-                          type="range"
-                          min="16"
-                          max="48"
-                          step="1"
-                          value={Number(certTitleFontSize) || 30}
-                          onChange={e => setCertTitleFontSize(e.target.value)}
-                          className="w-14 sm:w-16 accent-amber-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                        />
-                        <button
-                          type="button"
-                          title="Make Certificate Title bigger"
-                          onClick={() => setCertTitleFontSize(prev => String(Math.min(54, Number(prev) + 2)))}
-                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
-                        >
-                          A+
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 3. Subtitle / Tagline Font Size */}
-                    <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200/70 dark:border-slate-700">
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span className="font-bold text-slate-700 dark:text-slate-200 text-[10.5px]">Subtitle / Tagline:</span>
-                        <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-[10.5px] bg-amber-50 dark:bg-amber-950/60 px-1 rounded">{certSubtitleFontSize}px</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          title="Make Subtitle smaller"
-                          onClick={() => setCertSubtitleFontSize(prev => String(Math.max(8, Number(prev) - 1)))}
-                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
-                        >
-                          A-
-                        </button>
-                        <input
-                          type="range"
-                          min="8"
-                          max="20"
-                          step="0.5"
-                          value={Number(certSubtitleFontSize) || 11}
-                          onChange={e => setCertSubtitleFontSize(e.target.value)}
-                          className="w-14 sm:w-16 accent-amber-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                        />
-                        <button
-                          type="button"
-                          title="Make Subtitle bigger"
-                          onClick={() => setCertSubtitleFontSize(prev => String(Math.min(26, Number(prev) + 1)))}
-                          className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
-                        >
-                          A+
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Live Paper Viewport */}
-                <div className="overflow-x-auto flex justify-center py-4 bg-slate-200/60 dark:bg-slate-950/80 rounded-2xl p-4 sm:p-6 border border-slate-200/80 dark:border-slate-800/80 shadow-inner">
-                  <div className="w-full flex justify-center items-center overflow-hidden min-h-[520px]">
-                    <div 
-                      className="transition-transform duration-200 flex items-center justify-center origin-top shrink-0 scale-[0.62] sm:scale-[0.82] lg:scale-[0.92]"
-                    >
-                      <CertificatePaper
-                        template={certTemplate}
-                        themeColor={certThemeColor}
-                        schoolName={schoolName || 'COSMOPOLITAN INTER COLLEGE'}
-                        schoolLogo={admitSchoolLogo}
-                        logoWidth={Number(logoWidth) || 60}
-                        showLogo={certDisplayFields.logo !== false}
-                        schoolNameFontSize={certSchoolNameFontSize}
-                        titleFontSize={certTitleFontSize}
-                        subtitleFontSize={certSubtitleFontSize}
-                        title={certTitle}
-                        subtitle={certSubtitle}
-                        presentedTo={certPresentedTo}
-                        content={certDescription}
-                        editable={true}
-                        onUpdateField={(field, val) => {
-                          if (field === 'title') setCertTitle(val)
-                          if (field === 'subtitle') setCertSubtitle(val)
-                          if (field === 'content') setCertDescription(val)
-                          if (field === 'schoolName') setSchoolName(val)
-                          if (field === 'date') setCertDateOfIssue(val)
-                          if (field === 'triggerLogoUpload') certLogoFileInputRef.current?.click()
-                          if (field === 'schoolNameFontSize') setCertSchoolNameFontSize(String(val))
-                          if (field === 'titleFontSize') setCertTitleFontSize(String(val))
-                          if (field === 'subtitleFontSize') setCertSubtitleFontSize(String(val))
-                        }}
-                        onUpdateLabel={(key, val) => {
-                          if (key === 'presented_to') setCertPresentedTo(val)
-                          setCertCustomLabelsState(prev => ({ ...prev, [key]: val }))
-                        }}
-                        studentName="Aarav Sharma"
-                        fatherName="Rajesh Sharma"
-                        motherName="Sunita Sharma"
-                        rollNo="24"
-                        admissionNo="ADM-2025-108"
-                        className={classes[0]?.className || 'Class X'}
-                        section={classes[0]?.sections?.[0] || 'Section A'}
-                        dob="15/08/2010"
-                        gender="Male"
-                        studentPhoto=""
-                        examName={examName || 'Final Term Examination'}
-                        session={session || '2025-2026'}
-                        date={certDateOfIssue || dateOfExam || '15 October 2026'}
-                        awarder={certPrincipalSignLabel || "Principal & Director"}
-                        principalName={certPrincipalName || principalName || 'Dr. S. K. Sharma'}
-                        principalLabel={certPrincipalSignLabel || "Principal & Director"}
-                        teacherSignName={certTeacherSignName}
-                        teacherSignLabel={certTeacherSignLabel}
-                        controllerSignName={certControllerSignName}
-                        controllerSignLabel={certControllerSignLabel}
-                        secondarySignName={certSecondarySignName || 'Authorized Signatory'}
-                        secondarySignLabel={certSecondarySignLabel || 'Coordinator / In-Charge'}
-                        parentSignName={certParentSignName}
-                        parentSignLabel={certParentSignLabel}
-                        studentSignLabel={certStudentSignLabel}
-                        showSeal={certDisplayFields.officialSeal}
-                        showQr={certDisplayFields.qrCode}
-                        hiddenFields={certHiddenFields}
-                        customLabels={certCustomLabels}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
@@ -7368,7 +8071,7 @@ function AddSetupWizardContent() {
             <button 
               type="button"
               onClick={handleBack}
-              className="flex items-center gap-1.5 px-4 py-2 border border-teal-600 text-teal-600 rounded-lg text-xs font-bold hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
@@ -7380,7 +8083,7 @@ function AddSetupWizardContent() {
             <button 
               type="button"
               onClick={handleNext}
-              className="flex items-center gap-1.5 px-5 py-2 bg-teal-600 text-white rounded-lg text-xs font-bold hover:bg-teal-700 transition-colors shadow-sm"
+              className="flex items-center gap-1.5 px-5 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors shadow-sm"
             >
               Save & Next <ArrowRight className="w-4 h-4" />
             </button>
@@ -7389,7 +8092,7 @@ function AddSetupWizardContent() {
               type="button"
               onClick={handleSaveSetup}
               disabled={isSubmitting}
-              className="flex items-center gap-1.5 px-6 py-2 bg-teal-600 text-white rounded-lg text-xs font-bold hover:bg-teal-700 transition-colors shadow-sm disabled:opacity-50"
+              className="flex items-center gap-1.5 px-6 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
             >
               Save Configuration <Check className="w-4 h-4" />
             </button>
@@ -7407,17 +8110,17 @@ function AddSetupWizardContent() {
             {/* Header */}
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-850">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-sm">
+                <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm">
                   <Eye className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
                     <span>Interactive Marksheet Preview</span>
-                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 font-bold border border-purple-200 dark:border-purple-800">
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 font-bold border border-blue-200 dark:border-blue-800">
                       {previewTargetTemplate || selectedTemplate}
                     </span>
                   </h3>
-                  <div className="text-[11px] text-purple-600 font-semibold">
+                  <div className="text-[11px] text-blue-600 font-semibold">
                     {examName || 'Upcoming Examination'} • {classes[0]?.className || 'Class 10'} ({session})
                   </div>
                 </div>
@@ -7433,7 +8136,7 @@ function AddSetupWizardContent() {
                       setShowPreviewModal(false)
                       setPreviewTargetTemplate(null)
                     }}
-                    className="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+                    className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
                   >
                     <Check className="w-3.5 h-3.5" />
                     <span>Select Template</span>
@@ -7493,6 +8196,10 @@ function AddSetupWizardContent() {
                   headingFontSize={marksheetHeadingFontSize}
                   headerDetailsFontSize={marksheetHeaderDetailsFontSize}
                   dateOfIssue={marksheetDateOfIssue}
+                  qrCodeSize={marksheetQrCodeSize}
+                  signatureOrder={marksheetSignatureOrder}
+                  signatureWidth={marksheetSignatureWidth}
+                  signatureFontSize={marksheetSignatureFontSize}
                   showStudentPhoto={showStudentPhoto}
                   showRoundBorderPhoto={showRoundBorderPhoto}
                   showTestMarks={showTestMarks}
@@ -7517,7 +8224,7 @@ function AddSetupWizardContent() {
               <div className="flex items-center gap-2">
                 <span>Template: <strong className="text-slate-800 dark:text-slate-200">{previewTargetTemplate || selectedTemplate}</strong></span>
                 {(previewTargetTemplate || selectedTemplate) === selectedTemplate && (
-                  <span className="text-[10px] font-bold text-teal-600 bg-teal-50 dark:bg-teal-950/40 px-2 py-0.5 rounded-md border border-teal-200 dark:border-teal-800">
+                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800">
                     Currently Selected
                   </span>
                 )}
@@ -7532,7 +8239,7 @@ function AddSetupWizardContent() {
                       setShowPreviewModal(false)
                       setPreviewTargetTemplate(null)
                     }}
-                    className="px-3.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-1.5"
+                    className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5"
                   >
                     <Check className="w-3.5 h-3.5" />
                     Select & Close
@@ -7575,7 +8282,7 @@ function AddSetupWizardContent() {
             templateStyle: previewTargetAdmitStyle || admitTemplateStyle,
             themeColor: admitThemeColor,
             status: admitCardStatus ? 'Active' : 'Inactive',
-            instructions: admitInstructions || '1. Reporting Time: Candidates must report to the examination center by 09:30 AM IST (at least 30 minutes before scheduled time).\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.',
+            instructions: admitInstructions || '1. Reporting & Gate Closure Time: Candidates must report to the examination center by 09:30 AM IST. Gate closure time is 09:50 AM (Sharp).\n2. Bring this original Admit Card along with Institute Student ID.\n3. Electronic devices, smartwatches, and study materials are strictly prohibited in the exam hall.\n4. Maintain discipline and follow invigilator guidelines at all times.',
             showExamTimeTable: showExamTimeTableOnAdmit,
             noOfPrintPerPage: admitNoOfPrintPerPage,
             headerNameFontSize: admitHeaderNameFontSize,
@@ -7630,13 +8337,13 @@ function AddSetupWizardContent() {
             {/* Header */}
             <div className="px-7 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-850">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
+                <div className="w-9 h-9 rounded-xl bg-blue-500 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
                   <Award className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
                     <span>Certificate Live Preview</span>
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
                       {previewTargetCertTemplate || certTemplate}
                     </span>
                   </h3>
@@ -7689,6 +8396,7 @@ function AddSetupWizardContent() {
                     if (field === 'schoolNameFontSize') setCertSchoolNameFontSize(String(val))
                     if (field === 'titleFontSize') setCertTitleFontSize(String(val))
                     if (field === 'subtitleFontSize') setCertSubtitleFontSize(String(val))
+                    if (field === 'qrCodeSize') setCertQrCodeSize(String(val))
                   }}
                   onUpdateLabel={(key, val) => {
                     if (key === 'presented_to') setCertPresentedTo(val)
@@ -7715,12 +8423,17 @@ function AddSetupWizardContent() {
                   controllerSignName={certControllerSignName}
                   controllerSignLabel={certControllerSignLabel}
                   secondarySignName={certSecondarySignName || 'Authorized Signatory'}
-                  secondarySignLabel={certSecondarySignLabel || 'Coordinator / In-Charge'}
+                  secondarySignLabel={certSecondarySignLabel || 'Authority Signature'}
                   parentSignName={certParentSignName}
                   parentSignLabel={certParentSignLabel}
                   studentSignLabel={certStudentSignLabel}
                   showSeal={certDisplayFields.officialSeal}
                   showQr={certDisplayFields.qrCode}
+                  qrCodeSize={certQrCodeSize}
+                  signatureWidth={certSignatureWidth}
+                  signatureFontSize={certSignatureFontSize}
+                  signatureOrder={certSignatureOrder}
+                  sealSize={certSchoolStampWidth}
                   hiddenFields={certHiddenFields}
                   customLabels={certCustomLabels}
                 />
@@ -7742,7 +8455,7 @@ function AddSetupWizardContent() {
                       setPreviewTargetCertTemplate(null)
                       toast.success(`Selected ${previewTargetCertTemplate} as active Certificate template`)
                     }}
-                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
+                    className="px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
                   >
                     <Check className="w-3.5 h-3.5" />
                     Select & Close
@@ -7775,7 +8488,7 @@ function AddSetupWizardContent() {
             {/* Header */}
             <div className="px-7 py-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-850">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-600/20">
+                <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/20">
                   <Layers className="w-5 h-5" />
                 </div>
                 <div>
@@ -7809,7 +8522,7 @@ function AddSetupWizardContent() {
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
                   placeholder="e.g. Unit Test Scheme, Term 1 Scheme"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
 
@@ -7822,7 +8535,7 @@ function AddSetupWizardContent() {
                   value={newGroupDesc}
                   onChange={(e) => setNewGroupDesc(e.target.value)}
                   placeholder="e.g. Summative assessments for secondary classes"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 resize-none"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
                 />
               </div>
 
@@ -7837,7 +8550,7 @@ function AddSetupWizardContent() {
                 <button
                   type="submit"
                   disabled={isSavingGroup}
-                  className="px-6 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-black text-xs shadow-md shadow-teal-600/20 transition-all disabled:opacity-50 flex items-center gap-2"
+                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-md shadow-blue-600/20 transition-all disabled:opacity-50 flex items-center gap-2"
                 >
                   {isSavingGroup ? (
                     <>
@@ -7864,7 +8577,7 @@ export default function AddSetupWizardPage() {
   return (
     <Suspense fallback={
       <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
-        <div className="w-8 h-8 border-3 border-teal-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
         <p className="text-xs font-bold text-slate-500">Loading Exam & Admit Setup Wizard...</p>
       </div>
     }>
