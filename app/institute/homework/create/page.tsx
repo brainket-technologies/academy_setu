@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { ArrowLeft, CheckCircle2, Upload } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -22,6 +22,23 @@ export default function CreateHomeworkPage() {
   const [scheduleDate, setScheduleDate] = useState('')
   const [submissionDate, setSubmissionDate] = useState('')
   const [description, setDescription] = useState('')
+
+  // Filter sections based on selected class
+  const availableSections = useMemo(() => {
+    if (!classes) return []
+    const targetNorm = classes.trim().toLowerCase()
+    const set = new Set<string>()
+    if (Array.isArray(sectionsData)) {
+      sectionsData.forEach((s: any) => {
+        if (!s.deleted && s.className && s.className.trim().toLowerCase() === targetNorm) {
+          const name = s.sectionName || s.name
+          if (name && typeof name === 'string' && name.trim()) set.add(name.trim())
+        }
+      })
+    }
+    if (set.size > 0) return Array.from(set)
+    return ['A', 'B', 'C']
+  }, [sectionsData, classes])
 
   const [toastMsg, setToastMsg] = useState('')
   const [toastOpen, setToastOpen] = useState(false)
@@ -104,7 +121,14 @@ export default function CreateHomeworkPage() {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-slate-500 font-bold">Select Class *</label>
-            <select value={classes} onChange={e => setClasses(e.target.value)} className="w-full px-4 py-2.5 border rounded-lg bg-white outline-none font-semibold">
+            <select
+              value={classes}
+              onChange={e => {
+                setClasses(e.target.value)
+                setSection('')
+              }}
+              className="w-full px-4 py-2.5 border rounded-lg bg-white outline-none font-semibold"
+            >
               <option value="">Select a Class</option>
               {classesData.map((c: any) => (
                 <option key={c.className} value={c.className}>{c.className}</option>
@@ -114,11 +138,22 @@ export default function CreateHomeworkPage() {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-slate-500 font-bold">Select Section *</label>
-            <select value={section} onChange={e => setSection(e.target.value)} className="w-full px-4 py-2.5 border rounded-lg bg-white outline-none font-semibold">
-              <option value="">Select a Section</option>
-              {sectionsData.map((s: any) => (
-                <option key={s.sectionName} value={s.sectionName}>{s.sectionName}</option>
-              ))}
+            <select
+              disabled={!classes}
+              value={section}
+              onChange={e => setSection(e.target.value)}
+              className={`w-full px-4 py-2.5 border rounded-lg outline-none font-semibold ${!classes ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white'}`}
+            >
+              {!classes ? (
+                <option value="">Select Class First</option>
+              ) : (
+                <>
+                  <option value="">Select a Section</option>
+                  {availableSections.map((secName: string) => (
+                    <option key={secName} value={secName}>Section {secName}</option>
+                  ))}
+                </>
+              )}
             </select>
           </div>
 

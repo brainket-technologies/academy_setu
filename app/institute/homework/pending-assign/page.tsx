@@ -45,21 +45,31 @@ interface PendingDateItem {
   fullDate: string
 }
 
-// Generate default pending past dates matching Screenshot 1
-const DEFAULT_PENDING_DATES: PendingDateItem[] = [
-  { id: 'pd-1', dayNumber: '08', dayName: 'Mon', monthName: 'July', year: '2026', fullDate: '2026-07-08' },
-  { id: 'pd-2', dayNumber: '04', dayName: 'Mon', monthName: 'July', year: '2026', fullDate: '2026-07-04' },
-  { id: 'pd-3', dayNumber: '01', dayName: 'Mon', monthName: 'July', year: '2026', fullDate: '2026-07-01' },
-  { id: 'pd-4', dayNumber: '25', dayName: 'Mon', monthName: 'June', year: '2026', fullDate: '2026-06-25' },
-  { id: 'pd-5', dayNumber: '22', dayName: 'Mon', monthName: 'June', year: '2026', fullDate: '2026-06-22' },
-  { id: 'pd-6', dayNumber: '10', dayName: 'Mon', monthName: 'June', year: '2026', fullDate: '2026-06-10' },
-  { id: 'pd-7', dayNumber: '02', dayName: 'Mon', monthName: 'June', year: '2026', fullDate: '2026-06-02' },
-  { id: 'pd-8', dayNumber: '24', dayName: 'Mon', monthName: 'May', year: '2026', fullDate: '2026-05-24' },
-  { id: 'pd-9', dayNumber: '14', dayName: 'Mon', monthName: 'May', year: '2026', fullDate: '2026-05-14' },
-  { id: 'pd-10', dayNumber: '10', dayName: 'Mon', monthName: 'May', year: '2026', fullDate: '2026-05-10' },
-  { id: 'pd-11', dayNumber: '03', dayName: 'Mon', monthName: 'May', year: '2026', fullDate: '2026-05-03' },
-  { id: 'pd-12', dayNumber: '01', dayName: 'Mon', monthName: 'May', year: '2026', fullDate: '2026-05-01' }
-]
+// Helper to normalize any date string to YYYY-MM-DD
+function normalizeDateStr(dStr: string | undefined): string | null {
+  if (!dStr) return null
+  const trimmed = String(dStr).trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed
+
+  const ddmmyyyy = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/)
+  if (ddmmyyyy) {
+    const day = ddmmyyyy[1].padStart(2, '0')
+    const month = ddmmyyyy[2].padStart(2, '0')
+    const year = ddmmyyyy[3]
+    return `${year}-${month}-${day}`
+  }
+
+  const parsed = Date.parse(trimmed)
+  if (!isNaN(parsed)) {
+    const dt = new Date(parsed)
+    const y = dt.getFullYear()
+    const m = String(dt.getMonth() + 1).padStart(2, '0')
+    const d = String(dt.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+
+  return null
+}
 
 const DEFAULT_CLASSES: ClassCardItem[] = [
   { id: 'c-1', className: 'Class V', section: 'A', classTeacher: 'Pooja Sharma', studentsCount: 40 },
@@ -260,11 +270,15 @@ export default function PendingAssignHomeworkPage() {
   const [allStudents, setAllStudents] = useState<any[]>([])
   const [registeredTeachers, setRegisteredTeachers] = useState<any[]>([])
 
+  // Existing homework tasks to detect completed vs missed dates
+  const [existingTasks, setExistingTasks] = useState<any[]>([])
+  const [tasksLoading, setTasksLoading] = useState(true)
+
   // Screen flow: 'dates' (Screenshot 1) -> 'classes' (Screenshot 4) -> 'subjects' (Screenshot 2) -> 'form' (Screenshot 3)
   const [currentStep, setCurrentStep] = useState<'dates' | 'classes' | 'subjects' | 'form'>('dates')
 
   // Screen 1: Selected Pending Date
-  const [selectedPendingDate, setSelectedPendingDate] = useState<PendingDateItem>(DEFAULT_PENDING_DATES[0])
+  const [selectedPendingDate, setSelectedPendingDate] = useState<PendingDateItem | null>(null)
   const [monthFilter, setMonthFilter] = useState<string>('All')
   const [customDateInput, setCustomDateInput] = useState<string>('')
 
@@ -344,7 +358,38 @@ export default function PendingAssignHomeworkPage() {
       } catch (e) {}
     }
 
+    // Load existing tasks from DB & shared localStorage to detect missed dates
+    const loadTasks = async () => {
+      setTasksLoading(true)
+      let tasks: any[] = []
+      try {
+        const res = await fetchHomeworkTasks()
+        if (isMounted && res && res.success && Array.isArray(res.data)) {
+          tasks = res.data
+        }
+      } catch (e) {}
+
+      try {
+        const localRaw = localStorage.getItem('school_homework_tasks')
+        if (localRaw) {
+          const parsed = JSON.parse(localRaw)
+          if (Array.isArray(parsed)) {
+            const ids = new Set(tasks.map(t => String(t.id)))
+            parsed.forEach((t: any) => {
+              if (!ids.has(String(t.id))) tasks.push(t)
+            })
+          }
+        }
+      } catch {}
+
+      if (isMounted) {
+        setExistingTasks(tasks)
+        setTasksLoading(false)
+      }
+    }
+
     loadData()
+    loadTasks()
     return () => {
       isMounted = false
     }
@@ -482,11 +527,105 @@ export default function PendingAssignHomeworkPage() {
     })
   }, [allStudents, activeClassItem])
 
-  // Filtered dates list
+  // Helper to check if a class & section has task assigned on a specific date:
+  const isClassAssignedOnDate = (className: string, section: string, dateIso: string) => {
+    return existingTasks.some(t => {
+      const taskDate = normalizeDateStr(t.assignDate || t.assign_date)
+      if (taskDate !== dateIso) return false
+      const tClass = (t.classes || '').trim().toLowerCase()
+      const tSec = (t.section || '').trim().toLowerCase()
+      return tClass === className.trim().toLowerCase() && tSec === section.trim().toLowerCase()
+    })
+  }
+
+  // Set of dates on which homework was already assigned
+  const assignedDatesSet = useMemo(() => {
+    const set = new Set<string>()
+    existingTasks.forEach(task => {
+      const d = normalizeDateStr(task.assignDate || task.assign_date)
+      if (d) set.add(d)
+    })
+    return set
+  }, [existingTasks])
+
+  // Missed Homework Dates:
+  // Past working days up to today (excluding Sundays) where AT LEAST ONE class has NOT been assigned homework
+  const missedDates = useMemo<PendingDateItem[]>(() => {
+    const list: PendingDateItem[] = []
+    const today = new Date()
+
+    // Check past 45 academic days starting from today backwards
+    for (let i = 0; i <= 45; i++) {
+      const d = new Date(today.getTime() - i * 86400000)
+      // Skip Sundays (school holiday)
+      if (d.getDay() === 0) continue
+
+      const yyyy = d.getFullYear()
+      const mm = String(d.getMonth() + 1).padStart(2, '0')
+      const dd = String(d.getDate()).padStart(2, '0')
+      const isoStr = `${yyyy}-${mm}-${dd}`
+
+      const totalClasses = realClassCards.length
+      const assignedCount = realClassCards.filter(cls => isClassAssignedOnDate(cls.className, cls.section, isoStr)).length
+
+      // If at least one class is left out (or no homework assigned at all):
+      if (totalClasses === 0 ? !assignedDatesSet.has(isoStr) : assignedCount < totalClasses) {
+        list.push({
+          id: `missed-${isoStr}`,
+          dayNumber: dd,
+          dayName: d.toLocaleDateString('en-US', { weekday: 'short' }),
+          monthName: d.toLocaleDateString('en-US', { month: 'long' }),
+          year: String(yyyy),
+          fullDate: isoStr
+        })
+      }
+    }
+
+    return list
+  }, [realClassCards, existingTasks, assignedDatesSet])
+
+  // Dynamic available months present in missed dates
+  const availableMonths = useMemo(() => {
+    const months: string[] = []
+    missedDates.forEach(d => {
+      if (!months.includes(d.monthName)) months.push(d.monthName)
+    })
+    return months
+  }, [missedDates])
+
+  // Filtered dates based on selected month
   const filteredPendingDates = useMemo(() => {
-    if (monthFilter === 'All') return DEFAULT_PENDING_DATES
-    return DEFAULT_PENDING_DATES.filter(d => d.monthName.toLowerCase() === monthFilter.toLowerCase())
-  }, [monthFilter])
+    if (monthFilter === 'All') return missedDates
+    return missedDates.filter(d => d.monthName.toLowerCase() === monthFilter.toLowerCase())
+  }, [missedDates, monthFilter])
+
+  // Active Pending Date fallback
+  const activePendingDate = useMemo<PendingDateItem>(() => {
+    if (selectedPendingDate) return selectedPendingDate
+    if (filteredPendingDates.length > 0) return filteredPendingDates[0]
+    const now = new Date()
+    return {
+      id: 'today',
+      dayNumber: String(now.getDate()).padStart(2, '0'),
+      dayName: now.toLocaleDateString('en-US', { weekday: 'short' }),
+      monthName: now.toLocaleDateString('en-US', { month: 'long' }),
+      year: String(now.getFullYear()),
+      fullDate: now.toISOString().split('T')[0]
+    }
+  }, [selectedPendingDate, filteredPendingDates])
+
+  // Dependent sections for Step 2 class filter
+  const availableFilterSections = useMemo(() => {
+    if (!filterClass || filterClass === 'All') return []
+    const targetNorm = filterClass.trim().toLowerCase()
+    const set = new Set<string>()
+    realClassCards.forEach(c => {
+      if (c.className.trim().toLowerCase() === targetNorm) {
+        set.add(c.section)
+      }
+    })
+    return Array.from(set)
+  }, [realClassCards, filterClass])
 
   // Handlers for step transitions
   const handleSelectPendingDate = (d: PendingDateItem) => {
@@ -578,7 +717,7 @@ export default function PendingAssignHomeworkPage() {
       hasAttachment: !!attachmentName,
       attachmentName: attachmentName || undefined,
       assignedBy: `${activeSubjectItem.teacherName} (Faculty)`,
-      assignDate: `${selectedPendingDate.dayNumber} ${selectedPendingDate.monthName.slice(0, 3)} ${selectedPendingDate.year}`,
+      assignDate: `${activePendingDate.dayNumber} ${activePendingDate.monthName.slice(0, 3)} ${activePendingDate.year}`,
       submissionDate: formatDisplay(taskDueDate),
       studentsCount: activeClassItem.studentsCount
     }
@@ -593,7 +732,8 @@ export default function PendingAssignHomeworkPage() {
     // 2. Persist in Neon PostgreSQL database institutewise
     try {
       await createHomeworkTask(newTask)
-      showToast(`Homework published for pending date ${newTask.assignDate} in database!`)
+      setExistingTasks(prev => [newTask, ...prev])
+      showToast(`Homework published for missed date ${newTask.assignDate}!`)
       // Reset form
       setTaskTitle('')
       setTaskDescription('')
@@ -621,7 +761,63 @@ export default function PendingAssignHomeworkPage() {
         </div>
       )}
 
-      {/* Top Emerald Header matching Screenshots */}
+      {/* Top Breadcrumb & Hub Quick Navigation Tabs */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1">
+            <Link href="/institute/homework" className="hover:text-teal-600 transition-colors">
+              Homework
+            </Link>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-teal-700 font-bold">Pending Assign</span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
+            <span className="p-2 rounded-xl bg-teal-500/10 text-teal-600 border border-teal-200/60">
+              <Calendar className="w-6 h-6" />
+            </span>
+            Pending Assign Homework
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Identify missed academic dates and publish curriculum homework
+          </p>
+        </div>
+
+        {/* Quick Nav Dropdown Pill Strip */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/institute/homework/assign"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-teal-700 transition-colors"
+          >
+            Assign Homework
+          </Link>
+          <Link
+            href="/institute/homework/remark"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-teal-700 transition-colors"
+          >
+            Remark Homework
+          </Link>
+          <Link
+            href="/institute/homework/pending-assign"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-teal-600 text-white shadow-sm"
+          >
+            Pending Assign
+          </Link>
+          <Link
+            href="/institute/homework/pending-remark"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-teal-700 transition-colors"
+          >
+            Pending Remark
+          </Link>
+          <Link
+            href="/institute/homework/report"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-teal-700 transition-colors"
+          >
+            Homework Report
+          </Link>
+        </div>
+      </div>
+
+      {/* Top Banner Header */}
       <div className="bg-teal-600 text-white rounded-3xl p-5 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -647,7 +843,7 @@ export default function PendingAssignHomeworkPage() {
               </h1>
               <p className="text-xs text-teal-100/80 font-medium">
                 {currentStep === 'dates' && 'Pick a pending or missed date to assign homework'}
-                {currentStep === 'classes' && `Assigning for ${selectedPendingDate.dayNumber} ${selectedPendingDate.monthName} ${selectedPendingDate.year}`}
+                {currentStep === 'classes' && `Assigning for ${activePendingDate.dayNumber} ${activePendingDate.monthName} ${activePendingDate.year}`}
                 {currentStep === 'subjects' && `${activeClassItem.className} (Sec ${activeClassItem.section})`}
                 {currentStep === 'form' && `${activeSubjectItem.subjectName} • ${activeClassItem.className} - ${activeClassItem.section}`}
               </p>
@@ -703,17 +899,17 @@ export default function PendingAssignHomeworkPage() {
                 </button>
               </form>
 
-              {/* Month Dropdown matching Screenshot 1 */}
+              {/* Month Dropdown populated dynamically */}
               <div className="relative">
                 <select
                   value={monthFilter}
                   onChange={e => setMonthFilter(e.target.value)}
                   className="bg-white border border-slate-200 rounded-2xl pl-9 pr-8 py-2.5 text-xs font-bold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-xs cursor-pointer"
                 >
-                  <option value="All">All Months</option>
-                  <option value="July">Jul 2026</option>
-                  <option value="June">Jun 2026</option>
-                  <option value="May">May 2026</option>
+                  <option value="All">All Months ({missedDates.length} Missed)</option>
+                  {availableMonths.map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
                 </select>
                 <Calendar className="w-3.5 h-3.5 text-teal-600 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -721,27 +917,54 @@ export default function PendingAssignHomeworkPage() {
             </div>
           </div>
 
-          {/* Grid of Pending Dates matching Screenshot 1 */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
-            {filteredPendingDates.map(date => (
-              <button
-                key={date.id}
-                type="button"
-                onClick={() => handleSelectPendingDate(date)}
-                className="bg-white rounded-3xl p-5 shadow-xs border border-slate-200/80 hover:border-teal-500 hover:shadow-md transition-all flex flex-col items-center justify-center space-y-1.5 cursor-pointer group active:scale-95"
-              >
-                <span className="text-xs font-extrabold text-slate-700">
-                  {date.monthName}
-                </span>
-                <span className="text-3xl sm:text-4xl font-extrabold text-teal-600 group-hover:scale-105 transition-transform tracking-tight">
-                  {date.dayNumber}
-                </span>
-                <span className="text-xs font-medium text-slate-400">
-                  {date.dayName}
-                </span>
-              </button>
-            ))}
-          </div>
+          {/* Grid of Missed Homework Dates */}
+          {filteredPendingDates.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs space-y-3">
+              <div className="w-14 h-14 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+              <h3 className="text-base font-extrabold text-slate-800">No Missed Homework Dates!</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                All homework assignments for past working days are up to date. You can also pick a specific prior date using the calendar above.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
+              {filteredPendingDates.map(date => {
+                const totalClasses = realClassCards.length
+                const assignedCount = realClassCards.filter(cls => isClassAssignedOnDate(cls.className, cls.section, date.fullDate)).length
+                const isPartiallyAssigned = assignedCount > 0 && assignedCount < totalClasses
+
+                return (
+                  <button
+                    key={date.id}
+                    type="button"
+                    onClick={() => handleSelectPendingDate(date)}
+                    className="bg-white rounded-3xl p-5 shadow-xs border border-slate-200/80 hover:border-teal-500 hover:shadow-md transition-all flex flex-col items-center justify-center space-y-1.5 cursor-pointer group active:scale-95"
+                  >
+                    <span className="text-xs font-extrabold text-slate-700">
+                      {date.monthName}
+                    </span>
+                    <span className="text-3xl sm:text-4xl font-extrabold text-teal-600 group-hover:scale-105 transition-transform tracking-tight">
+                      {date.dayNumber}
+                    </span>
+                    <span className="text-xs font-medium text-slate-400">
+                      {date.dayName}
+                    </span>
+                    {isPartiallyAssigned ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200/60 mt-1">
+                        {totalClasses - assignedCount} Classes Left
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200/60 mt-1">
+                        Missed
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -759,7 +982,7 @@ export default function PendingAssignHomeworkPage() {
               <div>
                 <p className="text-xs text-slate-400 font-semibold">Pending Assign Date</p>
                 <h3 className="text-lg font-extrabold text-slate-900 leading-tight">
-                  {selectedPendingDate.dayNumber} {selectedPendingDate.monthName} {selectedPendingDate.year} ({selectedPendingDate.dayName})
+                  {activePendingDate.dayNumber} {activePendingDate.monthName} {activePendingDate.year} ({activePendingDate.dayName})
                 </h3>
               </div>
             </div>
@@ -780,7 +1003,10 @@ export default function PendingAssignHomeworkPage() {
               <div className="relative">
                 <select
                   value={filterClass}
-                  onChange={e => setFilterClass(e.target.value)}
+                  onChange={e => {
+                    setFilterClass(e.target.value)
+                    setFilterSection('All')
+                  }}
                   className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-xs cursor-pointer"
                 >
                   <option value="All">All Classes</option>
@@ -798,10 +1024,11 @@ export default function PendingAssignHomeworkPage() {
                 <select
                   value={filterSection}
                   onChange={e => setFilterSection(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-xs cursor-pointer"
+                  disabled={filterClass === 'All'}
+                  className={`w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-xs ${filterClass === 'All' ? 'opacity-50 cursor-not-allowed bg-slate-100' : 'cursor-pointer'}`}
                 >
-                  <option value="All">All Sections</option>
-                  {uniqueSections.map(sec => (
+                  <option value="All">{filterClass === 'All' ? 'Select Class First' : 'All Sections'}</option>
+                  {filterClass !== 'All' && availableFilterSections.map(sec => (
                     <option key={sec} value={sec}>Section {sec}</option>
                   ))}
                 </select>
@@ -836,46 +1063,125 @@ export default function PendingAssignHomeworkPage() {
 
           {/* Class Cards List matching Screenshot 4 */}
           <div className="space-y-4">
-            {filteredClasses.map(cls => (
-              <div
-                key={cls.id}
-                className="bg-white rounded-3xl p-5 shadow-xs border border-slate-200/80 space-y-4 hover:shadow-md transition-all"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
-                      <GraduationCap className="w-6 h-6" />
+            {filteredClasses.map(cls => {
+              const isAssigned = isClassAssignedOnDate(cls.className, cls.section, activePendingDate.fullDate)
+              const assignedTask = isAssigned ? existingTasks.find(t => {
+                const taskDate = normalizeDateStr(t.assignDate || t.assign_date)
+                return taskDate === activePendingDate.fullDate &&
+                  (t.classes || '').trim().toLowerCase() === cls.className.trim().toLowerCase() &&
+                  (t.section || '').trim().toLowerCase() === cls.section.trim().toLowerCase()
+              }) : null
+
+              if (isAssigned) {
+                return (
+                  <div
+                    key={cls.id}
+                    className="bg-slate-50/90 rounded-3xl p-5 shadow-xs border border-slate-200/90 space-y-4"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                          <CheckCircle2 className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-base font-extrabold text-slate-800 leading-tight">
+                              {cls.className} - Section {cls.section}
+                            </h3>
+                            <span className="px-2.5 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 text-[11px] font-bold border border-emerald-200/60 inline-flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              Already Assigned
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-1.5 flex-wrap">
+                            <User className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Class Teacher:</span>
+                            <span className="font-bold text-slate-700">{cls.classTeacher || 'Assigned Faculty'}</span>
+                            {assignedTask && (
+                              <span className="text-slate-500">• Subject: <strong className="text-slate-700">{assignedTask.subject}</strong> ({assignedTask.title})</span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span className="px-3 py-1.5 rounded-xl bg-slate-200/80 text-slate-700 font-bold text-xs inline-flex items-center gap-1.5 shrink-0 border border-slate-300/60">
+                        <Users className="w-3.5 h-3.5" />
+                        {cls.studentsCount} {cls.studentsCount === 1 ? 'Student' : 'Students'}
+                      </span>
                     </div>
-                    <div>
-                      <h3 className="text-base font-extrabold text-slate-900 leading-tight">
-                        {cls.className} - Section {cls.section}
-                      </h3>
-                      <p className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Class Teacher:</span>
-                        <span className="font-bold text-slate-700">{cls.classTeacher || 'Assigned Faculty'}</span>
+
+                    <div className="pt-2 flex items-center justify-between gap-3 flex-wrap border-t border-slate-200/60">
+                      <p className="text-xs font-semibold text-emerald-700 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        Homework already published for this class on {activePendingDate.dayNumber} {activePendingDate.monthName.slice(0, 3)} {activePendingDate.year}
                       </p>
+
+                      <button
+                        type="button"
+                        disabled
+                        className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-slate-200 text-slate-400 font-bold text-xs flex items-center justify-center gap-2 cursor-not-allowed border border-slate-300/60 opacity-80"
+                        title="Homework already assigned for this class and section"
+                      >
+                        <Check className="w-4 h-4 text-emerald-600" />
+                        <span>Assigned (Disabled)</span>
+                      </button>
                     </div>
                   </div>
+                )
+              }
 
-                  <span className="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 font-bold text-xs inline-flex items-center gap-1.5 shrink-0 border border-blue-100">
-                    <Users className="w-3.5 h-3.5" />
-                    {cls.studentsCount} {cls.studentsCount === 1 ? 'Student' : 'Students'}
-                  </span>
-                </div>
+              return (
+                <div
+                  key={cls.id}
+                  className="bg-white rounded-3xl p-5 shadow-xs border-2 border-teal-500/30 hover:border-teal-500 space-y-4 hover:shadow-md transition-all"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+                        <GraduationCap className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-base font-extrabold text-slate-900 leading-tight">
+                            {cls.className} - Section {cls.section}
+                          </h3>
+                          <span className="px-2.5 py-0.5 rounded-lg bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-200 inline-flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-amber-600" />
+                            Pending Assignment
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 text-slate-400" />
+                          <span>Class Teacher:</span>
+                          <span className="font-bold text-slate-700">{cls.classTeacher || 'Assigned Faculty'}</span>
+                        </p>
+                      </div>
+                    </div>
 
-                <div className="pt-2 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => handleSelectClass(cls)}
-                    className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer"
-                  >
-                    <FileText className="w-4 h-4" />
-                    <span>Assign Homework</span>
-                  </button>
+                    <span className="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 font-bold text-xs inline-flex items-center gap-1.5 shrink-0 border border-blue-100">
+                      <Users className="w-3.5 h-3.5" />
+                      {cls.studentsCount} {cls.studentsCount === 1 ? 'Student' : 'Students'}
+                    </span>
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-between gap-3 flex-wrap border-t border-slate-100">
+                    <p className="text-xs font-semibold text-amber-700 flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-amber-600" />
+                      Left out class — Needs homework assignment for {activePendingDate.dayNumber} {activePendingDate.monthName.slice(0, 3)} {activePendingDate.year}
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSelectClass(cls)}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>Assign Homework</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}

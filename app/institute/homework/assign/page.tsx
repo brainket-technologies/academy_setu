@@ -200,18 +200,61 @@ export default function AssignHomeworkPage() {
     loadHomeworkTasks()
   }, [])
 
-  // Auto-set initial class & section in modal when available
+  // Dependent sections for modal based on formClass (Section don't show without Class select)
+  const availableFormSections = useMemo(() => {
+    if (!formClass) return []
+    const targetNorm = formClass.trim().toLowerCase()
+    const set = new Set<string>()
+    if (Array.isArray(sectionsData)) {
+      sectionsData.forEach((s: any) => {
+        if (!s.deleted && s.className && s.className.trim().toLowerCase() === targetNorm) {
+          const name = s.sectionName || s.name
+          if (name && typeof name === 'string' && name.trim()) set.add(name.trim())
+        }
+      })
+    }
+    if (set.size > 0) return Array.from(set)
+    // Fallback from students matching formClass
+    studentsList.forEach((st: any) => {
+      const stClass = (st.class_name || st.className || st.class || '').trim().toLowerCase()
+      if (stClass === targetNorm) {
+        const sec = (st.section_name || st.sectionName || st.section || '').trim()
+        if (sec) set.add(sec)
+      }
+    })
+    if (set.size > 0) return Array.from(set)
+    return ['A', 'B', 'C']
+  }, [sectionsData, formClass, studentsList])
+
+  // Dependent sections for filter toolbar based on selectedClass
+  const availableFilterSections = useMemo(() => {
+    if (!selectedClass || selectedClass === 'All') return []
+    const targetNorm = selectedClass.trim().toLowerCase()
+    const set = new Set<string>()
+    if (Array.isArray(sectionsData)) {
+      sectionsData.forEach((s: any) => {
+        if (!s.deleted && s.className && s.className.trim().toLowerCase() === targetNorm) {
+          const name = s.sectionName || s.name
+          if (name && typeof name === 'string' && name.trim()) set.add(name.trim())
+        }
+      })
+    }
+    if (set.size > 0) return Array.from(set)
+    homeworks.forEach(h => {
+      if (h.classes && h.classes.trim().toLowerCase() === targetNorm && h.section) {
+        set.add(h.section.trim())
+      }
+    })
+    if (set.size > 0) return Array.from(set)
+    return ['A', 'B', 'C']
+  }, [sectionsData, homeworks, selectedClass])
+
+  // Auto-set subject fallback
   useEffect(() => {
-    if (classesData.length > 0 && !formClass) {
-      setFormClass(classesData[0].className)
-    }
-    if (sectionsData.length > 0 && !formSection) {
-      setFormSection(sectionsData[0].sectionName)
-    }
     if (subjectsData.length > 0 && !formSubject) {
       setFormSubject(subjectsData[0].subjectName)
     }
-  }, [classesData, sectionsData, subjectsData, formClass, formSection, formSubject])
+  }, [subjectsData, formSubject])
 
   // File upload change
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -444,7 +487,10 @@ export default function AssignHomeworkPage() {
               <label className="block text-[11px] font-bold text-slate-500 mb-1">Class</label>
               <select
                 value={selectedClass}
-                onChange={e => setSelectedClass(e.target.value)}
+                onChange={e => {
+                  setSelectedClass(e.target.value)
+                  setSelectedSection('All')
+                }}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 cursor-pointer"
               >
                 <option value="All">All Classes</option>
@@ -454,17 +500,18 @@ export default function AssignHomeworkPage() {
               </select>
             </div>
 
-            {/* Section Filter */}
-            <div className="min-w-[120px]">
+            {/* Section Filter (Dependent on Class Selection) */}
+            <div className="min-w-[140px]">
               <label className="block text-[11px] font-bold text-slate-500 mb-1">Section</label>
               <select
                 value={selectedSection}
                 onChange={e => setSelectedSection(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 cursor-pointer"
+                disabled={selectedClass === 'All'}
+                className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 ${selectedClass === 'All' ? 'opacity-60 cursor-not-allowed bg-slate-100' : 'cursor-pointer'}`}
               >
-                <option value="All">All Sections</option>
-                {sectionsData.map((s: any) => (
-                  <option key={s.sectionName} value={s.sectionName}>Section {s.sectionName}</option>
+                <option value="All">{selectedClass === 'All' ? 'Select Class First' : 'All Sections'}</option>
+                {selectedClass !== 'All' && availableFilterSections.map(secName => (
+                  <option key={secName} value={secName}>Section {secName}</option>
                 ))}
               </select>
             </div>
@@ -738,7 +785,7 @@ export default function AssignHomeworkPage() {
                 />
               </div>
 
-              {/* Class & Section Row */}
+              {/* Class & Section Row (Section don't show without Class select) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
@@ -747,10 +794,13 @@ export default function AssignHomeworkPage() {
                   <select
                     required
                     value={formClass}
-                    onChange={e => setFormClass(e.target.value)}
+                    onChange={e => {
+                      setFormClass(e.target.value)
+                      setFormSection('')
+                    }}
                     className="w-full px-3.5 py-2.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 cursor-pointer"
                   >
-                    {classesData.length === 0 && <option value="Class 1">Class 1</option>}
+                    <option value="">-- Select Class --</option>
                     {classesData.map((c: any) => (
                       <option key={c.className} value={c.className}>{c.className}</option>
                     ))}
@@ -763,14 +813,21 @@ export default function AssignHomeworkPage() {
                   </label>
                   <select
                     required
+                    disabled={!formClass}
                     value={formSection}
                     onChange={e => setFormSection(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 cursor-pointer"
+                    className={`w-full px-3.5 py-2.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 ${!formClass ? 'opacity-50 cursor-not-allowed bg-slate-100' : 'cursor-pointer'}`}
                   >
-                    {sectionsData.length === 0 && <option value="A">Section A</option>}
-                    {sectionsData.map((s: any) => (
-                      <option key={s.sectionName} value={s.sectionName}>Section {s.sectionName}</option>
-                    ))}
+                    {!formClass ? (
+                      <option value="">Select Class First</option>
+                    ) : (
+                      <>
+                        <option value="">-- Select Section --</option>
+                        {availableFormSections.map((secName: string) => (
+                          <option key={secName} value={secName}>Section {secName}</option>
+                        ))}
+                      </>
+                    )}
                   </select>
                 </div>
               </div>

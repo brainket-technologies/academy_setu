@@ -5,7 +5,7 @@ import {
   CheckCircle2, Search, Calendar, FileText, Paperclip, Users, 
   ArrowLeft, Check, Clock, User, Filter, BookOpen, AlertCircle,
   GraduationCap, Download, ChevronRight, MessageSquare, Award,
-  CheckSquare, Square, RefreshCw, Send, Sparkles, ChevronDown, Eye
+  CheckSquare, Square, RefreshCw, Send, Sparkles, ChevronDown, Eye, Star
 } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -43,8 +43,20 @@ interface StudentSubmissionItem {
   status: 'Submitted' | 'Pending'
   submittedAt?: string
   remark: string
+  rating: number // 1 to 5
   grade?: string
   isSaved?: boolean
+}
+
+const getRatingLabel = (rating: number) => {
+  switch (rating) {
+    case 5: return 'Excellent'
+    case 4: return 'Very Good'
+    case 3: return 'Good'
+    case 2: return 'Needs Work'
+    case 1: return 'Poor'
+    default: return 'Good'
+  }
 }
 
 // Fallback initial assignments
@@ -91,7 +103,7 @@ export default function RemarkHomeworkPage() {
   const [loadingTasks, setLoadingTasks] = useState(true)
 
   // Submissions State for the currently selected task
-  const [submissions, setSubmissions] = useState<Record<string, { status: 'Submitted' | 'Pending'; remark: string; submittedAt?: string }>>({})
+  const [submissions, setSubmissions] = useState<Record<string, { status: 'Submitted' | 'Pending'; remark: string; rating: number; submittedAt?: string }>>({})
   const [loadingSubmissions, setLoadingSubmissions] = useState(false)
 
   // Filter & Search states
@@ -102,11 +114,13 @@ export default function RemarkHomeworkPage() {
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([])
   const [bulkModalOpen, setBulkModalOpen] = useState(false)
   const [bulkRemarkText, setBulkRemarkText] = useState('')
+  const [bulkRating, setBulkRating] = useState<number>(5)
   const [bulkStatus, setBulkStatus] = useState<'Submitted' | 'Pending'>('Submitted')
   const [isBulkSubmitting, setIsBulkSubmitting] = useState(false)
 
-  // Local editing states (studentId -> draft remark)
+  // Local editing states (studentId -> draft remark / draft rating)
   const [draftRemarks, setDraftRemarks] = useState<Record<string, string>>({})
+  const [draftRatings, setDraftRatings] = useState<Record<string, number>>({})
   const [savedFlags, setSavedFlags] = useState<Record<string, boolean>>({})
 
   // Toast
@@ -119,17 +133,36 @@ export default function RemarkHomeworkPage() {
     setTimeout(() => setToastOpen(false), 3000)
   }
 
-  // Load registered students
+  // Load registered students (DB & localStorage)
   useEffect(() => {
     let isMounted = true
     const loadStudents = async () => {
+      const parseLocal = (k: string) => {
+        try {
+          const raw = localStorage.getItem(k)
+          return raw ? JSON.parse(raw) : []
+        } catch { return [] }
+      }
+      const local = [
+        ...parseLocal('school_students'),
+        ...parseLocal('school_institute_students'),
+        ...parseLocal('students')
+      ]
       try {
         const res = await fetchStudents()
-        if (isMounted && res?.success && Array.isArray(res.data)) {
-          setAllStudents(res.data)
+        if (isMounted) {
+          if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+            const dbStudents = res.data
+            const dbIds = new Set(dbStudents.map((s: any) => String(s.id || s.admission_no || s.admissionNo)))
+            const uniqueLocal = local.filter((s: any) => !dbIds.has(String(s.id || s.admission_no || s.admissionNo)))
+            setAllStudents([...dbStudents, ...uniqueLocal])
+          } else if (local.length > 0) {
+            setAllStudents(local)
+          }
         }
       } catch (e) {
         console.error('Failed to load students:', e)
+        if (isMounted && local.length > 0) setAllStudents(local)
       }
     }
     loadStudents()
@@ -220,19 +253,24 @@ export default function RemarkHomeworkPage() {
       try {
         const res = await fetchTaskSubmissions(selectedTaskId)
         if (isMounted && res && res.success && Array.isArray(res.data)) {
-          const map: Record<string, { status: 'Submitted' | 'Pending'; remark: string; submittedAt?: string }> = {}
+          const map: Record<string, { status: 'Submitted' | 'Pending'; remark: string; rating: number; submittedAt?: string }> = {}
           const drafts: Record<string, string> = {}
+          const ratingDrafts: Record<string, number> = {}
           res.data.forEach((row: any) => {
             const sid = String(row.studentId)
+            const r = typeof row.rating === 'number' && row.rating >= 1 && row.rating <= 5 ? row.rating : 5
             map[sid] = {
               status: row.status === 'Submitted' ? 'Submitted' : 'Pending',
               remark: row.remark || '',
+              rating: r,
               submittedAt: row.submittedAt || undefined
             }
             if (row.remark) drafts[sid] = row.remark
+            ratingDrafts[sid] = r
           })
           setSubmissions(map)
           setDraftRemarks(drafts)
+          setDraftRatings(ratingDrafts)
         }
       } catch (e) {
         console.error('Failed to load submissions:', e)
@@ -248,27 +286,26 @@ export default function RemarkHomeworkPage() {
   const relevantStudents = useMemo<StudentSubmissionItem[]>(() => {
     if (!activeTask) return []
 
-    // Match students by class & section
+    // Match only real enrolled students by class & section
     const matching = allStudents.filter(st => {
-      const clsMatch = !activeTask.classes || st.class?.toLowerCase() === activeTask.classes.toLowerCase() ||
-        st.className?.toLowerCase() === activeTask.classes.toLowerCase()
-      const secMatch = !activeTask.section || st.section?.toLowerCase() === activeTask.section.toLowerCase()
+      const clsName = (st.class_name || st.className || st.class || '').trim().toLowerCase()
+      const taskCls = (activeTask.classes || '').trim().toLowerCase()
+      const clsMatch = !taskCls || clsName === taskCls
+
+      const secName = (st.section_name || st.sectionName || st.section || '').trim().toLowerCase()
+      const taskSec = (activeTask.section || '').trim().toLowerCase()
+      const secMatch = !taskSec || secName === taskSec
       return clsMatch && secMatch
     })
 
-    // If no matching students in DB, provide fallback so teacher can still evaluate
-    const baseList = matching.length > 0 ? matching : [
-      { id: '101', name: 'Aarav Patel', rollNo: '01', admissionNo: 'ADM-2026-001', gender: 'Male' },
-      { id: '102', name: 'Diya Sharma', rollNo: '02', admissionNo: 'ADM-2026-002', gender: 'Female' },
-      { id: '103', name: 'Kabir Verma', rollNo: '03', admissionNo: 'ADM-2026-003', gender: 'Male' },
-      { id: '104', name: 'Ananya Gupta', rollNo: '04', admissionNo: 'ADM-2026-004', gender: 'Female' }
-    ]
+    const baseList = matching
 
     return baseList.map(st => {
       const sid = String(st.id || st.studentId)
       const sub = submissions[sid]
       const status: 'Submitted' | 'Pending' = sub ? sub.status : 'Pending'
       const remark = draftRemarks[sid] !== undefined ? draftRemarks[sid] : (sub?.remark || '')
+      const rating = draftRatings[sid] !== undefined ? draftRatings[sid] : (sub?.rating || 5)
       const avatar = st.avatar || (st.gender?.toLowerCase() === 'female' 
         ? 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=faces' 
         : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces')
@@ -282,10 +319,11 @@ export default function RemarkHomeworkPage() {
         status,
         submittedAt: sub?.submittedAt,
         remark,
+        rating,
         isSaved: !!savedFlags[sid]
       }
     })
-  }, [activeTask, allStudents, submissions, draftRemarks, savedFlags])
+  }, [activeTask, allStudents, submissions, draftRemarks, draftRatings, savedFlags])
 
   // Search and Status filtered students
   const filteredStudents = useMemo(() => {
@@ -317,6 +355,7 @@ export default function RemarkHomeworkPage() {
     if (!activeTask) return
     const newStatus: 'Submitted' | 'Pending' = student.status === 'Submitted' ? 'Pending' : 'Submitted'
     const sid = student.studentId
+    const currentRating = draftRatings[sid] !== undefined ? draftRatings[sid] : (student.rating || 5)
 
     // Optimistic UI update
     setSubmissions(prev => ({
@@ -324,7 +363,8 @@ export default function RemarkHomeworkPage() {
       [sid]: {
         ...prev[sid],
         status: newStatus,
-        remark: student.remark
+        remark: student.remark,
+        rating: currentRating
       }
     }))
 
@@ -333,7 +373,8 @@ export default function RemarkHomeworkPage() {
         studentName: student.name,
         admissionNo: student.admissionNo,
         rollNo: student.rollNo,
-        remark: student.remark
+        remark: student.remark,
+        rating: currentRating
       })
       showToast(`${student.name} marked as ${newStatus}`)
     } catch (e) {
@@ -341,14 +382,15 @@ export default function RemarkHomeworkPage() {
     }
   }
 
-  // Save single student remark
+  // Save single student remark & rating (1 to 5)
   const handleSaveRemark = async (student: StudentSubmissionItem) => {
     if (!activeTask) return
     const sid = student.studentId
-    const currentText = draftRemarks[sid] || student.remark || ''
+    const currentText = draftRemarks[sid] !== undefined ? draftRemarks[sid] : (student.remark || '')
+    const currentRating = draftRatings[sid] !== undefined ? draftRatings[sid] : (student.rating || 5)
 
     try {
-      await updateStudentRemark(activeTask.id, sid, currentText, student.status, {
+      await updateStudentRemark(activeTask.id, sid, currentText, student.status, currentRating, {
         studentName: student.name,
         admissionNo: student.admissionNo,
         rollNo: student.rollNo
@@ -359,7 +401,8 @@ export default function RemarkHomeworkPage() {
         [sid]: {
           ...prev[sid],
           status: student.status,
-          remark: currentText
+          remark: currentText,
+          rating: currentRating
         }
       }))
 
@@ -369,19 +412,25 @@ export default function RemarkHomeworkPage() {
         setSavedFlags(prev => ({ ...prev, [sid]: false }))
       }, 2000)
 
-      showToast(`Remark saved for ${student.name}!`)
+      showToast(`Remark & Rating (${currentRating}★) saved for ${student.name}!`)
     } catch (err) {
       console.error('Failed to save remark:', err)
       alert('Failed to save remark.')
     }
   }
 
-  // Quick chip remark filler
-  const handleApplyQuickRemark = (studentId: string, chipText: string) => {
+  // Quick chip remark filler with suggested rating
+  const handleApplyQuickRemark = (studentId: string, chipText: string, suggestedRating?: number) => {
     setDraftRemarks(prev => ({
       ...prev,
       [studentId]: chipText
     }))
+    if (suggestedRating) {
+      setDraftRatings(prev => ({
+        ...prev,
+        [studentId]: suggestedRating
+      }))
+    }
   }
 
   // Multi-select toggle
@@ -399,7 +448,7 @@ export default function RemarkHomeworkPage() {
     )
   }
 
-  // Handle Bulk Remark submission
+  // Handle Bulk Remark submission with Rating
   const handleBulkSubmit = async () => {
     if (!activeTask || selectedStudentIds.length === 0) return
 
@@ -411,7 +460,8 @@ export default function RemarkHomeworkPage() {
         studentName: s.name,
         admissionNo: s.admissionNo,
         rollNo: s.rollNo,
-        remark: bulkRemarkText.trim() || undefined
+        remark: bulkRemarkText.trim() || undefined,
+        rating: bulkRating
       }))
 
     try {
@@ -419,7 +469,8 @@ export default function RemarkHomeworkPage() {
         activeTask.id,
         selectedStudentsData,
         bulkStatus,
-        bulkRemarkText.trim() || undefined
+        bulkRemarkText.trim() || undefined,
+        bulkRating
       )
 
       // Update state locally
@@ -429,7 +480,8 @@ export default function RemarkHomeworkPage() {
           next[sid] = {
             ...next[sid],
             status: bulkStatus,
-            remark: bulkRemarkText.trim() || next[sid]?.remark || ''
+            remark: bulkRemarkText.trim() || next[sid]?.remark || '',
+            rating: bulkRating
           }
         })
         return next
@@ -445,7 +497,15 @@ export default function RemarkHomeworkPage() {
         })
       }
 
-      showToast(`Updated ${selectedStudentIds.length} students successfully!`)
+      setDraftRatings(prev => {
+        const next = { ...prev }
+        selectedStudentIds.forEach(sid => {
+          next[sid] = bulkRating
+        })
+        return next
+      })
+
+      showToast(`Updated ${selectedStudentIds.length} students with ${bulkRating}★ rating!`)
       setBulkModalOpen(false)
       setSelectedStudentIds([])
       setBulkRemarkText('')
@@ -739,8 +799,18 @@ export default function RemarkHomeworkPage() {
         </div>
 
         {/* Evaluation Table */}
-        {filteredStudents.length === 0 ? (
-          <div className="py-16 text-center px-4">
+        {relevantStudents.length === 0 ? (
+          <div className="py-16 text-center px-4 bg-white rounded-2xl border border-slate-200">
+            <Users className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+            <p className="font-bold text-slate-700 text-sm">
+              No students enrolled in {activeTask?.classes} - Section {activeTask?.section}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              Enroll students in this class and section in Students directory to evaluate homework submissions.
+            </p>
+          </div>
+        ) : filteredStudents.length === 0 ? (
+          <div className="py-16 text-center px-4 bg-white rounded-2xl border border-slate-200">
             <Users className="w-12 h-12 text-slate-300 mx-auto mb-2" />
             <p className="font-bold text-slate-700 text-sm">No students match filter criteria</p>
             <p className="text-xs text-slate-400 mt-1">Try clearing search or status filter</p>
@@ -831,9 +901,43 @@ export default function RemarkHomeworkPage() {
                         </button>
                       </td>
 
-                      {/* Remark Input & Quick Chips */}
-                      <td className="py-3.5 px-4">
-                        <div className="space-y-1.5">
+                      {/* Teacher Rating (1 to 5) & Remark Feedback */}
+                      <td className="py-3.5 px-4 min-w-[280px]">
+                        <div className="space-y-2">
+                          {/* Rating 1 to 5 Stars & Badge */}
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[11px] font-bold text-slate-500 mr-1">Rating:</span>
+                              {[1, 2, 3, 4, 5].map(star => {
+                                const currentR = draftRatings[st.studentId] !== undefined ? draftRatings[st.studentId] : st.rating
+                                const isFilled = star <= currentR
+                                return (
+                                  <button
+                                    key={star}
+                                    type="button"
+                                    onClick={() => {
+                                      setDraftRatings(prev => ({ ...prev, [st.studentId]: star }))
+                                    }}
+                                    className={`p-0.5 rounded transition-transform hover:scale-125 cursor-pointer ${
+                                      isFilled ? 'text-amber-400' : 'text-slate-300 hover:text-amber-300'
+                                    }`}
+                                    title={`Rate ${star} Star${star > 1 ? 's' : ''}`}
+                                  >
+                                    <Star className={`w-4 h-4 ${isFilled ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} />
+                                  </button>
+                                )
+                              })}
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200 ml-1">
+                                {(draftRatings[st.studentId] !== undefined ? draftRatings[st.studentId] : st.rating)} / 5 ★
+                              </span>
+                            </div>
+
+                            <span className="text-[10px] font-bold text-slate-400">
+                              {getRatingLabel(draftRatings[st.studentId] !== undefined ? draftRatings[st.studentId] : st.rating)}
+                            </span>
+                          </div>
+
+                          {/* Remark text input */}
                           <input
                             type="text"
                             placeholder="Enter teacher feedback or remark..."
@@ -847,17 +951,23 @@ export default function RemarkHomeworkPage() {
                             className="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                           />
 
-                          {/* Quick Chips for rapid feedback */}
+                          {/* Quick Chips for rapid feedback with auto-rating */}
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-[10px] text-slate-400 font-bold">Quick:</span>
-                            {['Excellent! ⭐', 'Good Work 👍', 'Need Revision', 'Completed'].map(chip => (
+                            {[
+                              { text: 'Excellent! ⭐', rating: 5 },
+                              { text: 'Good Work 👍', rating: 4 },
+                              { text: 'Satisfactory ✍️', rating: 3 },
+                              { text: 'Need Revision ⚠️', rating: 2 },
+                              { text: 'Completed ✅', rating: 5 }
+                            ].map(chip => (
                               <button
-                                key={chip}
+                                key={chip.text}
                                 type="button"
-                                onClick={() => handleApplyQuickRemark(st.studentId, chip)}
+                                onClick={() => handleApplyQuickRemark(st.studentId, chip.text, chip.rating)}
                                 className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-slate-600 transition-colors cursor-pointer"
                               >
-                                {chip}
+                                {chip.text}
                               </button>
                             ))}
                           </div>
@@ -939,6 +1049,36 @@ export default function RemarkHomeworkPage() {
                     <Clock className="w-4 h-4 text-amber-600" />
                     Pending
                   </button>
+                </div>
+              </div>
+
+              {/* Rating Selector (1 to 5) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                  <span>Teacher Rating (1 to 5 Stars):</span>
+                  <span className="text-amber-600 font-extrabold">{bulkRating} / 5 Stars ★</span>
+                </label>
+                <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 border border-slate-200 rounded-xl">
+                  {[1, 2, 3, 4, 5].map(star => {
+                    const isSelected = star <= bulkRating
+                    return (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setBulkRating(star)}
+                        className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1 text-xs font-extrabold transition-all cursor-pointer ${
+                          star === bulkRating
+                            ? 'bg-amber-500 text-white shadow-xs scale-105'
+                            : isSelected
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-white text-slate-400 hover:bg-slate-100'
+                        }`}
+                      >
+                        <Star className={`w-3.5 h-3.5 ${isSelected ? 'fill-current' : ''}`} />
+                        <span>{star}</span>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 

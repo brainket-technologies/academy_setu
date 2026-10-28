@@ -7,7 +7,7 @@ import {
   X, ArrowLeft, Clock, CheckCircle2, User, BookOpen, AlertCircle,
   Filter, Sparkles, Download, Eye, ChevronDown, Upload,
   CheckSquare, Square, Database, RotateCcw, Loader2,
-  Edit3, MessageSquare, Award, CheckCircle, XCircle
+  Edit3, MessageSquare, Award, CheckCircle, XCircle, Star
 } from 'lucide-react'
 import Link from 'next/link'
 import { useClasses, useSections, useSubjects } from '@/lib/mastersData'
@@ -65,6 +65,7 @@ interface RemarkStudentItem {
   avatar: string
   status: 'Completed' | 'Pending'
   remark: string
+  rating: number // 1 to 5
   submittedAt?: string
 }
 
@@ -77,21 +78,31 @@ interface PendingDateItem {
   fullDate: string
 }
 
-// Generate default pending dates
-const DEFAULT_PENDING_DATES: PendingDateItem[] = [
-  { id: 'pd-1', dayNumber: '08', dayName: 'Mon', monthName: 'July', year: '2026', fullDate: '2026-07-08' },
-  { id: 'pd-2', dayNumber: '04', dayName: 'Mon', monthName: 'July', year: '2026', fullDate: '2026-07-04' },
-  { id: 'pd-3', dayNumber: '01', dayName: 'Mon', monthName: 'July', year: '2026', fullDate: '2026-07-01' },
-  { id: 'pd-4', dayNumber: '25', dayName: 'Mon', monthName: 'June', year: '2026', fullDate: '2026-06-25' },
-  { id: 'pd-5', dayNumber: '22', dayName: 'Mon', monthName: 'June', year: '2026', fullDate: '2026-06-22' },
-  { id: 'pd-6', dayNumber: '10', dayName: 'Mon', monthName: 'June', year: '2026', fullDate: '2026-06-10' },
-  { id: 'pd-7', dayNumber: '02', dayName: 'Mon', monthName: 'June', year: '2026', fullDate: '2026-06-02' },
-  { id: 'pd-8', dayNumber: '24', dayName: 'Mon', monthName: 'May', year: '2026', fullDate: '2026-05-24' },
-  { id: 'pd-9', dayNumber: '14', dayName: 'Mon', monthName: 'May', year: '2026', fullDate: '2026-05-14' },
-  { id: 'pd-10', dayNumber: '10', dayName: 'Mon', monthName: 'May', year: '2026', fullDate: '2026-05-10' },
-  { id: 'pd-11', dayNumber: '03', dayName: 'Mon', monthName: 'May', year: '2026', fullDate: '2026-05-03' },
-  { id: 'pd-12', dayNumber: '01', dayName: 'Mon', monthName: 'May', year: '2026', fullDate: '2026-05-01' }
-]
+// Helper to normalize any date string to YYYY-MM-DD
+function normalizeDateStr(dStr: string | undefined): string | null {
+  if (!dStr) return null
+  const trimmed = String(dStr).trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed
+
+  const ddmmyyyy = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/)
+  if (ddmmyyyy) {
+    const day = ddmmyyyy[1].padStart(2, '0')
+    const month = ddmmyyyy[2].padStart(2, '0')
+    const year = ddmmyyyy[3]
+    return `${year}-${month}-${day}`
+  }
+
+  const parsed = Date.parse(trimmed)
+  if (!isNaN(parsed)) {
+    const dt = new Date(parsed)
+    const y = dt.getFullYear()
+    const m = String(dt.getMonth() + 1).padStart(2, '0')
+    const d = String(dt.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+
+  return null
+}
 
 const DEFAULT_CLASSES: ClassCardItem[] = [
   { id: 'c-1', className: 'Class V', section: 'A', classTeacher: 'Pooja Sharma', studentsCount: 40 },
@@ -306,7 +317,7 @@ export default function PendingRemarkHomeworkPage() {
   const [currentStep, setCurrentStep] = useState<'dates' | 'classes' | 'subjects' | 'students'>('dates')
 
   // Screen 1: Date selection
-  const [selectedPendingDate, setSelectedPendingDate] = useState<PendingDateItem>(DEFAULT_PENDING_DATES[0])
+  const [selectedPendingDate, setSelectedPendingDate] = useState<PendingDateItem | null>(null)
   const [monthFilter, setMonthFilter] = useState<string>('All')
   const [customDateInput, setCustomDateInput] = useState<string>('')
 
@@ -324,20 +335,22 @@ export default function PendingRemarkHomeworkPage() {
   // Screen 4: Students Search, Filter & Submissions
   const [studentSearch, setStudentSearch] = useState<string>('')
   const [studentStatusFilter, setStudentStatusFilter] = useState<'All' | 'Completed' | 'Pending'>('All')
-  const [taskSubmissions, setTaskSubmissions] = useState<Record<string, { status: 'Completed' | 'Pending'; remark?: string; submittedAt?: string }>>({})
+  const [taskSubmissions, setTaskSubmissions] = useState<Record<string, { status: 'Completed' | 'Pending'; remark?: string; rating?: number; submittedAt?: string }>>({})
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([])
   const [isUpdatingSubmissions, setIsUpdatingSubmissions] = useState<boolean>(false)
 
-  // Remark Modal State
+  // Remark Modal State with 1-5 Rating
   const [remarkModalOpen, setRemarkModalOpen] = useState<boolean>(false)
   const [activeRemarkStudent, setActiveRemarkStudent] = useState<RemarkStudentItem | null>(null)
   const [modalRemarkText, setModalRemarkText] = useState<string>('')
   const [modalRemarkStatus, setModalRemarkStatus] = useState<'Completed' | 'Pending'>('Completed')
+  const [modalRemarkRating, setModalRemarkRating] = useState<number>(5)
 
-  // Bulk Remark Modal State
+  // Bulk Remark Modal State with 1-5 Rating
   const [bulkModalOpen, setBulkModalOpen] = useState<boolean>(false)
   const [bulkRemarkText, setBulkRemarkText] = useState<string>('')
   const [bulkRemarkStatus, setBulkRemarkStatus] = useState<'Completed' | 'Pending'>('Completed')
+  const [bulkRemarkRating, setBulkRemarkRating] = useState<number>(5)
 
   // Toast
   const [toastMsg, setToastMsg] = useState('')
@@ -599,11 +612,13 @@ export default function PendingRemarkHomeworkPage() {
       const effectiveRemark = sub?.remark !== undefined && sub?.remark !== null && sub?.remark !== ''
         ? sub.remark
         : (effectiveStatus === 'Completed' ? 'Completed assignment on time with neat presentation.' : 'Pending submission.')
+      const effectiveRating = typeof sub?.rating === 'number' && sub.rating >= 1 && sub.rating <= 5 ? sub.rating : 5
 
       return {
         ...st,
         status: effectiveStatus,
         remark: effectiveRemark,
+        rating: effectiveRating,
         submittedAt: sub?.submittedAt
       }
     })
@@ -633,11 +648,74 @@ export default function PendingRemarkHomeworkPage() {
     })
   }, [studentsWithRemarks, studentSearch, studentStatusFilter])
 
-  // Filtered dates list
+  // Pending Remark Dates:
+  // Dates with assigned tasks that have pending remarks / evaluations
+  const pendingRemarkDates = useMemo<PendingDateItem[]>(() => {
+    const dateMap = new Map<string, PendingDateItem>()
+
+    tasksList.forEach(task => {
+      const norm = normalizeDateStr(task.assignDate)
+      if (!norm) return
+
+      if (!dateMap.has(norm)) {
+        const parts = norm.split('-')
+        const dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+        dateMap.set(norm, {
+          id: `remark-date-${norm}`,
+          dayNumber: String(dt.getDate()).padStart(2, '0'),
+          dayName: dt.toLocaleDateString('en-US', { weekday: 'short' }),
+          monthName: dt.toLocaleDateString('en-US', { month: 'long' }),
+          year: String(dt.getFullYear()),
+          fullDate: norm
+        })
+      }
+    })
+
+    return Array.from(dateMap.values())
+  }, [tasksList])
+
+  // Dynamic available months from pending remark dates
+  const availableMonths = useMemo(() => {
+    const months: string[] = []
+    pendingRemarkDates.forEach(d => {
+      if (!months.includes(d.monthName)) months.push(d.monthName)
+    })
+    return months
+  }, [pendingRemarkDates])
+
+  // Filtered dates based on selected month
   const filteredPendingDates = useMemo(() => {
-    if (monthFilter === 'All') return DEFAULT_PENDING_DATES
-    return DEFAULT_PENDING_DATES.filter(d => d.monthName.toLowerCase() === monthFilter.toLowerCase())
-  }, [monthFilter])
+    if (monthFilter === 'All') return pendingRemarkDates
+    return pendingRemarkDates.filter(d => d.monthName.toLowerCase() === monthFilter.toLowerCase())
+  }, [pendingRemarkDates, monthFilter])
+
+  // Active Pending Date fallback
+  const activePendingDate = useMemo<PendingDateItem>(() => {
+    if (selectedPendingDate) return selectedPendingDate
+    if (filteredPendingDates.length > 0) return filteredPendingDates[0]
+    const now = new Date()
+    return {
+      id: 'today',
+      dayNumber: String(now.getDate()).padStart(2, '0'),
+      dayName: now.toLocaleDateString('en-US', { weekday: 'short' }),
+      monthName: now.toLocaleDateString('en-US', { month: 'long' }),
+      year: String(now.getFullYear()),
+      fullDate: now.toISOString().split('T')[0]
+    }
+  }, [selectedPendingDate, filteredPendingDates])
+
+  // Dependent sections for Step 2 class filter
+  const availableFilterSections = useMemo(() => {
+    if (!filterClass || filterClass === 'All') return []
+    const targetNorm = filterClass.trim().toLowerCase()
+    const set = new Set<string>()
+    realClassCards.forEach(c => {
+      if (c.className.trim().toLowerCase() === targetNorm) {
+        set.add(c.section)
+      }
+    })
+    return Array.from(set)
+  }, [realClassCards, filterClass])
 
   // Handlers
   const handleSelectPendingDate = (d: PendingDateItem) => {
@@ -686,14 +764,14 @@ export default function PendingRemarkHomeworkPage() {
     const targetTask: TaskItem = matchedTask || {
       id: `task-${Date.now()}`,
       title: `${sub.subjectName} Homework Assignment`,
-      description: `Pending homework review for ${selectedPendingDate.dayNumber} ${selectedPendingDate.monthName} ${selectedPendingDate.year}`,
+      description: `Pending homework review for ${activePendingDate.dayNumber} ${activePendingDate.monthName} ${activePendingDate.year}`,
       subject: sub.subjectName,
       classes: activeClassItem.className,
       section: activeClassItem.section,
       status: 'Active',
       hasAttachment: false,
       assignedBy: `${sub.teacherName} (Faculty)`,
-      assignDate: `${selectedPendingDate.dayNumber} ${selectedPendingDate.monthName.slice(0, 3)} ${selectedPendingDate.year}`,
+      assignDate: `${activePendingDate.dayNumber} ${activePendingDate.monthName.slice(0, 3)} ${activePendingDate.year}`,
       submissionDate: 'Pending Review',
       studentsCount: activeClassItem.studentsCount
     }
@@ -707,9 +785,11 @@ export default function PendingRemarkHomeworkPage() {
       if (res && res.success && Array.isArray(res.data)) {
         const subMap: Record<string, any> = {}
         res.data.forEach((s: any) => {
+          const r = typeof s.rating === 'number' && s.rating >= 1 && s.rating <= 5 ? s.rating : 5
           subMap[String(s.studentId)] = {
-            status: s.status === 'Submitted' ? 'Completed' : s.status,
+            status: s.status === 'Submitted' || s.status === 'Completed' ? 'Completed' : s.status,
             remark: s.remark,
+            rating: r,
             submittedAt: s.submittedAt
           }
         })
@@ -768,6 +848,7 @@ export default function PendingRemarkHomeworkPage() {
     setActiveRemarkStudent(student)
     setModalRemarkText(student.remark || '')
     setModalRemarkStatus(student.status)
+    setModalRemarkRating(student.rating || 5)
     setRemarkModalOpen(true)
   }
 
@@ -785,6 +866,7 @@ export default function PendingRemarkHomeworkPage() {
         ...(taskSubmissions[activeRemarkStudent.id] || {}),
         status: modalRemarkStatus,
         remark: trimmed,
+        rating: modalRemarkRating,
         submittedAt: modalRemarkStatus === 'Completed' ? 'Just now' : undefined
       }
     }
@@ -794,7 +876,7 @@ export default function PendingRemarkHomeworkPage() {
     } catch {}
 
     setRemarkModalOpen(false)
-    showToast(`Remark saved for ${activeRemarkStudent.name}! (Saved in DB)`)
+    showToast(`Remark & ${modalRemarkRating}★ saved for ${activeRemarkStudent.name}! (Saved in DB)`)
 
     try {
       await updateStudentRemark(
@@ -802,6 +884,7 @@ export default function PendingRemarkHomeworkPage() {
         activeRemarkStudent.id,
         trimmed,
         dbStatus,
+        modalRemarkRating,
         {
           studentName: activeRemarkStudent.name,
           admissionNo: activeRemarkStudent.admissionNo,
@@ -855,6 +938,7 @@ export default function PendingRemarkHomeworkPage() {
         ...(nextSubmissions[st.id] || {}),
         status: bulkRemarkStatus,
         remark: trimmedRemark,
+        rating: bulkRemarkRating,
         submittedAt: bulkRemarkStatus === 'Completed' ? 'Just now' : undefined
       }
     })
@@ -866,7 +950,7 @@ export default function PendingRemarkHomeworkPage() {
     const count = targetStudents.length
     setBulkModalOpen(false)
     setSelectedStudentIds([])
-    showToast(`Updated remarks for ${count} students in database!`)
+    showToast(`Updated remarks and ${bulkRemarkRating}★ for ${count} students in database!`)
 
     try {
       await bulkUpdateStudentTaskSubmissions(
@@ -876,10 +960,12 @@ export default function PendingRemarkHomeworkPage() {
           studentName: st.name,
           admissionNo: st.admissionNo,
           rollNo: st.rollNo,
-          remark: trimmedRemark
+          remark: trimmedRemark,
+          rating: bulkRemarkRating
         })),
         dbStatus,
-        trimmedRemark
+        trimmedRemark,
+        bulkRemarkRating
       )
     } catch (err) {
       console.error('Failed to bulk save remarks in DB:', err)
@@ -897,6 +983,62 @@ export default function PendingRemarkHomeworkPage() {
           <span className="text-sm font-medium">{toastMsg}</span>
         </div>
       )}
+
+      {/* Top Breadcrumb & Hub Quick Navigation Tabs */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1">
+            <Link href="/institute/homework" className="hover:text-teal-600 transition-colors">
+              Homework
+            </Link>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-teal-700 font-bold">Pending Remark</span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
+            <span className="p-2 rounded-xl bg-teal-500/10 text-teal-600 border border-teal-200/60">
+              <Calendar className="w-6 h-6" />
+            </span>
+            Pending Remark Homework
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Review and evaluate pending student homework remarks and 1-5 star ratings
+          </p>
+        </div>
+
+        {/* Quick Nav Dropdown Pill Strip */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/institute/homework/assign"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-teal-700 transition-colors"
+          >
+            Assign Homework
+          </Link>
+          <Link
+            href="/institute/homework/remark"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-teal-700 transition-colors"
+          >
+            Remark Homework
+          </Link>
+          <Link
+            href="/institute/homework/pending-assign"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-teal-700 transition-colors"
+          >
+            Pending Assign
+          </Link>
+          <Link
+            href="/institute/homework/pending-remark"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-teal-600 text-white shadow-sm"
+          >
+            Pending Remark
+          </Link>
+          <Link
+            href="/institute/homework/report"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-teal-700 transition-colors"
+          >
+            Homework Report
+          </Link>
+        </div>
+      </div>
 
       {/* Top Header */}
       <div className="bg-teal-600 text-white rounded-3xl p-5 shadow-sm">
@@ -924,7 +1066,7 @@ export default function PendingRemarkHomeworkPage() {
               </h1>
               <p className="text-xs text-teal-100/80 font-medium">
                 {currentStep === 'dates' && 'Pick a date to review pending student homework remarks'}
-                {currentStep === 'classes' && `Reviewing remarks for ${selectedPendingDate.dayNumber} ${selectedPendingDate.monthName} ${selectedPendingDate.year}`}
+                {currentStep === 'classes' && `Reviewing remarks for ${activePendingDate.dayNumber} ${activePendingDate.monthName} ${activePendingDate.year}`}
                 {currentStep === 'subjects' && `${activeClassItem.className} (Sec ${activeClassItem.section})`}
                 {currentStep === 'students' && `${selectedSubjectItem.subjectName} • ${activeClassItem.className}`}
               </p>
@@ -985,9 +1127,9 @@ export default function PendingRemarkHomeworkPage() {
                   className="bg-white border border-slate-200 rounded-2xl pl-9 pr-8 py-2.5 text-xs font-bold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-xs cursor-pointer"
                 >
                   <option value="All">All Months</option>
-                  <option value="July">Jul 2026</option>
-                  <option value="June">Jun 2026</option>
-                  <option value="May">May 2026</option>
+                  {availableMonths.map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
                 </select>
                 <Calendar className="w-3.5 h-3.5 text-teal-600 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -995,26 +1137,38 @@ export default function PendingRemarkHomeworkPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
-            {filteredPendingDates.map(date => (
-              <button
-                key={date.id}
-                type="button"
-                onClick={() => handleSelectPendingDate(date)}
-                className="bg-white rounded-3xl p-5 shadow-xs border border-slate-200/80 hover:border-teal-500 hover:shadow-md transition-all flex flex-col items-center justify-center space-y-1.5 cursor-pointer group active:scale-95"
-              >
-                <span className="text-xs font-extrabold text-slate-700">
-                  {date.monthName}
-                </span>
-                <span className="text-3xl sm:text-4xl font-extrabold text-teal-600 group-hover:scale-105 transition-transform tracking-tight">
-                  {date.dayNumber}
-                </span>
-                <span className="text-xs font-medium text-slate-400">
-                  {date.dayName}
-                </span>
-              </button>
-            ))}
-          </div>
+          {filteredPendingDates.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs">
+              <div className="w-14 h-14 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center mx-auto mb-3">
+                <CheckCircle2 className="w-7 h-7" />
+              </div>
+              <h4 className="font-bold text-slate-800 text-base">No Pending Remarks Found</h4>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                All assigned homework tasks have been evaluated or no homework was assigned for {monthFilter === 'All' ? 'the selected period' : monthFilter}.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
+              {filteredPendingDates.map(date => (
+                <button
+                  key={date.id}
+                  type="button"
+                  onClick={() => handleSelectPendingDate(date)}
+                  className="bg-white rounded-3xl p-5 shadow-xs border border-slate-200/80 hover:border-teal-500 hover:shadow-md transition-all flex flex-col items-center justify-center space-y-1.5 cursor-pointer group active:scale-95"
+                >
+                  <span className="text-xs font-extrabold text-slate-700">
+                    {date.monthName}
+                  </span>
+                  <span className="text-3xl sm:text-4xl font-extrabold text-teal-600 group-hover:scale-105 transition-transform tracking-tight">
+                    {date.dayNumber}
+                  </span>
+                  <span className="text-xs font-medium text-slate-400">
+                    {date.dayName}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -1031,7 +1185,7 @@ export default function PendingRemarkHomeworkPage() {
               <div>
                 <p className="text-xs text-slate-400 font-semibold">Pending Remark Date</p>
                 <h3 className="text-lg font-extrabold text-slate-900 leading-tight">
-                  {selectedPendingDate.dayNumber} {selectedPendingDate.monthName} {selectedPendingDate.year} ({selectedPendingDate.dayName})
+                  {activePendingDate.dayNumber} {activePendingDate.monthName} {activePendingDate.year} ({activePendingDate.dayName})
                 </h3>
               </div>
             </div>
@@ -1051,7 +1205,10 @@ export default function PendingRemarkHomeworkPage() {
               <div className="relative">
                 <select
                   value={filterClass}
-                  onChange={e => setFilterClass(e.target.value)}
+                  onChange={e => {
+                    setFilterClass(e.target.value)
+                    setFilterSection('All')
+                  }}
                   className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-xs cursor-pointer"
                 >
                   <option value="All">All Classes</option>
@@ -1067,12 +1224,13 @@ export default function PendingRemarkHomeworkPage() {
               <label className="block text-xs font-bold text-slate-600 mb-1.5">Section</label>
               <div className="relative">
                 <select
+                  disabled={!filterClass || filterClass === 'All'}
                   value={filterSection}
                   onChange={e => setFilterSection(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-xs cursor-pointer"
+                  className="w-full bg-white disabled:bg-slate-100 disabled:text-slate-400 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-xs cursor-pointer disabled:cursor-not-allowed"
                 >
-                  <option value="All">All Sections</option>
-                  {uniqueSections.map(sec => (
+                  <option value="All">{!filterClass || filterClass === 'All' ? 'Select Class First' : 'All Sections'}</option>
+                  {availableFilterSections.map(sec => (
                     <option key={sec} value={sec}>Section {sec}</option>
                   ))}
                 </select>
@@ -1108,9 +1266,12 @@ export default function PendingRemarkHomeworkPage() {
               let completed = 0
               const relevantTasks = tasksList.filter(
                 t => t.classes.toLowerCase() === cls.className.toLowerCase() &&
-                     t.section.toLowerCase() === cls.section.toLowerCase()
+                     t.section.toLowerCase() === cls.section.toLowerCase() &&
+                     normalizeDateStr(t.assignDate) === activePendingDate.fullDate
               )
-              if (total > 0 && relevantTasks.length > 0) {
+              const hasHomework = relevantTasks.length > 0
+
+              if (total > 0 && hasHomework) {
                 relevantTasks.forEach(t => {
                   try {
                     const cached = localStorage.getItem(`hw_sub_${t.id}`)
@@ -1126,6 +1287,56 @@ export default function PendingRemarkHomeworkPage() {
               }
               const pending = total > 0 ? Math.max(0, total - completed) : 0
 
+              if (!hasHomework) {
+                return (
+                  <div
+                    key={cls.id}
+                    className="bg-slate-50/80 rounded-3xl p-5 shadow-xs border border-slate-200/80 space-y-4"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-200 text-slate-500 flex items-center justify-center shrink-0">
+                          <GraduationCap className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-base font-extrabold text-slate-800 leading-tight">
+                              {cls.className} - Section {cls.section}
+                            </h3>
+                            <span className="px-2.5 py-0.5 rounded-lg bg-slate-200 text-slate-600 text-[11px] font-bold border border-slate-300/60">
+                              No Homework Assigned
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-400 mt-0.5 font-medium">
+                            Teacher: {cls.classTeacher || 'Assigned Faculty'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span className="px-3 py-1.5 rounded-xl bg-slate-200 text-slate-600 font-bold text-xs inline-flex items-center gap-1.5 shrink-0 border border-slate-300/60">
+                        <Users className="w-3.5 h-3.5" />
+                        {total} {total === 1 ? 'Student' : 'Students'}
+                      </span>
+                    </div>
+
+                    <div className="pt-2 flex items-center justify-between gap-3 flex-wrap border-t border-slate-200/60">
+                      <p className="text-xs text-slate-500 font-medium">
+                        No homework was assigned for this class on {activePendingDate.dayNumber} {activePendingDate.monthName.slice(0, 3)} {activePendingDate.year}
+                      </p>
+
+                      <button
+                        type="button"
+                        disabled
+                        className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-slate-200 text-slate-400 font-bold text-xs flex items-center justify-center gap-2 cursor-not-allowed border border-slate-300/60 opacity-80"
+                        title="No homework assigned for this class on this date"
+                      >
+                        <span>No Homework (Disabled)</span>
+                      </button>
+                    </div>
+                  </div>
+                )
+              }
+
               return (
                 <div
                   key={cls.id}
@@ -1137,9 +1348,14 @@ export default function PendingRemarkHomeworkPage() {
                         <GraduationCap className="w-6 h-6" />
                       </div>
                       <div>
-                        <h3 className="text-base font-extrabold text-slate-900 leading-tight">
-                          {cls.className} - Section {cls.section}
-                        </h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-base font-extrabold text-slate-900 leading-tight">
+                            {cls.className} - Section {cls.section}
+                          </h3>
+                          <span className="px-2.5 py-0.5 rounded-lg bg-teal-50 text-teal-800 text-[11px] font-bold border border-teal-200">
+                            {relevantTasks.length} {relevantTasks.length === 1 ? 'Task' : 'Tasks'} Assigned
+                          </span>
+                        </div>
                         <p className="text-xs text-slate-400 mt-0.5 font-medium">
                           Teacher: {cls.classTeacher || 'Assigned Faculty'}
                         </p>
@@ -1297,7 +1513,7 @@ export default function PendingRemarkHomeworkPage() {
                 <span className="truncate">{selectedTaskItem.title}</span>
               </div>
               <span className="font-semibold text-orange-600 shrink-0">
-                Date: {selectedPendingDate.dayNumber} {selectedPendingDate.monthName} {selectedPendingDate.year}
+                Date: {activePendingDate.dayNumber} {activePendingDate.monthName} {activePendingDate.year}
               </span>
             </div>
           </div>
@@ -1416,6 +1632,11 @@ export default function PendingRemarkHomeworkPage() {
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
                             <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-700">
                               {student.gender}
+                            </span>
+
+                            <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200/60 inline-flex items-center gap-1">
+                              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                              {student.rating || 5}★
                             </span>
 
                             {isCompleted ? (
@@ -1542,6 +1763,39 @@ export default function PendingRemarkHomeworkPage() {
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Teacher Remark Rating (1 to 5 Stars)
+                    </label>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setModalRemarkRating(star)}
+                          className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer ${
+                            modalRemarkRating >= star
+                              ? 'bg-amber-50 border-amber-300 text-amber-700 shadow-xs'
+                              : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-amber-500'
+                          }`}
+                        >
+                          <Star
+                            className={`w-4 h-4 ${
+                              modalRemarkRating >= star ? 'fill-amber-400 text-amber-500' : ''
+                            }`}
+                          />
+                          <span className="text-xs font-bold">{star}</span>
+                        </button>
+                      ))}
+                      <span className="text-xs font-bold text-slate-500 ml-1">
+                        {modalRemarkRating === 5 ? 'Excellent (5★)' :
+                         modalRemarkRating === 4 ? 'Very Good (4★)' :
+                         modalRemarkRating === 3 ? 'Good (3★)' :
+                         modalRemarkRating === 2 ? 'Needs Improvement (2★)' : 'Poor (1★)'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
                       Teacher Remark / Feedback <span className="text-red-500">*</span>
                     </label>
                     <textarea
@@ -1646,6 +1900,39 @@ export default function PendingRemarkHomeworkPage() {
                         <Clock className="w-4 h-4" />
                         Mark All Pending
                       </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Bulk Rating for Selected (1 to 5 Stars)
+                    </label>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setBulkRemarkRating(star)}
+                          className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer ${
+                            bulkRemarkRating >= star
+                              ? 'bg-amber-50 border-amber-300 text-amber-700 shadow-xs'
+                              : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-amber-500'
+                          }`}
+                        >
+                          <Star
+                            className={`w-4 h-4 ${
+                              bulkRemarkRating >= star ? 'fill-amber-400 text-amber-500' : ''
+                            }`}
+                          />
+                          <span className="text-xs font-bold">{star}</span>
+                        </button>
+                      ))}
+                      <span className="text-xs font-bold text-slate-500 ml-1">
+                        {bulkRemarkRating === 5 ? 'Excellent (5★)' :
+                         bulkRemarkRating === 4 ? 'Very Good (4★)' :
+                         bulkRemarkRating === 3 ? 'Good (3★)' :
+                         bulkRemarkRating === 2 ? 'Needs Improvement (2★)' : 'Poor (1★)'}
+                      </span>
                     </div>
                   </div>
 
