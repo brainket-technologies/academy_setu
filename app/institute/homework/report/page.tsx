@@ -8,7 +8,7 @@ import {
   Filter, Sparkles, Download, Eye, ChevronDown,
   BarChart3, MessageSquare, Award, CheckCircle, XCircle,
   LayoutGrid, Table as TableIcon, Printer, ArrowUpRight,
-  RefreshCw, TrendingUp
+  RefreshCw, TrendingUp, Star
 } from 'lucide-react'
 import Link from 'next/link'
 import { useClasses, useSections, useSubjects } from '@/lib/mastersData'
@@ -18,6 +18,43 @@ import {
   fetchHomeworkTasks, 
   fetchTaskSubmissions 
 } from '@/app/institute/homework/assign/actions'
+
+// Helper to format Date into YYYY-MM-DD locally without UTC shift
+function formatDateToISO(d: Date): string {
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+function normalizeDateStr(dStr: any): string {
+  if (!dStr) return ''
+  const str = String(dStr).trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str
+
+  const monthMap: Record<string, string> = {
+    jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+    jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
+  }
+  const parts = str.split(/[\s-]+/)
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`
+    }
+    const dd = parts[0].padStart(2, '0')
+    const mStr = parts[1].toLowerCase().slice(0, 3)
+    const mm = monthMap[mStr] || '01'
+    const yyyy = parts[2]
+    return `${yyyy}-${mm}-${dd}`
+  }
+  try {
+    const dt = new Date(str)
+    if (!isNaN(dt.getTime())) {
+      return formatDateToISO(dt)
+    }
+  } catch {}
+  return str
+}
 
 // Types
 interface ClassCardItem {
@@ -51,6 +88,7 @@ interface StudentReportItem {
   admissionNo: string
   avatar?: string
   status: 'Completed' | 'Not Completed' | 'Rescheduled' | 'Pending'
+  rating?: number
   remark?: string
   submittedAt?: string
 }
@@ -136,9 +174,9 @@ export default function HomeworkReportPage() {
   const [selectedClassCard, setSelectedClassCard] = useState<ClassCardItem | null>(null)
   const [selectedSubject, setSelectedSubject] = useState<SubjectItem | null>(null)
 
-  // Date selection state
-  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date(2026, 9, 24))
-  const [dateStripCenter, setDateStripCenter] = useState<Date>(() => new Date(2026, 9, 24))
+  // Date selection state - default to today
+  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date())
+  const [dateStripCenter, setDateStripCenter] = useState<Date>(() => new Date())
 
   // Filter & View Mode
   const [classFilter, setClassFilter] = useState<string>('All Classes')
@@ -167,7 +205,7 @@ export default function HomeworkReportPage() {
         date: d,
         dayNum,
         dayName,
-        fullDateStr: d.toISOString().split('T')[0],
+        fullDateStr: formatDateToISO(d),
         isSelected
       })
     }
@@ -301,7 +339,7 @@ export default function HomeworkReportPage() {
     const processedKeys = new Set<string>()
 
     // Selected date formatted string
-    const selectedDateStr = selectedDate.toISOString().split('T')[0]
+    const selectedDateStr = formatDateToISO(selectedDate)
 
     // 1. Gather all unique classes either from mastersData or from enrolled students
     const classesSource = (classesData && classesData.length > 0)
@@ -354,7 +392,7 @@ export default function HomeworkReportPage() {
         const matchingTasks = allTasks.filter(t => {
           const classMatch = matchesClassAndSection({ class: t.classes, section: t.section }, cName, sec)
           if (!classMatch) return false
-          const tDate = t.assignDate || t.assign_date
+          const tDate = normalizeDateStr(t.assignDate || t.assign_date)
           return !tDate || tDate === selectedDateStr
         })
 
@@ -400,6 +438,19 @@ export default function HomeworkReportPage() {
 
     return list
   }, [classesData, sectionsData, allStudents, allTeachers, allTasks, taskSubmissionsMap, selectedDate])
+
+  // Dependent sections based on selected class filter
+  const availableFilterSections = useMemo(() => {
+    if (!classFilter || classFilter === 'All Classes') return []
+    const target = classFilter.trim().toLowerCase()
+    const set = new Set<string>()
+    classCards.forEach(c => {
+      if (c.className.trim().toLowerCase() === target) {
+        set.add(c.section)
+      }
+    })
+    return Array.from(set)
+  }, [classCards, classFilter])
 
   // Filter Class Cards based on user selections
   const filteredClassCards = useMemo(() => {
@@ -529,10 +580,14 @@ export default function HomeworkReportPage() {
       let status: 'Completed' | 'Not Completed' | 'Rescheduled' | 'Pending' = 'Pending'
       if (sub?.status) {
         const st = String(sub.status).toLowerCase()
-        if (st === 'completed' || st === 'done') status = 'Completed'
+        if (st === 'completed' || st === 'done' || st === 'submitted') status = 'Completed'
         else if (st === 'not completed' || st === 'incomplete') status = 'Not Completed'
         else if (st === 'rescheduled') status = 'Rescheduled'
       }
+
+      const rawRating = typeof sub?.rating === 'number' && sub.rating >= 1 && sub.rating <= 5
+        ? sub.rating
+        : (status === 'Completed' ? 5 : undefined)
 
       const fullName = s.first_name 
         ? `${s.first_name} ${s.last_name || ''}`.trim() 
@@ -546,6 +601,7 @@ export default function HomeworkReportPage() {
         admissionNo: String(s.admission_no || s.admissionNo || '—'),
         avatar: s.avatar || s.photo,
         status,
+        rating: rawRating,
         remark: sub?.remark || ''
       }
     })
@@ -591,7 +647,7 @@ export default function HomeworkReportPage() {
   // Export CSV Handler
   const handleExportCSV = () => {
     if (studentReports.length === 0) return
-    const headers = ['Roll No', 'Student Name', "Father's Name", 'Admission No', 'Class', 'Section', 'Subject', 'Status', 'Remarks']
+    const headers = ['Roll No', 'Student Name', "Father's Name", 'Admission No', 'Class', 'Section', 'Subject', 'Status', 'Rating', 'Remarks']
     const rows = studentReports.map(s => [
       s.rollNo,
       `"${s.name}"`,
@@ -601,13 +657,14 @@ export default function HomeworkReportPage() {
       selectedClassCard?.section || '',
       selectedSubject?.subjectName || '',
       s.status,
+      s.rating || 5,
       `"${s.remark || ''}"`
     ])
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement('a')
     link.setAttribute('href', encodedUri)
-    link.setAttribute('download', `homework_report_${selectedClassCard?.className}_${selectedSubject?.subjectName}_${selectedDate.toISOString().split('T')[0]}.csv`)
+    link.setAttribute('download', `homework_report_${selectedClassCard?.className}_${selectedSubject?.subjectName}_${formatDateToISO(selectedDate)}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -628,11 +685,67 @@ export default function HomeworkReportPage() {
     <div className="flex flex-col gap-6 w-full pb-16 animate-in fade-in duration-200">
       
       {/* ========================================================================= */}
-      {/* 1. DESKTOP WEB BREADCRUMB & HEADER                                        */}
+      {/* 1. TOP BREADCRUMB & HUB QUICK NAVIGATION TABS                             */}
       {/* ========================================================================= */}
-      <div className="bg-gradient-to-r from-emerald-700 via-teal-700 to-teal-800 text-white rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          {/* Breadcrumbs */}
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1">
+            <Link href="/institute/homework" className="hover:text-teal-600 transition-colors">
+              Homework
+            </Link>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-teal-700 font-bold">Homework Report</span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
+            <span className="p-2 rounded-xl bg-teal-500/10 text-teal-600 border border-teal-200/60">
+              <BarChart3 className="w-6 h-6" />
+            </span>
+            Homework Reports & Analytics
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Real-time homework submission stats, enrolled student counts, and class curriculum evaluations
+          </p>
+        </div>
+
+        {/* Quick Nav Dropdown Pill Strip */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/institute/homework/assign"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-teal-700 transition-colors"
+          >
+            Assign Homework
+          </Link>
+          <Link
+            href="/institute/homework/remark"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-teal-700 transition-colors"
+          >
+            Remark Homework
+          </Link>
+          <Link
+            href="/institute/homework/pending-assign"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-teal-700 transition-colors"
+          >
+            Pending Assign
+          </Link>
+          <Link
+            href="/institute/homework/pending-remark"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-teal-700 transition-colors"
+          >
+            Pending Remark
+          </Link>
+          <Link
+            href="/institute/homework/report"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-teal-600 text-white shadow-sm"
+          >
+            Homework Report
+          </Link>
+        </div>
+      </div>
+
+      {/* Top Banner Header */}
+      <div className="bg-teal-600 text-white rounded-3xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          {/* Breadcrumbs inside banner */}
           <div className="flex items-center gap-2 text-xs text-teal-100 font-semibold mb-2">
             <Link href="/institute/homework" className="hover:underline flex items-center gap-1">
               <span>Homework Hub</span>
@@ -640,7 +753,7 @@ export default function HomeworkReportPage() {
             <span>/</span>
             <button 
               onClick={() => setCurrentStep('classes')} 
-              className={`hover:underline ${currentStep === 'classes' ? 'text-white font-bold' : ''}`}
+              className={`hover:underline cursor-pointer ${currentStep === 'classes' ? 'text-white font-bold' : ''}`}
             >
               Classes Overview
             </button>
@@ -649,7 +762,7 @@ export default function HomeworkReportPage() {
                 <span>/</span>
                 <button 
                   onClick={() => setCurrentStep('subjects')}
-                  className={`hover:underline ${currentStep === 'subjects' ? 'text-white font-bold' : ''}`}
+                  className={`hover:underline cursor-pointer ${currentStep === 'subjects' ? 'text-white font-bold' : ''}`}
                 >
                   {selectedClassCard.className} (Sec {selectedClassCard.section})
                 </button>
@@ -663,12 +776,12 @@ export default function HomeworkReportPage() {
             )}
           </div>
 
-          <h1 className="text-2xl lg:text-3xl font-black tracking-tight">
+          <h2 className="text-xl md:text-2xl font-bold tracking-tight">
             {currentStep === 'classes' && 'Homework Reports & Analytics'}
             {currentStep === 'subjects' && `Select Subject — ${selectedClassCard?.className} Sec ${selectedClassCard?.section}`}
             {currentStep === 'report' && `${selectedSubject?.subjectName} Homework Report`}
-          </h1>
-          <p className="text-xs lg:text-sm text-teal-100 mt-1 max-w-2xl">
+          </h2>
+          <p className="text-xs text-teal-100/90 mt-1 max-w-2xl">
             {currentStep === 'classes' && 'Real-time homework submission stats, enrolled student counts, and class curriculum evaluations.'}
             {currentStep === 'subjects' && 'Choose a subject below to view enrolled students, evaluation status, and remarks.'}
             {currentStep === 'report' && 'Evaluation breakdown, submission status, and individual student remarks for this assignment.'}
@@ -684,7 +797,7 @@ export default function HomeworkReportPage() {
                 if (currentStep === 'report') setCurrentStep('subjects')
                 else if (currentStep === 'subjects') setCurrentStep('classes')
               }}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all border border-white/20"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white/15 hover:bg-white/25 text-white rounded-xl text-xs font-bold transition-all border border-white/20 cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
               Back
@@ -696,7 +809,7 @@ export default function HomeworkReportPage() {
               <button
                 type="button"
                 onClick={handleExportCSV}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-teal-800 hover:bg-teal-50 rounded-xl text-xs font-bold shadow-sm transition-all"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-teal-700 hover:bg-teal-50 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
               >
                 <Download className="w-4 h-4" />
                 Export CSV
@@ -704,7 +817,7 @@ export default function HomeworkReportPage() {
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-900/60 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold border border-emerald-500/40 transition-all"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white/15 hover:bg-white/25 text-white rounded-xl text-xs font-bold border border-white/20 transition-all cursor-pointer"
               >
                 <Printer className="w-4 h-4" />
                 Print
@@ -715,7 +828,7 @@ export default function HomeworkReportPage() {
           {currentStep === 'classes' && (
             <Link
               href="/institute/homework/assign"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white text-teal-800 hover:bg-teal-50 rounded-xl text-xs font-bold shadow-sm transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white text-teal-700 hover:bg-teal-50 rounded-xl text-xs font-bold shadow-sm transition-all"
             >
               <Sparkles className="w-4 h-4" />
               Assign Homework
@@ -833,15 +946,18 @@ export default function HomeworkReportPage() {
               <div className="flex items-center gap-2">
                 <input
                   type="date"
-                  value={selectedDate.toISOString().split('T')[0]}
+                  value={formatDateToISO(selectedDate)}
                   onChange={e => {
                     if (e.target.value) {
-                      const d = new Date(e.target.value)
-                      setSelectedDate(d)
-                      setDateStripCenter(d)
+                      const parts = e.target.value.split('-')
+                      if (parts.length === 3) {
+                        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+                        setSelectedDate(d)
+                        setDateStripCenter(d)
+                      }
                     }
                   }}
-                  className="px-3 py-1.5 text-xs font-semibold border border-slate-200 rounded-xl outline-none focus:border-teal-600 bg-white shadow-2xs"
+                  className="px-3 py-1.5 text-xs font-semibold border border-slate-200 rounded-xl outline-none focus:border-teal-600 bg-white shadow-2xs cursor-pointer"
                 />
               </div>
             </div>
@@ -865,7 +981,10 @@ export default function HomeworkReportPage() {
               <div className="flex items-center gap-3 w-full md:w-auto">
                 <select
                   value={classFilter}
-                  onChange={e => setClassFilter(e.target.value)}
+                  onChange={e => {
+                    setClassFilter(e.target.value)
+                    setSectionFilter('All Sections')
+                  }}
                   className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-teal-600 bg-white shadow-2xs cursor-pointer"
                 >
                   <option value="All Classes">All Classes</option>
@@ -875,12 +994,13 @@ export default function HomeworkReportPage() {
                 </select>
 
                 <select
+                  disabled={!classFilter || classFilter === 'All Classes'}
                   value={sectionFilter}
                   onChange={e => setSectionFilter(e.target.value)}
-                  className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-teal-600 bg-white shadow-2xs cursor-pointer"
+                  className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-teal-600 bg-white shadow-2xs cursor-pointer disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                 >
-                  <option value="All Sections">All Sections</option>
-                  {Array.from(new Set(classCards.map(c => c.section))).map(sec => (
+                  <option value="All Sections">{!classFilter || classFilter === 'All Classes' ? 'Select Class First' : 'All Sections'}</option>
+                  {availableFilterSections.map(sec => (
                     <option key={sec} value={sec}>Section {sec}</option>
                   ))}
                 </select>
@@ -890,7 +1010,7 @@ export default function HomeworkReportPage() {
                   <button
                     type="button"
                     onClick={() => setViewMode('grid')}
-                    className={`p-1.5 rounded-lg transition-colors ${
+                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                       viewMode === 'grid' ? 'bg-white text-teal-700 shadow-xs' : 'text-slate-500 hover:text-slate-700'
                     }`}
                     title="Grid View"
@@ -900,7 +1020,7 @@ export default function HomeworkReportPage() {
                   <button
                     type="button"
                     onClick={() => setViewMode('table')}
-                    className={`p-1.5 rounded-lg transition-colors ${
+                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                       viewMode === 'table' ? 'bg-white text-teal-700 shadow-xs' : 'text-slate-500 hover:text-slate-700'
                     }`}
                     title="Table View"
@@ -925,13 +1045,13 @@ export default function HomeworkReportPage() {
                 return (
                   <div
                     key={card.id}
-                    className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md hover:border-teal-300 transition-all flex flex-col justify-between space-y-4 group"
+                    className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md hover:border-teal-400 transition-all flex flex-col justify-between space-y-4 group"
                   >
                     <div>
                       {/* Top Row: Class Info & Section Pill */}
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-11 h-11 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-bold shadow-xs">
+                          <div className="w-11 h-11 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold shadow-xs">
                             <GraduationCap className="w-6 h-6" />
                           </div>
                           <div>
@@ -944,23 +1064,23 @@ export default function HomeworkReportPage() {
                           </div>
                         </div>
 
-                        <span className="px-2.5 py-1 rounded-lg bg-teal-600 text-white text-[11px] font-bold shadow-2xs">
+                        <span className="px-2.5 py-1 rounded-lg bg-teal-50 text-teal-700 border border-teal-200/60 text-[11px] font-bold shadow-2xs">
                           Sec {card.section}
                         </span>
                       </div>
 
                       {/* 4 Metric Badges in 2x2 Grid (100% Real Numbers) */}
                       <div className="grid grid-cols-2 gap-2 mt-4">
-                        <div className="bg-purple-50/80 border border-purple-100 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-purple-600"></span>
-                          <span className="text-[11px] font-bold text-purple-900">
+                        <div className="bg-blue-50/80 border border-blue-100 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                          <span className="text-[11px] font-bold text-blue-900">
                             Assigned: {card.assignedCount}
                           </span>
                         </div>
 
-                        <div className="bg-teal-50/80 border border-emerald-100 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-                          <span className="text-[11px] font-bold text-emerald-900">
+                        <div className="bg-teal-50/80 border border-teal-100 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-teal-600"></span>
+                          <span className="text-[11px] font-bold text-teal-900">
                             Completed: {card.completedCount}
                           </span>
                         </div>
@@ -1367,6 +1487,7 @@ export default function HomeworkReportPage() {
                     <th className="px-5 py-4">Roll No</th>
                     <th className="px-5 py-4">Admission No</th>
                     <th className="px-5 py-4">Status</th>
+                    <th className="px-5 py-4">Rating</th>
                     <th className="px-5 py-4">Teacher Remark</th>
                   </tr>
                 </thead>
@@ -1428,6 +1549,12 @@ export default function HomeworkReportPage() {
                         )}
                       </td>
                       <td className="px-5 py-3.5">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200/60 text-xs font-bold shadow-2xs">
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                          {student.rating ? `${student.rating}★` : '—'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
                         {student.remark ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold">
                             <MessageSquare className="w-3 h-3 text-emerald-600" />
@@ -1442,7 +1569,7 @@ export default function HomeworkReportPage() {
 
                   {filteredStudents.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-5 py-10 text-center text-slate-400 font-bold">
+                      <td colSpan={7} className="px-5 py-10 text-center text-slate-400 font-bold">
                         No students enrolled in {selectedClassCard.className} Section {selectedClassCard.section}.
                       </td>
                     </tr>

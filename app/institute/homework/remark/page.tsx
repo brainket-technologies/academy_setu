@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useMemo, useEffect, useRef, Suspense } from 'react'
 import { 
   CheckCircle2, Search, Calendar, FileText, Paperclip, Users, 
   ArrowLeft, Check, Clock, User, Filter, BookOpen, AlertCircle,
@@ -90,7 +90,7 @@ const DEFAULT_TASKS: HomeworkTask[] = [
   }
 ]
 
-export default function RemarkHomeworkPage() {
+function RemarkHomeworkContent() {
   const searchParams = useSearchParams()
   const initialTaskId = searchParams.get('taskId')
 
@@ -1131,5 +1131,19 @@ export default function RemarkHomeworkPage() {
       )}
 
     </div>
+  )
+}
+
+export default function RemarkHomeworkPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      }
+    >
+      <RemarkHomeworkContent />
+    </Suspense>
   )
 }
