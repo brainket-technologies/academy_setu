@@ -10,11 +10,14 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { fetchStudents } from '@/app/institute/students/actions'
 import { createOneTimeGatePass } from '@/app/institute/gate-pass/actions'
+import { useClasses, useSections } from '@/lib/mastersData'
 
 type PassUserType = 'student' | 'visitor'
 
 export default function PermanentRegistrationPage() {
   const router = useRouter()
+  const classesData = useClasses()
+  const sectionsData = useSections()
 
   const [userType, setUserType] = useState<PassUserType>('student')
   const [saving, setSaving] = useState(false)
@@ -62,38 +65,143 @@ export default function PermanentRegistrationPage() {
   // Load students
   useEffect(() => {
     async function load() {
+      const parseLocal = (key: string) => {
+        try {
+          const raw = localStorage.getItem(key)
+          return raw ? JSON.parse(raw) : []
+        } catch {
+          return []
+        }
+      }
+      const localStudents = [
+        ...parseLocal('school_students'),
+        ...parseLocal('school_institute_students'),
+        ...parseLocal('students')
+      ]
       try {
         const res = await fetchStudents()
-        if (res?.success && Array.isArray(res.data)) setAllStudents(res.data)
-        else {
-          const local = localStorage.getItem('school_students')
-          if (local) setAllStudents(JSON.parse(local))
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          const dbStudents = res.data
+          const dbIds = new Set(dbStudents.map((s: any) => String(s.id || s.admission_no || s.admissionNo)))
+          const uniqueLocal = localStudents.filter((s: any) => !dbIds.has(String(s.id || s.admission_no || s.admissionNo)))
+          setAllStudents([...dbStudents, ...uniqueLocal])
+        } else if (localStudents.length > 0) {
+          setAllStudents(localStudents)
         }
       } catch {
-        const local = localStorage.getItem('school_students')
-        if (local) setAllStudents(JSON.parse(local))
+        if (localStudents.length > 0) setAllStudents(localStudents)
       }
     }
     load()
   }, [])
 
-  const classOptions = useMemo(() =>
-    Array.from(new Set(allStudents.map(s => s.class_name || s.className || s.class).filter(Boolean))) as string[]
-  , [allStudents])
+  // Class options from Master & Students
+  const classOptions = useMemo(() => {
+    const set = new Set<string>()
+    if (Array.isArray(classesData)) {
+      classesData.forEach((c: any) => {
+        if (!c.deleted) {
+          const name = c.className || c.name
+          if (name && typeof name === 'string' && name.trim()) set.add(name.trim())
+        }
+      })
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('school_masters_classes')
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (Array.isArray(parsed)) {
+            parsed.forEach((c: any) => {
+              if (!c.deleted) {
+                const name = c.className || c.name
+                if (name && typeof name === 'string' && name.trim()) set.add(name.trim())
+              }
+            })
+          }
+        }
+      } catch (e) {}
+    }
+    allStudents.forEach(s => {
+      const name = s.class_name || s.className || s.class
+      if (name && typeof name === 'string' && name.trim()) set.add(name.trim())
+    })
+    return Array.from(set)
+  }, [classesData, allStudents])
 
+  // Section options from Master & Students
   const sectionOptions = useMemo(() => {
-    const base = selectedClass
-      ? allStudents.filter(s => String(s.class_name || s.className || s.class || '').toLowerCase() === selectedClass.toLowerCase())
-      : allStudents
-    return Array.from(new Set(base.map(s => s.section_name || s.sectionName || s.section).filter(Boolean))) as string[]
-  }, [allStudents, selectedClass])
+    if (!selectedClass) return []
+    const set = new Set<string>()
+    const targetNorm = selectedClass.trim().toLowerCase()
+
+    if (Array.isArray(sectionsData)) {
+      sectionsData.forEach((s: any) => {
+        if (!s.deleted) {
+          const sClass = (s.className || s.class || '').trim().toLowerCase()
+          if (!sClass || sClass === targetNorm) {
+            const name = s.sectionName || s.name
+            if (name && typeof name === 'string' && name.trim()) set.add(name.trim())
+          }
+        }
+      })
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('school_masters_sections')
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (Array.isArray(parsed)) {
+            parsed.forEach((s: any) => {
+              if (!s.deleted) {
+                const sClass = (s.className || s.class || '').trim().toLowerCase()
+                if (!sClass || sClass === targetNorm) {
+                  const name = s.sectionName || s.name
+                  if (name && typeof name === 'string' && name.trim()) set.add(name.trim())
+                }
+              }
+            })
+          }
+        }
+      } catch (e) {}
+    }
+    const checkClassObjSections = (list: any[]) => {
+      if (!Array.isArray(list)) return
+      const classObj = list.find((c: any) => (c.className || c.name || '').trim().toLowerCase() === targetNorm)
+      if (classObj && Array.isArray(classObj.sections)) {
+        classObj.sections.forEach((sec: any) => {
+          const name = typeof sec === 'string' ? sec : (sec?.sectionName || sec?.name)
+          if (name && typeof name === 'string' && name.trim()) set.add(name.trim())
+        })
+      }
+    }
+    checkClassObjSections(classesData)
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('school_masters_classes')
+        if (raw) checkClassObjSections(JSON.parse(raw))
+      } catch (e) {}
+    }
+    allStudents.forEach(s => {
+      const sc = String(s.class_name || s.className || s.class || '').trim().toLowerCase()
+      if (sc === targetNorm) {
+        const name = s.section_name || s.sectionName || s.section
+        if (name && typeof name === 'string' && name.trim()) set.add(name.trim())
+      }
+    })
+    if (set.size === 0) return ['A', 'B', 'C']
+    return Array.from(set)
+  }, [selectedClass, sectionsData, classesData, allStudents])
 
   const filteredStudents = useMemo(() =>
     allStudents.filter(s => {
-      const sc = String(s.class_name || s.className || s.class || '').toLowerCase()
-      const ss = String(s.section_name || s.sectionName || s.section || '').toLowerCase()
-      return (!selectedClass || sc === selectedClass.toLowerCase()) &&
-             (!selectedSection || ss === selectedSection.toLowerCase())
+      const sc = String(s.class_name || s.className || s.class || '').trim().toLowerCase()
+      const ss = String(s.section_name || s.sectionName || s.section || '').trim().toLowerCase()
+      const cMatch = !selectedClass || sc === selectedClass.trim().toLowerCase()
+      const normSection = selectedSection.toLowerCase().replace(/^(section|sec)\s*/i, '').trim()
+      const normStudentSection = ss.replace(/^(section|sec)\s*/i, '').trim()
+      const sMatch = !selectedSection || ss === selectedSection.toLowerCase() || (normSection && normStudentSection === normSection)
+      return cMatch && sMatch
     })
   , [allStudents, selectedClass, selectedSection])
 
