@@ -1075,7 +1075,7 @@ export default function AssignHomeworkPage() {
     <div className="min-h-screen bg-slate-50/70 p-4 md:p-6 lg:p-8 space-y-6 animate-in fade-in duration-200">
       {/* Toast Notification */}
       {toastOpen && (
-        <div className="fixed top-5 right-5 z-50 flex items-center gap-2 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-xl transition-all animate-in fade-in slide-in-from-top-4">
+        <div className="fixed top-5 right-5 z-50 flex items-center gap-2 bg-teal-600 text-white px-5 py-3 rounded-xl shadow-xl transition-all animate-in fade-in slide-in-from-top-4">
           <CheckCircle2 className="w-5 h-5 text-white" />
           <span className="text-sm font-medium">{toastMsg}</span>
         </div>
@@ -1085,14 +1085,14 @@ export default function AssignHomeworkPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-1">
-            <Link href="/institute/homework" className="hover:text-emerald-700 transition-colors">
+            <Link href="/institute/homework" className="hover:text-teal-600 transition-colors">
               Homework
             </Link>
             <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
             <button
               type="button"
               onClick={() => setCurrentStep('classes')}
-              className={`${currentStep === 'classes' ? 'text-emerald-700 font-bold' : 'hover:text-slate-800'}`}
+              className={`${currentStep === 'classes' ? 'text-teal-600 font-bold' : 'hover:text-slate-800'}`}
             >
               Assign Homework
             </button>
@@ -1102,7 +1102,7 @@ export default function AssignHomeworkPage() {
                 <button
                   type="button"
                   onClick={() => setCurrentStep('subjects')}
-                  className={`${currentStep === 'subjects' ? 'text-emerald-700 font-bold' : 'hover:text-slate-800'}`}
+                  className={`${currentStep === 'subjects' ? 'text-teal-600 font-bold' : 'hover:text-slate-800'}`}
                 >
                   {selectedClassItem.className} (Sec {selectedClassItem.section})
                 </button>
@@ -1114,7 +1114,7 @@ export default function AssignHomeworkPage() {
                 <button
                   type="button"
                   onClick={() => setCurrentStep('tasks')}
-                  className={`${currentStep === 'tasks' ? 'text-emerald-700 font-bold' : 'hover:text-slate-800'}`}
+                  className={`${currentStep === 'tasks' ? 'text-teal-600 font-bold' : 'hover:text-slate-800'}`}
                 >
                   {selectedSubjectItem.subjectName}
                 </button>
@@ -1123,12 +1123,12 @@ export default function AssignHomeworkPage() {
             {currentStep === 'students' && (
               <>
                 <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-emerald-700 font-bold">Assigned Students</span>
+                <span className="text-teal-600 font-bold">Assigned Students</span>
               </>
             )}
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <span className="p-2 rounded-xl bg-emerald-600/10 text-emerald-700 border border-emerald-200/60">
+            <span className="p-2 rounded-xl bg-teal-500/10 text-teal-600 border border-teal-200/60">
               <GraduationCap className="w-6 h-6" />
             </span>
             {currentStep === 'classes' && 'Assign Homework'}
@@ -1142,7 +1142,7 @@ export default function AssignHomeworkPage() {
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/institute/homework/assign"
-            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-700 text-white shadow-sm"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 text-white shadow-sm"
           >
             Assign Homework
           </Link>
@@ -1186,7 +1186,7 @@ export default function AssignHomeworkPage() {
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   Select Assign Date:
                 </span>
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/60">
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-teal-50 text-teal-800 border border-teal-200/60">
                   Thursday, 22 Oct 2026
                 </span>
               </div>
@@ -1211,14 +1211,14 @@ export default function AssignHomeworkPage() {
                         onClick={() => setSelectedDayNumber(item.dayNumber)}
                         className={`flex flex-col items-center justify-center py-2 px-3 sm:px-4 rounded-xl transition-all ${
                           isSelected 
-                            ? 'bg-[#0d8065] text-white shadow-md font-bold scale-105' 
+                            ? 'bg-teal-600 text-white shadow-md font-bold scale-105' 
                             : 'text-slate-600 hover:bg-slate-100 bg-slate-50 border border-slate-200/60'
                         }`}
                       >
                         <span className={`text-sm sm:text-base font-extrabold ${isSelected ? 'text-white' : 'text-slate-800'}`}>
                           {item.dayNumber}
                         </span>
-                        <span className={`text-[11px] font-semibold mt-0.5 ${isSelected ? 'text-emerald-100' : 'text-slate-400'}`}>
+                        <span className={`text-[11px] font-semibold mt-0.5 ${isSelected ? 'text-teal-100' : 'text-slate-400'}`}>
                           {item.dayName}
                         </span>
                       </button>
@@ -1245,7 +1245,7 @@ export default function AssignHomeworkPage() {
                 <select
                   value={filterClass}
                   onChange={e => setFilterClass(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-700 shadow-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0d8065]/20 focus:border-[#0d8065]"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-700 shadow-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                 >
                   <option value="All">All Classes</option>
                   {uniqueClassNames.map(name => (
@@ -1261,7 +1261,7 @@ export default function AssignHomeworkPage() {
                 <select
                   value={filterSection}
                   onChange={e => setFilterSection(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-700 shadow-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0d8065]/20 focus:border-[#0d8065]"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-700 shadow-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                 >
                   <option value="All">All Sections</option>
                   {uniqueSections.map(sec => (
@@ -1281,7 +1281,7 @@ export default function AssignHomeworkPage() {
                     placeholder="Search by class name, section, or teacher..."
                     value={searchClassQuery}
                     onChange={e => setSearchClassQuery(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-700 shadow-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0d8065]/20 focus:border-[#0d8065]"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-700 shadow-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                   />
                 </div>
               </div>
@@ -1308,11 +1308,11 @@ export default function AssignHomeworkPage() {
             {filteredClasses.map(cls => (
               <div
                 key={cls.id}
-                className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 hover:border-emerald-300 hover:shadow-md transition-all flex flex-col justify-between group"
+                className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 hover:border-teal-400 hover:shadow-md transition-all flex flex-col justify-between group"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#0d8065] flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform">
+                    <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform">
                       <GraduationCap className="w-6 h-6" />
                     </div>
                     <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100 shrink-0">
@@ -1321,7 +1321,7 @@ export default function AssignHomeworkPage() {
                     </div>
                   </div>
 
-                  <h3 className="font-extrabold text-slate-900 text-base group-hover:text-emerald-800 transition-colors">
+                  <h3 className="font-extrabold text-slate-900 text-base group-hover:text-teal-700 transition-colors">
                     {cls.className} - Section {cls.section}
                   </h3>
                   <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
@@ -1334,7 +1334,7 @@ export default function AssignHomeworkPage() {
                   <button
                     type="button"
                     onClick={() => handleSelectClass(cls)}
-                    className="w-full py-2.5 rounded-xl bg-[#0d8065] hover:bg-[#0b6e56] text-white text-xs font-bold shadow-sm inline-flex items-center justify-center gap-2 transition-all active:scale-95"
+                    className="w-full py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-sm inline-flex items-center justify-center gap-2 transition-all active:scale-95"
                   >
                     <FileText className="w-4 h-4" />
                     Assign Homework
@@ -1362,7 +1362,7 @@ export default function AssignHomeworkPage() {
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <div className="w-12 h-12 rounded-2xl bg-[#0d8065] text-white flex items-center justify-center font-bold shrink-0">
+              <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-bold shrink-0">
                 <GraduationCap className="w-6 h-6" />
               </div>
               <div>
@@ -1370,7 +1370,7 @@ export default function AssignHomeworkPage() {
                   <h2 className="font-extrabold text-slate-900 text-lg">
                     {activeClassItem.className}
                   </h2>
-                  <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-[#0d8065] text-white shadow-xs">
+                  <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-teal-600 text-white shadow-xs">
                     Section {activeClassItem.section}
                   </span>
                 </div>
@@ -1424,7 +1424,7 @@ export default function AssignHomeworkPage() {
                 className={`w-full text-left p-5 rounded-2xl border transition-all flex items-center justify-between shadow-xs hover:shadow-md active:scale-[0.99] group ${sub.bgColor} ${sub.borderColor}`}
               >
                 <div>
-                  <h4 className="font-extrabold text-slate-900 text-base group-hover:text-emerald-900 transition-colors">
+                  <h4 className="font-extrabold text-slate-900 text-base group-hover:text-teal-800 transition-colors">
                     Subject : {sub.subjectName}
                   </h4>
                   <div className="mt-2 flex items-center gap-2">
@@ -1435,7 +1435,7 @@ export default function AssignHomeworkPage() {
                   </div>
                 </div>
 
-                <div className="w-10 h-10 rounded-2xl bg-white/90 flex items-center justify-center text-slate-500 shadow-2xs shrink-0 group-hover:bg-[#0d8065] group-hover:text-white transition-all">
+                <div className="w-10 h-10 rounded-2xl bg-white/90 flex items-center justify-center text-slate-500 shadow-2xs shrink-0 group-hover:bg-teal-600 group-hover:text-white transition-all">
                   <ChevronRight className="w-5 h-5" />
                 </div>
               </button>
@@ -1460,7 +1460,7 @@ export default function AssignHomeworkPage() {
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <div className="w-12 h-12 rounded-2xl bg-[#0d8065] text-white flex items-center justify-center font-bold shrink-0">
+              <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-bold shrink-0">
                 <FileText className="w-6 h-6" />
               </div>
               <div>
@@ -1468,7 +1468,7 @@ export default function AssignHomeworkPage() {
                   <h2 className="font-extrabold text-slate-900 text-lg">
                     {selectedSubjectItem.subjectName} Tasks
                   </h2>
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-800 border border-teal-200">
                     Academic Year 2026
                   </span>
                 </div>
@@ -1483,7 +1483,7 @@ export default function AssignHomeworkPage() {
               <button
                 type="button"
                 onClick={() => setCreateTaskModalOpen(true)}
-                className="px-5 py-2.5 rounded-xl bg-[#0d8065] hover:bg-[#0b6e56] text-white font-bold text-xs shadow-sm flex items-center gap-2 transition-all active:scale-95"
+                className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-sm flex items-center gap-2 transition-all active:scale-95"
               >
                 <Plus className="w-4 h-4" />
                 Create New Task
@@ -1509,7 +1509,7 @@ export default function AssignHomeworkPage() {
           {/* Tasks Desktop Grid (Responsive 1 or 2 cols) */}
           {currentSubjectTasks.length === 0 ? (
             <div className="bg-white rounded-2xl p-12 text-center border border-slate-200/80 shadow-sm">
-              <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-[#0d8065] flex items-center justify-center mx-auto mb-3">
+              <div className="w-16 h-16 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center mx-auto mb-3">
                 <FileText className="w-8 h-8" />
               </div>
               <h4 className="font-bold text-slate-800 text-base">No tasks assigned for {selectedSubjectItem.subjectName}</h4>
@@ -1519,7 +1519,7 @@ export default function AssignHomeworkPage() {
               <button
                 type="button"
                 onClick={() => setCreateTaskModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-[#0d8065] text-white text-xs font-bold shadow-sm inline-flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-sm inline-flex items-center gap-1.5"
               >
                 <Plus className="w-4 h-4" /> Create First Task
               </button>
@@ -1535,8 +1535,8 @@ export default function AssignHomeworkPage() {
                     {/* Top Status & Attachment badges */}
                     <div className="flex items-center justify-between">
                       {task.status === 'Active' ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200/60">
+                          <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
                           Active
                         </span>
                       ) : (
@@ -1613,7 +1613,7 @@ export default function AssignHomeworkPage() {
                     <button
                       type="button"
                       onClick={() => handleOpenAssignedStudents(task)}
-                      className="px-4 py-2.5 rounded-xl bg-[#0d8065] hover:bg-[#0b6e56] text-white text-xs font-bold shadow-sm inline-flex items-center gap-1.5 transition-all active:scale-95"
+                      className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-sm inline-flex items-center gap-1.5 transition-all active:scale-95"
                     >
                       <Users className="w-3.5 h-3.5" />
                       Assigned Students
@@ -1630,14 +1630,14 @@ export default function AssignHomeworkPage() {
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
               <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] border border-slate-200">
                 {/* Modal Header */}
-                <div className="px-6 py-4.5 bg-[#0d8065] text-white flex items-center justify-between">
+                <div className="px-6 py-4.5 bg-teal-600 text-white flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center">
                       <Plus className="w-5 h-5 text-white" />
                     </div>
                     <div>
                       <h3 className="font-bold text-base leading-tight">Create New Homework Task</h3>
-                      <p className="text-[11px] text-emerald-100/90 font-medium mt-0.5">Publish assignment for students</p>
+                      <p className="text-[11px] text-teal-100/90 font-medium mt-0.5">Publish assignment for students</p>
                     </div>
                   </div>
                   <button
@@ -1653,7 +1653,7 @@ export default function AssignHomeworkPage() {
                   {/* Subject & Class Information Pill */}
                   <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 truncate">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                      <span className="w-2 h-2 rounded-full bg-teal-500 shrink-0" />
                       <span className="font-extrabold text-slate-900 truncate">
                         {selectedSubjectItem.subjectName}
                       </span>
@@ -1662,7 +1662,7 @@ export default function AssignHomeworkPage() {
                         {selectedSubjectItem.teacherName}
                       </span>
                     </div>
-                    <span className="font-bold text-emerald-800 bg-emerald-100/80 px-2.5 py-1 rounded-lg shrink-0">
+                    <span className="font-bold text-teal-800 bg-teal-100/80 px-2.5 py-1 rounded-lg shrink-0">
                       {activeClassItem.className} (Sec {activeClassItem.section})
                     </span>
                   </div>
@@ -1678,7 +1678,7 @@ export default function AssignHomeworkPage() {
                       value={newTaskTitle}
                       onChange={e => setNewTaskTitle(e.target.value)}
                       placeholder="e.g. Chapter 4: Linear Equations Exercise 4.2"
-                      className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0d8065]/20 focus:border-[#0d8065]"
+                      className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                     />
                   </div>
 
@@ -1692,7 +1692,7 @@ export default function AssignHomeworkPage() {
                       value={newTaskDesc}
                       onChange={e => setNewTaskDesc(e.target.value)}
                       placeholder="Solve questions from chapter review. Show all steps clearly in homework notebook..."
-                      className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0d8065]/20 focus:border-[#0d8065] resize-none"
+                      className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 resize-none"
                     />
                   </div>
 
@@ -1708,7 +1708,7 @@ export default function AssignHomeworkPage() {
                         required
                         value={newTaskAssignDate}
                         onChange={e => setNewTaskAssignDate(e.target.value)}
-                        className="w-full px-3.5 py-2.5 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0d8065]/20 focus:border-[#0d8065] cursor-pointer"
+                        className="w-full px-3.5 py-2.5 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 cursor-pointer"
                       />
                     </div>
                     <div>
@@ -1722,7 +1722,7 @@ export default function AssignHomeworkPage() {
                         min={newTaskAssignDate}
                         value={newTaskDueDate}
                         onChange={e => setNewTaskDueDate(e.target.value)}
-                        className="w-full px-3.5 py-2.5 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0d8065]/20 focus:border-[#0d8065] cursor-pointer"
+                        className="w-full px-3.5 py-2.5 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 cursor-pointer"
                       />
                     </div>
                   </div>
@@ -1731,7 +1731,7 @@ export default function AssignHomeworkPage() {
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
-                        <Paperclip className="w-3.5 h-3.5 text-emerald-600" />
+                        <Paperclip className="w-3.5 h-3.5 text-teal-600" />
                         Attach Homework Document / Worksheet
                       </span>
                       <span className="text-[11px] font-normal text-slate-400">Optional</span>
@@ -1748,14 +1748,14 @@ export default function AssignHomeworkPage() {
 
                     {newTaskAttachmentName ? (
                       /* File Attached Preview Card */
-                      <div className="flex items-center justify-between p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-xs animate-in fade-in">
+                      <div className="flex items-center justify-between p-3 rounded-2xl bg-teal-50/70 border border-teal-200 text-xs animate-in fade-in">
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-9 h-9 rounded-xl bg-[#0d8065] text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <div className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-xs">
                             <FileText className="w-4.5 h-4.5" />
                           </div>
                           <div className="min-w-0">
                             <p className="font-bold text-slate-900 truncate max-w-xs">{newTaskAttachmentName}</p>
-                            <p className="text-[11px] text-emerald-700 font-semibold">{newTaskAttachmentSize || 'File Attached'}</p>
+                            <p className="text-[11px] text-teal-700 font-semibold">{newTaskAttachmentSize || 'File Attached'}</p>
                           </div>
                         </div>
 
@@ -1792,12 +1792,12 @@ export default function AssignHomeworkPage() {
                             setNewTaskAttachmentSize(sizeStr)
                           }
                         }}
-                        className="border-2 border-dashed border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/20 rounded-2xl p-4 text-center cursor-pointer transition-all group"
+                        className="border-2 border-dashed border-slate-200 hover:border-teal-500 hover:bg-teal-50/20 rounded-2xl p-4 text-center cursor-pointer transition-all group"
                       >
-                        <div className="w-10 h-10 rounded-xl bg-slate-100 group-hover:bg-emerald-100 group-hover:text-emerald-700 text-slate-400 flex items-center justify-center mx-auto mb-2 transition-colors">
+                        <div className="w-10 h-10 rounded-xl bg-slate-100 group-hover:bg-teal-100 group-hover:text-teal-700 text-slate-400 flex items-center justify-center mx-auto mb-2 transition-colors">
                           <Upload className="w-5 h-5" />
                         </div>
-                        <p className="text-xs font-bold text-slate-700 group-hover:text-emerald-800 transition-colors">
+                        <p className="text-xs font-bold text-slate-700 group-hover:text-teal-800 transition-colors">
                           Click to browse or drag & drop file here
                         </p>
                         <p className="text-[11px] text-slate-400 mt-0.5">Supports PDF worksheets, assignment DOCX, notes or images</p>
@@ -1816,7 +1816,7 @@ export default function AssignHomeworkPage() {
                     </button>
                     <button
                       type="submit"
-                      className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#0d8065] hover:bg-[#0b6e56] text-white shadow-sm flex items-center gap-1.5 transition-all"
+                      className="px-5 py-2.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-sm flex items-center gap-1.5 transition-all"
                     >
                       <Check className="w-4 h-4" />
                       Publish Task
@@ -1845,7 +1845,7 @@ export default function AssignHomeworkPage() {
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#0d8065] flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
                 <FileText className="w-6 h-6" />
               </div>
               <div>
@@ -1859,8 +1859,8 @@ export default function AssignHomeworkPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 text-xs font-medium">
-              <div className="flex items-center gap-2 bg-emerald-50 px-3.5 py-2 rounded-xl border border-emerald-200/80 text-emerald-800">
-                <Database className="w-3.5 h-3.5 text-emerald-600" />
+              <div className="flex items-center gap-2 bg-teal-50 px-3.5 py-2 rounded-xl border border-teal-200/80 text-teal-800">
+                <Database className="w-3.5 h-3.5 text-teal-600" />
                 <span className="font-bold">Institute DB Synced</span>
               </div>
               <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200/60">
@@ -1883,7 +1883,7 @@ export default function AssignHomeworkPage() {
           {selectedStudentIds.length > 0 && (
             <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
               <div className="flex items-center gap-3">
-                <span className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-extrabold text-sm border border-emerald-500/30">
+                <span className="w-9 h-9 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center font-extrabold text-sm border border-teal-500/30">
                   {selectedStudentIds.length}
                 </span>
                 <div>
@@ -1904,7 +1904,7 @@ export default function AssignHomeworkPage() {
                   type="button"
                   disabled={isUpdatingSubmissions}
                   onClick={() => handleBulkUpdateStatus('Submitted')}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-[#0d8065] hover:bg-[#0b6e56] text-white flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50 active:scale-95 cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50 active:scale-95 cursor-pointer"
                 >
                   {isUpdatingSubmissions ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                   Mark Selected as Submitted
@@ -1938,7 +1938,7 @@ export default function AssignHomeworkPage() {
                 onClick={handleToggleSelectAll}
                 className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 shrink-0 ${
                   selectedStudentIds.length === filteredStudents.length && filteredStudents.length > 0
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                    ? 'bg-teal-50 text-teal-800 border-teal-300'
                     : selectedStudentIds.length > 0
                     ? 'bg-slate-100 text-slate-800 border-slate-300'
                     : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
@@ -1946,7 +1946,7 @@ export default function AssignHomeworkPage() {
                 title="Select all displayed students"
               >
                 {selectedStudentIds.length === filteredStudents.length && filteredStudents.length > 0 ? (
-                  <CheckSquare className="w-4 h-4 text-emerald-600" />
+                  <CheckSquare className="w-4 h-4 text-teal-600" />
                 ) : (
                   <Square className="w-4 h-4 text-slate-400" />
                 )}
@@ -1961,7 +1961,7 @@ export default function AssignHomeworkPage() {
                   placeholder="Search by student name, roll number, admission..."
                   value={studentSearch}
                   onChange={e => setStudentSearch(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0d8065]/20 focus:border-[#0d8065]"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                 />
               </div>
             </div>
@@ -1989,12 +1989,12 @@ export default function AssignHomeworkPage() {
                   onClick={() => setStudentStatusFilter('Submitted')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                     studentStatusFilter === 'Submitted'
-                      ? 'bg-white text-emerald-800 shadow-xs'
-                      : 'text-slate-600 hover:text-emerald-800'
+                      ? 'bg-white text-teal-800 shadow-xs'
+                      : 'text-slate-600 hover:text-teal-800'
                   }`}
                 >
                   <span>Submitted</span>
-                  <span className="px-1.5 py-0.2 rounded-md text-[10px] bg-emerald-100 text-emerald-800 font-bold">
+                  <span className="px-1.5 py-0.2 rounded-md text-[10px] bg-teal-100 text-teal-800 font-bold">
                     {statusCounters.submitted}
                   </span>
                 </button>
@@ -2041,7 +2041,7 @@ export default function AssignHomeworkPage() {
                     key={student.id}
                     className={`bg-white rounded-2xl p-4 shadow-sm border transition-all flex flex-col justify-between gap-3 hover:shadow-md ${
                       isSelected
-                        ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/15'
+                        ? 'border-teal-500 ring-2 ring-teal-500/20 bg-teal-50/15'
                         : 'border-slate-200/80'
                     }`}
                   >
@@ -2050,11 +2050,11 @@ export default function AssignHomeworkPage() {
                       <button
                         type="button"
                         onClick={() => handleToggleStudentSelection(student.id)}
-                        className="mt-1 p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-emerald-700 transition-colors shrink-0"
+                        className="mt-1 p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-teal-700 transition-colors shrink-0"
                         title="Select for multiple task update"
                       >
                         {isSelected ? (
-                          <CheckSquare className="w-5 h-5 text-emerald-600" />
+                          <CheckSquare className="w-5 h-5 text-teal-600" />
                         ) : (
                           <Square className="w-5 h-5 text-slate-300 hover:text-slate-500" />
                         )}
@@ -2093,10 +2093,10 @@ export default function AssignHomeworkPage() {
                           <button
                             type="button"
                             onClick={() => handleToggleSingleStudentStatus(student, 'Pending')}
-                            className="group px-2.5 py-1 rounded-xl text-[11px] font-bold bg-emerald-50 hover:bg-red-50 text-emerald-700 hover:text-red-700 border border-emerald-200 hover:border-red-200 shrink-0 inline-flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                            className="group px-2.5 py-1 rounded-xl text-[11px] font-bold bg-teal-50 hover:bg-red-50 text-teal-700 hover:text-red-700 border border-teal-200 hover:border-red-200 shrink-0 inline-flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
                             title="Click to change status to Pending"
                           >
-                            <Check className="w-3.5 h-3.5 text-emerald-600 group-hover:hidden" />
+                            <Check className="w-3.5 h-3.5 text-teal-600 group-hover:hidden" />
                             <RotateCcw className="w-3.5 h-3.5 text-red-500 hidden group-hover:inline" />
                             <span className="group-hover:hidden">Submitted</span>
                             <span className="hidden group-hover:inline">Mark Pending</span>
@@ -2107,7 +2107,7 @@ export default function AssignHomeworkPage() {
                           <button
                             type="button"
                             onClick={() => handleToggleSingleStudentStatus(student, 'Submitted')}
-                            className="group px-2.5 py-1 rounded-xl text-[11px] font-bold bg-amber-50 hover:bg-[#0d8065] text-amber-800 hover:text-white border border-amber-200 hover:border-[#0d8065] shrink-0 inline-flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                            className="group px-2.5 py-1 rounded-xl text-[11px] font-bold bg-amber-50 hover:bg-teal-600 text-amber-800 hover:text-white border border-amber-200 hover:border-teal-600 shrink-0 inline-flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
                             title="Click to mark Submitted (Done)"
                           >
                             <Clock className="w-3.5 h-3.5 text-amber-600 group-hover:hidden" />

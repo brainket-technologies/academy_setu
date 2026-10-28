@@ -58,7 +58,7 @@ interface StudentReportItem {
 // Subject color palettes for dynamic subjects
 const SUBJECT_PALETTES = [
   { bgColor: 'bg-sky-50/80 hover:bg-sky-100/90', borderColor: 'border-sky-200', textColor: 'text-sky-950', badgeColor: 'bg-white text-sky-800' },
-  { bgColor: 'bg-emerald-50/80 hover:bg-emerald-100/90', borderColor: 'border-emerald-200', textColor: 'text-emerald-950', badgeColor: 'bg-white text-emerald-800' },
+  { bgColor: 'bg-teal-50/80 hover:bg-emerald-100/90', borderColor: 'border-teal-200', textColor: 'text-emerald-950', badgeColor: 'bg-white text-teal-800' },
   { bgColor: 'bg-rose-50/80 hover:bg-rose-100/90', borderColor: 'border-rose-200', textColor: 'text-rose-950', badgeColor: 'bg-white text-rose-800' },
   { bgColor: 'bg-amber-50/80 hover:bg-amber-100/90', borderColor: 'border-amber-200', textColor: 'text-amber-950', badgeColor: 'bg-white text-amber-800' },
   { bgColor: 'bg-purple-50/80 hover:bg-purple-100/90', borderColor: 'border-purple-200', textColor: 'text-purple-950', badgeColor: 'bg-white text-purple-800' },
@@ -633,7 +633,7 @@ export default function HomeworkReportPage() {
       <div className="bg-gradient-to-r from-emerald-700 via-teal-700 to-teal-800 text-white rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           {/* Breadcrumbs */}
-          <div className="flex items-center gap-2 text-xs text-emerald-100 font-semibold mb-2">
+          <div className="flex items-center gap-2 text-xs text-teal-100 font-semibold mb-2">
             <Link href="/institute/homework" className="hover:underline flex items-center gap-1">
               <span>Homework Hub</span>
             </Link>
@@ -668,7 +668,7 @@ export default function HomeworkReportPage() {
             {currentStep === 'subjects' && `Select Subject — ${selectedClassCard?.className} Sec ${selectedClassCard?.section}`}
             {currentStep === 'report' && `${selectedSubject?.subjectName} Homework Report`}
           </h1>
-          <p className="text-xs lg:text-sm text-emerald-100 mt-1 max-w-2xl">
+          <p className="text-xs lg:text-sm text-teal-100 mt-1 max-w-2xl">
             {currentStep === 'classes' && 'Real-time homework submission stats, enrolled student counts, and class curriculum evaluations.'}
             {currentStep === 'subjects' && 'Choose a subject below to view enrolled students, evaluation status, and remarks.'}
             {currentStep === 'report' && 'Evaluation breakdown, submission status, and individual student remarks for this assignment.'}
@@ -696,7 +696,7 @@ export default function HomeworkReportPage() {
               <button
                 type="button"
                 onClick={handleExportCSV}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl text-xs font-bold shadow-sm transition-all"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-teal-800 hover:bg-teal-50 rounded-xl text-xs font-bold shadow-sm transition-all"
               >
                 <Download className="w-4 h-4" />
                 Export CSV
@@ -715,7 +715,7 @@ export default function HomeworkReportPage() {
           {currentStep === 'classes' && (
             <Link
               href="/institute/homework/assign"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl text-xs font-bold shadow-sm transition-all"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white text-teal-800 hover:bg-teal-50 rounded-xl text-xs font-bold shadow-sm transition-all"
             >
               <Sparkles className="w-4 h-4" />
               Assign Homework
@@ -753,7 +753,7 @@ export default function HomeworkReportPage() {
             </div>
 
             <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+              <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center font-bold">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <div>
@@ -809,7 +809,7 @@ export default function HomeworkReportPage() {
                       onClick={() => setSelectedDate(item.date)}
                       className={`flex flex-col items-center justify-center px-3 py-1.5 rounded-xl transition-all ${
                         item.isSelected
-                          ? 'bg-[#0d8065] text-white shadow-sm font-bold scale-105'
+                          ? 'bg-teal-600 text-white shadow-sm font-bold scale-105'
                           : 'hover:bg-slate-100 text-slate-700 dark:text-slate-300'
                       }`}
                     >
@@ -931,7 +931,7 @@ export default function HomeworkReportPage() {
                       {/* Top Row: Class Info & Section Pill */}
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-11 h-11 rounded-2xl bg-[#0d8065] text-white flex items-center justify-center font-bold shadow-xs">
+                          <div className="w-11 h-11 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-bold shadow-xs">
                             <GraduationCap className="w-6 h-6" />
                           </div>
                           <div>
@@ -944,7 +944,7 @@ export default function HomeworkReportPage() {
                           </div>
                         </div>
 
-                        <span className="px-2.5 py-1 rounded-lg bg-[#0d8065] text-white text-[11px] font-bold shadow-2xs">
+                        <span className="px-2.5 py-1 rounded-lg bg-teal-600 text-white text-[11px] font-bold shadow-2xs">
                           Sec {card.section}
                         </span>
                       </div>
@@ -958,7 +958,7 @@ export default function HomeworkReportPage() {
                           </span>
                         </div>
 
-                        <div className="bg-emerald-50/80 border border-emerald-100 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
+                        <div className="bg-teal-50/80 border border-emerald-100 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
                           <span className="text-[11px] font-bold text-emerald-900">
                             Completed: {card.completedCount}
@@ -988,7 +988,7 @@ export default function HomeworkReportPage() {
                         </div>
                         <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                           <div 
-                            className="bg-[#0d8065] h-full transition-all duration-300" 
+                            className="bg-teal-600 h-full transition-all duration-300" 
                             style={{ width: `${completionPct}%` }}
                           />
                         </div>
@@ -1005,7 +1005,7 @@ export default function HomeworkReportPage() {
                       <button
                         type="button"
                         onClick={() => handleViewReport(card)}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#0d8065] hover:bg-[#0a6c55] text-white rounded-xl text-xs font-bold shadow-2xs group-hover:scale-102 transition-all cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-2xs group-hover:scale-102 transition-all cursor-pointer"
                       >
                         <BarChart3 className="w-3.5 h-3.5" />
                         View Report
@@ -1036,7 +1036,7 @@ export default function HomeworkReportPage() {
                       <th className="px-5 py-3.5">Class Teacher</th>
                       <th className="px-5 py-3.5">Enrolled</th>
                       <th className="px-5 py-3.5">Assigned</th>
-                      <th className="px-5 py-3.5 text-emerald-700">Completed</th>
+                      <th className="px-5 py-3.5 text-teal-700">Completed</th>
                       <th className="px-5 py-3.5 text-rose-700">Not Completed</th>
                       <th className="px-5 py-3.5 text-amber-700">Rescheduled</th>
                       <th className="px-5 py-3.5">Completion %</th>
@@ -1061,7 +1061,7 @@ export default function HomeworkReportPage() {
                           <td className="px-5 py-3.5 font-bold text-purple-700">
                             {card.assignedCount}
                           </td>
-                          <td className="px-5 py-3.5 font-extrabold text-emerald-700">
+                          <td className="px-5 py-3.5 font-extrabold text-teal-700">
                             {card.completedCount}
                           </td>
                           <td className="px-5 py-3.5 font-bold text-rose-600">
@@ -1077,7 +1077,7 @@ export default function HomeworkReportPage() {
                             <button
                               type="button"
                               onClick={() => handleViewReport(card)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0d8065] hover:bg-[#0a6c55] text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
                             >
                               <BarChart3 className="w-3.5 h-3.5" />
                               View
@@ -1104,7 +1104,7 @@ export default function HomeworkReportPage() {
           {/* Class Summary Bar */}
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-[#0d8065] text-white flex items-center justify-center font-bold shadow-sm">
+              <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-bold shadow-sm">
                 <GraduationCap className="w-6 h-6" />
               </div>
               <div>
@@ -1112,7 +1112,7 @@ export default function HomeworkReportPage() {
                   <h2 className="text-xl font-black text-slate-900 dark:text-white">
                     {selectedClassCard.className}
                   </h2>
-                  <span className="px-2.5 py-0.5 rounded-lg bg-[#0d8065] text-white text-xs font-bold">
+                  <span className="px-2.5 py-0.5 rounded-lg bg-teal-600 text-white text-xs font-bold">
                     Section {selectedClassCard.section}
                   </span>
                 </div>
@@ -1156,9 +1156,9 @@ export default function HomeworkReportPage() {
                 <div>
                   <div className="flex items-start justify-between">
                     <span className="w-8 h-8 rounded-xl bg-white/90 shadow-2xs flex items-center justify-center text-slate-700 font-bold">
-                      <BookOpen className="w-4 h-4 text-emerald-700" />
+                      <BookOpen className="w-4 h-4 text-teal-700" />
                     </span>
-                    <div className="w-7 h-7 rounded-full bg-white shadow-2xs flex items-center justify-center text-slate-400 group-hover:text-emerald-700 group-hover:translate-x-0.5 transition-all">
+                    <div className="w-7 h-7 rounded-full bg-white shadow-2xs flex items-center justify-center text-slate-400 group-hover:text-teal-700 group-hover:translate-x-0.5 transition-all">
                       <ChevronRight className="w-4 h-4" />
                     </div>
                   </div>
@@ -1174,7 +1174,7 @@ export default function HomeworkReportPage() {
 
                 <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-xs font-bold text-slate-600">
                   <span>View Student Reports</span>
-                  <span className="text-emerald-700 group-hover:translate-x-1 transition-transform">→</span>
+                  <span className="text-teal-700 group-hover:translate-x-1 transition-transform">→</span>
                 </div>
               </div>
             ))}
@@ -1200,12 +1200,12 @@ export default function HomeworkReportPage() {
             
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-[#0d8065] text-white flex items-center justify-center font-bold shadow-sm flex-shrink-0">
+                <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-bold shadow-sm flex-shrink-0">
                   <FileText className="w-6 h-6" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-2.5 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold">
+                    <span className="px-2.5 py-0.5 rounded-lg bg-emerald-100 text-teal-800 text-xs font-bold">
                       {selectedSubject.subjectName}
                     </span>
                     <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">
@@ -1225,10 +1225,10 @@ export default function HomeworkReportPage() {
               <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200/70">
                 <div className="text-right">
                   <span className="text-xs font-semibold text-slate-500">Overall Completion</span>
-                  <p className="text-lg font-black text-[#0d8065]">{reportStats.completedPct}%</p>
+                  <p className="text-lg font-black text-teal-600">{reportStats.completedPct}%</p>
                 </div>
                 <div className="w-20 bg-slate-200 h-2.5 rounded-full overflow-hidden">
-                  <div className="bg-[#0d8065] h-full" style={{ width: `${reportStats.completedPct}%` }} />
+                  <div className="bg-teal-600 h-full" style={{ width: `${reportStats.completedPct}%` }} />
                 </div>
               </div>
             </div>
@@ -1248,11 +1248,11 @@ export default function HomeworkReportPage() {
               <div 
                 onClick={() => setStatusTab('Completed')}
                 className={`rounded-2xl p-4 cursor-pointer transition-all border ${
-                  statusTab === 'Completed' ? 'ring-2 ring-emerald-500 bg-emerald-50 border-emerald-200 shadow-xs' : 'bg-emerald-50/50 border-emerald-100 hover:bg-emerald-50'
+                  statusTab === 'Completed' ? 'ring-2 ring-emerald-500 bg-teal-50 border-teal-200 shadow-xs' : 'bg-teal-50/50 border-emerald-100 hover:bg-teal-50'
                 }`}
               >
-                <div className="text-2xl font-black text-emerald-700">{reportStats.completed}</div>
-                <div className="text-xs font-bold text-emerald-800 mt-1">Completed ({reportStats.completedPct}%)</div>
+                <div className="text-2xl font-black text-teal-700">{reportStats.completed}</div>
+                <div className="text-xs font-bold text-teal-800 mt-1">Completed ({reportStats.completedPct}%)</div>
               </div>
 
               <div 
@@ -1317,7 +1317,7 @@ export default function HomeworkReportPage() {
                 type="button"
                 onClick={() => setStatusTab('Completed')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                  statusTab === 'Completed' ? 'bg-white text-emerald-700 shadow-xs' : 'text-slate-600 hover:text-emerald-700'
+                  statusTab === 'Completed' ? 'bg-white text-teal-700 shadow-xs' : 'text-slate-600 hover:text-teal-700'
                 }`}
               >
                 Completed ({reportStats.completed})
@@ -1403,7 +1403,7 @@ export default function HomeworkReportPage() {
                       </td>
                       <td className="px-5 py-3.5">
                         {student.status === 'Completed' && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold shadow-2xs">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 text-teal-700 border border-teal-200 text-xs font-bold shadow-2xs">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                             Completed
                           </span>
@@ -1429,7 +1429,7 @@ export default function HomeworkReportPage() {
                       </td>
                       <td className="px-5 py-3.5">
                         {student.remark ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold">
                             <MessageSquare className="w-3 h-3 text-emerald-600" />
                             {student.remark}
                           </span>
