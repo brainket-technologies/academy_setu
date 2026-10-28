@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { 
   Search, Plus, Calendar, Clock, Trash2, X, Download, 
   CheckCircle2, AlertTriangle, AlertCircle, ShieldAlert, 
-  User, BookOpen, Coffee, Sun, Check, ArrowRight, Pencil
+  User, BookOpen, Coffee, Sun, Check, ArrowRight, Pencil, Copy
 } from 'lucide-react'
 import { useClasses, useSections, useSubjects } from '@/lib/mastersData'
 import { fetchTeachers, createTeacher } from '@/app/institute/teachers/actions'
@@ -255,6 +255,11 @@ export default function TimeTablePage() {
   const [conflictReviewModalOpen, setConflictReviewModalOpen] = useState(false)
   const [detectedConflictsList, setDetectedConflictsList] = useState<TeacherConflictInfo[]>([])
 
+  // Copy schedule state
+  const [copyModalOpen, setCopyModalOpen] = useState(false)
+  const [copyTargetDays, setCopyTargetDays] = useState<string[]>([])
+  const [autoEnableWorkingDay, setAutoEnableWorkingDay] = useState(true)
+
   const [toastMsg, setToastMsg] = useState('')
   const [toastOpen, setToastOpen] = useState(false)
 
@@ -474,17 +479,35 @@ export default function TimeTablePage() {
   const addSubjectRow = () => {
     const current = [...(modalSlots[activeModalDay] || [])]
     const nextId = Date.now()
-    const availableSubs = getSubjectsForClass(modalClass || selectedClass)
+
+    let timeFrom = '09:00 AM'
+    let timeTo = '09:45 AM'
+    if (current.length > 0) {
+      const lastSlot = current[current.length - 1]
+      if (lastSlot.timeTo) {
+        timeFrom = lastSlot.timeTo
+        const lastMinutes = parseTimeToMinutes(lastSlot.timeTo)
+        if (lastMinutes !== null) {
+          const nextMinutes = lastMinutes + 45
+          const h = Math.floor(nextMinutes / 60) % 24
+          const m = nextMinutes % 60
+          const mer = h >= 12 ? 'PM' : 'AM'
+          const h12 = h % 12 || 12
+          timeTo = `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${mer}`
+        }
+      }
+    }
+
     setModalSlots({
       ...modalSlots,
       [activeModalDay]: [
         ...current,
         { 
           id: nextId, 
-          timeFrom: '09:00 AM', 
-          timeTo: '09:45 AM', 
-          subject: availableSubs[0] || 'English', 
-          teacher: teachersList[0] || 'Dr. S. K. Sharma' 
+          timeFrom, 
+          timeTo, 
+          subject: '', 
+          teacher: '' 
         }
       ]
     })
@@ -531,6 +554,52 @@ export default function TimeTablePage() {
         return [...prev, day]
       }
     })
+  }
+
+  // Open copy schedule modal
+  const handleOpenCopyModal = () => {
+    const slots = modalSlots[activeModalDay] || []
+    if (slots.length === 0) {
+      alert(`There are no periods in ${activeModalDay} to copy. Please add at least one subject or lunch break first.`)
+      return
+    }
+    // Default: If Monday, preselect Tuesday. Otherwise next day.
+    if (activeModalDay === 'Monday') {
+      setCopyTargetDays(['Tuesday'])
+    } else {
+      const remainingDays = ALL_WEEK_DAYS.filter(d => d !== activeModalDay && d !== 'Sunday')
+      setCopyTargetDays(remainingDays.slice(0, 1))
+    }
+    setCopyModalOpen(true)
+  }
+
+  // Apply copy schedule
+  const handleApplyCopySchedule = () => {
+    if (copyTargetDays.length === 0) {
+      alert('Please select at least one day to copy the schedule to.')
+      return
+    }
+    const sourceSlots = modalSlots[activeModalDay] || []
+
+    setModalSlots(prev => {
+      const updated = { ...prev }
+      copyTargetDays.forEach(day => {
+        updated[day] = sourceSlots.map((slot, idx) => ({
+          ...slot,
+          id: Date.now() + idx + Math.floor(Math.random() * 100000)
+        }))
+      })
+      return updated
+    })
+
+    if (autoEnableWorkingDay) {
+      setModalOffDays(prev => prev.filter(day => !copyTargetDays.includes(day)))
+    }
+
+    setCopyModalOpen(false)
+    setToastMsg(`Copied ${activeModalDay}'s schedule to ${copyTargetDays.join(', ')}!`)
+    setToastOpen(true)
+    setTimeout(() => setToastOpen(false), 3000)
   }
 
   // Quick add teacher
@@ -675,8 +744,7 @@ export default function TimeTablePage() {
       setModalSlots(cleanedSchedule)
       setModalOffDays(activeRecord.offDays || ['Sunday'])
     } else {
-      // Build fresh initial slots using ONLY this class's actual subjects from masters
-      const classSubs = getSubjectsForClass(selectedClass)
+      // Start with a clean blank schedule (no periods pre-populated)
       const initialSlots: Record<string, TimeSlot[]> = {
         'Sunday': [],
         'Monday': [],
@@ -686,43 +754,6 @@ export default function TimeTablePage() {
         'Friday': [],
         'Saturday': []
       }
-
-      const formatSlotTime = (h: number, m: number) => {
-        const mer = h >= 12 ? 'PM' : 'AM'
-        const h12 = h % 12 || 12
-        return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${mer}`
-      }
-
-      const basePeriods: TimeSlot[] = classSubs.length > 0
-        ? classSubs.map((subName, i) => {
-            const startHour = 9 + Math.floor((i * 45) / 60)
-            const startMin = (i * 45) % 60
-            const endTotalMin = (i + 1) * 45
-            const endHour = 9 + Math.floor(endTotalMin / 60)
-            const endMin = endTotalMin % 60
-
-            return {
-              id: Date.now() + i,
-              timeFrom: formatSlotTime(startHour, startMin),
-              timeTo: formatSlotTime(endHour, endMin),
-              subject: subName,
-              teacher: teachersList[i % teachersList.length] || ''
-            }
-          })
-        : [
-            { id: Date.now(), timeFrom: '09:00 AM', timeTo: '09:45 AM', subject: '', teacher: teachersList[0] || '' }
-          ]
-
-      ALL_WEEK_DAYS.forEach(day => {
-        if (day === 'Sunday') {
-          initialSlots[day] = []
-        } else {
-          initialSlots[day] = JSON.parse(JSON.stringify(basePeriods)).map((s: TimeSlot, idx: number) => ({
-            ...s,
-            id: Date.now() + idx + Math.floor(Math.random() * 1000)
-          }))
-        }
-      })
 
       setModalSlots(initialSlots)
       setModalOffDays(['Sunday'])
@@ -1189,27 +1220,39 @@ export default function TimeTablePage() {
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleToggleDayOff(activeModalDay)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border shadow-2xs ${
-                      isCurrentDayOff
-                        ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600'
-                        : 'bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600'
-                    }`}
-                  >
-                    {isCurrentDayOff ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                        <span>Day Off Active (Toggle Working)</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sun className="w-3.5 h-3.5" />
-                        <span>Select as Week Day Off</span>
-                      </>
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={handleOpenCopyModal}
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border shadow-2xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/60 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800"
+                      title={`Copy ${activeModalDay}'s schedule to Tuesday and other days`}
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy to Other Days</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleToggleDayOff(activeModalDay)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border shadow-2xs ${
+                        isCurrentDayOff
+                          ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600'
+                          : 'bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600'
+                      }`}
+                    >
+                      {isCurrentDayOff ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                          <span>Day Off Active (Toggle Working)</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sun className="w-3.5 h-3.5" />
+                          <span>Select as Week Day Off</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 {/* If day is off: Show friendly message */}
@@ -1480,7 +1523,7 @@ export default function TimeTablePage() {
 
                     {/* Actions bar inside day builder */}
                     <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex-wrap">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2.5 flex-wrap">
                         <button 
                           type="button" 
                           onClick={addLunchBreakRow}
@@ -1498,6 +1541,18 @@ export default function TimeTablePage() {
                           <Plus className="w-3.5 h-3.5" />
                           <span>+ Add Subject</span>
                         </button>
+
+                        {(modalSlots[activeModalDay] || []).length > 0 && (
+                          <button 
+                            type="button" 
+                            onClick={handleOpenCopyModal}
+                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-sm flex items-center gap-1.5 transition-colors text-xs"
+                            title="Copy this day's schedule to Tuesday and other days"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy Schedule To...</span>
+                          </button>
+                        )}
                       </div>
 
                       {(modalSlots[activeModalDay] || []).length > 0 && (
@@ -1642,6 +1697,147 @@ export default function TimeTablePage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── COPY SCHEDULE MODAL ─── */}
+      {copyModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-md shadow-2xl p-6 border border-slate-200 dark:border-slate-700 space-y-5 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-xs">
+                  <Copy className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-800 dark:text-slate-100">
+                    Copy {activeModalDay}&apos;s Schedule
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    {(modalSlots[activeModalDay] || []).length} period(s) configured on {activeModalDay}
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setCopyModalOpen(false)} 
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Target Days to Replicate
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allOthers = ALL_WEEK_DAYS.filter(d => d !== activeModalDay && d !== 'Sunday')
+                      setCopyTargetDays(allOthers)
+                    }}
+                    className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-bold"
+                  >
+                    All Weekdays
+                  </button>
+                  <span className="text-slate-300">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setCopyTargetDays([])}
+                    className="text-[10px] text-slate-400 hover:underline font-bold"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              {/* Day selection checkboxes */}
+              <div className="grid grid-cols-2 gap-2">
+                {ALL_WEEK_DAYS.filter(d => d !== activeModalDay).map(day => {
+                  const isChecked = copyTargetDays.includes(day)
+                  const isDayOff = modalOffDays.includes(day)
+                  const existingCount = (modalSlots[day] || []).length
+
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => {
+                        setCopyTargetDays(prev => 
+                          prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+                        )
+                      }}
+                      className={`p-3 rounded-2xl border text-left transition-all flex items-center justify-between ${
+                        isChecked 
+                          ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-950 dark:text-indigo-200 shadow-2xs' 
+                          : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={`w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${
+                          isChecked 
+                            ? 'bg-indigo-600 border-indigo-600 text-white' 
+                            : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900'
+                        }`}>
+                          {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                        </div>
+                        <span className="text-xs font-bold">{day}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {isDayOff && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300">
+                            Off
+                          </span>
+                        )}
+                        {existingCount > 0 && (
+                          <span className="text-[9px] text-slate-400">
+                            ({existingCount}p)
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Working Day Auto-activation toggle */}
+              <label className="flex items-start gap-2.5 pt-1 text-[11px] text-slate-600 dark:text-slate-300 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={autoEnableWorkingDay}
+                  onChange={e => setAutoEnableWorkingDay(e.target.checked)}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
+                />
+                <span>Automatically activate selected days as <strong>Working Days</strong> (unmark weekly off)</span>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-700">
+              <button 
+                type="button" 
+                onClick={() => setCopyModalOpen(false)} 
+                className="px-4 py-2 border rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                onClick={handleApplyCopySchedule}
+                disabled={copyTargetDays.length === 0}
+                className={`px-5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm ${
+                  copyTargetDays.length === 0
+                    ? 'bg-slate-200 text-slate-400 dark:bg-slate-700 cursor-not-allowed'
+                    : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                }`}
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copy to {copyTargetDays.length} Day{copyTargetDays.length === 1 ? '' : 's'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
