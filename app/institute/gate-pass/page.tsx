@@ -111,7 +111,7 @@ export default function AllGatePassPage() {
           {/* One Time */}
           <Link
             href="/institute/gate-pass/one-time"
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#0d8065] hover:bg-[#0a6c55] text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
           >
             <Plus className="w-3.5 h-3.5" /> One Time
           </Link>
@@ -139,7 +139,7 @@ export default function AllGatePassPage() {
           <button
             onClick={() => setActiveTab('one-time')}
             className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              activeTab === 'one-time' ? 'bg-[#0d8065] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
+              activeTab === 'one-time' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
             }`}
           >
             <Users className="w-3.5 h-3.5" />
@@ -151,7 +151,7 @@ export default function AllGatePassPage() {
           <button
             onClick={() => setActiveTab('permanent')}
             className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              activeTab === 'permanent' ? 'bg-[#0d8065] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
+              activeTab === 'permanent' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
             }`}
           >
             <Shield className="w-3.5 h-3.5" />
@@ -297,7 +297,7 @@ export default function AllGatePassPage() {
                         <p className="font-bold text-sm">No gate passes found.</p>
                         <Link
                           href="/institute/gate-pass/one-time"
-                          className="inline-flex items-center gap-2 px-5 py-2 bg-[#0d8065] text-white rounded-xl text-xs font-bold shadow-sm hover:bg-[#0a6c55] transition-colors"
+                          className="inline-flex items-center gap-2 px-5 py-2 bg-teal-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-teal-700 transition-colors"
                         >
                           <Plus className="w-4 h-4" /> Create First Gate Pass
                         </Link>

@@ -305,7 +305,7 @@ export default function PermanentRegistrationPage() {
     <div className="flex flex-col gap-6 w-full pb-16 animate-in fade-in duration-200">
 
       {/* ── HEADER ── */}
-      <div className="bg-gradient-to-r from-[#1b3a60] to-[#0d8065] text-white rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-[#1b3a60] to-teal-700 text-white rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link
             href="/institute/gate-pass"
@@ -453,7 +453,7 @@ export default function PermanentRegistrationPage() {
           {/* 2. Receiver Details */}
           <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm space-y-5">
             <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-black">2</span>
+              <span className="w-7 h-7 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-black">2</span>
               Receiver Details
             </h2>
 
@@ -477,7 +477,7 @@ export default function PermanentRegistrationPage() {
                   onClick={otpVerified ? undefined : handleSendOTP}
                   disabled={otpVerified}
                   className={`px-5 py-2.5 rounded-xl text-xs font-bold shadow-sm whitespace-nowrap transition-all ${
-                    otpVerified ? 'bg-emerald-500 text-white cursor-default' : 'bg-[#0d8065] hover:bg-[#0a6c55] text-white'
+                    otpVerified ? 'bg-teal-600 text-white cursor-default' : 'bg-teal-600 hover:bg-teal-700 text-white'
                   }`}
                 >
                   {otpVerified ? '✓ Verified' : 'Send OTP'}

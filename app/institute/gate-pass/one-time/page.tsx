@@ -331,7 +331,7 @@ export default function OneTimeGatePassPage() {
     <div className="flex flex-col gap-6 w-full pb-16 animate-in fade-in duration-200">
 
       {/* ── HEADER ── */}
-      <div className="bg-gradient-to-r from-teal-700 to-emerald-700 text-white rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-[#1b3a60] to-teal-700 text-white rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link
             href="/institute/gate-pass"
@@ -358,7 +358,7 @@ export default function OneTimeGatePassPage() {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="inline-flex items-center gap-2 px-5 py-2 bg-white text-emerald-800 hover:bg-emerald-50 rounded-xl text-xs font-bold shadow-sm transition-all disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-5 py-2 bg-white text-teal-800 hover:bg-teal-50 rounded-xl text-xs font-bold shadow-sm transition-all disabled:opacity-60"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
             {saving ? 'Saving...' : 'Save Gate Pass'}
@@ -373,7 +373,7 @@ export default function OneTimeGatePassPage() {
           onClick={() => setTab('student')}
           className={`flex-1 flex items-center justify-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
             tab === 'student'
-              ? 'bg-[#0d8065] text-white shadow-sm'
+              ? 'bg-teal-600 text-white shadow-sm'
               : 'text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
           }`}
         >
@@ -385,7 +385,7 @@ export default function OneTimeGatePassPage() {
           onClick={() => setTab('visitor')}
           className={`flex-1 flex items-center justify-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
             tab === 'visitor'
-              ? 'bg-[#0d8065] text-white shadow-sm'
+              ? 'bg-teal-600 text-white shadow-sm'
               : 'text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
           }`}
         >
@@ -403,7 +403,7 @@ export default function OneTimeGatePassPage() {
           {/* ── 1. Student Details ── */}
           <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm space-y-5">
             <h2 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-black">1</span>
+              <span className="w-7 h-7 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-black">1</span>
               Student Details
             </h2>
 
@@ -489,8 +489,8 @@ export default function OneTimeGatePassPage() {
 
             {/* Selected Student Info Card */}
             {selectedStudent && (
-              <div className="flex items-center gap-3.5 p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl">
-                <div className="w-10 h-10 rounded-full bg-[#0d8065] text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+              <div className="flex items-center gap-3.5 p-3.5 bg-teal-50/70 border border-teal-200 rounded-2xl">
+                <div className="w-10 h-10 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
                   {(selectedStudent.first_name || selectedStudent.name || 'S').charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
@@ -542,8 +542,8 @@ export default function OneTimeGatePassPage() {
                   disabled={otpVerified}
                   className={`px-5 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-all whitespace-nowrap ${
                     otpVerified
-                      ? 'bg-emerald-500 text-white cursor-default'
-                      : 'bg-[#0d8065] hover:bg-[#0a6c55] text-white'
+                      ? 'bg-teal-600 text-white cursor-default'
+                      : 'bg-teal-600 hover:bg-teal-700 text-white'
                   }`}
                 >
                   {otpVerified ? '✓ Verified' : otpSent ? 'Verify OTP' : 'Send OTP'}
@@ -915,7 +915,7 @@ export default function OneTimeGatePassPage() {
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="inline-flex items-center gap-2 px-8 py-2.5 bg-[#0d8065] hover:bg-[#0a6c55] disabled:opacity-60 text-white rounded-xl text-xs font-bold shadow-sm transition-all"
+          className="inline-flex items-center gap-2 px-8 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white rounded-xl text-xs font-bold shadow-sm transition-all shadow-teal-600/20"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
           {saving ? 'Saving...' : 'Save Gate Pass'}
