@@ -292,3 +292,26 @@ export async function bulkUpdateStudentTaskSubmissions(
     return { success: false, error: err.message }
   }
 }
+
+// 7. Delete homework task and its submissions
+export async function deleteHomeworkTask(taskId: string) {
+  const session = await getSession('institute_session')
+  if (!session?.userId) return { success: false, error: 'Unauthorized' }
+
+  try {
+    await ensureHomeworkTables()
+    await pool.query(`
+      DELETE FROM institute_homework_submissions
+      WHERE institution_id = $1 AND task_id = $2
+    `, [session.userId, taskId])
+
+    await pool.query(`
+      DELETE FROM institute_homework_tasks
+      WHERE institution_id = $1 AND id = $2
+    `, [session.userId, taskId])
+
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
