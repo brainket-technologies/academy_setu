@@ -62,8 +62,9 @@ export default function AllGatePassPage() {
       .filter(p => {
         const name = String(p.visitor_name || p.student_name || '').toLowerCase()
         const receiver = String(p.receiver_name || '').toLowerCase()
+        const parent = String(p.parent_name || '').toLowerCase()
         const q = searchQuery.toLowerCase()
-        return !q || name.includes(q) || receiver.includes(q)
+        return !q || name.includes(q) || receiver.includes(q) || parent.includes(q)
       })
       .filter(p => {
         if (!filterAll) return true
@@ -122,12 +123,19 @@ export default function AllGatePassPage() {
           >
             <UserCheck className="w-3.5 h-3.5" /> Permanent
           </Link>
+          {/* Gate Pass Entry */}
+          <Link
+            href="/institute/gate-pass/entry"
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#1b3a60] hover:bg-[#132a45] text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+          >
+            <LogIn className="w-3.5 h-3.5" /> Gate Pass Entry
+          </Link>
           {/* Visitor Entry */}
           <Link
             href="/institute/gate-pass/visitor-entry"
             className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-xs font-bold transition-colors"
           >
-            <LogIn className="w-3.5 h-3.5" /> Visitor Entry
+            <Plus className="w-3.5 h-3.5" /> Log Entry
           </Link>
         </div>
       </div>
@@ -236,7 +244,15 @@ export default function AllGatePassPage() {
                           {item.user_type || '—'}
                         </span>
                       </td>
-                      <td className="px-3 py-3.5 text-left font-bold text-slate-800 whitespace-nowrap">{personName}</td>
+                      <td className="px-3 py-3.5 text-left whitespace-nowrap">
+                        <span className="font-bold text-slate-800">{personName}</span>
+                        {isStudent && item.parent_name && (
+                          <div className="text-[10.5px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
+                            <span className="text-slate-400 font-normal">Parent:</span>
+                            <span>{item.parent_name}</span>
+                          </div>
+                        )}
+                      </td>
                       <td className="px-3 py-3.5 text-slate-500 text-[10px] whitespace-nowrap">
                         {activeTab === 'permanent'
                           ? (item.aadhar_no ? `****${item.aadhar_no.slice(-4)}` : '—')

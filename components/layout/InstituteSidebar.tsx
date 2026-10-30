@@ -248,6 +248,7 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
       icon: Ticket, label: 'Gate Pass', href: '#',
       subItems: [
         { label: 'All Gate Pass', href: '/institute/gate-pass' },
+        { label: 'Gate Pass Entry', href: '/institute/gate-pass/entry' },
         { label: 'Gate Pass Settings', href: '/institute/gate-pass/settings' },
       ]
     },

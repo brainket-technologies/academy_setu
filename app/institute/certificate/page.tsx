@@ -156,11 +156,16 @@ export default function AllCertificatePage() {
   // Issue Certificate Form State
   const [selectedTypeId, setSelectedTypeId] = useState('')
   const [selectedStudentId, setSelectedStudentId] = useState('')
+  const [studentSearchQuery, setStudentSearchQuery] = useState('')
+  const [studentComboboxSearch, setStudentComboboxSearch] = useState('')
+  const [isStudentDropdownOpen, setIsStudentDropdownOpen] = useState(false)
+  const studentDropdownRef = useRef<HTMLDivElement>(null)
   const [formStudentName, setFormStudentName] = useState('')
   const [formClassName, setFormClassName] = useState('')
   const [formSectionName, setFormSectionName] = useState('')
   const [formFatherName, setFormFatherName] = useState('')
   const [formRollNo, setFormRollNo] = useState('')
+  const [formAdmissionNo, setFormAdmissionNo] = useState('')
   const [formExam, setFormExam] = useState('Good Character & Conduct')
   const [formCertNo, setFormCertNo] = useState('')
   const [formIssueDate, setFormIssueDate] = useState(new Date().toISOString().split('T')[0])
@@ -188,6 +193,17 @@ export default function AllCertificatePage() {
     if (instClasses.length > 0) {
       setFormClassName(instClasses[0])
     }
+  }, [])
+
+  // Close student search combobox on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (studentDropdownRef.current && !studentDropdownRef.current.contains(event.target as Node)) {
+        setIsStudentDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   const loadData = async () => {
@@ -349,7 +365,7 @@ export default function AllCertificatePage() {
     }
   }
 
-  // Handle Student selection change in create form - auto-fetches name, section, class, father name, roll no!
+  // Handle Student selection change in create form - auto-fetches name, section, class, father name, roll no, admission no!
   const handleStudentChange = (stdId: string) => {
     setSelectedStudentId(stdId)
     if (!stdId) {
@@ -357,6 +373,7 @@ export default function AllCertificatePage() {
       setFormSectionName('')
       setFormFatherName('')
       setFormRollNo('')
+      setFormAdmissionNo('')
       return
     }
     const std = students.find(s => String(s.id) === String(stdId))
@@ -369,7 +386,8 @@ export default function AllCertificatePage() {
       }
       setFormSectionName(std.section || '')
       setFormFatherName(std.fatherName || '')
-      setFormRollNo(std.rollNo || std.admissionNo || '')
+      setFormRollNo(std.rollNo || '')
+      setFormAdmissionNo(std.admissionNo || '')
     }
   }
 
@@ -428,19 +446,52 @@ export default function AllCertificatePage() {
     return Array.from(secSet).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
   }, [formClassName, students])
 
-  // Filter students based on selected class AND section
+  // Filter students based on selected class AND section AND optional search query
   const filteredStudentsForModal = useMemo(() => {
+    const q = (studentComboboxSearch || studentSearchQuery).trim().toLowerCase()
     return students.filter(s => {
+      const matchesName = !q || (s.name || '').toLowerCase().includes(q)
+      const matchesAdm = !q || (s.admissionNo || '').toLowerCase().includes(q)
+      const matchesRoll = !q || (s.rollNo || '').toLowerCase().includes(q)
+      const matchesFather = !q || (s.fatherName || '').toLowerCase().includes(q)
+      const matchesText = matchesName || matchesAdm || matchesRoll || matchesFather
+
+      if (q) {
+        // When searching, match any student; if matching in chosen class, keep priority, else match across school
+        if (matchesText) {
+          if (!formClassName) return true
+          if (isClassMatch(s.className, formClassName)) {
+            if (!formSectionName || formSectionName === 'ALL') return true
+            return isSectionMatch(s.section, formSectionName)
+          }
+          return true
+        }
+        return false
+      }
+
       if (formClassName && !isClassMatch(s.className, formClassName)) {
         return false
       }
-      if (formSectionName && formSectionName !== 'ALL') {
+      if (formSectionName && formSectionName !== 'ALL' && formSectionName !== '') {
         if (!s.section) return false
         if (!isSectionMatch(s.section, formSectionName)) return false
       }
       return true
     })
-  }, [students, formClassName, formSectionName])
+  }, [students, formClassName, formSectionName, studentSearchQuery, studentComboboxSearch])
+
+  // Instant student search matches across entire institute
+  const quickSearchStudentMatches = useMemo(() => {
+    const q = (studentComboboxSearch || studentSearchQuery).trim().toLowerCase()
+    if (!q) return []
+    return students.filter(s => {
+      const matchesName = (s.name || '').toLowerCase().includes(q)
+      const matchesAdm = (s.admissionNo || '').toLowerCase().includes(q)
+      const matchesRoll = (s.rollNo || '').toLowerCase().includes(q)
+      const matchesFather = (s.fatherName || '').toLowerCase().includes(q)
+      return matchesName || matchesAdm || matchesRoll || matchesFather
+    }).slice(0, 10)
+  }, [students, studentSearchQuery, studentComboboxSearch])
 
   // Dynamic Content with Merge Tag Placeholders Replaced Live
   const dynamicLiveContent = useMemo(() => {
@@ -458,9 +509,10 @@ export default function AllCertificatePage() {
     tmpl = tmpl.replace(/\{Honor Reason\}/gi, formExam || '[Honor Reason]')
     tmpl = tmpl.replace(/\{Achievement Detail\}/gi, formExam || formRemarks || 'exemplary performance')
     tmpl = tmpl.replace(/\{Academic Session\}/gi, '2025-2026')
-    tmpl = tmpl.replace(/\{Admission No\}/gi, formRollNo || '[Admission No]')
+    tmpl = tmpl.replace(/\{Admission No\}/gi, formAdmissionNo || formRollNo || '[Admission No]')
+    tmpl = tmpl.replace(/\{Admission Number\}/gi, formAdmissionNo || formRollNo || '[Admission Number]')
     return tmpl
-  }, [formNarrativeTemplate, currentTypeObj, formRemarks, formStudentName, formFatherName, formClassName, formRollNo, formIssueDate, formExam])
+  }, [formNarrativeTemplate, currentTypeObj, formRemarks, formStudentName, formFatherName, formClassName, formRollNo, formAdmissionNo, formIssueDate, formExam])
 
   // Open Issue Modal - clean initial form state without fake students
   const handleOpenIssueModal = () => {
@@ -468,10 +520,14 @@ export default function AllCertificatePage() {
       applyCertificateType(certTypes[0])
     }
     setSelectedStudentId('')
+    setStudentSearchQuery('')
+    setStudentComboboxSearch('')
+    setIsStudentDropdownOpen(false)
     setFormStudentName('')
     setFormSectionName('')
     setFormFatherName('')
     setFormRollNo('')
+    setFormAdmissionNo('')
     setIsIssueModalOpen(true)
   }
 
@@ -501,6 +557,7 @@ export default function AllCertificatePage() {
         designId: formDesignId,
         fatherName: formFatherName,
         rollNo: formRollNo,
+        admissionNo: formAdmissionNo || formRollNo,
         schoolName: formSchoolName,
         remarks: formRemarks,
         content: dynamicLiveContent,
@@ -514,7 +571,10 @@ export default function AllCertificatePage() {
           principalLabel: formPrincipalLabel,
           hiddenFields: formHiddenFields,
           remarks: formRemarks,
-          content: dynamicLiveContent
+          content: dynamicLiveContent,
+          fatherName: formFatherName,
+          rollNo: formRollNo,
+          admissionNo: formAdmissionNo || formRollNo
         }
       }
 
@@ -586,7 +646,9 @@ export default function AllCertificatePage() {
         (c.student && c.student.toLowerCase().includes(q)) ||
         (c.title && c.title.toLowerCase().includes(q)) ||
         (c.certificateNo && c.certificateNo.toLowerCase().includes(q)) ||
-        (c.exam && c.exam.toLowerCase().includes(q))
+        (c.exam && c.exam.toLowerCase().includes(q)) ||
+        (c.admissionNo && c.admissionNo.toLowerCase().includes(q)) ||
+        (c.rollNo && c.rollNo.toLowerCase().includes(q))
 
       const matchClass = selectedClass === 'ALL' || c.class === selectedClass
       const matchExam = selectedExam === 'ALL' || c.exam === selectedExam
@@ -607,7 +669,11 @@ export default function AllCertificatePage() {
       schoolName: cert.schoolName || 'COSMOPOLITAN INTER COLLEGE',
       schoolAddress: cert.schoolAddress || 'Knowledge Park, Sector 62, New Delhi - 110092',
       studentName: cert.student || cert.studentName || 'Student Name',
+      fatherName: cert.fatherName || cert.details?.fatherName || undefined,
       className: `${cert.class || cert.className || 'Class 10'}${cert.section || cert.sectionName ? ` - ${cert.section || cert.sectionName}` : ''}`,
+      section: cert.section || cert.sectionName || undefined,
+      rollNo: cert.rollNo || cert.details?.rollNo || undefined,
+      admissionNo: cert.admissionNo || cert.details?.admissionNo || undefined,
       content: cert.content || `This certificate is proudly conferred upon ${cert.student || 'the student'} in recognition of exemplary dedication, commendable academic merit, and outstanding achievement during the ${cert.exam || 'academic session'}.`,
       date: cert.date || cert.issueDate || new Date().toLocaleDateString('en-GB'),
       principalName: cert.principalName || 'Dr. S. K. Sharma',
@@ -616,6 +682,8 @@ export default function AllCertificatePage() {
       examName: cert.exam || undefined,
       showQr: true,
       showSeal: true,
+      photoWidth: cert.photoWidth || cert.customLabels?.photoWidth || undefined,
+      photoHeight: cert.photoHeight || cert.customLabels?.photoHeight || undefined,
       hiddenFields: cert.hiddenFields || []
     }
 
@@ -847,6 +915,9 @@ export default function AllCertificatePage() {
                       {cert.fatherName && (
                         <div className="text-[10px] text-slate-400">S/o {cert.fatherName}</div>
                       )}
+                      {cert.admissionNo && (
+                        <div className="text-[10px] text-teal-700 dark:text-teal-400 font-semibold">Admission Number: {cert.admissionNo}</div>
+                      )}
                     </td>
 
                     {/* Class & Section */}
@@ -1070,9 +1141,11 @@ export default function AllCertificatePage() {
                             const newClass = e.target.value
                             setFormClassName(newClass)
                             setSelectedStudentId('')
+                            setStudentComboboxSearch('')
                             setFormStudentName('')
                             setFormFatherName('')
                             setFormRollNo('')
+                            setFormAdmissionNo('')
                           }}
                           className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 shadow-xs"
                         >
@@ -1083,7 +1156,7 @@ export default function AllCertificatePage() {
                         </select>
                       </div>
 
-                      {/* 2. Target Section (Comes immediately after Class) */}
+                      {/* 2. Target Section */}
                       <div className="flex flex-col gap-1.5">
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -1102,9 +1175,11 @@ export default function AllCertificatePage() {
                               const currentStd = students.find(s => String(s.id) === String(selectedStudentId))
                               if (currentStd && currentStd.section && newSec && !isSectionMatch(currentStd.section, newSec)) {
                                 setSelectedStudentId('')
+                                setStudentComboboxSearch('')
                                 setFormStudentName('')
                                 setFormFatherName('')
                                 setFormRollNo('')
+                                setFormAdmissionNo('')
                               }
                             }
                           }}
@@ -1119,34 +1194,176 @@ export default function AllCertificatePage() {
                         </select>
                       </div>
 
-                      {/* 3. Enrolled Student Dropdown (Populated based on Class & Section) */}
-                      <div className="flex flex-col gap-1.5 md:col-span-2">
+                      {/* 3. Searchable Student Selector (Search by Student Name, Admission Number, Roll Number) */}
+                      <div className="flex flex-col gap-1.5 md:col-span-2 relative" ref={studentDropdownRef}>
                         <div className="flex items-center justify-between">
-                          <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                            Select Enrolled Student <span className="text-red-500">*</span>
+                          <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                            <Search className="w-3.5 h-3.5 text-teal-600" />
+                            <span>Select & Search Student (Name or Admission Number)</span> <span className="text-red-500">*</span>
                           </label>
                           <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold">
-                            {filteredStudentsForModal.length} student{filteredStudentsForModal.length === 1 ? '' : 's'} available {formClassName ? `in ${formClassName}` : ''}{formSectionName ? ` (Section ${formSectionName})` : ''}
+                            {filteredStudentsForModal.length} student{filteredStudentsForModal.length === 1 ? '' : 's'} available {formClassName ? `in ${formClassName}` : ''}{formSectionName ? ` (${formSectionName})` : ''}
                           </span>
                         </div>
-                        <select
-                          value={selectedStudentId}
-                          onChange={(e) => handleStudentChange(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 shadow-xs"
-                        >
-                          <option value="">-- Choose from Enrolled Students --</option>
-                          {filteredStudentsForModal.length === 0 ? (
-                            <option value="" disabled>
-                              No enrolled students found {formClassName ? `in ${formClassName}` : ''}{formSectionName ? ` (Section ${formSectionName})` : ''}
-                            </option>
-                          ) : (
-                            filteredStudentsForModal.map(s => (
-                              <option key={s.id} value={s.id}>
-                                {s.name} {s.section ? `• Sec: ${s.section}` : ''} {s.rollNo ? `• Roll: ${s.rollNo}` : (s.admissionNo ? `• Adm: ${s.admissionNo}` : '')}
-                              </option>
-                            ))
-                          )}
-                        </select>
+
+                        {/* If student is selected: show selected student card with Change button */}
+                        {selectedStudentId ? (
+                          <div className="w-full px-4 py-2.5 rounded-xl border border-teal-300 dark:border-teal-800 bg-teal-50/80 dark:bg-teal-950/40 flex items-center justify-between gap-3 shadow-xs">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-8 h-8 rounded-lg bg-teal-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                                {formStudentName ? formStudentName.charAt(0).toUpperCase() : 'S'}
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <div className="text-xs font-black text-slate-800 dark:text-slate-100 truncate flex items-center gap-2">
+                                  <span>{formStudentName}</span>
+                                  <span className="text-[9.5px] bg-teal-200 dark:bg-teal-900 text-teal-800 dark:text-teal-200 px-2 py-0.5 rounded-full font-bold">
+                                    Enrolled Student
+                                  </span>
+                                </div>
+                                <div className="text-[10.5px] text-slate-600 dark:text-slate-300 font-medium truncate flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+                                  <span>{formClassName}{formSectionName ? ` • Section: ${formSectionName}` : ''}</span>
+                                  {formAdmissionNo && (
+                                    <span className="font-bold text-teal-800 dark:text-teal-300">• Admission Number: {formAdmissionNo}</span>
+                                  )}
+                                  {formRollNo && (
+                                    <span>• Roll Number: {formRollNo}</span>
+                                  )}
+                                  {formFatherName && (
+                                    <span className="text-slate-400">• Father: {formFatherName}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsStudentDropdownOpen(true)
+                                  setStudentComboboxSearch('')
+                                }}
+                                className="px-3 py-1 text-xs font-bold text-teal-700 dark:text-teal-300 hover:bg-teal-100/70 dark:hover:bg-teal-900/60 rounded-lg transition-colors border border-teal-300 dark:border-teal-700"
+                              >
+                                Change
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleStudentChange('')}
+                                className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
+                                title="Clear Student Selection"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            <input
+                              type="text"
+                              value={studentComboboxSearch}
+                              onChange={(e) => {
+                                setStudentComboboxSearch(e.target.value)
+                                setIsStudentDropdownOpen(true)
+                              }}
+                              onFocus={() => setIsStudentDropdownOpen(true)}
+                              placeholder="Type student name, admission number, or roll number to search..."
+                              className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:border-teal-500 shadow-xs"
+                            />
+                            {studentComboboxSearch ? (
+                              <button
+                                type="button"
+                                onClick={() => setStudentComboboxSearch('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setIsStudentDropdownOpen(prev => !prev)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded"
+                              >
+                                <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${isStudentDropdownOpen ? 'rotate-90' : ''}`} />
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Searchable Dropdown Popup Menu */}
+                        {isStudentDropdownOpen && (
+                          <div className="absolute top-[68px] left-0 right-0 z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/60 animate-in fade-in zoom-in-95 duration-150">
+                            {/* Inner Search Field if student was already selected and changing */}
+                            {selectedStudentId && (
+                              <div className="p-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 sticky top-0 z-10">
+                                <div className="relative">
+                                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                  <input
+                                    type="text"
+                                    autoFocus
+                                    value={studentComboboxSearch}
+                                    onChange={(e) => setStudentComboboxSearch(e.target.value)}
+                                    placeholder="Type student name to search..."
+                                    className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs outline-none focus:border-teal-500"
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {filteredStudentsForModal.length === 0 ? (
+                              <div className="p-4 text-xs text-slate-500 text-center font-medium">
+                                {studentComboboxSearch
+                                  ? `No enrolled students match "${studentComboboxSearch}"`
+                                  : `No enrolled students found ${formClassName ? `in ${formClassName}` : ''}${formSectionName ? ` (Section ${formSectionName})` : ''}`}
+                              </div>
+                            ) : (
+                              filteredStudentsForModal.map(s => {
+                                const isSelected = String(s.id) === String(selectedStudentId)
+                                return (
+                                  <button
+                                    key={s.id}
+                                    type="button"
+                                    onClick={() => {
+                                      handleStudentChange(s.id)
+                                      setIsStudentDropdownOpen(false)
+                                      setStudentComboboxSearch('')
+                                    }}
+                                    className={`w-full text-left px-4 py-2.5 flex items-center justify-between gap-3 transition-colors cursor-pointer ${
+                                      isSelected
+                                        ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-200 font-bold'
+                                        : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                                    }`}
+                                  >
+                                    <div className="flex flex-col min-w-0">
+                                      <div className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                                        <span>{s.name}</span>
+                                        {isSelected && (
+                                          <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
+                                        )}
+                                      </div>
+                                      <div className="text-[10px] text-slate-500 font-medium">
+                                        {s.className ? `${s.className}` : ''}
+                                        {s.section ? ` • Section: ${s.section}` : ''}
+                                        {s.fatherName ? ` • Father: ${s.fatherName}` : ''}
+                                      </div>
+                                    </div>
+                                    <div className="flex flex-col items-end shrink-0 text-[10px]">
+                                      {s.admissionNo && (
+                                        <span className="font-bold text-teal-700 dark:text-teal-400">
+                                          Admission Number: {s.admissionNo}
+                                        </span>
+                                      )}
+                                      {s.rollNo && (
+                                        <span className="text-slate-400">
+                                          Roll Number: {s.rollNo}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </button>
+                                )
+                              })
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {/* 4. Student Full Name - Auto-captured or editable */}
@@ -1204,11 +1421,38 @@ export default function AllCertificatePage() {
                         />
                       </div>
 
-                      {/* 6. Roll No / Reg ID */}
-                      <div className="flex flex-col gap-1.5 md:col-span-2">
+                      {/* 6. Admission Number (Full Text) */}
+                      <div className="flex flex-col gap-1.5">
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                            Roll No / Reg ID
+                            Admission Number
+                          </label>
+                          {selectedStudentId && (
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
+                              <Lock className="w-2.5 h-2.5" /> Auto-captured (Locked)
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          disabled={!!selectedStudentId}
+                          readOnly={!!selectedStudentId}
+                          value={formAdmissionNo}
+                          onChange={(e) => setFormAdmissionNo(e.target.value)}
+                          placeholder={selectedStudentId ? (formAdmissionNo || "Not specified in student record") : "e.g. Admission Number"}
+                          className={`w-full px-3.5 py-2 rounded-xl border text-xs font-semibold outline-none shadow-xs transition-colors ${
+                            selectedStudentId
+                              ? 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 cursor-not-allowed select-none'
+                              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:border-teal-500'
+                          }`}
+                        />
+                      </div>
+
+                      {/* 7. Roll Number (Full Text) */}
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            Roll Number
                           </label>
                           {selectedStudentId && (
                             <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
@@ -1222,7 +1466,7 @@ export default function AllCertificatePage() {
                           readOnly={!!selectedStudentId}
                           value={formRollNo}
                           onChange={(e) => setFormRollNo(e.target.value)}
-                          placeholder={selectedStudentId ? (formRollNo || "Auto-captured") : "e.g. Roll No or Admission No"}
+                          placeholder={selectedStudentId ? (formRollNo || "Not specified in student record") : "e.g. Roll Number"}
                           className={`w-full px-3.5 py-2 rounded-xl border text-xs font-semibold outline-none shadow-xs transition-colors ${
                             selectedStudentId
                               ? 'bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 cursor-not-allowed select-none'
@@ -1444,6 +1688,11 @@ export default function AllCertificatePage() {
                           schoolName={formSchoolName}
                           schoolAddress={formSchoolAddress}
                           studentName={formStudentName || 'Student Name'}
+                          fatherName={formFatherName}
+                          className={formClassName}
+                          section={formSectionName}
+                          rollNo={formRollNo}
+                          admissionNo={formAdmissionNo || formRollNo}
                           examName={formExam}
                           content={dynamicLiveContent}
                           date={formIssueDate}
@@ -1453,6 +1702,9 @@ export default function AllCertificatePage() {
                           editable={true}
                           onUpdateField={(field, val) => {
                             if (field === 'studentName') setFormStudentName(val)
+                            else if (field === 'admissionNo') setFormAdmissionNo(val)
+                            else if (field === 'rollNo') setFormRollNo(val)
+                            else if (field === 'fatherName') setFormFatherName(val)
                             else if (field === 'content') setFormNarrativeTemplate(val)
                             else if (field === 'principalName') setFormPrincipalName(val)
                             else if (field === 'date') setFormIssueDate(val)
@@ -1468,6 +1720,11 @@ export default function AllCertificatePage() {
                           schoolName={formSchoolName}
                           schoolAddress={formSchoolAddress}
                           studentName={formStudentName || 'Student Name'}
+                          fatherName={formFatherName}
+                          className={formClassName}
+                          section={formSectionName}
+                          rollNo={formRollNo}
+                          admissionNo={formAdmissionNo || formRollNo}
                           examName={formExam}
                           content={dynamicLiveContent}
                           date={formIssueDate}
@@ -1477,6 +1734,9 @@ export default function AllCertificatePage() {
                           editable={true}
                           onUpdateField={(field, val) => {
                             if (field === 'studentName') setFormStudentName(val)
+                            else if (field === 'admissionNo') setFormAdmissionNo(val)
+                            else if (field === 'rollNo') setFormRollNo(val)
+                            else if (field === 'fatherName') setFormFatherName(val)
                             else if (field === 'content') setFormNarrativeTemplate(val)
                             else if (field === 'principalName') setFormPrincipalName(val)
                             else if (field === 'date') setFormIssueDate(val)
@@ -1492,6 +1752,11 @@ export default function AllCertificatePage() {
                           schoolName={formSchoolName}
                           schoolAddress={formSchoolAddress}
                           studentName={formStudentName || 'Student Name'}
+                          fatherName={formFatherName}
+                          className={formClassName}
+                          section={formSectionName}
+                          rollNo={formRollNo}
+                          admissionNo={formAdmissionNo || formRollNo}
                           examName={formExam}
                           content={dynamicLiveContent}
                           date={formIssueDate}
@@ -1501,6 +1766,9 @@ export default function AllCertificatePage() {
                           editable={true}
                           onUpdateField={(field, val) => {
                             if (field === 'studentName') setFormStudentName(val)
+                            else if (field === 'admissionNo') setFormAdmissionNo(val)
+                            else if (field === 'rollNo') setFormRollNo(val)
+                            else if (field === 'fatherName') setFormFatherName(val)
                             else if (field === 'content') setFormNarrativeTemplate(val)
                             else if (field === 'principalName') setFormPrincipalName(val)
                             else if (field === 'date') setFormIssueDate(val)
@@ -1516,6 +1784,11 @@ export default function AllCertificatePage() {
                           schoolName={formSchoolName}
                           schoolAddress={formSchoolAddress}
                           studentName={formStudentName || 'Student Name'}
+                          fatherName={formFatherName}
+                          className={formClassName}
+                          section={formSectionName}
+                          rollNo={formRollNo}
+                          admissionNo={formAdmissionNo || formRollNo}
                           examName={formExam}
                           content={dynamicLiveContent}
                           date={formIssueDate}
@@ -1525,6 +1798,9 @@ export default function AllCertificatePage() {
                           editable={true}
                           onUpdateField={(field, val) => {
                             if (field === 'studentName') setFormStudentName(val)
+                            else if (field === 'admissionNo') setFormAdmissionNo(val)
+                            else if (field === 'rollNo') setFormRollNo(val)
+                            else if (field === 'fatherName') setFormFatherName(val)
                             else if (field === 'content') setFormNarrativeTemplate(val)
                             else if (field === 'principalName') setFormPrincipalName(val)
                             else if (field === 'date') setFormIssueDate(val)

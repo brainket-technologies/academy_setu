@@ -133,6 +133,15 @@ function parseTimeToMinutes(timeStr?: string): number | null {
   return hours * 60 + minutes
 }
 
+// Helper to sort slots chronologically by start time
+function sortSlotsByTime(slots: TimeSlot[]): TimeSlot[] {
+  return [...slots].sort((a, b) => {
+    const minA = parseTimeToMinutes(a.timeFrom) ?? 0
+    const minB = parseTimeToMinutes(b.timeFrom) ?? 0
+    return minA - minB
+  })
+}
+
 // Check if two time intervals overlap (strictly greater/lesser)
 function isTimeOverlap(fromA: string, toA: string, fromB: string, toB: string): boolean {
   const startA = parseTimeToMinutes(fromA)
@@ -516,11 +525,30 @@ export default function TimeTablePage() {
   const addLunchBreakRow = () => {
     const current = [...(modalSlots[activeModalDay] || [])]
     const nextId = Date.now()
+
+    let timeFrom = '11:15 AM'
+    let timeTo = '12:00 PM'
+    if (current.length > 0) {
+      const lastSlot = current[current.length - 1]
+      if (lastSlot.timeTo) {
+        timeFrom = lastSlot.timeTo
+        const lastMinutes = parseTimeToMinutes(lastSlot.timeTo)
+        if (lastMinutes !== null) {
+          const nextMinutes = lastMinutes + 45
+          const h = Math.floor(nextMinutes / 60) % 24
+          const m = nextMinutes % 60
+          const mer = h >= 12 ? 'PM' : 'AM'
+          const h12 = h % 12 || 12
+          timeTo = `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${mer}`
+        }
+      }
+    }
+
     setModalSlots({
       ...modalSlots,
       [activeModalDay]: [
         ...current,
-        { id: nextId, timeFrom: '11:15 AM', timeTo: '12:00 PM', subject: 'Lunch Break', teacher: '', isLunchBreak: true }
+        { id: nextId, timeFrom, timeTo, subject: 'Lunch Break', teacher: '', isLunchBreak: true }
       ]
     })
   }
@@ -535,14 +563,94 @@ export default function TimeTablePage() {
 
   const handleSlotFieldChange = (idx: number, field: keyof TimeSlot, value: any) => {
     const current = [...(modalSlots[activeModalDay] || [])]
+    const oldSlot = current[idx]
     current[idx] = {
-      ...current[idx],
+      ...oldSlot,
       [field]: value
     }
+
+    // Auto-adjust sequential times when end time changes:
+    // If timeTo changed on this slot, seamlessly adjust the next slot's timeFrom to maintain schedule continuity
+    if (field === 'timeTo' && value && idx + 1 < current.length) {
+      const nextSlot = current[idx + 1]
+      if (nextSlot) {
+        const oldNextFrom = parseTimeToMinutes(nextSlot.timeFrom)
+        const oldNextTo = parseTimeToMinutes(nextSlot.timeTo)
+        const duration = (oldNextFrom !== null && oldNextTo !== null && oldNextTo > oldNextFrom)
+          ? (oldNextTo - oldNextFrom)
+          : 45
+
+        const newFromMin = parseTimeToMinutes(value)
+        if (newFromMin !== null) {
+          const newToMin = newFromMin + duration
+          const h = Math.floor(newToMin / 60) % 24
+          const m = newToMin % 60
+          const mer = h >= 12 ? 'PM' : 'AM'
+          const h12 = h % 12 || 12
+          const newNextTo = `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${mer}`
+
+          current[idx + 1] = {
+            ...nextSlot,
+            timeFrom: value,
+            timeTo: newNextTo
+          }
+        }
+      }
+    }
+
+    // Auto-adjust: If timeFrom changed on Lunch Break or any slot, adjust its timeTo maintaining duration
+    if (field === 'timeFrom' && value) {
+      const oldFromMin = parseTimeToMinutes(oldSlot.timeFrom)
+      const oldToMin = parseTimeToMinutes(oldSlot.timeTo)
+      const duration = (oldFromMin !== null && oldToMin !== null && oldToMin > oldFromMin)
+        ? (oldToMin - oldFromMin)
+        : 45
+
+      const newFromMin = parseTimeToMinutes(value)
+      if (newFromMin !== null) {
+        const newToMin = newFromMin + duration
+        const h = Math.floor(newToMin / 60) % 24
+        const m = newToMin % 60
+        const mer = h >= 12 ? 'PM' : 'AM'
+        const h12 = h % 12 || 12
+        current[idx].timeTo = `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${mer}`
+
+        // Also adjust the next slot if it exists
+        if (idx + 1 < current.length) {
+          const nextSlot = current[idx + 1]
+          if (nextSlot) {
+            const nextDuration = 45
+            const nextToMin = newToMin + nextDuration
+            const nh = Math.floor(nextToMin / 60) % 24
+            const nm = nextToMin % 60
+            const nmer = nh >= 12 ? 'PM' : 'AM'
+            const nh12 = nh % 12 || 12
+            current[idx + 1] = {
+              ...nextSlot,
+              timeFrom: current[idx].timeTo,
+              timeTo: `${String(nh12).padStart(2, '0')}:${String(nm).padStart(2, '0')} ${nmer}`
+            }
+          }
+        }
+      }
+    }
+
     setModalSlots({
       ...modalSlots,
       [activeModalDay]: current
     })
+  }
+
+  const handleAutoSortDay = () => {
+    const current = modalSlots[activeModalDay] || []
+    const sorted = sortSlotsByTime(current)
+    setModalSlots({
+      ...modalSlots,
+      [activeModalDay]: sorted
+    })
+    setToastMsg(`Sorted ${activeModalDay}'s periods chronologically by time!`)
+    setToastOpen(true)
+    setTimeout(() => setToastOpen(false), 2000)
   }
 
   // Toggle Week Day Off for a specific day
@@ -701,11 +809,16 @@ export default function TimeTablePage() {
       }
     }
 
+    const sortedSchedule: DaySchedule = {}
+    ALL_WEEK_DAYS.forEach(day => {
+      sortedSchedule[day] = sortSlotsByTime(modalSlots[day] || [])
+    })
+
     const newRecord: TimetableRecord = {
       id: activeRecord ? activeRecord.id : Date.now().toString(),
       classes: modalClass,
       section: modalSection,
-      schedule: modalSlots as DaySchedule,
+      schedule: sortedSchedule,
       offDays: modalOffDays
     }
 
@@ -736,10 +849,10 @@ export default function TimeTablePage() {
       // Clean any stale or dummy teachers from previous saves that are not in teachersList
       const cleanedSchedule: DaySchedule = {}
       ALL_WEEK_DAYS.forEach(day => {
-        cleanedSchedule[day] = (activeRecord.schedule[day] || []).map(slot => ({
+        cleanedSchedule[day] = sortSlotsByTime((activeRecord.schedule[day] || []).map(slot => ({
           ...slot,
           teacher: teachersList.includes(slot.teacher) ? slot.teacher : ''
-        }))
+        })))
       })
       setModalSlots(cleanedSchedule)
       setModalOffDays(activeRecord.offDays || ['Sunday'])
@@ -990,20 +1103,50 @@ export default function TimeTablePage() {
               if (isRowLunchBreak) {
                 const lunchSlot = ALL_WEEK_DAYS.map(d => (activeSchedule[d] || [])[slotIdx]).find(s => s && s.isLunchBreak)
                 const timeRange = lunchSlot ? `${lunchSlot.timeFrom} - ${lunchSlot.timeTo}` : '11:15 AM - 12:00 PM'
+                const isSundayOff = activeOffDays.includes('Sunday')
 
                 return (
-                  <div 
-                    key={`lunch-${slotIdx}`} 
-                    className="col-span-7 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 rounded-2xl p-3 text-white font-black flex items-center justify-between shadow-xs relative overflow-hidden"
-                  >
-                    <div className="flex items-center gap-2 z-10 px-2 text-xs">
-                      <Coffee className="w-4 h-4 text-white/90" />
-                      <span>Lunch Break ({timeRange})</span>
+                  <React.Fragment key={`lunch-${slotIdx}`}>
+                    {/* Sunday Column: NEVER show lunch break line below Sunday when Sunday is off */}
+                    {isSundayOff && (
+                      <div 
+                        className={`border border-dashed rounded-2xl flex items-center justify-center text-center select-none ${
+                          slotIdx === 0
+                            ? 'min-h-[100px] border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 p-4 flex-col'
+                            : 'min-h-[52px] border-amber-100/60 dark:border-amber-900/20 bg-amber-50/15 dark:bg-amber-950/10 text-amber-300/40 text-[11px]'
+                        }`}
+                      >
+                        {slotIdx === 0 ? (
+                          <>
+                            <span className="text-xl mb-1">🏖️</span>
+                            <span className="text-[10px] font-black text-amber-900 dark:text-amber-200 uppercase tracking-wider">
+                              Weekly Off
+                            </span>
+                            <span className="text-[9px] text-amber-700/80 dark:text-amber-400/80 mt-0.5">
+                              No Classes
+                            </span>
+                          </>
+                        ) : (
+                          '-'
+                        )}
+                      </div>
+                    )}
+
+                    {/* Lunch Break banner across working days */}
+                    <div 
+                      className={`${
+                        isSundayOff ? 'col-span-6' : 'col-span-7'
+                      } bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 rounded-2xl p-3 text-white font-black flex items-center justify-between shadow-xs relative overflow-hidden`}
+                    >
+                      <div className="flex items-center gap-2 z-10 px-2 text-xs">
+                        <Coffee className="w-4 h-4 text-white/90" />
+                        <span>Lunch Break ({timeRange})</span>
+                      </div>
+                      <div className="flex-1 text-center select-none tracking-widest text-[10px] z-10 opacity-80 uppercase font-mono">
+                        • SCHOOL LUNCH RECESS &amp; MEAL BREAK •
+                      </div>
                     </div>
-                    <div className="flex-1 text-center select-none tracking-widest text-[10px] z-10 opacity-80 uppercase font-mono">
-                      • SCHOOL LUNCH RECESS &amp; MEAL BREAK •
-                    </div>
-                  </div>
+                  </React.Fragment>
                 )
               }
 
@@ -1048,6 +1191,26 @@ export default function TimeTablePage() {
                           className="min-h-[100px] border border-dashed border-slate-200 dark:border-slate-700 rounded-2xl bg-slate-50/30 dark:bg-slate-800/30 flex items-center justify-center text-slate-300 text-[10px]"
                         >
                           Free Slot
+                        </div>
+                      )
+                    }
+
+                    if (slot.isLunchBreak) {
+                      return (
+                        <div 
+                          key={`${day}-${slotIdx}`} 
+                          className="border border-blue-200 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 rounded-2xl p-3.5 space-y-1.5 shadow-2xs"
+                        >
+                          <div className="flex items-center gap-1.5 text-[9.5px] font-black tracking-wider uppercase text-blue-600 dark:text-blue-400">
+                            <Coffee className="w-3.5 h-3.5" />
+                            <span>{slot.timeFrom} - {slot.timeTo}</span>
+                          </div>
+                          <h4 className="font-extrabold text-[11.5px] leading-tight text-blue-800 dark:text-blue-200">
+                            Lunch Break
+                          </h4>
+                          <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70">
+                            Meal &amp; Recess
+                          </p>
                         </div>
                       )
                     }
@@ -1220,7 +1383,7 @@ export default function TimeTablePage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2.5 flex-wrap">
                     <button
                       type="button"
                       onClick={handleOpenCopyModal}
@@ -1231,27 +1394,49 @@ export default function TimeTablePage() {
                       <span>Copy to Other Days</span>
                     </button>
 
-                    <button
-                      type="button"
+                    {/* Modern Slide Toggle ON/OFF Switch for Week Day Off */}
+                    <div 
                       onClick={() => handleToggleDayOff(activeModalDay)}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border shadow-2xs ${
+                      className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl border transition-all cursor-pointer select-none shadow-2xs ${
                         isCurrentDayOff
-                          ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600'
-                          : 'bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600'
+                          ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+                          : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200/70'
                       }`}
+                      title={`Click to turn Week Day Off ${isCurrentDayOff ? 'OFF (Working Day)' : 'ON (Day Off)'}`}
                     >
-                      {isCurrentDayOff ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                          <span>Day Off Active (Toggle Working)</span>
-                        </>
-                      ) : (
-                        <>
-                          <Sun className="w-3.5 h-3.5" />
-                          <span>Select as Week Day Off</span>
-                        </>
-                      )}
-                    </button>
+                      <div className="flex flex-col text-left">
+                        <span className="text-[10.5px] font-black uppercase tracking-wider flex items-center gap-1.5">
+                          <span>Week Day Off</span>
+                          <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-black uppercase transition-colors ${
+                            isCurrentDayOff 
+                              ? 'bg-amber-500 text-white shadow-2xs' 
+                              : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                          }`}>
+                            {isCurrentDayOff ? 'ON' : 'OFF'}
+                          </span>
+                        </span>
+                      </div>
+
+                      {/* Sliding Toggle Pill */}
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={isCurrentDayOff}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleToggleDayOff(activeModalDay)
+                        }}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          isCurrentDayOff ? 'bg-amber-500 shadow-inner' : 'bg-slate-300 dark:bg-slate-600'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                            isCurrentDayOff ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1266,15 +1451,16 @@ export default function TimeTablePage() {
                         {activeModalDay} is Marked as a Weekly Day Off
                       </h4>
                       <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                        No periods need to be configured for {activeModalDay}. If this class has sessions on this day, click below to make it a working day.
+                        No periods need to be configured for {activeModalDay}. If this class has sessions on this day, click the toggle above or below to make it a working day.
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleToggleDayOff(activeModalDay)}
-                      className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-amber-50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-bold transition-colors shadow-2xs"
+                      className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-amber-50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-bold transition-colors shadow-2xs inline-flex items-center gap-2"
                     >
-                      Make {activeModalDay} a Working Day
+                      <Sun className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Slide Day Off to OFF (Make {activeModalDay} a Working Day)</span>
                     </button>
                   </div>
                 ) : (
@@ -1290,22 +1476,69 @@ export default function TimeTablePage() {
                       
                       // 1. Lunch Break Row
                       if (slot.isLunchBreak) {
+                        const prevSlot = idx > 0 ? (modalSlots[activeModalDay] || [])[idx - 1] : null
+                        const canAlignWithPrev = prevSlot && prevSlot.timeTo && prevSlot.timeTo !== slot.timeFrom
+
                         return (
                           <div key={slot.id} className="p-4 border border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20 rounded-2xl space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest flex items-center gap-1.5">
-                                <Coffee className="w-3.5 h-3.5" />
-                                <span>Lunch Break Row</span>
-                              </span>
-                              <button 
-                                type="button" 
-                                onClick={() => deleteSlotRow(slot.id)}
-                                className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 border border-transparent hover:border-red-100 transition-colors"
-                                title="Remove Lunch Break"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest flex items-center gap-1.5">
+                                  <Coffee className="w-3.5 h-3.5" />
+                                  <span>Lunch Break Row</span>
+                                </span>
+                                {canAlignWithPrev && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleSlotFieldChange(idx, 'timeFrom', prevSlot.timeTo)
+                                    }}
+                                    className="text-[9.5px] px-2 py-0.5 rounded-md font-bold bg-blue-100 hover:bg-blue-200 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 transition-colors flex items-center gap-1 shadow-2xs"
+                                    title={`Align Lunch Break start time to match previous period end (${prevSlot.timeTo})`}
+                                  >
+                                    ⚡ Align from {prevSlot.timeTo}
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                {/* Quick duration presets */}
+                                <div className="flex items-center gap-1 bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-blue-200 dark:border-blue-900/60 shadow-2xs">
+                                  <span className="text-[9px] text-slate-400 font-bold px-1">Duration:</span>
+                                  {[30, 45, 60].map(dur => (
+                                    <button
+                                      key={dur}
+                                      type="button"
+                                      onClick={() => {
+                                        const fromMin = parseTimeToMinutes(slot.timeFrom)
+                                        if (fromMin !== null) {
+                                          const toMin = fromMin + dur
+                                          const h = Math.floor(toMin / 60) % 24
+                                          const m = toMin % 60
+                                          const mer = h >= 12 ? 'PM' : 'AM'
+                                          const h12 = h % 12 || 12
+                                          handleSlotFieldChange(idx, 'timeTo', `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${mer}`)
+                                        }
+                                      }}
+                                      className="px-2 py-0.5 rounded text-[9.5px] font-black text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-950/60 hover:text-blue-600 transition-colors"
+                                      title={`Set Lunch Break to ${dur} minutes`}
+                                    >
+                                      {dur}m
+                                    </button>
+                                  ))}
+                                </div>
+
+                                <button 
+                                  type="button" 
+                                  onClick={() => deleteSlotRow(slot.id)}
+                                  className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 border border-transparent hover:border-red-100 transition-colors"
+                                  title="Remove Lunch Break"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div className="flex flex-col gap-1.5">
                                 <label className="text-slate-500 font-bold text-[11px] flex items-center justify-between">
@@ -1541,6 +1774,18 @@ export default function TimeTablePage() {
                           <Plus className="w-3.5 h-3.5" />
                           <span>+ Add Subject</span>
                         </button>
+
+                        {(modalSlots[activeModalDay] || []).length > 1 && (
+                          <button 
+                            type="button" 
+                            onClick={handleAutoSortDay}
+                            className="px-3.5 py-2 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold shadow-2xs flex items-center gap-1.5 text-xs transition-colors"
+                            title="Sort all periods and lunch break chronologically by start time"
+                          >
+                            <Clock className="w-3.5 h-3.5 text-teal-600" />
+                            <span>Auto-Sort by Time</span>
+                          </button>
+                        )}
 
                         {(modalSlots[activeModalDay] || []).length > 0 && (
                           <button 

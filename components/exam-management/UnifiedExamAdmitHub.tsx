@@ -2767,6 +2767,8 @@ export default function UnifiedExamAdmitHub({
                   date={previewCertSetup.examDate || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                   principalName={previewCertSetup.config?.schoolDetails?.principalName || 'Dr. S. K. Sharma'}
                   principalLabel="Principal & Director"
+                  photoWidth={previewCertSetup.config?.certPhotoWidth}
+                  photoHeight={previewCertSetup.config?.certPhotoHeight}
                   showSeal={true}
                   showQr={true}
                 />

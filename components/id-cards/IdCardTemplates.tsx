@@ -26,12 +26,11 @@ export function parseFontSize(size?: number | string): string | undefined {
 }
 
 export function getRoleBasedHolderSignLabel(role?: string, customLabel?: string): string {
-  if (customLabel && customLabel.trim() && customLabel.trim().toLowerCase() !== 'holder sign') {
+  if (customLabel && customLabel.trim() && customLabel.trim().toLowerCase() !== 'holder sign' && customLabel.trim().toLowerCase() !== 'teacher sign') {
     return customLabel.trim()
   }
   const cleanRole = (role || '').trim().toLowerCase()
-  if (cleanRole === 'teacher') return 'Teacher Sign'
-  if (cleanRole === 'faculty') return 'Faculty Sign'
+  if (cleanRole === 'teacher' || cleanRole === 'faculty') return 'Cardholder Sign'
   if (cleanRole === 'employee' || cleanRole === 'staff') return 'Staff Sign'
   if (cleanRole === 'admin' || cleanRole === 'administrator') return 'Admin Sign'
   if (cleanRole === 'student') return 'Student Sign'
@@ -152,7 +151,7 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
   const borderTint = hexToRgba(primary, 0.3)
   const actualLogoWidth = Number(logoWidth) || 48
   const actualPhotoWidth = Number(photoWidth) || 80
-  const actualQrSize = Number(qrCodeSize) || 32
+  const actualQrSize = Math.max(28, Math.min(80, Number(qrCodeSize) || 48))
   const actualSigWidth = Number(signatureWidth) || 56
 
   const role = data?.role || 'Student'
@@ -229,38 +228,7 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
                 className="inline-block"
               />
             </h2>
-            {showTopHeaderTagline && (
-              <p 
-                className="text-white/90 font-medium tracking-wide truncate"
-                style={{ fontSize: parseFontSize(taglineFontSize) || '7.5px' }}
-              >
-                <LiveEditableText
-                  value={tagline}
-                  editable={editable}
-                  onSave={val => onUpdateField?.('tagline', val)}
-                  style={{ fontSize: parseFontSize(taglineFontSize) || '7.5px' }}
-                  fontSizeControl={{
-                    value: taglineFontSize ? parseFloat(String(taglineFontSize)) || 7.5 : 7.5,
-                    onChange: val => onUpdateField?.('taglineFontSize', val),
-                    label: 'Tagline'
-                  }}
-                  tooltipPosition="bottom"
-                  className="inline-block mr-1"
-                />
-                {affiliationCode && (
-                  <>
-                    • Affil:{' '}
-                    <LiveEditableText
-                      value={affiliationCode}
-                      editable={editable}
-                      onSave={val => onUpdateField?.('affiliationCode', val)}
-                      className="inline-block"
-                    />
-                  </>
-                )}
-              </p>
-            )}
-            <p className="text-[7px] text-white/80 truncate">
+            <p className="text-[7.5px] text-white/85 truncate leading-tight mt-0.5">
               <LiveEditableText
                 value={schoolAddress}
                 editable={editable}
@@ -290,12 +258,6 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
               label: 'Card Title'
             }}
             tooltipPosition="bottom"
-            className="inline-block mr-1"
-          /> •{' '}
-          <LiveEditableText
-            value={session}
-            editable={editable}
-            onSave={val => onUpdateField?.('session', val)}
             className="inline-block"
           />
         </div>
@@ -340,11 +302,11 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
         )}
 
         {/* Student Name & Class */}
-        <h3 className="font-black text-sm tracking-wide text-center uppercase leading-snug" style={{ color: primary }}>
+        <h3 className="font-black text-sm tracking-wide text-center uppercase leading-snug line-clamp-1" style={{ color: primary }}>
           {student.name}
         </h3>
         <div 
-          className="inline-flex items-center gap-1 border font-bold text-[9px] px-2.5 py-0.5 rounded-md mt-0.5 mb-2"
+          className="inline-flex items-center gap-1 border font-bold text-[9px] px-2.5 py-0.5 rounded-md mt-0.5 mb-1.5"
           style={{ backgroundColor: tintLight, borderColor: borderTint, color: primary }}
         >
           <span>{student.class}</span>
@@ -365,7 +327,7 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
         </div>
 
         {/* Details Grid */}
-        <div className="w-full text-[10px] space-y-1 bg-slate-50/80 p-2 rounded-lg border border-slate-200/70 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
+        <div className="w-full text-[9px] space-y-0.5 bg-slate-50/80 p-2 rounded-lg border border-slate-200/70 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
           {showAdmNo && (
             <div className="flex items-center justify-between">
               <span className="text-slate-500 font-semibold">
@@ -435,14 +397,10 @@ export const StudentDesignVertical: React.FC<IdCardCustomProps> = ({
       </div>
 
       {/* Footer Strip with Separate Signatures */}
-      <div className="bg-slate-100/90 border-t border-slate-200 px-2.5 py-1.5 flex items-center justify-between mt-auto relative z-10 gap-2">
+      <div className="bg-slate-100/90 border-t border-slate-200 px-2.5 py-1.5 flex items-center justify-between mt-auto relative z-10 gap-2 shrink-0">
         {showQr ? (
-          <div className="bg-white p-1 rounded-md border border-slate-200 shadow-xs flex items-center gap-1 shrink-0">
+          <div className="bg-white p-1 rounded-lg border border-slate-200 shadow-xs flex items-center justify-center shrink-0">
             <ProperQrCode className="shrink-0" style={{ width: `${actualQrSize}px`, height: `${actualQrSize}px` }} color={primary} />
-            <div className="text-[6.5px] text-slate-400 font-mono leading-none">
-              <p>VERIFIED</p>
-              <p>ID #{student.admNo.slice(-4)}</p>
-            </div>
           </div>
         ) : <div />}
 
@@ -577,10 +535,10 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
   const lightTone = adjustHex(primary, 35)
   const tintLight = hexToRgba(primary, 0.08)
   const borderTint = hexToRgba(primary, 0.3)
-  const actualLogoWidth = Number(logoWidth) || 52
-  const actualPhotoWidth = Number(photoWidth) || 88
-  const actualQrSize = Number(qrCodeSize) || 24
-  const actualSigWidth = Number(signatureWidth) || 56
+  const actualLogoWidth = Math.max(28, Math.min(60, Number(logoWidth) || 44))
+  const actualPhotoWidth = Math.max(56, Math.min(96, Number(photoWidth) || 76))
+  const actualQrSize = Math.max(28, Math.min(64, Number(qrCodeSize) || 42))
+  const actualSigWidth = Math.max(40, Math.min(76, Number(signatureWidth) || 54))
 
   const student = {
     name: data?.name || 'ANANYA VERMA',
@@ -595,17 +553,21 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
     photo: data?.photo || data?.avatar || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80',
   }
 
+  const roleLabel = data?.role 
+    ? (data.role === 'Teacher' ? 'FACULTY' : data.role === 'Employee' ? 'STAFF' : data.role.toUpperCase()) 
+    : 'STUDENT'
+
   return (
     <div className="w-[450px] h-[280px] bg-white rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border shrink-0 select-none" style={{ borderColor: borderTint }}>
       {/* Top Banner with Distinct, Clearly Legible Emblem Badge */}
       <div 
-        className="text-white px-4 py-2 flex items-center justify-between border-b-2"
+        className="text-white px-3.5 py-1.5 flex items-center justify-between border-b-2 shrink-0"
         style={{ 
           background: `linear-gradient(135deg, ${darkTone}, ${primary}, ${lightTone})`,
           borderColor: borderTint
         }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
           {/* Distinct Architectural Logo Showcase Bay */}
           {showLogo !== false && (
             <div 
@@ -613,7 +575,7 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
                 if (editable) onUpdateField?.('triggerLogoUpload', 'true')
               }}
               title={editable ? 'Click to select / upload institute logo' : undefined}
-              className={`rounded-2xl bg-white p-1.5 shadow-lg border-2 border-amber-400 ring-2 ring-white/70 flex items-center justify-center shrink-0 overflow-hidden relative group ${
+              className={`rounded-xl bg-white p-1 shadow-md border-2 border-amber-400 ring-1 ring-white/70 flex items-center justify-center shrink-0 overflow-hidden relative group ${
                 editable ? 'cursor-pointer hover:ring-amber-500 transition-all' : ''
               }`}
               style={{ width: `${actualLogoWidth}px`, height: `${actualLogoWidth}px` }}
@@ -621,32 +583,32 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
               {schoolLogo ? (
                 <img src={schoolLogo} alt="Institute Logo" className="w-full h-full object-contain filter drop-shadow-2xs" />
               ) : (
-                <div className="w-full h-full rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex flex-col items-center justify-center text-slate-900 shadow-inner">
-                  <Building2 className="w-6 h-6 text-slate-900" />
-                  <span className="text-[6px] font-black uppercase tracking-tighter mt-0.5">LOGO</span>
+                <div className="w-full h-full rounded-lg bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 flex flex-col items-center justify-center text-slate-900 shadow-inner">
+                  <Building2 className="w-5 h-5 text-slate-900" />
+                  <span className="text-[5px] font-black uppercase tracking-tighter mt-0.5">LOGO</span>
                 </div>
               )}
               {editable && (
-                <div className="absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 rounded-xl flex flex-col items-center justify-center text-[7.5px] font-black transition-opacity">
-                  <Upload className="w-3.5 h-3.5 mb-0.5" />
+                <div className="absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 rounded-lg flex flex-col items-center justify-center text-[7px] font-black transition-opacity">
+                  <Upload className="w-3 h-3 mb-0.5" />
                   <span>Change</span>
                 </div>
               )}
             </div>
           )}
-          <div className="text-left">
+          <div className="text-left min-w-0">
             <h2 
-              className="font-black uppercase tracking-wide leading-tight drop-shadow-sm text-white"
-              style={{ fontSize: parseFontSize(schoolNameFontSize) || '13px' }}
+              className="font-black uppercase tracking-wide leading-tight drop-shadow-sm text-white truncate"
+              style={{ fontSize: parseFontSize(schoolNameFontSize) || '12.5px' }}
             >
               <LiveEditableText
                 tag="span"
                 value={schoolName}
                 editable={editable}
                 onSave={val => onUpdateField?.('schoolName', val)}
-                style={{ fontSize: parseFontSize(schoolNameFontSize) || '13px' }}
+                style={{ fontSize: parseFontSize(schoolNameFontSize) || '12.5px' }}
                 fontSizeControl={{
-                  value: schoolNameFontSize ? parseFloat(String(schoolNameFontSize)) || 13 : 13,
+                  value: schoolNameFontSize ? parseFloat(String(schoolNameFontSize)) || 12.5 : 12.5,
                   onChange: val => onUpdateField?.('schoolNameFontSize', val),
                   label: 'Institute Name'
                 }}
@@ -654,55 +616,20 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
                 className="inline-block"
               />
             </h2>
-            <p 
-              className="text-white/90 font-medium truncate max-w-[210px]"
-              style={{ fontSize: parseFontSize(taglineFontSize) || '8px' }}
-            >
+            <p className="text-[7px] text-white/85 truncate max-w-[320px] leading-tight mt-0.5">
               <LiveEditableText
-                value={tagline}
+                value={schoolAddress}
                 editable={editable}
-                onSave={val => onUpdateField?.('tagline', val)}
-                style={{ fontSize: parseFontSize(taglineFontSize) || '8px' }}
-                fontSizeControl={{
-                  value: taglineFontSize ? parseFloat(String(taglineFontSize)) || 8 : 8,
-                  onChange: val => onUpdateField?.('taglineFontSize', val),
-                  label: 'Tagline'
-                }}
-                tooltipPosition="bottom"
-                className="inline-block mr-1"
-              />
-              •{' '}
-              <LiveEditableText
-                value={affiliationCode}
-                editable={editable}
-                onSave={val => onUpdateField?.('affiliationCode', val)}
+                onSave={val => onUpdateField?.('schoolAddress', val)}
                 className="inline-block"
               />
             </p>
           </div>
         </div>
-        <div className="text-right">
-          <span className="bg-amber-400 text-slate-900 font-black text-[9px] px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
-            <LiveEditableText
-              value={session}
-              editable={editable}
-              onSave={val => onUpdateField?.('session', val)}
-              className="inline-block"
-            />
-          </span>
-          <p className="text-[7.5px] text-white/80 mt-0.5 truncate max-w-[130px]">
-            <LiveEditableText
-              value={schoolAddress}
-              editable={editable}
-              onSave={val => onUpdateField?.('schoolAddress', val)}
-              className="inline-block"
-            />
-          </p>
-        </div>
       </div>
 
       {/* Main Body */}
-      <div className="flex-1 flex px-4 py-2.5 gap-4 relative">
+      <div className="flex-1 flex px-3.5 py-1.5 gap-3 relative min-h-0 overflow-hidden">
         {/* Subtle Watermark */}
         {showWatermark && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.035]">
@@ -711,14 +638,14 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
         )}
 
         {/* Left: Photo & Identification */}
-        <div className="flex flex-col items-center justify-between shrink-0 py-0.5" style={{ width: `${Math.max(actualPhotoWidth + 6, 88)}px` }}>
+        <div className="flex flex-col items-center justify-between shrink-0 py-0.5" style={{ width: `${actualPhotoWidth + 4}px` }}>
           {showPhoto !== false && (
             <div 
               className="rounded-xl border-2 p-0.5 bg-white shadow-md relative shrink-0"
               style={{ 
                 borderColor: primary,
                 width: `${actualPhotoWidth}px`,
-                height: `${Math.round(actualPhotoWidth * 1.18)}px`
+                height: `${Math.round(actualPhotoWidth * 1.15)}px`
               }}
             >
               <img 
@@ -730,46 +657,44 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
                 }}
               />
               <div className="absolute inset-0 flex items-center justify-center text-slate-400 -z-10">
-                <User className="w-8 h-8" />
+                <User className="w-7 h-7" />
               </div>
               <div 
-                className="absolute -bottom-2 -left-2 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-wider"
+                className="absolute -bottom-1.5 -left-1.5 text-white text-[6.5px] font-black px-1.5 py-0.2 rounded shadow-sm uppercase tracking-wider whitespace-nowrap"
                 style={{ backgroundColor: primary }}
               >
-                STUDENT
+                {roleLabel}
               </div>
             </div>
           )}
 
           {showQr && (
-            <div className="flex items-center gap-1.5 bg-slate-50 border p-1 rounded-md mt-2 w-full justify-center shadow-2xs" style={{ borderColor: borderTint }}>
+            <div className="flex items-center justify-center bg-white border p-0.5 rounded-lg mt-1 w-fit mx-auto shadow-2xs" style={{ borderColor: borderTint }}>
               <ProperQrCode style={{ width: `${actualQrSize}px`, height: `${actualQrSize}px` }} color={primary} />
-              <div className="text-[6.5px] font-mono leading-tight" style={{ color: primary }}>
-                <div>SCAN TO</div>
-                <div className="font-bold">VERIFY</div>
-              </div>
             </div>
           )}
         </div>
 
         {/* Right: Data Columns */}
-        <div className="flex-1 flex flex-col justify-between">
+        <div className="flex-1 min-w-0 flex flex-col justify-between h-full">
           <div>
-            <div className="flex items-center justify-between border-b pb-1 mb-2" style={{ borderColor: borderTint }}>
-              <div>
-                <h3 className="font-black text-base uppercase tracking-tight" style={{ color: primary }}>
+            <div className="flex items-start justify-between border-b pb-0.5 mb-1 gap-2" style={{ borderColor: borderTint }}>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-black text-[12px] uppercase tracking-tight leading-tight line-clamp-1" style={{ color: primary }}>
                   {student.name}
                 </h3>
-                <span 
-                  className="text-[10px] font-bold px-2 py-0.5 rounded border inline-block"
-                  style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}
-                >
-                  {student.class}
-                </span>
+                <div className="mt-0.5">
+                  <span 
+                    className="text-[8px] font-bold px-1.5 py-0.2 rounded border inline-block truncate max-w-[170px] leading-tight"
+                    style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}
+                  >
+                    {student.class}
+                  </span>
+                </div>
               </div>
               {showRollNo && (
-                <div className="text-right">
-                  <span className="text-[9px] text-slate-500 font-semibold mr-1">
+                <div className="text-right shrink-0 max-w-[110px]">
+                  <span className="text-[7.5px] text-slate-500 font-semibold block leading-tight truncate">
                     <LiveEditableText
                       value={labels.rollNoLabel || 'Roll No:'}
                       editable={editable}
@@ -777,54 +702,54 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
                       className="inline-block"
                     />
                   </span>
-                  <span className="font-black text-sm" style={{ color: primary }}>{student.rollNo}</span>
+                  <span className="font-black text-[10px] leading-tight block truncate" style={{ color: primary }}>{student.rollNo}</span>
                 </div>
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9.5px]">
+            <div className="grid grid-cols-2 gap-x-2.5 gap-y-0.5 text-[8.5px] leading-tight">
               {showAdmNo && (
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[8px]">
+                <div className="min-w-0">
+                  <span className="text-slate-400 font-semibold block text-[7px] uppercase truncate leading-tight">
                     <LiveEditableText
-                      value={labels.admNoLabel || 'ADMISSION NO'}
+                      value={labels.admNoLabel || (data?.role === 'Teacher' ? 'FACULTY ID' : data?.role === 'Employee' ? 'STAFF ID' : 'ADMISSION NO')}
                       editable={editable}
                       onSave={val => updateLabel('admNoLabel', val)}
                       className="inline-block"
                     />
                   </span>
-                  <span className="font-bold text-slate-800 font-mono">{student.admNo}</span>
+                  <span className="font-bold text-slate-800 font-mono text-[8.5px] truncate block leading-tight">{student.admNo}</span>
                 </div>
               )}
               {showFatherName && (
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[8px]">
+                <div className="min-w-0">
+                  <span className="text-slate-400 font-semibold block text-[7px] uppercase truncate leading-tight">
                     <LiveEditableText
-                      value={labels.fatherNameLabel || "FATHER'S NAME"}
+                      value={labels.fatherNameLabel || (data?.role === 'Teacher' ? 'QUALIFICATION' : data?.role === 'Employee' ? 'DEPARTMENT' : "FATHER'S NAME")}
                       editable={editable}
                       onSave={val => updateLabel('fatherNameLabel', val)}
                       className="inline-block"
                     />
                   </span>
-                  <span className="font-bold text-slate-800 truncate block">{student.fatherName}</span>
+                  <span className="font-bold text-slate-800 text-[8.5px] truncate block leading-tight">{student.fatherName}</span>
                 </div>
               )}
               {showDob && (
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[8px]">
+                <div className="min-w-0">
+                  <span className="text-slate-400 font-semibold block text-[7px] uppercase truncate leading-tight">
                     <LiveEditableText
-                      value={labels.dobLabel || 'DATE OF BIRTH'}
+                      value={labels.dobLabel || (data?.role === 'Teacher' || data?.role === 'Employee' ? 'JOINING DATE' : 'DATE OF BIRTH')}
                       editable={editable}
                       onSave={val => updateLabel('dobLabel', val)}
                       className="inline-block"
                     />
                   </span>
-                  <span className="font-bold text-slate-800">{student.dob}</span>
+                  <span className="font-bold text-slate-800 text-[8.5px] truncate block leading-tight">{student.dob}</span>
                 </div>
               )}
               {showBloodGroup && (
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[8px]">
+                <div className="min-w-0">
+                  <span className="text-slate-400 font-semibold block text-[7px] uppercase truncate leading-tight">
                     <LiveEditableText
                       value={labels.bloodGroupLabel || 'BLOOD GROUP'}
                       editable={editable}
@@ -832,37 +757,37 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
                       className="inline-block"
                     />
                   </span>
-                  <span className="font-black text-red-600 bg-red-50 px-1.5 py-0.2 rounded text-[9px]">{student.bloodGroup}</span>
+                  <span className="font-black text-red-600 bg-red-50 px-1 py-0.2 rounded text-[8px] inline-block leading-none">{student.bloodGroup}</span>
                 </div>
               )}
               {showContact && (
-                <div className="col-span-2">
-                  <span className="text-slate-400 font-semibold block text-[8px]">
+                <div className="col-span-2 min-w-0">
+                  <span className="text-slate-400 font-semibold block text-[7px] uppercase truncate leading-tight">
                     <LiveEditableText
-                      value={labels.emergencyNoLabel || 'EMERGENCY CONTACT'}
+                      value={labels.emergencyNoLabel || (data?.role === 'Teacher' || data?.role === 'Employee' ? 'OFFICIAL PHONE' : 'EMERGENCY CONTACT')}
                       editable={editable}
                       onSave={val => updateLabel('emergencyNoLabel', val)}
                       className="inline-block"
                     />
                   </span>
-                  <span className="font-bold text-slate-800">{student.phone}</span>
+                  <span className="font-bold text-slate-800 text-[8.5px] truncate block leading-tight">{student.phone}</span>
                 </div>
               )}
             </div>
           </div>
 
           {/* Bottom Row with Separate Signatures */}
-          <div className="flex items-end justify-between pt-1 border-t border-slate-100 mt-1">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[7.5px] font-mono text-slate-400 uppercase tracking-wider font-semibold">ID: {student.admNo}</span>
+          <div className="flex items-end justify-between pt-0.5 border-t border-slate-100 mt-auto shrink-0">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-[7px] font-mono text-slate-400 uppercase tracking-wider font-semibold truncate max-w-[90px]">ID: {student.admNo}</span>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 shrink-0">
               {/* Separate Holder Signature */}
               {showHolderSign && (
                 <div className="text-center">
-                  <div className="h-5 flex items-center justify-center" style={{ width: `${actualSigWidth}px` }}>
-                    <span className="font-serif italic font-semibold text-[10px] rotate-[-2deg] text-slate-700">
+                  <div className="h-4 flex items-center justify-center" style={{ width: `${actualSigWidth}px` }}>
+                    <span className="font-serif italic font-semibold text-[9.5px] rotate-[-2deg] text-slate-700 truncate block">
                       <LiveEditableText
                         value={holderSignName || student.name.split(' ')[0]}
                         editable={editable}
@@ -871,7 +796,7 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
                       />
                     </span>
                   </div>
-                  <p className="text-[6.5px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 text-center" style={{ width: `${actualSigWidth}px` }}>
+                  <p className="text-[6px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 text-center leading-none" style={{ width: `${actualSigWidth}px` }}>
                     <LiveEditableText
                       value={getRoleBasedHolderSignLabel(data?.role || 'Student', labels.holderSignLabel)}
                       editable={editable}
@@ -885,11 +810,11 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
               {/* Authority Signature */}
               {showPrincipalSign && (
                 <div className="text-right">
-                  <div className="h-5 flex items-center justify-end" style={{ width: `${actualSigWidth + 8}px` }}>
+                  <div className="h-4 flex items-center justify-end" style={{ width: `${actualSigWidth + 6}px` }}>
                     {principalSign ? (
-                      <img src={principalSign} alt="Principal Signature" className="max-h-5 max-w-full object-contain drop-shadow-xs" />
+                      <img src={principalSign} alt="Principal Signature" className="max-h-4 max-w-full object-contain drop-shadow-xs" />
                     ) : (
-                      <span className="font-serif italic font-black text-xs rotate-[-4deg]" style={{ color: primary }}>
+                      <span className="font-serif italic font-black text-[10px] rotate-[-4deg] truncate block" style={{ color: primary }}>
                         <LiveEditableText
                           value={principalName || 'K.Singhal'}
                           editable={editable}
@@ -899,7 +824,7 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
                       </span>
                     )}
                   </div>
-                  <p className="text-[6.5px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 text-center" style={{ width: `${actualSigWidth + 8}px` }}>
+                  <p className="text-[6px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 text-center leading-none" style={{ width: `${actualSigWidth + 6}px` }}>
                     <LiveEditableText
                       value={labels.principalSignLabel || 'Principal Sign'}
                       editable={editable}
@@ -915,8 +840,8 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
       </div>
 
       {/* Footer Strip */}
-      <div className="text-white text-[7.5px] py-1 px-4 flex items-center justify-between" style={{ backgroundColor: darkTone }}>
-        <span>
+      <div className="text-white text-[7px] py-0.5 px-3.5 flex items-center justify-between shrink-0" style={{ backgroundColor: darkTone }}>
+        <span className="truncate max-w-[280px]">
           If found, return to school office • Tel:{' '}
           <LiveEditableText
             value={schoolPhone}
@@ -926,16 +851,16 @@ export const StudentDesignHorizontal: React.FC<IdCardCustomProps> = ({
           />
         </span>
         <span 
-          className="font-semibold text-amber-300"
-          style={{ fontSize: parseFontSize(titleFontSize) || '8px' }}
+          className="font-semibold text-amber-300 shrink-0 ml-2"
+          style={{ fontSize: parseFontSize(titleFontSize) || '7.5px' }}
         >
           <LiveEditableText
             value={title}
             editable={editable}
             onSave={val => onUpdateField?.('title', val)}
-            style={{ fontSize: parseFontSize(titleFontSize) || '8px' }}
+            style={{ fontSize: parseFontSize(titleFontSize) || '7.5px' }}
             fontSizeControl={{
-              value: titleFontSize ? parseFloat(String(titleFontSize)) || 8 : 8,
+              value: titleFontSize ? parseFloat(String(titleFontSize)) || 7.5 : 7.5,
               onChange: val => onUpdateField?.('titleFontSize', val),
               label: 'Card Title'
             }}
@@ -997,7 +922,7 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
   const borderTint = hexToRgba(primary, 0.25)
   const actualLogoWidth = Number(logoWidth) || 48
   const actualPhotoWidth = Number(photoWidth) || 80
-  const actualQrSize = Number(qrCodeSize) || 32
+  const actualQrSize = Math.max(28, Math.min(80, Number(qrCodeSize) || 48))
   const actualSigWidth = Number(signatureWidth) || 56
   const labels = customLabels || {}
 
@@ -1078,31 +1003,7 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
                 className="inline-block"
               />
             </h2>
-            {showTopHeaderTagline && (
-              <p 
-                className="font-bold tracking-wider uppercase truncate" 
-                style={{ 
-                  color: primary,
-                  fontSize: parseFontSize(taglineFontSize) || '7.5px'
-                }}
-              >
-                <LiveEditableText
-                  value={tagline}
-                  editable={editable}
-                  onSave={val => onUpdateField?.('tagline', val)}
-                  style={{ fontSize: parseFontSize(taglineFontSize) || '7.5px' }}
-                  fontSizeControl={{
-                    value: taglineFontSize ? parseFloat(String(taglineFontSize)) || 7.5 : 7.5,
-                    onChange: val => onUpdateField?.('taglineFontSize', val),
-                    label: 'Tagline'
-                  }}
-                  tooltipPosition="bottom"
-                  className="inline-block mr-1"
-                />
-                {affiliationCode && `• ${affiliationCode}`}
-              </p>
-            )}
-            <p className="text-[7px] text-slate-500 truncate">
+            <p className="text-[7.5px] text-slate-500 truncate leading-tight mt-0.5">
               <LiveEditableText
                 value={schoolAddress}
                 editable={editable}
@@ -1115,7 +1016,7 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
 
         {/* Role Belt */}
         <div 
-          className="text-white font-black tracking-wider uppercase py-1 px-3 text-center flex items-center justify-between shadow-xs"
+          className="text-white font-black tracking-wider uppercase py-1 px-3 text-center flex items-center justify-center shadow-xs"
           style={{ 
             background: `linear-gradient(90deg, ${primary}, ${lightTone})`,
             fontSize: parseFontSize(titleFontSize) || '8px'
@@ -1133,14 +1034,6 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
                 label: 'Card Title'
               }}
               tooltipPosition="bottom"
-              className="inline-block"
-            />
-          </span>
-          <span className="bg-white/20 px-2 py-0.5 rounded text-[7px] font-mono">
-            <LiveEditableText
-              value={session}
-              editable={editable}
-              onSave={val => onUpdateField?.('session', val)}
               className="inline-block"
             />
           </span>
@@ -1188,16 +1081,16 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
         )}
 
         {/* Teacher Name & Designation */}
-        <h3 className="font-black text-sm tracking-wide text-center uppercase leading-snug" style={{ color: primary }}>
+        <h3 className="font-black text-sm tracking-wide text-center uppercase leading-snug line-clamp-1" style={{ color: primary }}>
           {teacher.name}
         </h3>
-        <p className="text-[9.5px] font-bold text-slate-700 text-center line-clamp-1 mt-0.5 mb-2">
+        <p className="text-[9.5px] font-bold text-slate-700 text-center line-clamp-1 mt-0.5 mb-1.5">
           {teacher.designation}
         </p>
 
         {/* Teacher Credentials Table */}
         <div 
-          className="w-full text-[9.5px] space-y-1 p-2.5 rounded-xl border shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
+          className="w-full text-[9px] space-y-0.5 p-2 rounded-xl border shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
           style={{ backgroundColor: tintLight, borderColor: borderTint }}
         >
           {showAdmNo && (
@@ -1284,12 +1177,8 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
       {/* Footer with Separate Signatures */}
       <div className="bg-slate-50 border-t border-slate-200 px-2.5 py-1.5 flex items-center justify-between mt-auto relative z-10 gap-2">
         {showQr ? (
-          <div className="bg-white p-1 rounded-md border border-slate-200 shadow-xs flex items-center gap-1 shrink-0">
+          <div className="bg-white p-1 rounded-lg border border-slate-200 shadow-xs flex items-center justify-center shrink-0">
             <ProperQrCode style={{ width: `${actualQrSize}px`, height: `${actualQrSize}px` }} color={primary} />
-            <div className="text-[6.5px] font-mono leading-none" style={{ color: primary }}>
-              <p>BIOMETRIC</p>
-              <p className="font-bold">VERIFIED</p>
-            </div>
           </div>
         ) : <div />}
 
@@ -1350,7 +1239,7 @@ export const TeacherDesignVertical: React.FC<IdCardCustomProps> = ({
 
       {/* Security strip */}
       <div 
-        className="text-white text-[7px] py-1 px-3 flex items-center justify-between"
+        className="text-white text-[7px] py-1 px-3 flex items-center justify-between shrink-0"
         style={{ background: `linear-gradient(90deg, ${darkTone}, ${primary})` }}
       >
         <span>
@@ -1381,7 +1270,17 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
   showQr = true,
   showWatermark = true,
   showPrincipalSign = true,
+  showHolderSign = false,
+  holderSignName = 'Cardholder',
   showBloodGroup = true,
+  showPhoto = true,
+  showLogo = true,
+  schoolLogo,
+  principalSign,
+  logoWidth,
+  photoWidth,
+  qrCodeSize,
+  signatureWidth,
   themeColor,
   principalName,
   schoolNameFontSize,
@@ -1398,6 +1297,10 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
   const lightTone = adjustHex(primary, 35)
   const tintLight = hexToRgba(primary, 0.08)
   const borderTint = hexToRgba(primary, 0.25)
+  const actualLogoWidth = Math.max(28, Math.min(60, Number(logoWidth) || 48))
+  const actualPhotoWidth = Math.max(56, Math.min(96, Number(photoWidth) || 76))
+  const actualQrSize = Math.max(28, Math.min(64, Number(qrCodeSize) || 42))
+  const actualSigWidth = Math.max(40, Math.min(76, Number(signatureWidth) || 54))
   const labels = customLabels || {}
 
   const updateLabel = (key: string, val: string) => {
@@ -1421,22 +1324,43 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
     <div className="w-[450px] h-[280px] bg-white rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border border-slate-200 shrink-0 select-none">
       {/* Top Banner */}
       <div 
-        className="text-white px-4 py-2 flex items-center justify-between border-b-2"
+        className="text-white px-3.5 py-1.5 flex items-center justify-between border-b-2 shrink-0"
         style={{
           background: `linear-gradient(90deg, ${darkTone} 0%, ${adjustHex(primary, -20)} 45%, ${primary} 100%)`,
           borderBottomColor: lightTone
         }}
       >
-        <div className="flex items-center gap-2">
-          <div 
-            className="w-7 h-7 rounded-lg bg-white flex items-center justify-center font-black shadow-sm"
-            style={{ color: primary }}
-          >
-            <Building2 className="w-4 h-4" />
-          </div>
-          <div>
+        <div className="flex items-center gap-2.5">
+          {showLogo !== false && (
+            <div 
+              onClick={() => {
+                if (editable) onUpdateField?.('triggerLogoUpload', 'true')
+              }}
+              title={editable ? 'Click to select / upload institute logo' : undefined}
+              className={`rounded-2xl bg-white p-1.5 shadow-lg border-2 border-teal-300 ring-2 ring-white/70 flex items-center justify-center shrink-0 overflow-hidden relative group ${
+                editable ? 'cursor-pointer hover:ring-teal-400 transition-all' : ''
+              }`}
+              style={{ width: `${actualLogoWidth}px`, height: `${actualLogoWidth}px` }}
+            >
+              {schoolLogo ? (
+                <img src={schoolLogo} alt="Institute Logo" className="w-full h-full object-contain filter drop-shadow-2xs" />
+              ) : (
+                <div className="w-full h-full rounded-xl bg-gradient-to-br from-teal-500 to-emerald-700 flex flex-col items-center justify-center text-white shadow-inner">
+                  <Building2 className="w-6 h-6 text-white" />
+                  <span className="text-[6px] font-black uppercase tracking-tighter mt-0.5">LOGO</span>
+                </div>
+              )}
+              {editable && (
+                <div className="absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 rounded-xl flex flex-col items-center justify-center text-[7.5px] font-black transition-opacity">
+                  <Upload className="w-3.5 h-3.5 mb-0.5" />
+                  <span>Change</span>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="text-left">
             <h2 
-              className="font-black uppercase tracking-wide leading-tight drop-shadow-sm"
+              className="font-black uppercase tracking-wide leading-tight drop-shadow-sm text-white"
               style={{ fontSize: parseFontSize(schoolNameFontSize) || '14px' }}
             >
               <LiveEditableText
@@ -1453,50 +1377,20 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
                 className="inline-block"
               />
             </h2>
-            <p 
-              className="text-white/90 font-medium"
-              style={{ fontSize: parseFontSize(taglineFontSize) || '8px' }}
-            >
+            <p className="text-[7.5px] text-white/85 truncate max-w-[280px] leading-tight mt-0.5">
               <LiveEditableText
-                value={tagline}
+                value={schoolAddress}
                 editable={editable}
-                onSave={val => onUpdateField?.('tagline', val)}
-                style={{ fontSize: parseFontSize(taglineFontSize) || '8px' }}
-                fontSizeControl={{
-                  value: taglineFontSize ? parseFloat(String(taglineFontSize)) || 8 : 8,
-                  onChange: val => onUpdateField?.('taglineFontSize', val),
-                  label: 'Tagline'
-                }}
-                tooltipPosition="bottom"
+                onSave={val => onUpdateField?.('schoolAddress', val)}
                 className="inline-block"
               />
-              {' '}• CAMPUS ID
             </p>
           </div>
-        </div>
-        <div className="text-right">
-          <span 
-            className="font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs text-white"
-            style={{ 
-              backgroundColor: primary,
-              fontSize: parseFontSize(titleFontSize) || '9px'
-            }}
-          >
-            FACULTY • {session}
-          </span>
-          <p className="text-[7.5px] text-white/80 mt-0.5 truncate max-w-[140px]">
-            <LiveEditableText
-              value={schoolAddress}
-              editable={editable}
-              onSave={val => onUpdateField?.('schoolAddress', val)}
-              className="inline-block"
-            />
-          </p>
         </div>
       </div>
 
       {/* Main Body */}
-      <div className="flex-1 flex px-4 py-2.5 gap-4 relative">
+      <div className="flex-1 flex px-3.5 py-1.5 gap-3 relative min-h-0 overflow-hidden">
         {showWatermark && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.035]">
             <Award className="w-56 h-56 text-slate-900" />
@@ -1504,61 +1398,65 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
         )}
 
         {/* Left Column: Photo & Badges */}
-        <div className="w-28 flex flex-col items-center justify-between shrink-0">
-          <div 
-            className="w-24 h-28 rounded-xl border-2 p-0.5 bg-white shadow-md relative"
-            style={{ borderColor: primary }}
-          >
-            <img 
-              src={teacher.photo} 
-              alt={teacher.name}
-              className="w-full h-full object-cover rounded-lg"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none'
-              }}
-            />
-            <div className="absolute inset-0 flex items-center justify-center text-slate-400 -z-10">
-              <User className="w-8 h-8" />
-            </div>
+        <div className="flex flex-col items-center justify-between shrink-0 py-0.5" style={{ width: `${actualPhotoWidth + 6}px` }}>
+          {showPhoto !== false && (
             <div 
-              className="absolute -bottom-2 -left-2 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm"
-              style={{ backgroundColor: primary }}
+              className="rounded-xl border-2 p-0.5 bg-white shadow-md relative shrink-0"
+              style={{ 
+                borderColor: primary,
+                width: `${actualPhotoWidth}px`,
+                height: `${Math.round(actualPhotoWidth * 1.15)}px`
+              }}
             >
-              TEACHER
+              <img 
+                src={teacher.photo} 
+                alt={teacher.name}
+                className="w-full h-full object-cover rounded-lg"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none'
+                }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center text-slate-400 -z-10">
+                <User className="w-8 h-8" />
+              </div>
+              <div 
+                className="absolute -bottom-2 -left-2 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-wider"
+                style={{ backgroundColor: primary }}
+              >
+                FACULTY
+              </div>
             </div>
-          </div>
+          )}
 
           {showQr && (
             <div 
-              className="flex items-center gap-1.5 bg-slate-50 border p-1 rounded-md mt-2 w-full justify-center"
+              className="flex items-center justify-center bg-white border p-1 rounded-lg mt-1 w-fit mx-auto shadow-2xs"
               style={{ borderColor: borderTint }}
             >
-              <ProperQrCode className="w-6 h-6" color={primary} />
-              <div className="text-[6.5px] font-mono leading-tight" style={{ color: primary }}>
-                <div>STAFF PORTAL</div>
-                <div className="font-bold">AUTH ID</div>
-              </div>
+              <ProperQrCode style={{ width: `${actualQrSize}px`, height: `${actualQrSize}px` }} color={primary} />
             </div>
           )}
         </div>
 
         {/* Right Column: Faculty Information */}
-        <div className="flex-1 flex flex-col justify-between">
+        <div className="flex-1 flex flex-col justify-between min-w-0 h-full overflow-hidden">
           <div>
-            <div className="flex items-center justify-between border-b pb-1 mb-2" style={{ borderColor: borderTint }}>
-              <div>
-                <h3 className="font-black text-base uppercase tracking-tight" style={{ color: primary }}>
+            <div className="flex items-start justify-between border-b pb-0.5 mb-1 gap-2" style={{ borderColor: borderTint }}>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-black text-[12px] uppercase tracking-tight leading-tight line-clamp-1" style={{ color: primary }}>
                   {teacher.name}
                 </h3>
-                <span 
-                  className="text-[10px] font-bold px-2 py-0.5 rounded border inline-block"
-                  style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}
-                >
-                  {teacher.designation}
-                </span>
+                <div className="mt-0.5">
+                  <span 
+                    className="text-[8px] font-bold px-1.5 py-0.2 rounded border inline-block truncate max-w-[170px] leading-tight"
+                    style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}
+                  >
+                    {teacher.designation}
+                  </span>
+                </div>
               </div>
-              <div className="text-right">
-                <span className="text-[8px] text-slate-400 font-semibold block">
+              <div className="text-right shrink-0 max-w-[110px]">
+                <span className="text-[7.5px] text-slate-400 font-semibold block leading-tight truncate">
                   <LiveEditableText
                     value={labels.facultyIdLabel || 'FACULTY ID'}
                     editable={editable}
@@ -1566,13 +1464,13 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
                     className="inline-block"
                   />
                 </span>
-                <span className="font-black text-sm font-mono" style={{ color: primary }}>{teacher.empId}</span>
+                <span className="font-black text-[11px] font-mono leading-tight block truncate" style={{ color: primary }}>{teacher.empId}</span>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9.5px]">
-              <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">
+            <div className="grid grid-cols-2 gap-x-2.5 gap-y-0.5 text-[8.5px] leading-tight">
+              <div className="min-w-0">
+                <span className="text-slate-400 font-semibold block text-[7px] uppercase truncate leading-tight">
                   <LiveEditableText
                     value={labels.departmentLabel || 'DEPARTMENT'}
                     editable={editable}
@@ -1580,10 +1478,10 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
                     className="inline-block"
                   />
                 </span>
-                <span className="font-bold text-slate-800 truncate block">{teacher.department}</span>
+                <span className="font-bold text-slate-800 truncate block text-[8.5px] leading-tight">{teacher.department}</span>
               </div>
-              <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">
+              <div className="min-w-0">
+                <span className="text-slate-400 font-semibold block text-[7px] uppercase truncate leading-tight">
                   <LiveEditableText
                     value={labels.qualificationLabel || 'QUALIFICATION'}
                     editable={editable}
@@ -1591,10 +1489,10 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
                     className="inline-block"
                   />
                 </span>
-                <span className="font-bold text-slate-800 truncate block">{teacher.qualification}</span>
+                <span className="font-bold text-slate-800 truncate block text-[8.5px] leading-tight">{teacher.qualification}</span>
               </div>
-              <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">
+              <div className="min-w-0">
+                <span className="text-slate-400 font-semibold block text-[7px] uppercase truncate leading-tight">
                   <LiveEditableText
                     value={labels.experienceLabel || 'EXPERIENCE'}
                     editable={editable}
@@ -1602,11 +1500,11 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
                     className="inline-block"
                   />
                 </span>
-                <span className="font-bold text-slate-800">{teacher.experience}</span>
+                <span className="font-bold text-slate-800 text-[8.5px] truncate block leading-tight">{teacher.experience}</span>
               </div>
               {showBloodGroup && (
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[8px]">
+                <div className="min-w-0">
+                  <span className="text-slate-400 font-semibold block text-[7px] uppercase truncate leading-tight">
                     <LiveEditableText
                       value={labels.bloodGroupLabel || 'BLOOD GROUP'}
                       editable={editable}
@@ -1614,11 +1512,11 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
                       className="inline-block"
                     />
                   </span>
-                  <span className="font-black text-red-600 bg-red-50 px-1.5 py-0.2 rounded text-[9px]">{teacher.bloodGroup}</span>
+                  <span className="font-black text-red-600 bg-red-50 px-1 py-0.2 rounded text-[8px] inline-block leading-none">{teacher.bloodGroup}</span>
                 </div>
               )}
-              <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">
+              <div className="min-w-0">
+                <span className="text-slate-400 font-semibold block text-[7px] uppercase truncate leading-tight">
                   <LiveEditableText
                     value={labels.phoneLabel || 'CONTACT'}
                     editable={editable}
@@ -1626,10 +1524,10 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
                     className="inline-block"
                   />
                 </span>
-                <span className="font-bold text-slate-800">{teacher.phone}</span>
+                <span className="font-bold text-slate-800 text-[8.5px] truncate block leading-tight">{teacher.phone}</span>
               </div>
-              <div>
-                <span className="text-slate-400 font-semibold block text-[8px]">
+              <div className="min-w-0">
+                <span className="text-slate-400 font-semibold block text-[7px] uppercase truncate leading-tight">
                   <LiveEditableText
                     value={labels.emailLabel || 'EMAIL'}
                     editable={editable}
@@ -1637,35 +1535,39 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
                     className="inline-block"
                   />
                 </span>
-                <span className="font-bold text-slate-800 truncate block">{teacher.email}</span>
+                <span className="font-bold text-slate-800 truncate block text-[8.5px] leading-tight">{teacher.email}</span>
               </div>
             </div>
           </div>
 
           {/* Bottom Row */}
-          <div className="flex items-end justify-between pt-1 border-t border-slate-100 mt-1">
-            <div className="flex items-center gap-2">
-              <div className="h-6 flex items-end gap-[1.5px] px-1 bg-white border border-slate-200 rounded">
+          <div className="flex items-end justify-between pt-0.5 border-t border-slate-100 mt-auto shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="h-5 flex items-end gap-[1.5px] px-1 bg-white border border-slate-200 rounded shrink-0">
                 {[2,1,2,3,1,1,2,3,1,2,1,3,2,1,1,2].map((w, idx) => (
                   <div key={idx} className="h-full" style={{ width: `${w * 1.3}px`, backgroundColor: primary }}></div>
                 ))}
               </div>
-              <span className="text-[7.5px] font-mono text-slate-400">{teacher.empId}</span>
+              <span className="text-[7px] font-mono text-slate-400 truncate max-w-[80px]">{teacher.empId}</span>
             </div>
 
             {showPrincipalSign && (
-              <div className="text-right">
-                <div className="h-5 flex items-center justify-end">
-                  <span className="font-serif italic font-black text-xs rotate-[-4deg]" style={{ color: primary }}>
-                    <LiveEditableText
-                      value={principalName || 'Prof.R.Gupta'}
-                      editable={editable}
-                      onSave={val => onUpdateField?.('principalName', val)}
-                      className="inline-block"
-                    />
-                  </span>
+              <div className="text-right shrink-0">
+                <div className="h-4 flex items-center justify-end" style={{ width: `${actualSigWidth + 8}px` }}>
+                  {principalSign ? (
+                    <img src={principalSign} alt="Authority Signature" className="max-h-4 max-w-full object-contain drop-shadow-xs" />
+                  ) : (
+                    <span className="font-serif italic font-black text-[10px] rotate-[-4deg] truncate block" style={{ color: primary }}>
+                      <LiveEditableText
+                        value={principalName || 'Prof.R.Gupta'}
+                        editable={editable}
+                        onSave={val => onUpdateField?.('principalName', val)}
+                        className="inline-block"
+                      />
+                    </span>
+                  )}
                 </div>
-                <p className="text-[7px] font-black text-slate-500 uppercase tracking-tighter">
+                <p className="text-[6px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 text-center leading-none" style={{ width: `${actualSigWidth + 8}px` }}>
                   <LiveEditableText
                     value={labels.principalSignLabel || 'Authorized Signatory'}
                     editable={editable}
@@ -1680,9 +1582,9 @@ export const TeacherDesignHorizontal: React.FC<IdCardCustomProps> = ({
       </div>
 
       {/* Footer Strip */}
-      <div className="text-white text-[7.5px] py-1 px-4 flex items-center justify-between" style={{ backgroundColor: darkTone }}>
-        <span>Campus Faculty Card • Return if found to {schoolAddress}</span>
-        <span className="font-bold text-amber-300">VALID SESSION: {session}</span>
+      <div className="text-white text-[7px] py-0.5 px-3.5 flex items-center justify-between shrink-0" style={{ backgroundColor: darkTone }}>
+        <span className="truncate max-w-[280px]">Campus Faculty Card • Return if found to {schoolAddress}</span>
+        <span className="font-bold text-amber-300 shrink-0 ml-2">VALID SESSION: {session}</span>
       </div>
     </div>
   )
@@ -1704,6 +1606,16 @@ export const EmployeeDesignVertical: React.FC<IdCardCustomProps> = ({
   showPrincipalSign = true,
   showBloodGroup = true,
   showTopHeaderTagline = true,
+  schoolLogo,
+  showLogo = true,
+  logoWidth,
+  photoWidth,
+  qrCodeSize,
+  signatureWidth,
+  showPhoto = true,
+  principalSign,
+  showHolderSign = false,
+  holderSignName = 'Cardholder',
   themeColor,
   principalName,
   schoolNameFontSize,
@@ -1720,6 +1632,10 @@ export const EmployeeDesignVertical: React.FC<IdCardCustomProps> = ({
   const lightTone = adjustHex(primary, 35)
   const tintLight = hexToRgba(primary, 0.08)
   const borderTint = hexToRgba(primary, 0.25)
+  const actualLogoWidth = Number(logoWidth) || 48
+  const actualPhotoWidth = Number(photoWidth) || 80
+  const actualQrSize = Math.max(28, Math.min(80, Number(qrCodeSize) || 48))
+  const actualSigWidth = Number(signatureWidth) || 56
   const labels = customLabels || {}
 
   const updateLabel = (key: string, val: string) => {
@@ -1749,17 +1665,37 @@ export const EmployeeDesignVertical: React.FC<IdCardCustomProps> = ({
         }}
       >
         {/* Realistic Lanyard Hole */}
-        <div className="w-12 h-2.5 bg-black/30 rounded-full mx-auto mb-1 border border-white/20"></div>
+        <div className="w-12 h-2.5 bg-black/30 rounded-full mx-auto mb-1.5 border border-white/20"></div>
 
-        <div className="flex items-center justify-center gap-1.5 mb-0.5">
-          <div 
-            className="w-5 h-5 rounded-full bg-white flex items-center justify-center font-black text-[10px] shadow-sm"
-            style={{ color: primary }}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-          </div>
+        <div className="flex items-center justify-center gap-2 mb-0.5">
+          {showLogo !== false && (
+            <div 
+              onClick={() => {
+                if (editable) onUpdateField?.('triggerLogoUpload', 'true')
+              }}
+              title={editable ? 'Click to select / upload institute logo' : undefined}
+              className={`rounded-full bg-white p-1 shadow-md border-2 border-cyan-400 ring-2 ring-white/70 flex items-center justify-center shrink-0 overflow-hidden relative group ${
+                editable ? 'cursor-pointer hover:ring-cyan-500 transition-all' : ''
+              }`}
+              style={{ width: `${actualLogoWidth}px`, height: `${actualLogoWidth}px` }}
+            >
+              {schoolLogo ? (
+                <img src={schoolLogo} alt="Institute Logo" className="w-full h-full object-contain filter drop-shadow-2xs" />
+              ) : (
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex flex-col items-center justify-center text-white shadow-inner">
+                  <ShieldCheck className="w-4 h-4 text-white" />
+                </div>
+              )}
+              {editable && (
+                <div className="absolute inset-0 bg-black/60 text-white opacity-0 group-hover:opacity-100 rounded-full flex flex-col items-center justify-center text-[7px] font-black transition-opacity">
+                  <Upload className="w-3 h-3 mb-0.5" />
+                  <span>Change</span>
+                </div>
+              )}
+            </div>
+          )}
           <h2 
-            className="font-black tracking-tight uppercase leading-tight line-clamp-1 drop-shadow-sm"
+            className="font-black tracking-tight uppercase leading-tight line-clamp-1 drop-shadow-sm text-left"
             style={{ fontSize: parseFontSize(schoolNameFontSize) || '13px' }}
           >
             <LiveEditableText
@@ -1778,27 +1714,7 @@ export const EmployeeDesignVertical: React.FC<IdCardCustomProps> = ({
           </h2>
         </div>
 
-        {showTopHeaderTagline && (
-          <p 
-            className="text-white/90 font-semibold tracking-wider uppercase"
-            style={{ fontSize: parseFontSize(taglineFontSize) || '8px' }}
-          >
-            <LiveEditableText
-              value={tagline}
-              editable={editable}
-              onSave={val => onUpdateField?.('tagline', val)}
-              style={{ fontSize: parseFontSize(taglineFontSize) || '8px' }}
-              fontSizeControl={{
-                value: taglineFontSize ? parseFloat(String(taglineFontSize)) || 8 : 8,
-                onChange: val => onUpdateField?.('taglineFontSize', val),
-                label: 'Tagline'
-              }}
-              tooltipPosition="bottom"
-              className="inline-block"
-            />
-          </p>
-        )}
-        <p className="text-[7.5px] text-white/80 truncate">
+        <p className="text-[7.5px] text-white/85 truncate leading-tight mt-0.5">
           <LiveEditableText
             value={schoolAddress}
             editable={editable}
@@ -1867,16 +1783,16 @@ export const EmployeeDesignVertical: React.FC<IdCardCustomProps> = ({
         </div>
 
         {/* Staff Name & Designation */}
-        <h3 className="font-black text-sm text-slate-900 tracking-wide text-center uppercase leading-snug">
+        <h3 className="font-black text-sm text-slate-900 tracking-wide text-center uppercase leading-snug line-clamp-1">
           {staff.name}
         </h3>
-        <p className="text-[9.5px] font-bold text-center line-clamp-1 mt-0.5 mb-2" style={{ color: primary }}>
+        <p className="text-[9.5px] font-bold text-center line-clamp-1 mt-0.5 mb-1.5" style={{ color: primary }}>
           {staff.designation}
         </p>
 
         {/* Staff Details Card */}
         <div 
-          className="w-full text-[9.5px] space-y-1 p-2.5 rounded-xl border shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
+          className="w-full text-[9px] space-y-0.5 p-2 rounded-xl border shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
           style={{ backgroundColor: tintLight, borderColor: borderTint }}
         >
           <div className="flex items-center justify-between">
@@ -1951,34 +1867,30 @@ export const EmployeeDesignVertical: React.FC<IdCardCustomProps> = ({
       </div>
 
       {/* Footer */}
-      <div className="bg-slate-100/90 border-t border-slate-200 px-3 py-2 flex items-center justify-between mt-auto relative z-10">
+      <div className="bg-slate-100/90 border-t border-slate-200 px-3 py-2 flex items-center justify-between mt-auto relative z-10 gap-2">
         {showQr ? (
-          <div className="bg-white p-1 rounded-md border border-slate-200 shadow-xs flex items-center gap-1.5">
-            <ProperQrCode className="w-8 h-8" color={primary} />
-            <div className="text-[6.5px] font-mono leading-none" style={{ color: primary }}>
-              <p>ACCESS GATE</p>
-              <p className="font-bold">AUTHORIZED</p>
-            </div>
+          <div className="bg-white p-1 rounded-lg border border-slate-200 shadow-xs flex items-center justify-center shrink-0">
+            <ProperQrCode style={{ width: `${actualQrSize}px`, height: `${actualQrSize}px` }} color={primary} />
           </div>
         ) : <div />}
 
         {showPrincipalSign && (
           <div className="text-right flex flex-col items-end">
-            <div className="h-6 w-20 relative flex items-center justify-center">
-              <span className="font-serif italic font-black text-slate-900 text-[11px] rotate-[-5deg]" style={{ color: primary }}>
-                <LiveEditableText
-                  value={principalName || 'Admin.Dir'}
-                  editable={editable}
-                  onSave={val => onUpdateField?.('principalName', val)}
-                  className="inline-block"
-                />
-              </span>
-              <div 
-                className="absolute inset-0 border rounded-full rotate-[-5deg] pointer-events-none opacity-40"
-                style={{ borderColor: primary }}
-              ></div>
+            <div className="h-6 relative flex items-center justify-center" style={{ width: `${actualSigWidth + 12}px` }}>
+              {principalSign ? (
+                <img src={principalSign} alt="Authority Signature" className="max-h-6 max-w-full object-contain drop-shadow-xs" />
+              ) : (
+                <span className="font-serif italic font-black text-slate-900 text-[11px] rotate-[-5deg]" style={{ color: primary }}>
+                  <LiveEditableText
+                    value={principalName || 'Admin.Dir'}
+                    editable={editable}
+                    onSave={val => onUpdateField?.('principalName', val)}
+                    className="inline-block"
+                  />
+                </span>
+              )}
             </div>
-            <p className="text-[7px] font-black text-slate-600 uppercase tracking-tighter">
+            <p className="text-[7px] font-black text-slate-600 uppercase tracking-tighter" style={{ width: `${actualSigWidth + 12}px` }}>
               <LiveEditableText
                 value={labels.principalSignLabel || 'Admin Signature'}
                 editable={editable}
@@ -1991,7 +1903,7 @@ export const EmployeeDesignVertical: React.FC<IdCardCustomProps> = ({
       </div>
 
       {/* Security strip */}
-      <div className="text-white text-[7px] py-1 px-3 flex items-center justify-between" style={{ backgroundColor: darkTone }}>
+      <div className="text-white text-[7px] py-1 px-3 flex items-center justify-between shrink-0" style={{ backgroundColor: darkTone }}>
         <span>
           Card Validity:{' '}
           <LiveEditableText
@@ -2052,10 +1964,10 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
   const lightTone = adjustHex(primary, 35)
   const tintLight = hexToRgba(primary, 0.08)
   const borderTint = hexToRgba(primary, 0.25)
-  const actualLogoWidth = Number(logoWidth) || 52
-  const actualPhotoWidth = Number(photoWidth) || 88
-  const actualQrSize = Number(qrCodeSize) || 26
-  const actualSigWidth = Number(signatureWidth) || 56
+  const actualLogoWidth = Math.max(28, Math.min(60, Number(logoWidth) || 48))
+  const actualPhotoWidth = Math.max(56, Math.min(96, Number(photoWidth) || 76))
+  const actualQrSize = Math.max(28, Math.min(64, Number(qrCodeSize) || 42))
+  const actualSigWidth = Math.max(40, Math.min(76, Number(signatureWidth) || 54))
   const labels = customLabels || {}
 
   const updateLabel = (key: string, val: string) => {
@@ -2078,13 +1990,13 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
     <div className="w-[450px] h-[280px] bg-white rounded-2xl shadow-xl relative overflow-hidden flex flex-col font-sans border border-slate-200 shrink-0 select-none">
       {/* Top Banner with Distinct High-Contrast Emblem Logo */}
       <div 
-        className="text-white px-4 py-2 flex items-center justify-between border-b-2"
+        className="text-white px-3.5 py-1.5 flex items-center justify-between border-b-2 shrink-0"
         style={{
           background: `linear-gradient(90deg, ${darkTone} 0%, ${adjustHex(primary, -20)} 40%, ${primary} 100%)`,
           borderBottomColor: lightTone
         }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {/* Distinct High-Contrast Modern Tech Logo Pod */}
           {showLogo !== false && (
             <div 
@@ -2113,7 +2025,7 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
               )}
             </div>
           )}
-          <div>
+          <div className="text-left">
             <h2 
               className="font-black uppercase tracking-wide leading-tight drop-shadow-sm text-white"
               style={{ fontSize: parseFontSize(schoolNameFontSize) || '13px' }}
@@ -2132,62 +2044,20 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
                 className="inline-block"
               />
             </h2>
-            <p 
-              className="text-white/90 font-medium"
-              style={{ fontSize: parseFontSize(taglineFontSize) || '8px' }}
-            >
+            <p className="text-[7.5px] text-white/85 truncate max-w-[280px] leading-tight mt-0.5">
               <LiveEditableText
-                value={tagline}
+                value={schoolAddress}
                 editable={editable}
-                onSave={val => onUpdateField?.('tagline', val)}
-                style={{ fontSize: parseFontSize(taglineFontSize) || '8px' }}
-                fontSizeControl={{
-                  value: taglineFontSize ? parseFloat(String(taglineFontSize)) || 8 : 8,
-                  onChange: val => onUpdateField?.('taglineFontSize', val),
-                  label: 'Tagline'
-                }}
-                tooltipPosition="bottom"
+                onSave={val => onUpdateField?.('schoolAddress', val)}
                 className="inline-block"
               />
-              {' '}• STAFF CREDENTIAL
             </p>
           </div>
-        </div>
-        <div className="text-right">
-          <span 
-            className="font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs text-white inline-flex items-center gap-1"
-            style={{ 
-              backgroundColor: primary,
-              fontSize: parseFontSize(titleFontSize) || '9px'
-            }}
-          >
-            <LiveEditableText
-              value={title}
-              editable={editable}
-              onSave={val => onUpdateField?.('title', val)}
-              style={{ fontSize: parseFontSize(titleFontSize) || '9px' }}
-              fontSizeControl={{
-                value: titleFontSize ? parseFloat(String(titleFontSize)) || 9 : 9,
-                onChange: val => onUpdateField?.('titleFontSize', val),
-                label: 'Card Title'
-              }}
-              tooltipPosition="bottom"
-              className="inline-block"
-            /> • {session}
-          </span>
-          <p className="text-[7.5px] text-white/80 mt-0.5 truncate max-w-[140px]">
-            <LiveEditableText
-              value={schoolAddress}
-              editable={editable}
-              onSave={val => onUpdateField?.('schoolAddress', val)}
-              className="inline-block"
-            />
-          </p>
         </div>
       </div>
 
       {/* Main Body */}
-      <div className="flex-1 flex px-4 py-2.5 gap-4 relative">
+      <div className="flex-1 flex px-3.5 py-1.5 gap-3 relative min-h-0 overflow-hidden">
         {showWatermark && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.035]">
             <Building2 className="w-56 h-56 text-slate-900" />
@@ -2195,14 +2065,14 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
         )}
 
         {/* Left Column: Photo & Security QR */}
-        <div className="flex flex-col items-center justify-between shrink-0 py-0.5" style={{ width: `${Math.max(actualPhotoWidth + 6, 88)}px` }}>
+        <div className="flex flex-col items-center justify-between shrink-0 py-0.5" style={{ width: `${actualPhotoWidth + 6}px` }}>
           {showPhoto !== false && (
             <div 
               className="rounded-xl border-2 p-0.5 bg-white shadow-md relative shrink-0"
               style={{ 
                 borderColor: primary,
                 width: `${actualPhotoWidth}px`,
-                height: `${Math.round(actualPhotoWidth * 1.18)}px`
+                height: `${Math.round(actualPhotoWidth * 1.15)}px`
               }}
             >
               <img 
@@ -2227,36 +2097,34 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
 
           {showQr && (
             <div 
-              className="flex items-center gap-1.5 bg-slate-50 border p-1 rounded-md mt-2 w-full justify-center"
+              className="flex items-center justify-center bg-white border p-1 rounded-lg mt-1 w-fit mx-auto shadow-2xs"
               style={{ borderColor: borderTint }}
             >
               <ProperQrCode style={{ width: `${actualQrSize}px`, height: `${actualQrSize}px` }} color={primary} />
-              <div className="text-[6.5px] font-mono leading-tight" style={{ color: primary }}>
-                <div>SECURITY PASS</div>
-                <div className="font-bold">GATE 01-04</div>
-              </div>
             </div>
           )}
         </div>
 
         {/* Right Column: Staff Information */}
-        <div className="flex-1 flex flex-col justify-between">
+        <div className="flex-1 flex flex-col justify-between min-w-0 h-full overflow-hidden">
           <div>
-            <div className="flex items-center justify-between border-b pb-1 mb-2" style={{ borderColor: borderTint }}>
-              <div>
-                <h3 className="font-black text-base text-slate-900 uppercase tracking-tight">
+            <div className="flex items-start justify-between border-b pb-0.5 mb-1 gap-2" style={{ borderColor: borderTint }}>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-black text-[12px] text-slate-900 uppercase tracking-tight leading-tight line-clamp-1">
                   {staff.name}
                 </h3>
-                <span 
-                  className="text-[10px] font-bold px-2 py-0.5 rounded border inline-block"
-                  style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}
-                >
-                  {staff.designation}
-                </span>
+                <div className="mt-0.5">
+                  <span 
+                    className="text-[8px] font-bold px-1.5 py-0.2 rounded border inline-block truncate max-w-[170px] leading-tight"
+                    style={{ backgroundColor: tintLight, color: primary, borderColor: borderTint }}
+                  >
+                    {staff.designation}
+                  </span>
+                </div>
               </div>
               {showAdmNo && (
-                <div className="text-right">
-                  <span className="text-[8px] text-slate-400 font-semibold block">
+                <div className="text-right shrink-0 max-w-[110px]">
+                  <span className="text-[7.5px] text-slate-400 font-semibold block leading-tight truncate">
                     <LiveEditableText
                       value={labels.staffIdLabel || 'STAFF ID'}
                       editable={editable}
@@ -2264,15 +2132,15 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
                       className="inline-block"
                     />
                   </span>
-                  <span className="font-black text-sm font-mono" style={{ color: primary }}>{staff.empId}</span>
+                  <span className="font-black text-[11px] font-mono leading-tight block truncate" style={{ color: primary }}>{staff.empId}</span>
                 </div>
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9.5px]">
+            <div className="grid grid-cols-2 gap-x-2.5 gap-y-0.5 text-[8.5px] leading-tight">
               {showRollNo && (
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[8px]">
+                <div className="min-w-0">
+                  <span className="text-slate-400 font-semibold block text-[7px] uppercase truncate leading-tight">
                     <LiveEditableText
                       value={labels.departmentLabel || 'DEPARTMENT'}
                       editable={editable}
@@ -2280,12 +2148,12 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
                       className="inline-block"
                     />
                   </span>
-                  <span className="font-bold text-slate-800 truncate block">{staff.department}</span>
+                  <span className="font-bold text-slate-800 truncate block text-[8.5px] leading-tight">{staff.department}</span>
                 </div>
               )}
               {showFatherName && (
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[8px]">
+                <div className="min-w-0">
+                  <span className="text-slate-400 font-semibold block text-[7px] uppercase truncate leading-tight">
                     <LiveEditableText
                       value={labels.workStationLabel || 'WORK STATION'}
                       editable={editable}
@@ -2293,12 +2161,12 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
                       className="inline-block"
                     />
                   </span>
-                  <span className="font-bold text-slate-800 truncate block">{staff.workStation}</span>
+                  <span className="font-bold text-slate-800 truncate block text-[8.5px] leading-tight">{staff.workStation}</span>
                 </div>
               )}
               {showBloodGroup && (
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[8px]">
+                <div className="min-w-0">
+                  <span className="text-slate-400 font-semibold block text-[7px] uppercase truncate leading-tight">
                     <LiveEditableText
                       value={labels.bloodGroupLabel || 'BLOOD GROUP'}
                       editable={editable}
@@ -2306,12 +2174,12 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
                       className="inline-block"
                     />
                   </span>
-                  <span className="font-black text-red-600 bg-red-50 px-1.5 py-0.2 rounded text-[9px]">{staff.bloodGroup}</span>
+                  <span className="font-black text-red-600 bg-red-50 px-1 py-0.2 rounded text-[8px] inline-block leading-none">{staff.bloodGroup}</span>
                 </div>
               )}
               {showContact && (
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[8px]">
+                <div className="min-w-0">
+                  <span className="text-slate-400 font-semibold block text-[7px] uppercase truncate leading-tight">
                     <LiveEditableText
                       value={labels.phoneLabel || 'OFFICIAL CONTACT'}
                       editable={editable}
@@ -2319,12 +2187,12 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
                       className="inline-block"
                     />
                   </span>
-                  <span className="font-bold text-slate-800">{staff.phone}</span>
+                  <span className="font-bold text-slate-800 text-[8.5px] truncate block leading-tight">{staff.phone}</span>
                 </div>
               )}
               {showContact && (
-                <div className="col-span-2">
-                  <span className="text-slate-400 font-semibold block text-[8px]">
+                <div className="col-span-2 min-w-0">
+                  <span className="text-slate-400 font-semibold block text-[7px] uppercase truncate leading-tight">
                     <LiveEditableText
                       value={labels.emergencyNoLabel || 'EMERGENCY CONTACT'}
                       editable={editable}
@@ -2332,24 +2200,24 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
                       className="inline-block"
                     />
                   </span>
-                  <span className="font-bold text-slate-800">{staff.emergencyContact}</span>
+                  <span className="font-bold text-slate-800 text-[8.5px] truncate block leading-tight">{staff.emergencyContact}</span>
                 </div>
               )}
             </div>
           </div>
 
           {/* Bottom Row with Separate Signatures */}
-          <div className="flex items-end justify-between pt-1 border-t border-slate-100 mt-1">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[7.5px] font-mono text-slate-400 font-semibold uppercase tracking-wider">STAFF ID: {staff.empId}</span>
+          <div className="flex items-end justify-between pt-0.5 border-t border-slate-100 mt-auto shrink-0">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-[7px] font-mono text-slate-400 font-semibold uppercase tracking-wider truncate max-w-[90px]">STAFF ID: {staff.empId}</span>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 shrink-0">
               {/* Separate Holder Signature */}
               {showHolderSign && (
                 <div className="text-center">
-                  <div className="h-5 flex items-center justify-center" style={{ width: `${actualSigWidth}px` }}>
-                    <span className="font-serif italic font-semibold text-[10px] rotate-[-2deg] text-slate-700">
+                  <div className="h-4 flex items-center justify-center" style={{ width: `${actualSigWidth}px` }}>
+                    <span className="font-serif italic font-semibold text-[9.5px] rotate-[-2deg] text-slate-700 truncate block">
                       <LiveEditableText
                         value={holderSignName || staff.name.split(' ')[0]}
                         editable={editable}
@@ -2358,7 +2226,7 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
                       />
                     </span>
                   </div>
-                  <p className="text-[6.5px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 text-center" style={{ width: `${actualSigWidth}px` }}>
+                  <p className="text-[6px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 text-center leading-none" style={{ width: `${actualSigWidth}px` }}>
                     <LiveEditableText
                       value={getRoleBasedHolderSignLabel(data?.role || 'Employee', labels.holderSignLabel)}
                       editable={editable}
@@ -2372,11 +2240,11 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
               {/* Authority Signature */}
               {showPrincipalSign && (
                 <div className="text-right">
-                  <div className="h-5 flex items-center justify-end" style={{ width: `${actualSigWidth + 8}px` }}>
+                  <div className="h-4 flex items-center justify-end" style={{ width: `${actualSigWidth + 6}px` }}>
                     {principalSign ? (
-                      <img src={principalSign} alt="Authority Signature" className="max-h-5 max-w-full object-contain drop-shadow-xs" />
+                      <img src={principalSign} alt="Authority Signature" className="max-h-4 max-w-full object-contain drop-shadow-xs" />
                     ) : (
-                      <span className="font-serif italic font-black text-xs rotate-[-4deg]" style={{ color: primary }}>
+                      <span className="font-serif italic font-black text-[10px] rotate-[-4deg] truncate block" style={{ color: primary }}>
                         <LiveEditableText
                           value={principalName || 'Registrar.S'}
                           editable={editable}
@@ -2386,7 +2254,7 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
                       </span>
                     )}
                   </div>
-                  <p className="text-[6.5px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 text-center" style={{ width: `${actualSigWidth + 8}px` }}>
+                  <p className="text-[6px] font-black text-slate-500 uppercase tracking-tighter border-t border-slate-300 pt-0.5 text-center leading-none" style={{ width: `${actualSigWidth + 6}px` }}>
                     <LiveEditableText
                       value={labels.principalSignLabel || 'Registrar / Principal'}
                       editable={editable}
@@ -2402,9 +2270,9 @@ export const EmployeeDesignHorizontal: React.FC<IdCardCustomProps> = ({
       </div>
 
       {/* Footer Strip */}
-      <div className="text-white text-[7.5px] py-1 px-4 flex items-center justify-between" style={{ backgroundColor: darkTone }}>
-        <span>Campus Non-Teaching Staff Pass • Valid at all institutional gates</span>
-        <span className="font-bold text-amber-300">ACCESS: ALL BLOCKS</span>
+      <div className="text-white text-[7px] py-0.5 px-3.5 flex items-center justify-between shrink-0" style={{ backgroundColor: darkTone }}>
+        <span className="truncate max-w-[280px]">Campus Non-Teaching Staff Pass • Valid at all institutional gates</span>
+        <span className="font-bold text-amber-300 shrink-0 ml-2">ACCESS: ALL BLOCKS</span>
       </div>
     </div>
   )
@@ -2431,6 +2299,7 @@ export const IdCardBackDesign: React.FC<{
   themeColor?: string
   termsTitle?: string
   termsGuidelines?: string | string[]
+  qrCodeSize?: string | number
   editable?: boolean
   onUpdateField?: (field: string, value: any) => void
 }> = ({
@@ -2443,12 +2312,14 @@ export const IdCardBackDesign: React.FC<{
   themeColor,
   termsTitle = 'Terms & Campus Guidelines',
   termsGuidelines,
+  qrCodeSize,
   editable = false,
   onUpdateField
 }) => {
   const primary = themeColor || '#1e3a8a'
   const borderTint = hexToRgba(primary, 0.25)
   const tintLight = hexToRgba(primary, 0.05)
+  const actualQrSize = Math.max(36, Math.min(80, Number(qrCodeSize) || 64))
 
   const parsedGuidelines = React.useMemo(() => {
     if (Array.isArray(termsGuidelines) && termsGuidelines.length > 0) {
@@ -2505,15 +2376,15 @@ export const IdCardBackDesign: React.FC<{
             ))}
           </ul>
 
-          <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-2xs">
-            <div>
+          <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center justify-between gap-3 shadow-2xs">
+            <div className="flex-1 min-w-0">
               <p className="font-bold text-[9.5px]" style={{ color: primary }}>Campus Return Address:</p>
               <p className="text-[8.5px] text-slate-600 leading-relaxed mt-0.5">
                 <LiveEditableText
                   value={schoolName}
                   editable={editable}
                   onSave={val => onUpdateField?.('schoolName', val)}
-                  className="font-bold block"
+                  className="font-bold block truncate"
                 />
                 <LiveEditableText
                   value={schoolAddress}
@@ -2522,26 +2393,29 @@ export const IdCardBackDesign: React.FC<{
                   className="inline-block"
                 />
               </p>
+              <div className="text-[8px] text-slate-600 space-y-0.5 mt-1.5">
+                <p>
+                  📞 Helpline:{' '}
+                  <LiveEditableText
+                    value={schoolPhone}
+                    editable={editable}
+                    onSave={val => onUpdateField?.('schoolPhone', val)}
+                    className="inline-block"
+                  />
+                </p>
+                <p>
+                  ✉️ Email:{' '}
+                  <LiveEditableText
+                    value={schoolEmail}
+                    editable={editable}
+                    onSave={val => onUpdateField?.('schoolEmail', val)}
+                    className="inline-block"
+                  />
+                </p>
+              </div>
             </div>
-            <div className="text-[8px] text-slate-600 space-y-0.5 mt-2">
-              <p>
-                📞 Helpline:{' '}
-                <LiveEditableText
-                  value={schoolPhone}
-                  editable={editable}
-                  onSave={val => onUpdateField?.('schoolPhone', val)}
-                  className="inline-block"
-                />
-              </p>
-              <p>
-                ✉️ Email:{' '}
-                <LiveEditableText
-                  value={schoolEmail}
-                  editable={editable}
-                  onSave={val => onUpdateField?.('schoolEmail', val)}
-                  className="inline-block"
-                />
-              </p>
+            <div className="p-1 bg-white border border-slate-200 rounded-xl shadow-2xs shrink-0 flex items-center justify-center">
+              <ProperQrCode style={{ width: `${actualQrSize}px`, height: `${actualQrSize}px` }} color={primary} />
             </div>
           </div>
         </div>
@@ -2601,45 +2475,50 @@ export const IdCardBackDesign: React.FC<{
         ))}
       </ul>
 
-      <div className="bg-white p-3 rounded-xl border border-slate-200 mb-3 space-y-1 shadow-2xs">
-        <p className="font-bold text-[9px] uppercase tracking-wide" style={{ color: primary }}>
-          Campus Return Address
-        </p>
-        <p className="text-[8.5px] text-slate-700 font-bold">
-          <LiveEditableText
-            value={schoolName}
-            editable={editable}
-            onSave={val => onUpdateField?.('schoolName', val)}
-            className="inline-block"
-          />
-        </p>
-        <p className="text-[8px] text-slate-500 leading-tight">
-          <LiveEditableText
-            value={schoolAddress}
-            editable={editable}
-            onSave={val => onUpdateField?.('schoolAddress', val)}
-            className="inline-block"
-          />
-        </p>
-        <div className="text-[8px] text-slate-600 pt-1 space-y-0.5">
-          <p>
-            📞 Phone:{' '}
+      <div className="bg-white p-2.5 rounded-xl border border-slate-200 mb-2.5 flex items-center gap-3 shadow-2xs">
+        <div className="p-1 bg-white border border-slate-200 rounded-xl shadow-2xs shrink-0 flex items-center justify-center">
+          <ProperQrCode style={{ width: `${actualQrSize}px`, height: `${actualQrSize}px` }} color={primary} />
+        </div>
+        <div className="flex-1 min-w-0 space-y-0.5">
+          <p className="font-bold text-[9px] uppercase tracking-wide" style={{ color: primary }}>
+            Campus Return Address
+          </p>
+          <p className="text-[8.5px] text-slate-700 font-bold truncate">
             <LiveEditableText
-              value={schoolPhone}
+              value={schoolName}
               editable={editable}
-              onSave={val => onUpdateField?.('schoolPhone', val)}
+              onSave={val => onUpdateField?.('schoolName', val)}
               className="inline-block"
             />
           </p>
-          <p>
-            ✉️ Email:{' '}
+          <p className="text-[7.5px] text-slate-500 leading-tight line-clamp-2">
             <LiveEditableText
-              value={schoolEmail}
+              value={schoolAddress}
               editable={editable}
-              onSave={val => onUpdateField?.('schoolEmail', val)}
+              onSave={val => onUpdateField?.('schoolAddress', val)}
               className="inline-block"
             />
           </p>
+          <div className="text-[7.5px] text-slate-600 pt-0.5 space-y-0.5 truncate">
+            <p>
+              📞{' '}
+              <LiveEditableText
+                value={schoolPhone}
+                editable={editable}
+                onSave={val => onUpdateField?.('schoolPhone', val)}
+                className="inline-block"
+              />
+            </p>
+            <p>
+              ✉️{' '}
+              <LiveEditableText
+                value={schoolEmail}
+                editable={editable}
+                onSave={val => onUpdateField?.('schoolEmail', val)}
+                className="inline-block"
+              />
+            </p>
+          </div>
         </div>
       </div>
 
@@ -2739,7 +2618,7 @@ export const ID_CARD_ROLE_PREVIEWS: Record<IdCardRole, RolePersona> = {
     photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80',
     defaultTitle: 'FACULTY IDENTITY CARD',
     defaultTagline: 'Faculty of Senior Academics',
-    holderSignLabel: 'Teacher Sign',
+    holderSignLabel: 'Cardholder Sign',
     holderSignName: 'Dr. Meenakshi'
   },
   Employee: {
@@ -2906,16 +2785,11 @@ export const StudentDesignPinterestVertical: React.FC<IdCardCustomProps> = ({
             {schoolName}
           </h2>
         </div>
-        {showTopHeaderTagline && (
-          <p className="text-[7.5px] text-indigo-200 font-medium tracking-wide">
-            {tagline} {affiliationCode && `• ${affiliationCode}`}
-          </p>
-        )}
-        <p className="text-[7px] text-indigo-300/90 truncate">{schoolAddress}</p>
+        <p className="text-[7.5px] text-indigo-300/90 truncate leading-tight mt-0.5">{schoolAddress}</p>
 
         {/* Floating Role Pill */}
         <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-black text-[8.5px] px-3.5 py-0.5 rounded-full shadow-md tracking-wider uppercase border border-white/40">
-          {title} • {session}
+          {title}
         </div>
       </div>
 
@@ -2993,14 +2867,8 @@ export const StudentDesignPinterestVertical: React.FC<IdCardCustomProps> = ({
         {/* Verification Strip & Signatory */}
         <div className="w-full flex items-center justify-between mt-auto pt-2 border-t border-slate-200/80">
           {showQr && (
-            <div className="flex items-center gap-1.5">
-              <div className="p-1 bg-white border border-slate-200 rounded-lg shadow-2xs">
-                <QrCode className="w-7 h-7 text-indigo-950" />
-              </div>
-              <div className="text-[6.5px] leading-tight text-slate-500 font-mono">
-                <div className="font-bold text-indigo-900">DIGITAL ID</div>
-                <div>SCAN TO VERIFY</div>
-              </div>
+            <div className="p-1 bg-white border border-slate-200 rounded-lg shadow-2xs">
+              <ProperQrCode style={{ width: '38px', height: '38px' }} color="#312e81" />
             </div>
           )}
 
@@ -3121,8 +2989,8 @@ export const StudentDesignPinterestHorizontal: React.FC<IdCardCustomProps> = ({
               <h2 className="font-black text-[13px] text-emerald-950 uppercase tracking-tight leading-tight">
                 {schoolName}
               </h2>
-              <p className="text-[7.5px] text-slate-500 font-medium">
-                {schoolAddress} • {affiliationCode}
+              <p className="text-[7.5px] text-slate-500 font-medium leading-tight mt-0.5">
+                {schoolAddress}
               </p>
             </div>
             <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 font-black text-[8px] tracking-wider uppercase border border-emerald-200 shrink-0">
@@ -3185,8 +3053,8 @@ export const StudentDesignPinterestHorizontal: React.FC<IdCardCustomProps> = ({
           </div>
 
           {showQr && (
-            <div className="p-0.5 bg-white border border-slate-200 rounded shadow-2xs">
-              <QrCode className="w-6 h-6 text-emerald-950" />
+            <div className="p-1 bg-white border border-slate-200 rounded shadow-2xs">
+              <ProperQrCode style={{ width: '38px', height: '38px' }} color="#064e3b" />
             </div>
           )}
 
@@ -3250,13 +3118,10 @@ export const TeacherDesignPinterestVertical: React.FC<IdCardCustomProps> = ({
             {schoolName}
           </h2>
         </div>
-        <p className="text-[7.5px] text-fuchsia-200 font-medium tracking-wide">
-          {tagline} • FACULTY CREDENTIAL
-        </p>
-        <p className="text-[7px] text-fuchsia-300/90 truncate">{schoolAddress}</p>
+        <p className="text-[7.5px] text-fuchsia-300/90 truncate leading-tight mt-0.5">{schoolAddress}</p>
 
         <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-fuchsia-600 to-pink-600 text-white font-black text-[8.5px] px-3.5 py-0.5 rounded-full shadow-md tracking-wider uppercase border border-white/40">
-          {title} • {session}
+          {title}
         </div>
       </div>
 
@@ -3328,14 +3193,8 @@ export const TeacherDesignPinterestVertical: React.FC<IdCardCustomProps> = ({
 
         <div className="w-full flex items-center justify-between mt-auto pt-2 border-t border-slate-200/80">
           {showQr && (
-            <div className="flex items-center gap-1.5">
-              <div className="p-1 bg-white border border-slate-200 rounded-lg shadow-2xs">
-                <QrCode className="w-7 h-7 text-fuchsia-950" />
-              </div>
-              <div className="text-[6.5px] leading-tight text-slate-500 font-mono">
-                <div className="font-bold text-fuchsia-900">FACULTY AUTH</div>
-                <div>SECURE VERIFY</div>
-              </div>
+            <div className="p-1 bg-white border border-slate-200 rounded-lg shadow-2xs">
+              <ProperQrCode style={{ width: '38px', height: '38px' }} color="#701a75" />
             </div>
           )}
 
@@ -3446,8 +3305,8 @@ export const TeacherDesignPinterestHorizontal: React.FC<IdCardCustomProps> = ({
               <h2 className="font-black text-[13px] text-teal-950 uppercase tracking-tight leading-tight">
                 {schoolName}
               </h2>
-              <p className="text-[7.5px] text-slate-500 font-medium">
-                {schoolAddress} • {tagline}
+              <p className="text-[7.5px] text-slate-500 font-medium leading-tight mt-0.5">
+                {schoolAddress}
               </p>
             </div>
             <span className="px-2 py-0.5 rounded-md bg-teal-100 text-teal-900 font-black text-[8px] tracking-wider uppercase border border-teal-200 shrink-0">
@@ -3507,8 +3366,8 @@ export const TeacherDesignPinterestHorizontal: React.FC<IdCardCustomProps> = ({
           </div>
 
           {showQr && (
-            <div className="p-0.5 bg-white border border-slate-200 rounded shadow-2xs">
-              <QrCode className="w-6 h-6 text-teal-950" />
+            <div className="p-1 bg-white border border-slate-200 rounded shadow-2xs">
+              <ProperQrCode style={{ width: '38px', height: '38px' }} color="#0f766e" />
             </div>
           )}
 
@@ -3569,13 +3428,10 @@ export const EmployeeDesignPinterestVertical: React.FC<IdCardCustomProps> = ({
             {schoolName}
           </h2>
         </div>
-        <p className="text-[7.5px] text-slate-300 font-medium tracking-wide">
-          {tagline} • STAFF CREDENTIAL
-        </p>
-        <p className="text-[7px] text-slate-400 truncate">{schoolAddress}</p>
+        <p className="text-[7.5px] text-slate-400 truncate leading-tight mt-0.5">{schoolAddress}</p>
 
         <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-[8.5px] px-3.5 py-0.5 rounded-full shadow-md tracking-wider uppercase border border-white/40">
-          {title} • {session}
+          {title}
         </div>
       </div>
 
@@ -3647,14 +3503,8 @@ export const EmployeeDesignPinterestVertical: React.FC<IdCardCustomProps> = ({
 
         <div className="w-full flex items-center justify-between mt-auto pt-2 border-t border-slate-200/80">
           {showQr && (
-            <div className="flex items-center gap-1.5">
-              <div className="p-1 bg-white border border-slate-200 rounded-lg shadow-2xs">
-                <QrCode className="w-7 h-7 text-slate-900" />
-              </div>
-              <div className="text-[6.5px] leading-tight text-slate-500 font-mono">
-                <div className="font-bold text-blue-900">SECURITY PASS</div>
-                <div>CAMPUS GATE ALL</div>
-              </div>
+            <div className="p-1 bg-white border border-slate-200 rounded-lg shadow-2xs">
+              <ProperQrCode style={{ width: '38px', height: '38px' }} color="#1e293b" />
             </div>
           )}
 
@@ -3764,8 +3614,8 @@ export const EmployeeDesignPinterestHorizontal: React.FC<IdCardCustomProps> = ({
               <h2 className="font-black text-[13px] text-slate-900 uppercase tracking-tight leading-tight">
                 {schoolName}
               </h2>
-              <p className="text-[7.5px] text-slate-500 font-medium">
-                {schoolAddress} • {tagline}
+              <p className="text-[7.5px] text-slate-500 font-medium leading-tight mt-0.5">
+                {schoolAddress}
               </p>
             </div>
             <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-900 font-black text-[8px] tracking-wider uppercase border border-indigo-200 shrink-0">
@@ -3825,8 +3675,8 @@ export const EmployeeDesignPinterestHorizontal: React.FC<IdCardCustomProps> = ({
           </div>
 
           {showQr && (
-            <div className="p-0.5 bg-white border border-slate-200 rounded shadow-2xs">
-              <QrCode className="w-6 h-6 text-indigo-950" />
+            <div className="p-1 bg-white border border-slate-200 rounded shadow-2xs">
+              <ProperQrCode style={{ width: '38px', height: '38px' }} color="#1e1b4b" />
             </div>
           )}
 

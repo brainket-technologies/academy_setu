@@ -222,6 +222,7 @@ export interface IssuedCertificateData {
   designId?: number
   fatherName?: string
   rollNo?: string
+  admissionNo?: string
   schoolName?: string
   remarks?: string
   content?: string
@@ -262,6 +263,7 @@ export async function fetchIssuedCertificates() {
         themeColor: details.themeColor || '#1E3A8A',
         fatherName: details.fatherName || '',
         rollNo: details.rollNo || '',
+        admissionNo: details.admissionNo || '',
         schoolName: details.schoolName || 'COSMOPOLITAN INTER COLLEGE',
         remarks: details.remarks || '',
         content: details.content || ''
@@ -286,6 +288,7 @@ export async function saveIssuedCertificate(data: IssuedCertificateData) {
       themeColor: data.details?.themeColor || '#1E3A8A',
       fatherName: data.fatherName || '',
       rollNo: data.rollNo || '',
+      admissionNo: data.admissionNo || '',
       schoolName: data.schoolName || 'COSMOPOLITAN INTER COLLEGE',
       remarks: data.remarks || '',
       content: data.content || ''

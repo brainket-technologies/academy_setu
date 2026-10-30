@@ -84,6 +84,7 @@ export interface CertificateCustomProps {
   showQr?: boolean
   qrCodeSize?: string | number
   photoWidth?: string | number
+  photoHeight?: string | number
   showSeal?: boolean
   sealSize?: string | number
   signatureWidth?: string | number
@@ -178,10 +179,10 @@ export const CertificateStudentMetadata: React.FC<{
     badges.push({ label: 'Class', val: section ? `${className || 'Class X'} - ${section}` : (className || 'Class X') })
   }
   if (!isHidden('Roll No.') && !isHidden('Roll Number')) {
-    badges.push({ label: 'Roll No', val: rollNo || customLabels['rollNo'] || '101' })
+    badges.push({ label: 'Roll Number', val: rollNo || customLabels['rollNo'] || '101' })
   }
-  if (!isHidden('Admission No.') && !isHidden('Admission / Reg No.')) {
-    badges.push({ label: 'Adm No', val: admissionNo || customLabels['admissionNo'] || 'ADM-2025-042' })
+  if (!isHidden('Admission No.') && !isHidden('Admission / Reg No.') && !isHidden('Admission Number')) {
+    badges.push({ label: 'Admission Number', val: admissionNo || customLabels['admissionNo'] || 'ADM-2025-042' })
   }
   if (!isHidden('Date of Birth') && !isHidden('DOB')) {
     badges.push({ label: 'DOB', val: dob || customLabels['dob'] || '15/08/2010' })
@@ -211,10 +212,11 @@ export const CertificateCandidatePhoto: React.FC<{
   top?: string
   left?: string
   photoWidth?: number | string
-}> = ({ studentPhoto, isHidden, top = 'top-7', left = 'left-10', photoWidth = '48' }) => {
+  photoHeight?: number | string
+}> = ({ studentPhoto, isHidden, top = 'top-7', left = 'left-10', photoWidth = '48', photoHeight }) => {
   if (isHidden('Student Photo') || isHidden('Photo')) return null
-  const pw = Math.max(30, Math.min(130, Number(photoWidth) || 48))
-  const ph = Math.round(pw * 1.25)
+  const pw = Math.max(30, Math.min(140, Number(photoWidth) || 48))
+  const ph = photoHeight ? Math.max(35, Math.min(180, Number(photoHeight))) : Math.round(pw * 1.25)
   return (
     <div className={`absolute ${top} ${left} z-30 flex flex-col items-center bg-white dark:bg-slate-900 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm pointer-events-none`}>
       <div 
@@ -307,7 +309,7 @@ export const CertificateFooterSignatures: React.FC<{
     {
       id: 'teacherSign',
       isActive: !isHidden('Teacher Sign') && !isHidden('Class Teacher Sign'),
-      name: teacherSignName || customLabels['teacherSignName'] || 'Mrs. Kavita Verma',
+      name: teacherSignName || customLabels['teacherSignName'] || '',
       label: teacherSignLabel || customLabels['teacherSignLabel'] || "Class Teacher's Sign",
       saveField: 'teacherSignName',
       saveLabel: 'teacherSign'
@@ -315,7 +317,7 @@ export const CertificateFooterSignatures: React.FC<{
     {
       id: 'controllerSign',
       isActive: !isHidden('Controller Sign') && !isHidden('Exam Controller Sign'),
-      name: controllerSignName || customLabels['controllerSignName'] || 'Mr. R. K. Saxena',
+      name: controllerSignName || customLabels['controllerSignName'] || '',
       label: controllerSignLabel || customLabels['controllerSignLabel'] || 'Exam Controller',
       saveField: 'controllerSignName',
       saveLabel: 'controllerSign'
@@ -323,7 +325,7 @@ export const CertificateFooterSignatures: React.FC<{
     {
       id: 'secondarySign',
       isActive: !isHidden('Secondary Sign') && !isHidden('Coordinator Sign') && !isHidden('Coordinator / In-Charge Sign') && !isHidden('Authority Signature') && !isHidden('Authority Sign'),
-      name: secondarySignName || customLabels['secondarySignName'] || 'Authorized Signatory',
+      name: secondarySignName || customLabels['secondarySignName'] || '',
       label: secondarySignLabel || customLabels['secondarySignLabel'] || 'Authority Signature',
       saveField: 'secondarySignName',
       saveLabel: 'secondarySign'
@@ -331,7 +333,7 @@ export const CertificateFooterSignatures: React.FC<{
     {
       id: 'parentSign',
       isActive: !isHidden('Parent Sign') && !isHidden('Parent / Guardian Sign'),
-      name: parentSignName || customLabels['parentSignName'] || 'Parent / Guardian',
+      name: parentSignName || customLabels['parentSignName'] || '',
       label: parentSignLabel || customLabels['parentSignLabel'] || "Parent's Signature",
       saveField: 'parentSignName',
       saveLabel: 'parentSign'
@@ -339,7 +341,7 @@ export const CertificateFooterSignatures: React.FC<{
     {
       id: 'studentSign',
       isActive: !isHidden('Student Sign') && !isHidden('Student Signature Line'),
-      name: 'Candidate',
+      name: '',
       label: studentSignLabel || customLabels['studentSignLabel'] || "Student's Signature",
       saveLabel: 'studentSign',
       isStudent: true
@@ -347,7 +349,7 @@ export const CertificateFooterSignatures: React.FC<{
     {
       id: 'principalSign',
       isActive: !isHidden('Principal Sign') && !isHidden('Principal / Director Sign'),
-      name: principalName || customLabels['principalName'] || 'Dr. S. K. Sharma',
+      name: principalName || customLabels['principalName'] || '',
       label: principalLabel || customLabels['principalSignLabel'] || 'Principal & Director',
       saveField: 'principalName',
       saveLabel: 'principalSign',
@@ -532,6 +534,7 @@ export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
   showQr = true,
   qrCodeSize = '44',
   photoWidth = '48',
+  photoHeight,
   showSeal = true,
   hiddenFields = [],
   editable = false,
@@ -542,9 +545,9 @@ export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
   const isHidden = (field: string) => hiddenFields.includes(field)
   const primary = themeColor || '#1e3a8a'
   const borderTint = hexToRgba(primary, 0.25)
-  const effectivePrincipalName = principalName || 'Dr. S. K. Sharma'
+  const effectivePrincipalName = principalName || ''
   const effectivePrincipalLabel = principalLabel || awarder || 'Principal & Director'
-  const effectiveSecondaryName = secondarySignName || customLabels['secondarySignName'] || 'Authorized Signatory'
+  const effectiveSecondaryName = secondarySignName || customLabels['secondarySignName'] || ''
   const effectiveSecondaryLabel = secondarySignLabel || customLabels['secondarySignLabel'] || 'Authority Signature'
   const actualLogoWidth = Math.max(28, Math.min(180, Number(logoWidth) || 60))
 
@@ -582,7 +585,7 @@ export const CertificateDesign1: React.FC<CertificateCustomProps> = ({
       )}
 
       {/* Student Candidate Photo */}
-      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-7" left="left-10" photoWidth={photoWidth} />
+      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-7" left="left-10" photoWidth={photoWidth} photoHeight={photoHeight} />
 
       {/* Header Info */}
       <div className="relative z-10 flex flex-col items-center pt-3.5 px-12 text-center flex-1 justify-center">
@@ -838,6 +841,7 @@ export const CertificateDesign2: React.FC<CertificateCustomProps> = ({
   showQr = true,
   qrCodeSize = '44',
   photoWidth = '48',
+  photoHeight,
   showSeal = true,
   hiddenFields = [],
   editable = false,
@@ -849,9 +853,9 @@ export const CertificateDesign2: React.FC<CertificateCustomProps> = ({
   const primary = themeColor || '#b08d55'
   const primaryDark = adjustHex(primary, -25)
   const primaryLight = hexToRgba(primary, 0.12)
-  const effectivePrincipalName = principalName || 'Authorized Signatory'
+  const effectivePrincipalName = principalName || ''
   const effectivePrincipalLabel = principalLabel || awarder || 'Head of Institution'
-  const effectiveSecondaryName = secondarySignName || customLabels['secondarySignName'] || 'Authorized Signatory'
+  const effectiveSecondaryName = secondarySignName || customLabels['secondarySignName'] || ''
   const effectiveSecondaryLabel = secondarySignLabel || customLabels['secondarySignLabel'] || 'Authority Signature'
   const actualLogoWidth = Math.max(28, Math.min(180, Number(logoWidth) || 60))
 
@@ -901,7 +905,7 @@ export const CertificateDesign2: React.FC<CertificateCustomProps> = ({
       )}
 
       {/* Candidate Photo */}
-      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-7" left="left-10" photoWidth={photoWidth} />
+      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-7" left="left-10" photoWidth={photoWidth} photoHeight={photoHeight} />
 
       <div className="relative z-20 flex flex-col items-center pt-3.5 px-12 flex-1 text-center justify-center">
         {showLogo && !isHidden('Logo') && !isHidden('Institute Logo') && (
@@ -1168,6 +1172,7 @@ export const CertificateDesign3: React.FC<CertificateCustomProps> = ({
   showQr = true,
   qrCodeSize = '44',
   photoWidth = '48',
+  photoHeight,
   showSeal = true,
   hiddenFields = [],
   editable = false,
@@ -1179,9 +1184,9 @@ export const CertificateDesign3: React.FC<CertificateCustomProps> = ({
   const primary = themeColor || '#065f46'
   const primaryDark = adjustHex(primary, -25)
   const primaryLight = hexToRgba(primary, 0.12)
-  const effectivePrincipalName = principalName || 'Director.Admin'
+  const effectivePrincipalName = principalName || ''
   const effectivePrincipalLabel = principalLabel || awarder || 'Principal & Sports Council'
-  const effectiveSecondaryName = secondarySignName || customLabels['secondarySignName'] || 'Authorized Signatory'
+  const effectiveSecondaryName = secondarySignName || customLabels['secondarySignName'] || ''
   const effectiveSecondaryLabel = secondarySignLabel || customLabels['secondarySignLabel'] || 'Authority Signature'
   const actualLogoWidth = Math.max(28, Math.min(180, Number(logoWidth) || 60))
 
@@ -1232,7 +1237,7 @@ export const CertificateDesign3: React.FC<CertificateCustomProps> = ({
       )}
 
       {/* Candidate Photo */}
-      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-7" left="left-8" photoWidth={photoWidth} />
+      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-7" left="left-8" photoWidth={photoWidth} photoHeight={photoHeight} />
 
       <div className="relative z-10 flex flex-col items-center pt-3.5 px-12 flex-1 text-center justify-center">
         {showLogo && !isHidden('Logo') && !isHidden('Institute Logo') && (
@@ -1493,6 +1498,7 @@ export const CertificateDesign4: React.FC<CertificateCustomProps> = ({
   showQr = true,
   qrCodeSize = '44',
   photoWidth = '48',
+  photoHeight,
   showSeal = true,
   hiddenFields = [],
   editable = false,
@@ -1522,7 +1528,7 @@ export const CertificateDesign4: React.FC<CertificateCustomProps> = ({
       )}
 
       {/* Candidate Photo */}
-      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-7" left="left-10" photoWidth={photoWidth} />
+      <CertificateCandidatePhoto studentPhoto={studentPhoto} isHidden={isHidden} top="top-7" left="left-10" photoWidth={photoWidth} photoHeight={photoHeight} />
 
       <div className="relative z-10 flex flex-col items-center pt-3.5 px-12 flex-1 text-center justify-center">
         {!isHidden('School Name') && (

@@ -96,7 +96,7 @@ function GenerateIdCardContent() {
   const [showLogo, setShowLogo] = useState(true)
   const [logoWidth, setLogoWidth] = useState('48')
   const [photoWidth, setPhotoWidth] = useState('80')
-  const [qrCodeSize, setQrCodeSize] = useState('32')
+  const [qrCodeSize, setQrCodeSize] = useState('48')
   const [signatureWidth, setSignatureWidth] = useState('56')
   const [showPhoto, setShowPhoto] = useState(true)
   const [schoolNameFontSize, setSchoolNameFontSize] = useState('13')
@@ -107,7 +107,7 @@ function GenerateIdCardContent() {
   const [autoFetchNotice, setAutoFetchNotice] = useState<string | null>(null)
   const [holderSignName, setHolderSignName] = useState(ID_CARD_ROLE_PREVIEWS[initialRole].holderSignName)
   const [customLabels, setCustomLabels] = useState<Record<string, string>>({
-    holderSignLabel: ID_CARD_ROLE_PREVIEWS[initialRole]?.holderSignLabel || (initialRole === 'Teacher' ? 'Teacher Sign' : initialRole === 'Employee' ? 'Staff Sign' : 'Student Sign')
+    holderSignLabel: ID_CARD_ROLE_PREVIEWS[initialRole]?.holderSignLabel || (initialRole === 'Teacher' ? 'Cardholder Sign' : initialRole === 'Employee' ? 'Staff Sign' : 'Student Sign')
   })
 
   // Form Fields
@@ -251,7 +251,7 @@ function GenerateIdCardContent() {
     setTitle(persona.defaultTitle)
     setTagline(persona.defaultTagline)
     setHolderSignName(persona.holderSignName)
-    const roleSignLabel = newRole === 'Teacher' ? 'Teacher Sign' : newRole === 'Employee' ? 'Staff Sign' : 'Student Sign'
+    const roleSignLabel = newRole === 'Teacher' ? 'Cardholder Sign' : newRole === 'Employee' ? 'Staff Sign' : 'Student Sign'
     setCustomLabels({
       rollNoLabel: newRole === 'Teacher' || newRole === 'Employee' ? 'Department:' : 'Roll No:',
       admNoLabel: newRole === 'Teacher' ? 'Faculty ID:' : newRole === 'Employee' ? 'Staff ID:' : 'Adm No:',
@@ -352,9 +352,9 @@ function GenerateIdCardContent() {
         tagline: 'Header Subtitle',
         qr: 'Biometric QR',
         watermark: 'Emblem Watermark',
-        signTitle: 'Teacher / Faculty Signature (Separate Sign)',
-        signBadge: 'Teacher Sign',
-        signPlaceholder: 'e.g. Teacher Sign / Dr. Meenakshi'
+        signTitle: 'Faculty / Holder Signature (Separate Sign)',
+        signBadge: 'Holder Sign',
+        signPlaceholder: 'e.g. Cardholder Sign / Dr. Meenakshi'
       }
     }
     if (selectedRole === 'Employee') {
@@ -442,7 +442,7 @@ function GenerateIdCardContent() {
                 id: 'Teacher' as const,
                 title: 'Teacher / Faculty Pass',
                 badge: 'Teaching Faculty',
-                desc: 'Faculty ID, Department, Designation, Qualification, DOJ & Teacher Signature',
+                desc: 'Faculty ID, Department, Designation, Qualification, DOJ & Official Pass',
                 icon: Briefcase,
                 color: 'text-purple-600 bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800'
               },
@@ -875,7 +875,7 @@ function GenerateIdCardContent() {
                       onClick={() => {
                         setLogoWidth('48')
                         setPhotoWidth('80')
-                        setQrCodeSize('32')
+                        setQrCodeSize('48')
                         setSignatureWidth('56')
                         setSchoolNameFontSize('13')
                         setTitleFontSize('9')
@@ -1101,10 +1101,10 @@ function GenerateIdCardContent() {
                     {/* Quick Presets */}
                     <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
                       {[
-                        { label: 'S (24px)', size: '24' },
-                        { label: 'M (32px)', size: '32' },
-                        { label: 'L (40px)', size: '40' },
-                        { label: 'XL (48px)', size: '48' }
+                        { label: 'S (36px)', size: '36' },
+                        { label: 'M (48px)', size: '48' },
+                        { label: 'L (58px)', size: '58' },
+                        { label: 'XL (68px)', size: '68' }
                       ].map(p => (
                         <button
                           key={p.label}
@@ -1128,24 +1128,24 @@ function GenerateIdCardContent() {
                         <button
                           type="button"
                           title="Make QR smaller"
-                          onClick={() => setQrCodeSize(prev => String(Math.max(20, Number(prev) - 2)))}
+                          onClick={() => setQrCodeSize(prev => String(Math.max(28, Number(prev) - 2)))}
                           className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
                         >
                           -
                         </button>
                         <input
                           type="range"
-                          min="20"
-                          max="52"
+                          min="28"
+                          max="76"
                           step="2"
-                          value={Number(qrCodeSize) || 32}
+                          value={Number(qrCodeSize) || 48}
                           onChange={e => setQrCodeSize(e.target.value)}
                           className="w-full accent-teal-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
                         />
                         <button
                           type="button"
                           title="Make QR bigger"
-                          onClick={() => setQrCodeSize(prev => String(Math.min(52, Number(prev) + 2)))}
+                          onClick={() => setQrCodeSize(prev => String(Math.min(76, Number(prev) + 2)))}
                           className="w-5 h-5 rounded bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 flex items-center justify-center font-black text-[10px] text-slate-700 dark:text-slate-200 shadow-2xs"
                         >
                           +
@@ -1325,6 +1325,7 @@ function GenerateIdCardContent() {
                   themeColor={themeColor}
                   termsTitle={termsTitle}
                   termsGuidelines={termsGuidelines}
+                  qrCodeSize={qrCodeSize}
                   editable={true}
                   onUpdateField={handleUpdateLiveField}
                 />
@@ -1605,7 +1606,7 @@ function GenerateIdCardContent() {
                   <div className="flex items-center gap-3">
                     <div className="flex-1">
                       <label className="text-[11px] font-semibold text-slate-500 block mb-1">
-                        {selectedRole === 'Teacher' ? 'Teacher / Faculty Sign Text' : selectedRole === 'Employee' ? 'Staff Sign Text' : 'Student Sign Text'}
+                        {selectedRole === 'Teacher' ? 'Cardholder / Faculty Sign Text' : selectedRole === 'Employee' ? 'Staff Sign Text' : 'Student Sign Text'}
                       </label>
                       <input 
                         type="text" 

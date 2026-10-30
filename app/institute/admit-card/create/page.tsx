@@ -627,12 +627,12 @@ function CreateAdmitCardForm() {
             />
           </div>
 
-          {/* Authority Signatures & Official Stamp Configuration */}
+          {/* Authority Signatures Configuration */}
           <div className="border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/50 p-5 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-800 gap-2">
               <div>
                 <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-                  Authority Signatures & Official Stamp Setup
+                  Authority Signatures Setup
                 </h4>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                   Enable or disable required signatures with individual ON / OFF toggles and configure their printed titles.

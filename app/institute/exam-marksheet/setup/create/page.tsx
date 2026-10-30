@@ -431,6 +431,8 @@ function AddSetupWizardContent() {
         if (s.config?.certCustomLabels) setCertCustomLabelsState(s.config.certCustomLabels)
         if (s.config?.certSignatureWidth) setCertSignatureWidth(String(s.config.certSignatureWidth))
         if (s.config?.certSignatureFontSize) setCertSignatureFontSize(String(s.config.certSignatureFontSize))
+        if (s.config?.certPhotoWidth) setCertPhotoWidth(String(s.config.certPhotoWidth))
+        if (s.config?.certPhotoHeight) setCertPhotoHeight(String(s.config.certPhotoHeight))
         if (s.config?.certSchoolStampWidth) setCertSchoolStampWidth(String(s.config.certSchoolStampWidth))
         if (s.config?.marksheetSchoolStampWidth) setMarksheetSchoolStampWidth(String(s.config.marksheetSchoolStampWidth))
         if (s.config?.certSignatureOrder && Array.isArray(s.config.certSignatureOrder)) {
@@ -1246,8 +1248,10 @@ function AddSetupWizardContent() {
   const [certSubtitleFontSize, setCertSubtitleFontSize] = useState('11')
   const [certSignatureWidth, setCertSignatureWidth] = useState('110')
   const [certSignatureFontSize, setCertSignatureFontSize] = useState('8')
+  const [certPhotoWidth, setCertPhotoWidth] = useState('48')
+  const [certPhotoHeight, setCertPhotoHeight] = useState('60')
   const [certSchoolStampWidth, setCertSchoolStampWidth] = useState('72')
-  const [certSizingStudioTab, setCertSizingStudioTab] = useState<'media' | 'signs' | 'text'>('signs')
+  const [certSizingStudioTab, setCertSizingStudioTab] = useState<'media' | 'signs' | 'text'>('media')
   const [certSignatureOrder, setCertSignatureOrder] = useState<string[]>([
     'teacherSign',
     'controllerSign',
@@ -1603,6 +1607,8 @@ function AddSetupWizardContent() {
           certSignatureWidth,
           certSignatureFontSize,
           certSignatureOrder,
+          certPhotoWidth,
+          certPhotoHeight,
           certSchoolStampWidth,
           marksheetSchoolStampWidth,
           certCustomLabels: certCustomLabelsState,
@@ -3252,18 +3258,6 @@ function AddSetupWizardContent() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setAdmitSizingStudioTab('signs')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all ${
-                          admitSizingStudioTab === 'signs'
-                            ? 'bg-blue-600 text-white shadow-xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                      >
-                        <Stamp className="w-3.5 h-3.5" />
-                        <span>Signatures & Seal</span>
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => setAdmitSizingStudioTab('text')}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all ${
                           admitSizingStudioTab === 'text'
@@ -3559,160 +3553,6 @@ function AddSetupWizardContent() {
                                 ))}
                               </div>
                             </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* TAB 2: SIGNATURES & STAMP SIZING */}
-                  {admitSizingStudioTab === 'signs' && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {/* Signature Line Width */}
-                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Line Width</span>
-                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
-                              {admitSignatureWidth} px
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
-                            {[
-                              { label: 'S', size: '75' },
-                              { label: 'M', size: '100' },
-                              { label: 'L', size: '130' },
-                              { label: 'XL', size: '165' }
-                            ].map(p => (
-                              <button
-                                key={p.label}
-                                type="button"
-                                onClick={() => setAdmitSignatureWidth(p.size)}
-                                className={`py-1 rounded text-[10px] font-bold transition-all ${
-                                  admitSignatureWidth === p.size
-                                    ? 'bg-blue-600 text-white shadow-2xs'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                                }`}
-                              >
-                                {p.label}
-                              </button>
-                            ))}
-                          </div>
-
-                          <div className="pt-2 text-[11px]">
-                            <div className="flex items-center gap-2">
-                              <span className="text-slate-500 font-semibold w-12 shrink-0">Width:</span>
-                              <input
-                                type="range"
-                                min="50"
-                                max="180"
-                                step="5"
-                                value={Number(admitSignatureWidth) || 100}
-                                onChange={e => setAdmitSignatureWidth(e.target.value)}
-                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                              />
-                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitSignatureWidth}px</span>
-                            </div>
-                            <p className="text-[10px] text-slate-400 mt-2">Adjusts width of candidate, teacher, and principal sign lines.</p>
-                          </div>
-                        </div>
-
-                        {/* Stamp Seal Diameter */}
-                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">School Stamp / Seal Diameter</span>
-                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
-                              {admitSchoolStampWidth} px
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
-                            {[
-                              { label: 'S (44px)', size: '44' },
-                              { label: 'M (56px)', size: '56' },
-                              { label: 'L (70px)', size: '70' },
-                              { label: 'XL (84px)', size: '84' }
-                            ].map(p => (
-                              <button
-                                key={p.label}
-                                type="button"
-                                onClick={() => setAdmitSchoolStampWidth(p.size)}
-                                className={`py-1 rounded text-[10px] font-bold transition-all ${
-                                  admitSchoolStampWidth === p.size
-                                    ? 'bg-blue-600 text-white shadow-2xs'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                                }`}
-                              >
-                                {p.label.split(' ')[0]}
-                              </button>
-                            ))}
-                          </div>
-
-                          <div className="pt-2 text-[11px]">
-                            <div className="flex items-center gap-2">
-                              <span className="text-slate-500 font-semibold w-12 shrink-0">Diameter:</span>
-                              <input
-                                type="range"
-                                min="36"
-                                max="90"
-                                step="2"
-                                value={Number(admitSchoolStampWidth) || 56}
-                                onChange={e => setAdmitSchoolStampWidth(e.target.value)}
-                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                              />
-                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitSchoolStampWidth}px</span>
-                            </div>
-                            <p className="text-[10px] text-slate-400 mt-2">Scales circular official verification stamp & seal mark.</p>
-                          </div>
-                        </div>
-
-                        {/* Signature Text Size */}
-                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Text Font Size</span>
-                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
-                              {admitSignatureFontSize} px
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
-                            {[
-                              { label: '8px', size: '8' },
-                              { label: '9px', size: '9' },
-                              { label: '10px', size: '10' },
-                              { label: '11px', size: '11' }
-                            ].map(p => (
-                              <button
-                                key={p.label}
-                                type="button"
-                                onClick={() => setAdmitSignatureFontSize(p.size)}
-                                className={`py-1 rounded text-[10px] font-bold transition-all ${
-                                  admitSignatureFontSize === p.size
-                                    ? 'bg-blue-600 text-white shadow-2xs'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                                }`}
-                              >
-                                {p.label}
-                              </button>
-                            ))}
-                          </div>
-
-                          <div className="pt-2 text-[11px]">
-                            <div className="flex items-center gap-2">
-                              <span className="text-slate-500 font-semibold w-12 shrink-0">Font Size:</span>
-                              <input
-                                type="range"
-                                min="7"
-                                max="14"
-                                step="0.5"
-                                value={Number(admitSignatureFontSize) || 9}
-                                onChange={e => setAdmitSignatureFontSize(e.target.value)}
-                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                              />
-                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitSignatureFontSize}px</span>
-                            </div>
-                            <p className="text-[10px] text-slate-400 mt-2">Controls typography of sign labels & principal designation.</p>
                           </div>
                         </div>
                       </div>
@@ -4026,7 +3866,108 @@ function AddSetupWizardContent() {
                 })}
               </div>
 
-              {/* Dynamically Ordered Signature & Stamp Cards */}
+              {/* Signature Sizing Controls (Width & Typography) directly with Signature Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                {/* Signature Line Width */}
+                <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 space-y-3 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Line Width</span>
+                    <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                      {admitSignatureWidth} px
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-1 p-1 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                    {[
+                      { label: 'S', size: '75' },
+                      { label: 'M', size: '100' },
+                      { label: 'L', size: '130' },
+                      { label: 'XL', size: '165' }
+                    ].map(p => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => setAdmitSignatureWidth(p.size)}
+                        className={`py-1 rounded text-[10px] font-bold transition-all ${
+                          admitSignatureWidth === p.size
+                            ? 'bg-blue-600 text-white shadow-2xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="pt-1 text-[11px]">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 font-semibold w-12 shrink-0">Width:</span>
+                      <input
+                        type="range"
+                        min="50"
+                        max="180"
+                        step="5"
+                        value={Number(admitSignatureWidth) || 100}
+                        onChange={e => setAdmitSignatureWidth(e.target.value)}
+                        className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                      />
+                      <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitSignatureWidth}px</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">Adjusts width of candidate, teacher, and principal sign lines.</p>
+                  </div>
+                </div>
+
+                {/* Signature Text Size */}
+                <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 space-y-3 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Text Font Size</span>
+                    <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                      {admitSignatureFontSize} px
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-1 p-1 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                    {[
+                      { label: '8px', size: '8' },
+                      { label: '9px', size: '9' },
+                      { label: '10px', size: '10' },
+                      { label: '11px', size: '11' }
+                    ].map(p => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => setAdmitSignatureFontSize(p.size)}
+                        className={`py-1 rounded text-[10px] font-bold transition-all ${
+                          admitSignatureFontSize === p.size
+                            ? 'bg-blue-600 text-white shadow-2xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="pt-1 text-[11px]">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 font-semibold w-12 shrink-0">Font Size:</span>
+                      <input
+                        type="range"
+                        min="7"
+                        max="14"
+                        step="0.5"
+                        value={Number(admitSignatureFontSize) || 9}
+                        onChange={e => setAdmitSignatureFontSize(e.target.value)}
+                        className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                      />
+                      <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{admitSignatureFontSize}px</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">Controls typography of sign labels & principal designation.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dynamically Ordered Signature Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
                 {admitSignatureOrder.map((key, idx) => {
                   const isFirst = idx === 0
@@ -4899,18 +4840,6 @@ function AddSetupWizardContent() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setMarksheetSizingStudioTab('signs')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                          marksheetSizingStudioTab === 'signs'
-                            ? 'bg-blue-600 text-white shadow-xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                      >
-                        <UserCheck className="w-3.5 h-3.5" />
-                        <span>Signatures Setup</span>
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => setMarksheetSizingStudioTab('text')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                           marksheetSizingStudioTab === 'text'
@@ -5122,219 +5051,6 @@ function AddSetupWizardContent() {
                                 className="text-[9.5px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline shrink-0"
                               >
                                 Apply to all templates
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* TAB 2: SIGNATURES SETUP */}
-                  {marksheetSizingStudioTab === 'signs' && (
-                    <div className="space-y-4">
-                      {/* Top Row: Quick Toggles */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Principal Sign</span>
-                          <button
-                            type="button"
-                            onClick={() => handleMarksheetCheckboxChange('principalSign')}
-                            className={`w-9 h-5 rounded-full relative transition-colors ${columnsList.principalSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
-                          >
-                            <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-xs ${columnsList.principalSign ? 'left-4.5' : 'left-0.5'}`} />
-                          </button>
-                        </div>
-                        <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Teacher Sign</span>
-                          <button
-                            type="button"
-                            onClick={() => handleMarksheetCheckboxChange('teacherSign')}
-                            className={`w-9 h-5 rounded-full relative transition-colors ${columnsList.teacherSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
-                          >
-                            <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-xs ${columnsList.teacherSign ? 'left-4.5' : 'left-0.5'}`} />
-                          </button>
-                        </div>
-                        <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Controller Sign</span>
-                          <button
-                            type="button"
-                            onClick={() => handleMarksheetCheckboxChange('controllerSign')}
-                            className={`w-9 h-5 rounded-full relative transition-colors ${columnsList.controllerSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
-                          >
-                            <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-xs ${columnsList.controllerSign ? 'left-4.5' : 'left-0.5'}`} />
-                          </button>
-                        </div>
-                        <div className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Parent Sign</span>
-                          <button
-                            type="button"
-                            onClick={() => handleMarksheetCheckboxChange('parentSign')}
-                            className={`w-9 h-5 rounded-full relative transition-colors ${columnsList.parentSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
-                          >
-                            <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-xs ${columnsList.parentSign ? 'left-4.5' : 'left-0.5'}`} />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Sizing Controls Grid: Width, Stamp/Seal & Font Size matching Admit Card */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {/* Signature Line Width */}
-                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Line Width</span>
-                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
-                              {marksheetSignatureWidth} px
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
-                            {[
-                              { label: 'S (75px)', size: '75' },
-                              { label: 'M (100px)', size: '100' },
-                              { label: 'L (130px)', size: '130' },
-                              { label: 'XL (165px)', size: '165' }
-                            ].map(p => (
-                              <button
-                                key={p.label}
-                                type="button"
-                                onClick={() => setMarksheetSignatureWidth(p.size)}
-                                className={`py-1 rounded text-[10px] font-bold transition-all ${
-                                  marksheetSignatureWidth === p.size
-                                    ? 'bg-blue-600 text-white shadow-2xs'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                                }`}
-                              >
-                                {p.label.split(' ')[0]}
-                              </button>
-                            ))}
-                          </div>
-
-                          <div className="pt-1 text-[11px]">
-                            <div className="flex items-center gap-2">
-                              <span className="text-slate-500 font-semibold w-12 shrink-0">Width:</span>
-                              <input
-                                type="range"
-                                min="50"
-                                max="180"
-                                step="5"
-                                value={Number(marksheetSignatureWidth) || 110}
-                                onChange={e => setMarksheetSignatureWidth(e.target.value)}
-                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                              />
-                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{marksheetSignatureWidth}px</span>
-                            </div>
-                            <p className="text-[10px] text-slate-400 mt-1">Adjusts width of teacher, controller, parent, and principal sign lines.</p>
-                          </div>
-                        </div>
-
-                        {/* Stamp Seal Diameter */}
-                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">School Stamp / Seal Diameter</span>
-                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
-                              {marksheetSchoolStampWidth} px
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
-                            {[
-                              { label: 'S (44px)', size: '44' },
-                              { label: 'M (56px)', size: '56' },
-                              { label: 'L (70px)', size: '70' },
-                              { label: 'XL (84px)', size: '84' }
-                            ].map(p => (
-                              <button
-                                key={p.label}
-                                type="button"
-                                onClick={() => setMarksheetSchoolStampWidth(p.size)}
-                                className={`py-1 rounded text-[10px] font-bold transition-all ${
-                                  marksheetSchoolStampWidth === p.size
-                                    ? 'bg-blue-600 text-white shadow-2xs'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                                }`}
-                              >
-                                {p.label.split(' ')[0]}
-                              </button>
-                            ))}
-                          </div>
-
-                          <div className="pt-1 text-[11px]">
-                            <div className="flex items-center gap-2">
-                              <span className="text-slate-500 font-semibold w-12 shrink-0">Diameter:</span>
-                              <input
-                                type="range"
-                                min="36"
-                                max="90"
-                                step="2"
-                                value={Number(marksheetSchoolStampWidth) || 56}
-                                onChange={e => setMarksheetSchoolStampWidth(e.target.value)}
-                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                              />
-                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{marksheetSchoolStampWidth}px</span>
-                            </div>
-                            <p className="text-[10px] text-slate-400 mt-1">Scales official verification stamp and seal mark on marksheet.</p>
-                          </div>
-                        </div>
-
-                        {/* Signature Font Size */}
-                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Title Font Size</span>
-                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
-                              {marksheetSignatureFontSize} px
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
-                            {[
-                              { label: 'S (8px)', size: '8' },
-                              { label: 'M (10px)', size: '10' },
-                              { label: 'L (12px)', size: '12' },
-                              { label: 'XL (14px)', size: '14' }
-                            ].map(p => (
-                              <button
-                                key={p.label}
-                                type="button"
-                                onClick={() => setMarksheetSignatureFontSize(p.size)}
-                                className={`py-1 rounded text-[10px] font-bold transition-all ${
-                                  marksheetSignatureFontSize === p.size
-                                    ? 'bg-blue-600 text-white shadow-2xs'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                                }`}
-                              >
-                                {p.label.split(' ')[0]}
-                              </button>
-                            ))}
-                          </div>
-
-                          <div className="pt-1 text-[11px]">
-                            <div className="flex items-center gap-2">
-                              <span className="text-slate-500 font-semibold w-12 shrink-0">Scale:</span>
-                              <input
-                                type="range"
-                                min="7"
-                                max="16"
-                                step="1"
-                                value={Number(marksheetSignatureFontSize) || 10}
-                                onChange={e => setMarksheetSignatureFontSize(e.target.value)}
-                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                              />
-                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{marksheetSignatureFontSize}px</span>
-                            </div>
-                            <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800 mt-2">
-                              <p className="text-[10px] text-slate-400">Controls signature label typography.</p>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setMarksheetSignatureWidth(admitSignatureWidth)
-                                  setMarksheetSchoolStampWidth(admitSchoolStampWidth)
-                                  setMarksheetSignatureFontSize(admitSignatureFontSize)
-                                  toast.success(`Matched Marksheet signature & stamp size to Admit Card (${admitSignatureWidth}px width, ${admitSchoolStampWidth}px stamp, ${admitSignatureFontSize}px font)!`)
-                                }}
-                                className="text-[9.5px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline shrink-0"
-                              >
-                                Match Admit Card Size
                               </button>
                             </div>
                           </div>
@@ -5640,6 +5356,120 @@ function AddSetupWizardContent() {
                     </React.Fragment>
                   )
                 })}
+              </div>
+
+              {/* Signature Sizing Controls (Width & Typography) directly with Signature Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                {/* Signature Line Width */}
+                <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 space-y-3 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Line Width</span>
+                    <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                      {marksheetSignatureWidth} px
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-1 p-1 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                    {[
+                      { label: 'S (75px)', size: '75' },
+                      { label: 'M (100px)', size: '100' },
+                      { label: 'L (130px)', size: '130' },
+                      { label: 'XL (165px)', size: '165' }
+                    ].map(p => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => setMarksheetSignatureWidth(p.size)}
+                        className={`py-1 rounded text-[10px] font-bold transition-all ${
+                          marksheetSignatureWidth === p.size
+                            ? 'bg-blue-600 text-white shadow-2xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        {p.label.split(' ')[0]}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="pt-1 text-[11px]">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 font-semibold w-12 shrink-0">Width:</span>
+                      <input
+                        type="range"
+                        min="50"
+                        max="180"
+                        step="5"
+                        value={Number(marksheetSignatureWidth) || 110}
+                        onChange={e => setMarksheetSignatureWidth(e.target.value)}
+                        className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                      />
+                      <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{marksheetSignatureWidth}px</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">Adjusts width of teacher, controller, parent, and principal sign lines.</p>
+                  </div>
+                </div>
+
+                {/* Signature Font Size */}
+                <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 space-y-3 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Title Font Size</span>
+                    <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                      {marksheetSignatureFontSize} px
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-1 p-1 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                    {[
+                      { label: 'S (8px)', size: '8' },
+                      { label: 'M (10px)', size: '10' },
+                      { label: 'L (12px)', size: '12' },
+                      { label: 'XL (14px)', size: '14' }
+                    ].map(p => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => setMarksheetSignatureFontSize(p.size)}
+                        className={`py-1 rounded text-[10px] font-bold transition-all ${
+                          marksheetSignatureFontSize === p.size
+                            ? 'bg-blue-600 text-white shadow-2xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        {p.label.split(' ')[0]}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="pt-1 text-[11px]">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 font-semibold w-12 shrink-0">Scale:</span>
+                      <input
+                        type="range"
+                        min="7"
+                        max="16"
+                        step="1"
+                        value={Number(marksheetSignatureFontSize) || 10}
+                        onChange={e => setMarksheetSignatureFontSize(e.target.value)}
+                        className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                      />
+                      <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{marksheetSignatureFontSize}px</span>
+                    </div>
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800 mt-2">
+                      <p className="text-[10px] text-slate-400">Controls signature label typography.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMarksheetSignatureWidth(admitSignatureWidth)
+                          setMarksheetSignatureFontSize(admitSignatureFontSize)
+                          toast.success(`Matched Marksheet signature size to Admit Card (${admitSignatureWidth}px width, ${admitSignatureFontSize}px font)!`)
+                        }}
+                        className="text-[9.5px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline shrink-0"
+                      >
+                        Match Admit Card Size
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Dynamically Ordered Signature Cards */}
@@ -6394,19 +6224,7 @@ function AddSetupWizardContent() {
                         }`}
                       >
                         <QrCode className="w-3.5 h-3.5" />
-                        <span>Logo & QR Sizing</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCertSizingStudioTab('signs')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all ${
-                          certSizingStudioTab === 'signs'
-                            ? 'bg-blue-600 text-white shadow-xs'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                      >
-                        <Stamp className="w-3.5 h-3.5" />
-                        <span>Signatures & Seal</span>
+                        <span>Logo, Photo & QR Sizing</span>
                       </button>
                       <button
                         type="button"
@@ -6465,10 +6283,10 @@ function AddSetupWizardContent() {
                     </div>
                   </div>
 
-                  {/* TAB 1: LOGO & QR SIZING */}
+                  {/* TAB 1: LOGO, PHOTO & QR SIZING */}
                   {certSizingStudioTab === 'media' && (
                     <div className="space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {/* Logo Sizing Box */}
                         <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
                           <div className="flex items-center justify-between">
@@ -6531,6 +6349,100 @@ function AddSetupWizardContent() {
                           </div>
                         </div>
 
+                        {/* Candidate Photo Sizing Box */}
+                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Candidate Photo Size</span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleCertCheckboxChange('studentPhoto')}
+                                className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase transition-all shadow-2xs ${
+                                  certDisplayFields.studentPhoto !== false
+                                    ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                                    : 'bg-slate-200 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700'
+                                }`}
+                              >
+                                {certDisplayFields.studentPhoto !== false ? '● Visible' : '○ Hidden'}
+                              </button>
+                              <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                                {certPhotoWidth} × {certPhotoHeight} px
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                            {[
+                              { label: 'S (38×48)', w: '38', h: '48' },
+                              { label: 'M (48×60)', w: '48', h: '60' },
+                              { label: 'L (60×75)', w: '60', h: '75' },
+                              { label: 'XL (74×92)', w: '74', h: '92' }
+                            ].map(p => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => {
+                                  setCertPhotoWidth(p.w)
+                                  setCertPhotoHeight(p.h)
+                                }}
+                                className={`py-1 rounded text-[10px] font-bold transition-all ${
+                                  certPhotoWidth === p.w && certPhotoHeight === p.h
+                                    ? 'bg-blue-600 text-white shadow-2xs'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                {p.label.split(' ')[0]}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="space-y-2 pt-1 text-[11px]">
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Width:</span>
+                              <input
+                                type="range"
+                                min="30"
+                                max="110"
+                                step="2"
+                                value={Number(certPhotoWidth) || 48}
+                                onChange={e => setCertPhotoWidth(e.target.value)}
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{certPhotoWidth}px</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500 font-semibold w-12 shrink-0">Height:</span>
+                              <input
+                                type="range"
+                                min="38"
+                                max="140"
+                                step="2"
+                                value={Number(certPhotoHeight) || 60}
+                                onChange={e => setCertPhotoHeight(e.target.value)}
+                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                              />
+                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{certPhotoHeight}px</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800 mt-2">
+                            <p className="text-[10px] text-slate-400">Scales candidate photo across all certificate templates.</p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAdmitStudentPhotoWidth(certPhotoWidth)
+                                setAdmitStudentPhotoHeight(certPhotoHeight)
+                                setPhotoWidth(certPhotoWidth)
+                                setPhotoHeight(certPhotoHeight)
+                                toast.success(`Applied ${certPhotoWidth}×${certPhotoHeight}px photo size across Certificate, Marksheet & Admit Card!`)
+                              }}
+                              className="text-[9.5px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline shrink-0"
+                            >
+                              Apply to all templates
+                            </button>
+                          </div>
+                        </div>
+
                         {/* QR Code Sizing Box */}
                         <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
                           <div className="flex items-center justify-between">
@@ -6588,175 +6500,6 @@ function AddSetupWizardContent() {
                                 className="text-[9.5px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline shrink-0"
                               >
                                 Apply to all templates
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* TAB 2: SIGNATURES & SEAL SIZING (Matching Admit Card Layout) */}
-                  {certSizingStudioTab === 'signs' && (
-                    <div className="space-y-4">
-                      {/* Sizing Controls Grid: Width, Stamp/Seal & Font Size matching Admit Card */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {/* Signature Line Width */}
-                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Line Width</span>
-                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
-                              {certSignatureWidth} px
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
-                            {[
-                              { label: 'S (75px)', size: '75' },
-                              { label: 'M (100px)', size: '100' },
-                              { label: 'L (130px)', size: '130' },
-                              { label: 'XL (165px)', size: '165' }
-                            ].map(p => (
-                              <button
-                                key={p.label}
-                                type="button"
-                                onClick={() => setCertSignatureWidth(p.size)}
-                                className={`py-1 rounded text-[10px] font-bold transition-all ${
-                                  certSignatureWidth === p.size
-                                    ? 'bg-blue-600 text-white shadow-2xs'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                                }`}
-                              >
-                                {p.label.split(' ')[0]}
-                              </button>
-                            ))}
-                          </div>
-
-                          <div className="pt-1 text-[11px]">
-                            <div className="flex items-center gap-2">
-                              <span className="text-slate-500 font-semibold w-12 shrink-0">Width:</span>
-                              <input
-                                type="range"
-                                min="50"
-                                max="180"
-                                step="5"
-                                value={Number(certSignatureWidth) || 110}
-                                onChange={e => setCertSignatureWidth(e.target.value)}
-                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                              />
-                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{certSignatureWidth}px</span>
-                            </div>
-                            <p className="text-[10px] text-slate-400 mt-1">Adjusts width of principal, teacher, controller, and authority sign lines.</p>
-                          </div>
-                        </div>
-
-                        {/* Stamp Seal Diameter */}
-                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">School Stamp / Seal Diameter</span>
-                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
-                              {certSchoolStampWidth} px
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
-                            {[
-                              { label: 'S (44px)', size: '44' },
-                              { label: 'M (56px)', size: '56' },
-                              { label: 'L (70px)', size: '70' },
-                              { label: 'XL (84px)', size: '84' }
-                            ].map(p => (
-                              <button
-                                key={p.label}
-                                type="button"
-                                onClick={() => setCertSchoolStampWidth(p.size)}
-                                className={`py-1 rounded text-[10px] font-bold transition-all ${
-                                  certSchoolStampWidth === p.size
-                                    ? 'bg-blue-600 text-white shadow-2xs'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                                }`}
-                              >
-                                {p.label.split(' ')[0]}
-                              </button>
-                            ))}
-                          </div>
-
-                          <div className="pt-1 text-[11px]">
-                            <div className="flex items-center gap-2">
-                              <span className="text-slate-500 font-semibold w-12 shrink-0">Diameter:</span>
-                              <input
-                                type="range"
-                                min="36"
-                                max="90"
-                                step="2"
-                                value={Number(certSchoolStampWidth) || 56}
-                                onChange={e => setCertSchoolStampWidth(e.target.value)}
-                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                              />
-                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{certSchoolStampWidth}px</span>
-                            </div>
-                            <p className="text-[10px] text-slate-400 mt-1">Scales circular gold/merit official verification seal mark on certificate.</p>
-                          </div>
-                        </div>
-
-                        {/* Signature Font Size */}
-                        <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Text Font Size</span>
-                            <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
-                              {certSignatureFontSize} px
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-4 gap-1 p-1 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700">
-                            {[
-                              { label: '8px', size: '8' },
-                              { label: '9px', size: '9' },
-                              { label: '10px', size: '10' },
-                              { label: '11px', size: '11' }
-                            ].map(p => (
-                              <button
-                                key={p.label}
-                                type="button"
-                                onClick={() => setCertSignatureFontSize(p.size)}
-                                className={`py-1 rounded text-[10px] font-bold transition-all ${
-                                  certSignatureFontSize === p.size
-                                    ? 'bg-blue-600 text-white shadow-2xs'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                                }`}
-                              >
-                                {p.label}
-                              </button>
-                            ))}
-                          </div>
-
-                          <div className="pt-1 text-[11px]">
-                            <div className="flex items-center gap-2">
-                              <span className="text-slate-500 font-semibold w-12 shrink-0">Scale:</span>
-                              <input
-                                type="range"
-                                min="7"
-                                max="14"
-                                step="0.5"
-                                value={Number(certSignatureFontSize) || 9}
-                                onChange={e => setCertSignatureFontSize(e.target.value)}
-                                className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                              />
-                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{certSignatureFontSize}px</span>
-                            </div>
-                            <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800 mt-2">
-                              <p className="text-[10px] text-slate-400">Controls signatory titles & designations.</p>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setCertSignatureWidth(admitSignatureWidth)
-                                  setCertSchoolStampWidth(admitSchoolStampWidth)
-                                  setCertSignatureFontSize(admitSignatureFontSize)
-                                  toast.success(`Matched Certificate signature & seal size to Admit Card (${admitSignatureWidth}px width, ${admitSchoolStampWidth}px seal, ${admitSignatureFontSize}px font)!`)
-                                }}
-                                className="text-[9.5px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline shrink-0"
-                              >
-                                Match Admit Card Size
                               </button>
                             </div>
                           </div>
@@ -6931,6 +6674,8 @@ function AddSetupWizardContent() {
                           if (field === 'titleFontSize') setCertTitleFontSize(String(val))
                           if (field === 'subtitleFontSize') setCertSubtitleFontSize(String(val))
                           if (field === 'qrCodeSize') setCertQrCodeSize(String(val))
+                          if (field === 'photoWidth') setCertPhotoWidth(String(val))
+                          if (field === 'photoHeight') setCertPhotoHeight(String(val))
                         }}
                         onUpdateLabel={(key, val) => {
                           if (key === 'presented_to') setCertPresentedTo(val)
@@ -6964,6 +6709,8 @@ function AddSetupWizardContent() {
                         showSeal={certDisplayFields.officialSeal}
                         showQr={certDisplayFields.qrCode}
                         qrCodeSize={certQrCodeSize}
+                        photoWidth={certPhotoWidth}
+                        photoHeight={certPhotoHeight}
                         hiddenFields={certHiddenFields}
                         customLabels={certCustomLabels}
                       />
@@ -7399,6 +7146,169 @@ function AddSetupWizardContent() {
                         </React.Fragment>
                       )
                     })}
+                  </div>
+
+                  {/* Certificate Signature Sizing & Seal Controls (All Together with Signatories) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                    {/* Signature Line Width */}
+                    <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 space-y-3 shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Line Width</span>
+                        <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                          {certSignatureWidth} px
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-1 p-1 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                        {[
+                          { label: 'S (75px)', size: '75' },
+                          { label: 'M (100px)', size: '100' },
+                          { label: 'L (130px)', size: '130' },
+                          { label: 'XL (165px)', size: '165' }
+                        ].map(p => (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => setCertSignatureWidth(p.size)}
+                            className={`py-1 rounded text-[10px] font-bold transition-all ${
+                              certSignatureWidth === p.size
+                                ? 'bg-blue-600 text-white shadow-2xs'
+                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                            }`}
+                          >
+                            {p.label.split(' ')[0]}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="pt-1 text-[11px]">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-500 font-semibold w-12 shrink-0">Width:</span>
+                          <input
+                            type="range"
+                            min="50"
+                            max="180"
+                            step="5"
+                            value={Number(certSignatureWidth) || 110}
+                            onChange={e => setCertSignatureWidth(e.target.value)}
+                            className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                          />
+                          <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{certSignatureWidth}px</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1">Adjusts width of principal, teacher, controller, and authority sign lines.</p>
+                      </div>
+                    </div>
+
+                    {/* Official Seal / Stamp Diameter */}
+                    <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 space-y-3 shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Official Seal Diameter</span>
+                        <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                          {certSchoolStampWidth} px
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-1 p-1 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                        {[
+                          { label: 'S (44px)', size: '44' },
+                          { label: 'M (56px)', size: '56' },
+                          { label: 'L (70px)', size: '70' },
+                          { label: 'XL (84px)', size: '84' }
+                        ].map(p => (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => setCertSchoolStampWidth(p.size)}
+                            className={`py-1 rounded text-[10px] font-bold transition-all ${
+                              certSchoolStampWidth === p.size
+                                ? 'bg-blue-600 text-white shadow-2xs'
+                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                            }`}
+                          >
+                            {p.label.split(' ')[0]}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="pt-1 text-[11px]">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-500 font-semibold w-12 shrink-0">Diameter:</span>
+                          <input
+                            type="range"
+                            min="36"
+                            max="90"
+                            step="2"
+                            value={Number(certSchoolStampWidth) || 56}
+                            onChange={e => setCertSchoolStampWidth(e.target.value)}
+                            className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                          />
+                          <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{certSchoolStampWidth}px</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1">Scales circular gold/merit official verification seal mark on certificate.</p>
+                      </div>
+                    </div>
+
+                    {/* Signature Font Size */}
+                    <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 space-y-3 shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Text Font Size</span>
+                        <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                          {certSignatureFontSize} px
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-1 p-1 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                        {[
+                          { label: '8px', size: '8' },
+                          { label: '9px', size: '9' },
+                          { label: '10px', size: '10' },
+                          { label: '11px', size: '11' }
+                        ].map(p => (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => setCertSignatureFontSize(p.size)}
+                            className={`py-1 rounded text-[10px] font-bold transition-all ${
+                              certSignatureFontSize === p.size
+                                ? 'bg-blue-600 text-white shadow-2xs'
+                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                            }`}
+                          >
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="pt-1 text-[11px]">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-500 font-semibold w-12 shrink-0">Scale:</span>
+                          <input
+                            type="range"
+                            min="7"
+                            max="14"
+                            step="0.5"
+                            value={Number(certSignatureFontSize) || 9}
+                            onChange={e => setCertSignatureFontSize(e.target.value)}
+                            className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                          />
+                          <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{certSignatureFontSize}px</span>
+                        </div>
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800 mt-2">
+                          <p className="text-[10px] text-slate-400">Controls signatory titles & designations.</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCertSignatureWidth(admitSignatureWidth)
+                              setCertSignatureFontSize(admitSignatureFontSize)
+                              toast.success(`Matched Certificate signature size to Admit Card (${admitSignatureWidth}px width, ${admitSignatureFontSize}px font)!`)
+                            }}
+                            className="text-[9.5px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline shrink-0"
+                          >
+                            Match Admit Card Size
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
@@ -8397,6 +8307,8 @@ function AddSetupWizardContent() {
                     if (field === 'titleFontSize') setCertTitleFontSize(String(val))
                     if (field === 'subtitleFontSize') setCertSubtitleFontSize(String(val))
                     if (field === 'qrCodeSize') setCertQrCodeSize(String(val))
+                    if (field === 'photoWidth') setCertPhotoWidth(String(val))
+                    if (field === 'photoHeight') setCertPhotoHeight(String(val))
                   }}
                   onUpdateLabel={(key, val) => {
                     if (key === 'presented_to') setCertPresentedTo(val)
@@ -8430,6 +8342,8 @@ function AddSetupWizardContent() {
                   showSeal={certDisplayFields.officialSeal}
                   showQr={certDisplayFields.qrCode}
                   qrCodeSize={certQrCodeSize}
+                  photoWidth={certPhotoWidth}
+                  photoHeight={certPhotoHeight}
                   signatureWidth={certSignatureWidth}
                   signatureFontSize={certSignatureFontSize}
                   signatureOrder={certSignatureOrder}

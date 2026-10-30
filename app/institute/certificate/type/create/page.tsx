@@ -216,22 +216,22 @@ function CertificateTypeCreateContent() {
 
   // ─── Signatures & Credentials State ───
   // 1. Principal & Director
-  const [principalName, setPrincipalName] = useState('Dr. S. K. Sharma')
+  const [principalName, setPrincipalName] = useState('')
   const [principalLabel, setPrincipalLabel] = useState('Principal & Director')
   const [showPrincipalSign, setShowPrincipalSign] = useState(true)
 
   // 2. Class Teacher
-  const [teacherSignName, setTeacherSignName] = useState('Mrs. Kavita Verma')
+  const [teacherSignName, setTeacherSignName] = useState('')
   const [teacherSignLabel, setTeacherSignLabel] = useState("Class Teacher's Sign")
   const [showTeacherSign, setShowTeacherSign] = useState(false)
 
   // 3. Exam Controller
-  const [controllerSignName, setControllerSignName] = useState('Mr. R. K. Saxena')
+  const [controllerSignName, setControllerSignName] = useState('')
   const [controllerSignLabel, setControllerSignLabel] = useState('Exam Controller')
   const [showControllerSign, setShowControllerSign] = useState(false)
 
   // 4. Authority Signature
-  const [coordinatorSignName, setCoordinatorSignName] = useState('Authorized Signatory')
+  const [coordinatorSignName, setCoordinatorSignName] = useState('')
   const [coordinatorSignLabel, setCoordinatorSignLabel] = useState('Authority Signature')
   const [showCoordinatorSign, setShowCoordinatorSign] = useState(false)
 
@@ -259,7 +259,7 @@ function CertificateTypeCreateContent() {
   }
 
   // 5. Parent / Guardian
-  const [parentSignName, setParentSignName] = useState('Parent / Guardian')
+  const [parentSignName, setParentSignName] = useState('')
   const [parentSignLabel, setParentSignLabel] = useState("Parent's Signature")
   const [showParentSign, setShowParentSign] = useState(false)
 
@@ -2146,7 +2146,7 @@ function CertificateTypeCreateContent() {
                             disabled={!showPrincipalSign}
                             onChange={(e) => setPrincipalName(e.target.value)}
                             className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                            placeholder="e.g. Dr. S. K. Sharma"
+                            placeholder="Enter signatory name (or leave blank)"
                           />
                         </div>
                         <div className="flex flex-col gap-1">
@@ -2247,7 +2247,7 @@ function CertificateTypeCreateContent() {
                             disabled={!showTeacherSign}
                             onChange={(e) => setTeacherSignName(e.target.value)}
                             className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                            placeholder="e.g. Mrs. Kavita Verma"
+                            placeholder="Enter teacher name (or leave blank)"
                           />
                         </div>
                         <div className="flex flex-col gap-1">
@@ -2348,7 +2348,7 @@ function CertificateTypeCreateContent() {
                             disabled={!showControllerSign}
                             onChange={(e) => setControllerSignName(e.target.value)}
                             className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                            placeholder="e.g. Mr. R. K. Saxena"
+                            placeholder="Enter controller name (or leave blank)"
                           />
                         </div>
                         <div className="flex flex-col gap-1">
@@ -2449,7 +2449,7 @@ function CertificateTypeCreateContent() {
                             disabled={!showCoordinatorSign}
                             onChange={(e) => setCoordinatorSignName(e.target.value)}
                             className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                            placeholder="e.g. Authorized Signatory"
+                            placeholder="Enter authority name (or leave blank)"
                           />
                         </div>
                         <div className="flex flex-col gap-1">
@@ -2550,7 +2550,7 @@ function CertificateTypeCreateContent() {
                             disabled={!showParentSign}
                             onChange={(e) => setParentSignName(e.target.value)}
                             className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                            placeholder="e.g. Parent / Guardian"
+                            placeholder="Enter signatory text (or leave blank)"
                           />
                         </div>
                         <div className="flex flex-col gap-1">
