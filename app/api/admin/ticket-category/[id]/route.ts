@@ -28,28 +28,37 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       is_deleted
     } = body
 
-    if (!name) {
+    if (!name && is_deleted === undefined) {
       return NextResponse.json({ success: false, error: 'Name is required' }, { status: 400 })
+    }
+
+    // If parent_category is provided, ensure it's registered
+    if (parent_category) {
+      await pool.query(`
+        INSERT INTO ticket_parent_categories (name, created_at, updated_at)
+        VALUES ($1, NOW(), NOW())
+        ON CONFLICT (name) DO UPDATE SET is_deleted = false, updated_at = NOW()
+      `, [parent_category])
     }
 
     // Build dynamic update query
     const updates: string[] = []
-    const paramsList: (string | number | boolean)[] = []
+    const paramsList: (string | number | boolean | null)[] = []
 
-    const addUpdate = (field: string, val: string | number | boolean | undefined) => {
+    const addUpdate = (field: string, val: string | number | boolean | undefined | null) => {
       if (val !== undefined) {
         paramsList.push(val)
         updates.push(`${field} = $${paramsList.length}`)
       }
     }
 
-    addUpdate('name', name)
-    addUpdate('parent_category', parent_category)
-    addUpdate('segment', segment)
-    addUpdate('low_timeline', low_timeline)
-    addUpdate('medium_timeline', medium_timeline)
-    addUpdate('high_timeline', high_timeline)
-    addUpdate('is_deleted', is_deleted)
+    if (name) addUpdate('name', name)
+    if (parent_category !== undefined) addUpdate('parent_category', parent_category)
+    if (segment !== undefined) addUpdate('segment', segment)
+    if (low_timeline !== undefined) addUpdate('low_timeline', low_timeline)
+    if (medium_timeline !== undefined) addUpdate('medium_timeline', medium_timeline)
+    if (high_timeline !== undefined) addUpdate('high_timeline', high_timeline)
+    if (is_deleted !== undefined) addUpdate('is_deleted', is_deleted)
 
     if (updates.length === 0) {
       return NextResponse.json({ success: false, error: 'No fields to update' }, { status: 400 })
@@ -61,12 +70,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const result = await pool.query(query, paramsList)
 
     if (result.rows.length === 0) {
-      return NextResponse.json({ success: false, error: 'Category not found' }, { status: 404 })
+      return NextResponse.json({ success: false, error: 'Subcategory not found' }, { status: 404 })
     }
 
     return NextResponse.json({ success: true, data: result.rows[0] })
   } catch (error) {
-    console.error('Category update error:', error)
+    console.error('Subcategory update error:', error)
     return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
   }
 }
@@ -86,11 +95,11 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
     if (is_deleted) {
       // Permanent delete
       await pool.query('DELETE FROM ticket_categories WHERE id = $1', [id])
-      return NextResponse.json({ success: true, message: 'Category permanently deleted' })
+      return NextResponse.json({ success: true, message: 'Subcategory permanently deleted' })
     } else {
       // Soft delete
       await pool.query('UPDATE ticket_categories SET is_deleted = true, updated_at = NOW() WHERE id = $1', [id])
-      return NextResponse.json({ success: true, message: 'Category moved to trash (soft-deleted)' })
+      return NextResponse.json({ success: true, message: 'Subcategory moved to trash (soft-deleted)' })
     }
   } catch (error) {
     console.error('Category delete error:', error)

@@ -7381,18 +7381,6 @@ function AddSetupWizardContent() {
                                     className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
                                   />
                                 </div>
-
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label / Title</label>
-                                  <input
-                                    type="text"
-                                    value={certPrincipalSignLabel}
-                                    onChange={e => setCertPrincipalSignLabel(e.target.value)}
-                                    disabled={!certDisplayFields.principalSign}
-                                    placeholder="Principal & Director"
-                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
-                                  />
-                                </div>
                               </div>
                             </div>
 
@@ -7467,18 +7455,6 @@ function AddSetupWizardContent() {
                                     onChange={e => setCertTeacherSignName(e.target.value)}
                                     disabled={!certDisplayFields.teacherSign}
                                     placeholder="Mrs. Kavita Verma"
-                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
-                                  />
-                                </div>
-
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
-                                  <input
-                                    type="text"
-                                    value={certTeacherSignLabel}
-                                    onChange={e => setCertTeacherSignLabel(e.target.value)}
-                                    disabled={!certDisplayFields.teacherSign}
-                                    placeholder="Class Teacher's Sign"
                                     className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
                                   />
                                 </div>
@@ -7559,18 +7535,6 @@ function AddSetupWizardContent() {
                                     className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
                                   />
                                 </div>
-
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
-                                  <input
-                                    type="text"
-                                    value={certControllerSignLabel}
-                                    onChange={e => setCertControllerSignLabel(e.target.value)}
-                                    disabled={!certDisplayFields.controllerSign}
-                                    placeholder="Exam Controller"
-                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
-                                  />
-                                </div>
                               </div>
                             </div>
 
@@ -7648,18 +7612,6 @@ function AddSetupWizardContent() {
                                     className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
                                   />
                                 </div>
-
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signatory Title / Role</label>
-                                  <input
-                                    type="text"
-                                    value={certSecondarySignLabel}
-                                    onChange={e => setCertSecondarySignLabel(e.target.value)}
-                                    disabled={!certDisplayFields.secondarySign}
-                                    placeholder="Authority Signature"
-                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
-                                  />
-                                </div>
                               </div>
                             </div>
 
@@ -7727,25 +7679,13 @@ function AddSetupWizardContent() {
 
                               <div className="space-y-2">
                                 <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signatory Name / Label</label>
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Parent / Guardian Name</label>
                                   <input
                                     type="text"
                                     value={certParentSignName}
                                     onChange={e => setCertParentSignName(e.target.value)}
                                     disabled={!certDisplayFields.parentSign}
                                     placeholder="Parent / Guardian"
-                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
-                                  />
-                                </div>
-
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Title</label>
-                                  <input
-                                    type="text"
-                                    value={certParentSignLabel}
-                                    onChange={e => setCertParentSignLabel(e.target.value)}
-                                    disabled={!certDisplayFields.parentSign}
-                                    placeholder="Parent's Signature"
                                     className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
                                   />
                                 </div>
@@ -7814,19 +7754,11 @@ function AddSetupWizardContent() {
                                 </button>
                               </div>
 
-                              <div className="space-y-2">
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Line Label</label>
-                                  <input
-                                    type="text"
-                                    value={certStudentSignLabel}
-                                    onChange={e => setCertStudentSignLabel(e.target.value)}
-                                    disabled={!certDisplayFields.studentSign}
-                                    placeholder="Student's Signature"
-                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
-                                  />
-                                </div>
-                                <p className="text-[10px] text-slate-500 dark:text-slate-400 italic">
+                              <div className="space-y-2 py-1">
+                                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                                  Student Verification Line
+                                </p>
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400">
                                   Provides candidate signature verification line on the certificate footer.
                                 </p>
                               </div>

@@ -37,12 +37,16 @@ async function ensureHomeworkTables() {
       status VARCHAR(50) DEFAULT 'Pending',
       remark TEXT,
       rating INT DEFAULT 5,
+      rescheduled_date VARCHAR(50),
+      attachment_name TEXT,
       submitted_at TIMESTAMPTZ,
       updated_at TIMESTAMPTZ DEFAULT NOW(),
       CONSTRAINT uq_inst_task_student UNIQUE (institution_id, task_id, student_id)
     );
     CREATE INDEX IF NOT EXISTS idx_inst_hw_sub_task ON institute_homework_submissions(institution_id, task_id);
     ALTER TABLE institute_homework_submissions ADD COLUMN IF NOT EXISTS rating INT DEFAULT 5;
+    ALTER TABLE institute_homework_submissions ADD COLUMN IF NOT EXISTS rescheduled_date VARCHAR(50);
+    ALTER TABLE institute_homework_submissions ADD COLUMN IF NOT EXISTS attachment_name TEXT;
   `)
 }
 
@@ -144,6 +148,7 @@ export async function fetchTaskSubmissions(taskId: string) {
     const res = await pool.query(`
       SELECT student_id as "studentId", student_name as "studentName", admission_no as "admissionNo",
              roll_no as "rollNo", status, remark, COALESCE(rating, 5) as "rating",
+             rescheduled_date as "rescheduledDate", attachment_name as "attachmentName",
              TO_CHAR(submitted_at, 'DD/MM/YYYY HH12:MI AM') as "submittedAt"
       FROM institute_homework_submissions
       WHERE institution_id = $1 AND task_id = $2
@@ -159,8 +164,16 @@ export async function fetchTaskSubmissions(taskId: string) {
 export async function updateStudentTaskSubmission(
   taskId: string,
   studentId: string,
-  status: 'Submitted' | 'Pending',
-  meta?: { studentName?: string; admissionNo?: string; rollNo?: string; remark?: string; rating?: number }
+  status: 'Submitted' | 'Pending' | 'Rescheduled',
+  meta?: {
+    studentName?: string
+    admissionNo?: string
+    rollNo?: string
+    remark?: string
+    rating?: number
+    rescheduledDate?: string
+    attachmentName?: string
+  }
 ) {
   const session = await getSession('institute_session')
   if (!session?.userId) return { success: false, error: 'Unauthorized' }
@@ -171,8 +184,8 @@ export async function updateStudentTaskSubmission(
 
     await pool.query(`
       INSERT INTO institute_homework_submissions (
-        institution_id, task_id, student_id, student_name, admission_no, roll_no, status, remark, rating, submitted_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+        institution_id, task_id, student_id, student_name, admission_no, roll_no, status, remark, rating, rescheduled_date, attachment_name, submitted_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
       ON CONFLICT (institution_id, task_id, student_id)
       DO UPDATE SET
         status = EXCLUDED.status,
@@ -181,6 +194,8 @@ export async function updateStudentTaskSubmission(
         roll_no = COALESCE(EXCLUDED.roll_no, institute_homework_submissions.roll_no),
         remark = CASE WHEN EXCLUDED.remark IS NOT NULL THEN EXCLUDED.remark ELSE institute_homework_submissions.remark END,
         rating = CASE WHEN EXCLUDED.rating IS NOT NULL THEN EXCLUDED.rating ELSE institute_homework_submissions.rating END,
+        rescheduled_date = EXCLUDED.rescheduled_date,
+        attachment_name = CASE WHEN EXCLUDED.attachment_name IS NOT NULL THEN EXCLUDED.attachment_name ELSE institute_homework_submissions.attachment_name END,
         submitted_at = CASE WHEN EXCLUDED.status = 'Submitted' THEN COALESCE(institute_homework_submissions.submitted_at, NOW()) ELSE NULL END,
         updated_at = NOW()
     `, [
@@ -193,6 +208,8 @@ export async function updateStudentTaskSubmission(
       status,
       meta?.remark !== undefined ? meta.remark : null,
       meta?.rating || null,
+      meta?.rescheduledDate || null,
+      meta?.attachmentName || null,
       submittedAt
     ])
 
@@ -207,9 +224,21 @@ export async function updateStudentRemark(
   taskId: string,
   studentId: string,
   remark: string,
-  status?: 'Submitted' | 'Pending',
-  ratingOrMeta?: number | { studentName?: string; admissionNo?: string; rollNo?: string },
-  metaParam?: { studentName?: string; admissionNo?: string; rollNo?: string }
+  status?: 'Submitted' | 'Pending' | 'Rescheduled',
+  ratingOrMeta?: number | {
+    studentName?: string
+    admissionNo?: string
+    rollNo?: string
+    rescheduledDate?: string
+    attachmentName?: string
+  },
+  metaParam?: {
+    studentName?: string
+    admissionNo?: string
+    rollNo?: string
+    rescheduledDate?: string
+    attachmentName?: string
+  }
 ) {
   const session = await getSession('institute_session')
   if (!session?.userId) return { success: false, error: 'Unauthorized' }
@@ -229,16 +258,19 @@ export async function updateStudentRemark(
 
     await pool.query(`
       INSERT INTO institute_homework_submissions (
-        institution_id, task_id, student_id, student_name, admission_no, roll_no, status, remark, rating, submitted_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+        institution_id, task_id, student_id, student_name, admission_no, roll_no, status, remark, rating, rescheduled_date, attachment_name, submitted_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
       ON CONFLICT (institution_id, task_id, student_id)
       DO UPDATE SET
         remark = EXCLUDED.remark,
         rating = EXCLUDED.rating,
         status = COALESCE(EXCLUDED.status, institute_homework_submissions.status),
+        rescheduled_date = EXCLUDED.rescheduled_date,
+        attachment_name = CASE WHEN EXCLUDED.attachment_name IS NOT NULL THEN EXCLUDED.attachment_name ELSE institute_homework_submissions.attachment_name END,
         student_name = COALESCE(EXCLUDED.student_name, institute_homework_submissions.student_name),
         admission_no = COALESCE(EXCLUDED.admission_no, institute_homework_submissions.admission_no),
         roll_no = COALESCE(EXCLUDED.roll_no, institute_homework_submissions.roll_no),
+        submitted_at = CASE WHEN EXCLUDED.status = 'Submitted' THEN COALESCE(institute_homework_submissions.submitted_at, NOW()) ELSE NULL END,
         updated_at = NOW()
     `, [
       session.userId,
@@ -250,6 +282,8 @@ export async function updateStudentRemark(
       stStatus,
       remark,
       stRating,
+      meta?.rescheduledDate || null,
+      meta?.attachmentName || null,
       submittedAt
     ])
 
@@ -262,10 +296,20 @@ export async function updateStudentRemark(
 // 6. Bulk update multiple students task status, remark & rating at once
 export async function bulkUpdateStudentTaskSubmissions(
   taskId: string,
-  students: { studentId: string; studentName?: string; admissionNo?: string; rollNo?: string; remark?: string; rating?: number }[],
-  status: 'Submitted' | 'Pending',
+  students: {
+    studentId: string
+    studentName?: string
+    admissionNo?: string
+    rollNo?: string
+    remark?: string
+    rating?: number
+    rescheduledDate?: string
+    attachmentName?: string
+  }[],
+  status: 'Submitted' | 'Pending' | 'Rescheduled',
   defaultRemark?: string,
-  defaultRating?: number
+  defaultRating?: number,
+  options?: { rescheduledDate?: string; attachmentName?: string }
 ) {
   const session = await getSession('institute_session')
   if (!session?.userId) return { success: false, error: 'Unauthorized' }
@@ -278,15 +322,20 @@ export async function bulkUpdateStudentTaskSubmissions(
     for (const st of students) {
       const studentRemark = st.remark !== undefined ? st.remark : (defaultRemark !== undefined ? defaultRemark : null)
       const studentRating = st.rating !== undefined ? st.rating : (defaultRating !== undefined ? defaultRating : 5)
+      const reschedDate = st.rescheduledDate || options?.rescheduledDate || null
+      const attachName = st.attachmentName || options?.attachmentName || null
+
       await pool.query(`
         INSERT INTO institute_homework_submissions (
-          institution_id, task_id, student_id, student_name, admission_no, roll_no, status, remark, rating, submitted_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+          institution_id, task_id, student_id, student_name, admission_no, roll_no, status, remark, rating, rescheduled_date, attachment_name, submitted_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
         ON CONFLICT (institution_id, task_id, student_id)
         DO UPDATE SET
           status = EXCLUDED.status,
           remark = CASE WHEN EXCLUDED.remark IS NOT NULL THEN EXCLUDED.remark ELSE institute_homework_submissions.remark END,
           rating = CASE WHEN EXCLUDED.rating IS NOT NULL THEN EXCLUDED.rating ELSE institute_homework_submissions.rating END,
+          rescheduled_date = EXCLUDED.rescheduled_date,
+          attachment_name = CASE WHEN EXCLUDED.attachment_name IS NOT NULL THEN EXCLUDED.attachment_name ELSE institute_homework_submissions.attachment_name END,
           student_name = COALESCE(EXCLUDED.student_name, institute_homework_submissions.student_name),
           admission_no = COALESCE(EXCLUDED.admission_no, institute_homework_submissions.admission_no),
           roll_no = COALESCE(EXCLUDED.roll_no, institute_homework_submissions.roll_no),
@@ -302,11 +351,39 @@ export async function bulkUpdateStudentTaskSubmissions(
         status,
         studentRemark,
         studentRating,
+        reschedDate,
+        attachName,
         submittedAt
       ])
     }
 
     return { success: true, count: students.length }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+// 7. Fetch all rescheduled submissions across all tasks for the institution
+export async function fetchRescheduledSubmissions() {
+  const session = await getSession('institute_session')
+  if (!session?.userId) return { success: false, error: 'Unauthorized' }
+
+  try {
+    await ensureHomeworkTables()
+    const res = await pool.query(`
+      SELECT s.task_id as "taskId", t.title as "taskTitle", t.description as "taskDescription",
+             t.subject, t.classes, t.section, t.assign_date as "assignDate", t.submission_date as "submissionDate",
+             s.student_id as "studentId", s.student_name as "studentName", s.admission_no as "admissionNo",
+             s.roll_no as "rollNo", s.status, s.remark, COALESCE(s.rating, 5) as "rating",
+             s.rescheduled_date as "rescheduledDate", s.attachment_name as "attachmentName",
+             TO_CHAR(s.updated_at, 'DD/MM/YYYY') as "updatedAt"
+      FROM institute_homework_submissions s
+      JOIN institute_homework_tasks t ON t.id = s.task_id AND t.institution_id = s.institution_id
+      WHERE s.institution_id = $1 AND (s.status = 'Rescheduled' OR s.rescheduled_date IS NOT NULL)
+      ORDER BY s.updated_at DESC
+    `, [session.userId])
+
+    return { success: true, data: res.rows }
   } catch (err: any) {
     return { success: false, error: err.message }
   }

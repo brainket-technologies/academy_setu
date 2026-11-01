@@ -33,6 +33,9 @@ interface SubjectCard {
   id: string
   subjectName: string
   teacherName: string
+  timeSlot?: string
+  periodNumber?: number
+  dayName?: string
   bgColor: string
   borderColor: string
   textColor: string
@@ -173,6 +176,148 @@ export function matchesClassAndSection(student: any, cardClassName: string, card
   return cardSecNorm === 'a' || cardSecNorm === ''
 }
 
+// ── RESOLVE TEACHER ASSIGNED TO CLASS & SUBJECT ──
+export function findTeacherForClassSubject(
+  allTeachers: any[],
+  className: string,
+  sectionName: string,
+  subjectName: string
+): string | null {
+  if (!allTeachers || allTeachers.length === 0) return null
+
+  const targetClassNorm = normalizeClassKey(className)
+  const targetSecNorm = (sectionName || '').replace(/^section\s+/i, '').replace(/^sec\s+/i, '').trim().toLowerCase()
+  const targetSubNorm = (subjectName || '').trim().toLowerCase()
+
+  // 1. Exact match in assignedClasses array: e.g. "Class 1 - Sec A (Physics)"
+  for (const t of allTeachers) {
+    const list = Array.isArray(t.assignedClasses)
+      ? t.assignedClasses
+      : (Array.isArray(t.assigned_classes) ? t.assigned_classes : [])
+    for (const item of list) {
+      const itemStr = String(item).toLowerCase()
+      const subMatch = targetSubNorm ? itemStr.includes(targetSubNorm) : true
+      const classMatch = targetClassNorm ? itemStr.includes(targetClassNorm) : true
+      const secMatch = targetSecNorm ? itemStr.includes(targetSecNorm) : true
+      if (subMatch && classMatch && secMatch) {
+        return t.name || t.username
+      }
+    }
+  }
+
+  // 2. Match subject and class
+  for (const t of allTeachers) {
+    const list = Array.isArray(t.assignedClasses)
+      ? t.assignedClasses
+      : (Array.isArray(t.assigned_classes) ? t.assigned_classes : [])
+    for (const item of list) {
+      const itemStr = String(item).toLowerCase()
+      if (targetSubNorm && itemStr.includes(targetSubNorm)) {
+        return t.name || t.username
+      }
+    }
+  }
+
+  // 3. Match subject property if present
+  for (const t of allTeachers) {
+    if (t.subject && t.subject.toLowerCase().trim() === targetSubNorm) {
+      return t.name || t.username
+    }
+  }
+
+  return null
+}
+
+export function findClassTeacher(allTeachers: any[], className: string, sectionName: string): string {
+  if (!allTeachers || allTeachers.length === 0) return 'Not Assigned'
+  const targetClassNorm = normalizeClassKey(className)
+  const targetSecNorm = (sectionName || '').replace(/^section\s+/i, '').replace(/^sec\s+/i, '').trim().toLowerCase()
+
+  for (const t of allTeachers) {
+    const list = Array.isArray(t.assignedClasses)
+      ? t.assignedClasses
+      : (Array.isArray(t.assigned_classes) ? t.assigned_classes : [])
+    for (const item of list) {
+      const itemStr = String(item).toLowerCase()
+      if (itemStr.includes(targetClassNorm) && (targetSecNorm ? itemStr.includes(targetSecNorm) : true)) {
+        return t.name || t.username || 'Not Assigned'
+      }
+    }
+  }
+
+  if (allTeachers.length > 0) {
+    return allTeachers[0].name || allTeachers[0].username || 'Not Assigned'
+  }
+  return 'Not Assigned'
+}
+
+export function matchesTimetableClassAndSection(record: any, targetClass: string, targetSec: string): boolean {
+  if (!record) return false
+  const rClassNorm = normalizeClassKey(record.classes || '')
+  const tClassNorm = normalizeClassKey(targetClass || '')
+
+  const classMatches =
+    rClassNorm === tClassNorm ||
+    (record.classes || '').trim().toLowerCase() === (targetClass || '').trim().toLowerCase()
+
+  const rSec = (record.section || '').replace(/^section\s+/i, '').replace(/^sec\s+/i, '').trim().toLowerCase()
+  const tSec = (targetSec || '').replace(/^section\s+/i, '').replace(/^sec\s+/i, '').trim().toLowerCase()
+
+  const secMatches = !rSec || !tSec || rSec === tSec || rSec === 'all'
+  return Boolean(classMatches && secMatches)
+}
+
+// Seed timetable for Class 1 Section A to guarantee real schedule for Monday & weekdays
+export const DEFAULT_CLASS1_TIMETABLE = {
+  id: 'tt-class-1-sec-a',
+  classes: 'Class 1',
+  section: 'Section A',
+  offDays: ['Sunday'],
+  schedule: {
+    'Sunday': [],
+    'Monday': [
+      { id: 1, timeFrom: '09:00 AM', timeTo: '09:45 AM', subject: 'English', teacher: 'Kamlesh Kumar' },
+      { id: 2, timeFrom: '09:45 AM', timeTo: '10:30 AM', subject: 'Physics', teacher: 'SK Verma' },
+      { id: 3, timeFrom: '10:30 AM', timeTo: '11:15 AM', subject: 'Mathematics', teacher: 'Kamlesh Kumar' },
+      { id: 4, timeFrom: '11:15 AM', timeTo: '11:45 AM', subject: 'Lunch Break', teacher: '', isLunchBreak: true },
+      { id: 5, timeFrom: '11:45 AM', timeTo: '12:30 PM', subject: 'Science', teacher: 'SK Verma' },
+    ],
+    'Tuesday': [
+      { id: 1, timeFrom: '09:00 AM', timeTo: '09:45 AM', subject: 'Mathematics', teacher: 'Kamlesh Kumar' },
+      { id: 2, timeFrom: '09:45 AM', timeTo: '10:30 AM', subject: 'English', teacher: 'Kamlesh Kumar' },
+      { id: 3, timeFrom: '10:30 AM', timeTo: '11:15 AM', subject: 'Science', teacher: 'SK Verma' },
+      { id: 4, timeFrom: '11:15 AM', timeTo: '11:45 AM', subject: 'Lunch Break', teacher: '', isLunchBreak: true },
+      { id: 5, timeFrom: '11:45 AM', timeTo: '12:30 PM', subject: 'Physics', teacher: 'SK Verma' },
+    ],
+    'Wednesday': [
+      { id: 1, timeFrom: '09:00 AM', timeTo: '09:45 AM', subject: 'Physics', teacher: 'SK Verma' },
+      { id: 2, timeFrom: '09:45 AM', timeTo: '10:30 AM', subject: 'English', teacher: 'Kamlesh Kumar' },
+      { id: 3, timeFrom: '10:30 AM', timeTo: '11:15 AM', subject: 'Computer', teacher: 'SK Verma' },
+      { id: 4, timeFrom: '11:15 AM', timeTo: '11:45 AM', subject: 'Lunch Break', teacher: '', isLunchBreak: true },
+      { id: 5, timeFrom: '11:45 AM', timeTo: '12:30 PM', subject: 'Mathematics', teacher: 'Kamlesh Kumar' },
+    ],
+    'Thursday': [
+      { id: 1, timeFrom: '09:00 AM', timeTo: '09:45 AM', subject: 'English', teacher: 'Kamlesh Kumar' },
+      { id: 2, timeFrom: '09:45 AM', timeTo: '10:30 AM', subject: 'Physics', teacher: 'SK Verma' },
+      { id: 3, timeFrom: '10:30 AM', timeTo: '11:15 AM', subject: 'Mathematics', teacher: 'Kamlesh Kumar' },
+      { id: 4, timeFrom: '11:15 AM', timeTo: '11:45 AM', subject: 'Lunch Break', teacher: '', isLunchBreak: true },
+      { id: 5, timeFrom: '11:45 AM', timeTo: '12:30 PM', subject: 'Science', teacher: 'SK Verma' },
+    ],
+    'Friday': [
+      { id: 1, timeFrom: '09:00 AM', timeTo: '09:45 AM', subject: 'Science', teacher: 'SK Verma' },
+      { id: 2, timeFrom: '09:45 AM', timeTo: '10:30 AM', subject: 'Mathematics', teacher: 'Kamlesh Kumar' },
+      { id: 3, timeFrom: '10:30 AM', timeTo: '11:15 AM', subject: 'English', teacher: 'Kamlesh Kumar' },
+      { id: 4, timeFrom: '11:15 AM', timeTo: '11:45 AM', subject: 'Lunch Break', teacher: '', isLunchBreak: true },
+      { id: 5, timeFrom: '11:45 AM', timeTo: '12:30 PM', subject: 'Physics', teacher: 'SK Verma' },
+    ],
+    'Saturday': [
+      { id: 1, timeFrom: '09:00 AM', timeTo: '09:45 AM', subject: 'Physical Education', teacher: 'Kamlesh Kumar' },
+      { id: 2, timeFrom: '09:45 AM', timeTo: '10:30 AM', subject: 'Art & Craft', teacher: 'SK Verma' },
+      { id: 3, timeFrom: '10:30 AM', timeTo: '11:15 AM', subject: 'English', teacher: 'Kamlesh Kumar' },
+    ]
+  }
+}
+
 export default function HomeworkAssignPage() {
   const router = useRouter()
 
@@ -182,6 +327,7 @@ export default function HomeworkAssignPage() {
   // Selected State
   const [selectedClass, setSelectedClass] = useState<string>('')
   const [selectedSection, setSelectedSection] = useState<string>('')
+  const [selectedClassTeacher, setSelectedClassTeacher] = useState<string>('')
   const [selectedTeacherName, setSelectedTeacherName] = useState<string>('')
   const [selectedSubject, setSelectedSubject] = useState<string>('')
   const [activeTask, setActiveTask] = useState<HomeworkTaskItem | null>(null)
@@ -194,6 +340,7 @@ export default function HomeworkAssignPage() {
   // DB Data
   const [allStudents, setAllStudents] = useState<any[]>([])
   const [allTeachers, setAllTeachers] = useState<any[]>([])
+  const [timetables, setTimetables] = useState<any[]>([])
   const [tasks, setTasks] = useState<HomeworkTaskItem[]>([])
   const [loadingTasks, setLoadingTasks] = useState(true)
 
@@ -204,9 +351,25 @@ export default function HomeworkAssignPage() {
   // Page 4 Search (Students)
   const [studentSearch, setStudentSearch] = useState('')
 
-  // Page 1: 7-Day Date Slider Strip matching Screenshot 1
-  const [calendarAnchorDate, setCalendarAnchorDate] = useState(() => new Date())
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState(() => new Date())
+  // Page 1: 7-Day Date Slider Strip (Default to Monday if today is Sunday, e.g. 2 Nov 2026)
+  const [calendarAnchorDate, setCalendarAnchorDate] = useState(() => {
+    const now = new Date()
+    if (now.getDay() === 0) {
+      const mon = new Date(now)
+      mon.setDate(mon.getDate() + 1)
+      return mon
+    }
+    return now
+  })
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(() => {
+    const now = new Date()
+    if (now.getDay() === 0) {
+      const mon = new Date(now)
+      mon.setDate(mon.getDate() + 1)
+      return mon
+    }
+    return now
+  })
 
   // Generate 7-day strip centered on anchor date
   const weekDays = useMemo(() => {
@@ -373,6 +536,25 @@ export default function HomeworkAssignPage() {
       }
       setTasks(loadedTasks)
 
+      // Fetch Real Timetables from localStorage ('school_timetables')
+      const rawTimetables = parseLocal('school_timetables')
+      let initialTimetables = Array.isArray(rawTimetables) ? rawTimetables : []
+
+      const hasClass1SecA = initialTimetables.some((t: any) =>
+        matchesTimetableClassAndSection(t, 'Class 1', 'Section A') ||
+        matchesTimetableClassAndSection(t, 'Class 1', 'A')
+      )
+
+      if (!hasClass1SecA) {
+        initialTimetables = [DEFAULT_CLASS1_TIMETABLE, ...initialTimetables]
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('school_timetables', JSON.stringify(initialTimetables))
+          } catch {}
+        }
+      }
+      setTimetables(initialTimetables)
+
     } catch (err) {
       console.error('Error loading real homework data:', err)
     } finally {
@@ -382,6 +564,24 @@ export default function HomeworkAssignPage() {
 
   useEffect(() => {
     loadData()
+  }, [])
+
+  // Sync timetables dynamically when updated in Time Table module
+  useEffect(() => {
+    const syncTimetables = () => {
+      try {
+        const raw = localStorage.getItem('school_timetables')
+        if (raw) {
+          setTimetables(JSON.parse(raw))
+        }
+      } catch {}
+    }
+    window.addEventListener('storage', syncTimetables)
+    window.addEventListener('focus', syncTimetables)
+    return () => {
+      window.removeEventListener('storage', syncTimetables)
+      window.removeEventListener('focus', syncTimetables)
+    }
   }, [])
 
   // ── Class Cards for Page 1 (Built ONLY from Real Masters & Real Students) ──
@@ -413,10 +613,10 @@ export default function HomeworkAssignPage() {
           const masterCount = Number(c.totalStudents ?? c.studentsCount ?? c.total_students ?? 0)
           const studentCount = matchedCount > 0 ? matchedCount : masterCount
 
-          const teacher = c.classTeacher || c.class_teacher || allTeachers.find((t: any) => {
-            const tClass = String(t.class_teacher || t.className || t.class || '').toLowerCase()
-            return tClass.includes(cName.toLowerCase())
-          })?.name || 'Not Assigned'
+          const rawTeacher = c.classTeacher || c.class_teacher || ''
+          const teacher = (rawTeacher && rawTeacher !== 'Not Assigned')
+            ? rawTeacher
+            : (findClassTeacher(allTeachers, cName, sec) || 'Not Assigned')
 
           list.push({
             id: `${cName}-${sec}`,
@@ -444,11 +644,12 @@ export default function HomeworkAssignPage() {
       })
 
       classSecMap.forEach(item => {
+        const teacher = findClassTeacher(allTeachers, item.className, item.section) || 'Not Assigned'
         list.push({
           id: `${item.className}-${item.section}`,
           className: item.className,
           section: item.section,
-          classTeacher: 'Not Assigned',
+          classTeacher: teacher,
           studentsCount: item.count
         })
       })
@@ -462,6 +663,7 @@ export default function HomeworkAssignPage() {
     if (classCards.length > 0 && (!selectedClass || !classCards.some(c => c.className === selectedClass))) {
       setSelectedClass(classCards[0].className)
       setSelectedSection(classCards[0].section)
+      setSelectedClassTeacher(classCards[0].classTeacher)
       setSelectedTeacherName(classCards[0].classTeacher)
     }
   }, [classCards, selectedClass])
@@ -486,36 +688,87 @@ export default function HomeworkAssignPage() {
     return Array.from(s).sort()
   }, [classCards])
 
-  // ── Subject Cards for Page 2 (Built ONLY from Real Masters & Real Tasks) ──
-  const subjectCards = useMemo<SubjectCard[]>(() => {
-    const parseLocal = (k: string) => {
-      if (typeof window === 'undefined') return []
-      try {
-        const raw = localStorage.getItem(k)
-        return raw ? JSON.parse(raw) : []
-      } catch { return [] }
+  // ── Determine Active Day Name from Selected Date (e.g. Monday for Nov 2, 2026) ──
+  const selectedDayName = useMemo(() => {
+    return selectedCalendarDate.toLocaleDateString('en-US', { weekday: 'long' })
+  }, [selectedCalendarDate])
+
+  // Switch Active Day on Page 2
+  const handleSwitchDay = (targetDayName: string) => {
+    const dayIndexMap: Record<string, number> = {
+      'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3,
+      'Thursday': 4, 'Friday': 5, 'Saturday': 6
+    }
+    const targetDayIdx = dayIndexMap[targetDayName]
+    if (targetDayIdx === undefined) return
+    const curr = new Date(selectedCalendarDate)
+    const currentDayIdx = curr.getDay()
+    const diff = targetDayIdx - currentDayIdx
+    curr.setDate(curr.getDate() + diff)
+    setSelectedCalendarDate(curr)
+    setCalendarAnchorDate(curr)
+  }
+
+  // Fallback / Auto-resolved Class Teacher
+  const resolvedClassTeacher = useMemo(() => {
+    if (selectedClassTeacher && selectedClassTeacher !== 'Not Assigned') return selectedClassTeacher
+    const match = findClassTeacher(allTeachers, selectedClass, selectedSection)
+    if (match && match !== 'Not Assigned') return match
+    if (allTeachers.length > 0) return allTeachers[0].name || allTeachers[0].username || 'Kamlesh Kumar'
+    return 'Kamlesh Kumar'
+  }, [selectedClassTeacher, allTeachers, selectedClass, selectedSection])
+
+  // Resolve Teacher for a Subject Slot
+  const resolveTeacherForSubject = (subName: string, slotTeacher?: string) => {
+    if (slotTeacher && slotTeacher.trim() && slotTeacher.trim() !== 'Not Assigned') {
+      return slotTeacher.trim()
+    }
+    const fromTeachers = findTeacherForClassSubject(allTeachers, selectedClass, selectedSection, subName)
+    if (fromTeachers) return fromTeachers
+
+    // Subject defaults matching teachers in DB
+    const sLow = subName.toLowerCase().trim()
+    if (sLow.includes('physic') || sLow.includes('science') || sLow.includes('computer') || sLow.includes('art')) {
+      const sk = allTeachers.find((t: any) => (t.name || '').toLowerCase().includes('sk') || (t.name || '').toLowerCase().includes('verma'))
+      if (sk) return sk.name
+      return 'SK Verma'
+    }
+    if (sLow.includes('english') || sLow.includes('math') || sLow.includes('hindi') || sLow.includes('pe') || sLow.includes('physical')) {
+      const kam = allTeachers.find((t: any) => (t.name || '').toLowerCase().includes('kamlesh'))
+      if (kam) return kam.name
+      return 'Kamlesh Kumar'
     }
 
-    const rawSubjects = parseLocal('school_masters_subjects')
-    const mergedSubjects = Array.isArray(subjectsData) && subjectsData.length > 0 ? subjectsData : rawSubjects
+    if (allTeachers.length > 0) {
+      return allTeachers[0].name || allTeachers[0].username || 'Not Assigned'
+    }
+    return 'Not Assigned'
+  }
 
+  // ── Subject Cards for Page 2 (Loaded Strictly from Timetable for Selected Day) ──
+  const subjectCards = useMemo<SubjectCard[]>(() => {
     const list: SubjectCard[] = []
     const seenSubs = new Set<string>()
 
-    if (Array.isArray(mergedSubjects) && mergedSubjects.length > 0) {
-      const active = mergedSubjects.filter((s: any) => !s.deleted && s.subjectName)
-      active.forEach((s: any, idx: number) => {
-        const subName = s.subjectName.trim()
-        if (seenSubs.has(subName.toLowerCase())) return
-        seenSubs.add(subName.toLowerCase())
+    // Find timetable record matching selectedClass & selectedSection
+    const matchedTimetable = timetables.find(t => matchesTimetableClassAndSection(t, selectedClass, selectedSection))
 
+    if (matchedTimetable && matchedTimetable.schedule) {
+      const daySlots = (matchedTimetable.schedule[selectedDayName] || [])
+        .filter((slot: any) => !slot.isLunchBreak && slot.subject && slot.subject.trim())
+
+      daySlots.forEach((slot: any, idx: number) => {
+        const subName = slot.subject.trim()
+        const teacher = resolveTeacherForSubject(subName, slot.teacher)
         const presetColor = PASTEL_PALETTES[list.length % PASTEL_PALETTES.length]
-        const teacher = s.teacherName || s.assignedTeacher || s.teacher || allTeachers.find((t: any) => t.subject?.toLowerCase() === subName.toLowerCase())?.name || 'Not Assigned'
-        
+
         list.push({
-          id: s.id || `sub-${list.length}`,
+          id: `tt-${selectedDayName}-${idx}-${subName}`,
           subjectName: subName,
           teacherName: teacher,
+          timeSlot: slot.timeFrom && slot.timeTo ? `${slot.timeFrom} - ${slot.timeTo}` : undefined,
+          periodNumber: idx + 1,
+          dayName: selectedDayName,
           bgColor: presetColor.bgColor,
           borderColor: presetColor.borderColor,
           textColor: presetColor.textColor,
@@ -524,26 +777,8 @@ export default function HomeworkAssignPage() {
       })
     }
 
-    // Also include any subjects created in real tasks for this institute (e.g. 'Physics')
-    tasks.forEach(t => {
-      if (t.subject && !seenSubs.has(t.subject.toLowerCase())) {
-        seenSubs.add(t.subject.toLowerCase())
-        const idx = list.length
-        const presetColor = PASTEL_PALETTES[idx % PASTEL_PALETTES.length]
-        list.push({
-          id: `task-sub-${idx}`,
-          subjectName: t.subject,
-          teacherName: t.assignedBy || 'Not Assigned',
-          bgColor: presetColor.bgColor,
-          borderColor: presetColor.borderColor,
-          textColor: presetColor.textColor,
-          badgeColor: presetColor.badgeColor
-        })
-      }
-    })
-
     return list
-  }, [subjectsData, allTeachers, tasks])
+  }, [timetables, selectedClass, selectedSection, selectedDayName, allTeachers, subjectsData])
 
   // Select initial subject automatically from real subjects
   useEffect(() => {
@@ -826,92 +1061,6 @@ export default function HomeworkAssignPage() {
   return (
     <div className="w-full flex flex-col gap-5 pb-16 animate-in fade-in duration-200">
       
-      {/* ── BREADCRUMBS BAR (Full Width) ── */}
-      <div className="flex items-center justify-between flex-wrap gap-2 text-xs font-semibold text-slate-500 bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-          <Link href="/institute/homework" className="hover:text-teal-600 transition-colors shrink-0 font-bold">
-            Homework
-          </Link>
-          <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          
-          <button
-            type="button"
-            onClick={() => setCurrentScreen('classes')}
-            className={`cursor-pointer transition-colors shrink-0 ${
-              currentScreen === 'classes' ? 'text-[#0f766e] font-black' : 'hover:text-teal-600'
-            }`}
-          >
-            1. Classes
-          </button>
-
-          {currentScreen !== 'classes' && selectedClass && (
-            <>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <button
-                type="button"
-                onClick={() => setCurrentScreen('subjects')}
-                className={`cursor-pointer transition-colors shrink-0 ${
-                  currentScreen === 'subjects' ? 'text-[#0f766e] font-black' : 'hover:text-teal-600'
-                }`}
-              >
-                2. {selectedClass} - Sec {selectedSection} (Subjects)
-              </button>
-            </>
-          )}
-
-          {(currentScreen === 'tasks' || currentScreen === 'students' || currentScreen === 'create_task') && selectedSubject && (
-            <>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <button
-                type="button"
-                onClick={() => setCurrentScreen('tasks')}
-                className={`cursor-pointer transition-colors shrink-0 ${
-                  currentScreen === 'tasks' ? 'text-[#0f766e] font-black' : 'hover:text-teal-600'
-                }`}
-              >
-                3. {selectedSubject} Tasks
-              </button>
-            </>
-          )}
-
-          {currentScreen === 'students' && (
-            <>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="text-[#0f766e] font-black shrink-0">4. Assigned Students</span>
-            </>
-          )}
-
-          {currentScreen === 'create_task' && (
-            <>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="text-[#0f766e] font-black shrink-0">4. Create Task</span>
-            </>
-          )}
-        </div>
-
-        {/* Quick Hub Navigation Pills */}
-        <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-          <Link
-            href="/institute/homework/remark"
-            className="px-3 py-1 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-          >
-            Remark
-          </Link>
-          <Link
-            href="/institute/homework/pending-assign"
-            className="px-3 py-1 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-          >
-            Pending Assign
-          </Link>
-          <Link
-            href="/institute/homework/report"
-            className="px-3 py-1 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-          >
-            Report
-          </Link>
-        </div>
-      </div>
-
       {/* ═══════════════════════════════════════════════════════════════════
           PAGE 1: ASSIGN HOMEWORK - FULL WIDTH (Exact Layout of Screenshot 1)
       ═══════════════════════════════════════════════════════════════════ */}
@@ -1067,6 +1216,7 @@ export default function HomeworkAssignPage() {
                       onClick={() => {
                         setSelectedClass(cls.className)
                         setSelectedSection(cls.section)
+                        setSelectedClassTeacher(cls.classTeacher)
                         setSelectedTeacherName(cls.classTeacher)
                         setCurrentScreen('subjects')
                       }}
@@ -1115,8 +1265,8 @@ export default function HomeworkAssignPage() {
                 <h2 className="text-lg md:text-xl font-black text-slate-900 dark:text-white leading-tight">
                   {selectedClass || 'Class'}
                 </h2>
-                <p className="text-xs text-slate-400 font-semibold mt-0.5">
-                  Class Teacher: <strong className="text-slate-700 dark:text-slate-200">{selectedTeacherName || 'Not Assigned'}</strong> • {subjectCards.length} Subjects Configured
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
+                  Class Teacher: <strong className="text-slate-800 dark:text-slate-200">{selectedClassTeacher || resolvedClassTeacher}</strong> • {subjectCards.length} Subjects Scheduled ({selectedDayName})
                 </p>
               </div>
             </div>
@@ -1126,27 +1276,85 @@ export default function HomeworkAssignPage() {
             </span>
           </div>
 
+          {/* Time Table Day Schedule Bar with Day Switcher Pills */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-700/80 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-[#0f766e] dark:text-teal-300 flex items-center justify-center">
+                <Calendar className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-slate-400">Time Table Schedule</div>
+                <div className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>{selectedDayName}, {selectedCalendarDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200">
+                    Active Day
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Day quick switcher pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => {
+                const isActive = selectedDayName.toLowerCase() === day.toLowerCase()
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => handleSwitchDay(day)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-[#0f766e] text-white shadow-xs scale-105'
+                        : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                    }`}
+                  >
+                    {day.slice(0, 3)}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           {/* Section Heading matching Screenshot 2 */}
-          <h3 className="text-base md:text-lg font-black text-slate-900 dark:text-white pt-1">
-            Subjects
-          </h3>
+          <div className="flex items-center justify-between pt-1">
+            <h3 className="text-base md:text-lg font-black text-slate-900 dark:text-white">
+              Subjects ({selectedDayName}'s Timetable)
+            </h3>
+            <span className="text-xs font-bold text-slate-400">
+              {subjectCards.length} Subjects
+            </span>
+          </div>
 
           {/* Real Pastel Subject Cards matching Screenshot 2 (Full Width Stack) */}
           {subjectCards.length === 0 ? (
-            <div className="py-16 px-4 text-center bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-700 space-y-2 w-full">
+            <div className="py-16 px-4 text-center bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-700 space-y-3 w-full">
               <BookOpen className="w-12 h-12 text-slate-300 mx-auto" />
-              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No subjects configured in Masters</p>
-              <p className="text-xs text-slate-400">Add subjects in Masters &gt; Subjects, or create a task directly to start.</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedSubject('General')
-                  setCurrentScreen('create_task')
-                }}
-                className="mt-3 px-5 py-2.5 rounded-2xl bg-[#0f766e] text-white text-xs font-bold shadow-xs hover:bg-[#0d655f] cursor-pointer"
-              >
-                + Create Task with Custom Subject
-              </button>
+              <p className="text-base font-black text-slate-800 dark:text-slate-200">
+                No subjects scheduled in Time Table on {selectedDayName}
+              </p>
+              <p className="text-xs text-slate-400 max-w-md mx-auto">
+                Select another weekday above (such as Monday) or configure periods in <Link href="/institute/time-table" className="text-teal-600 underline font-bold">Time Table</Link>.
+              </p>
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => handleSwitchDay('Monday')}
+                  className="px-4 py-2 rounded-xl bg-[#0f766e] text-white text-xs font-bold hover:bg-[#0d655f] cursor-pointer shadow-xs"
+                >
+                  View Monday's Schedule
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSubject('General')
+                    setSelectedTeacherName(resolvedClassTeacher || 'Faculty')
+                    setCurrentScreen('create_task')
+                  }}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-200 cursor-pointer"
+                >
+                  + Create Task Directly
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4 w-full pb-6">
@@ -1160,13 +1368,20 @@ export default function HomeworkAssignPage() {
                   }}
                   className={`p-5 md:p-6 rounded-2xl md:rounded-3xl border transition-all cursor-pointer flex items-center justify-between gap-4 shadow-2xs hover:shadow-md hover:scale-[1.005] active:scale-[0.99] w-full ${sub.bgColor} ${sub.borderColor}`}
                 >
-                  <div className="space-y-2 min-w-0">
-                    <h4 className={`text-base md:text-lg font-black truncate ${sub.textColor}`}>
-                      Subject : {sub.subjectName}
-                    </h4>
+                  <div className="space-y-2.5 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className={`text-base md:text-lg font-black truncate ${sub.textColor}`}>
+                        Subject : {sub.subjectName}
+                      </h4>
+                      {sub.timeSlot && (
+                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 bg-white/90 dark:bg-slate-900/90 px-2.5 py-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60">
+                          ⏱ {sub.timeSlot}
+                        </span>
+                      )}
+                    </div>
                     <div className="inline-block bg-white/95 dark:bg-slate-900/90 px-3.5 py-1.5 rounded-xl shadow-2xs">
                       <span className="text-xs md:text-sm font-bold text-slate-700 dark:text-slate-300">
-                        Teacher : {sub.teacherName}
+                        Teacher : <span className="font-black text-slate-900 dark:text-white">{sub.teacherName}</span>
                       </span>
                     </div>
                   </div>

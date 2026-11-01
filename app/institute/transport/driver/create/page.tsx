@@ -384,22 +384,6 @@ function AddDriverWizardForm() {
                 <label className="text-xs font-bold text-slate-700">Valid Till *</label>
                 <input type="date" value={licenseValidTill} onChange={e => setLicenseValidTill(e.target.value)} className="w-full px-4 py-2 border rounded-lg text-xs outline-none" />
               </div>
-
-              <div className="flex flex-col gap-1.5 md:col-span-2">
-                <label className="text-xs font-bold text-slate-700">Assign Vehicle</label>
-                <select 
-                  value={assignedVehicle} 
-                  onChange={e => setAssignedVehicle(e.target.value)} 
-                  className="w-full px-4 py-2 border rounded-lg text-xs bg-white font-semibold outline-none"
-                >
-                  <option value="">Select Vehicle</option>
-                  {vehiclesList.map((v, i) => (
-                    <option key={i} value={`${v.vehicleName} (${v.registrationNo})`}>
-                      {v.vehicleName} ({v.registrationNo})
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
           </div>
         )}

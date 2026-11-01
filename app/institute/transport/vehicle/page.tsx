@@ -11,6 +11,7 @@ interface VehicleRecord {
   vehicleType: string
   gpsNo: string
   gpsDeviceName: string
+  assignedDriver?: string
 }
 
 const DEFAULT_VEHICLE_TYPES = ['Light', 'Heavy', 'Bus', 'Van', 'Mini Bus']
@@ -36,6 +37,8 @@ export default function TransportVehiclePage() {
   const [vehicleType, setVehicleType] = useState('Light')
   const [gpsNo, setGpsNo] = useState('')
   const [gpsDeviceName, setGpsDeviceName] = useState('')
+  const [assignedDriver, setAssignedDriver] = useState('')
+  const [driversList, setDriversList] = useState<any[]>([])
 
   const [toastMsg, setToastMsg] = useState('')
   const [toastOpen, setToastOpen] = useState(false)
@@ -62,6 +65,15 @@ export default function TransportVehiclePage() {
       }
     } else {
       localStorage.setItem('school_vehicle_types', JSON.stringify(DEFAULT_VEHICLE_TYPES))
+    }
+
+    const savedDrivers = localStorage.getItem('transport_drivers')
+    if (savedDrivers) {
+      try {
+        setDriversList(JSON.parse(savedDrivers))
+      } catch (e) {
+        console.error(e)
+      }
     }
   }, [])
 
@@ -105,6 +117,7 @@ export default function TransportVehiclePage() {
     setVehicleType(vehicleTypes[0] || 'Light')
     setGpsNo('')
     setGpsDeviceName('')
+    setAssignedDriver('')
     setModalOpen(true)
   }
 
@@ -116,6 +129,7 @@ export default function TransportVehiclePage() {
     setVehicleType(v.vehicleType)
     setGpsNo(v.gpsNo)
     setGpsDeviceName(v.gpsDeviceName)
+    setAssignedDriver(v.assignedDriver || '')
     setModalOpen(true)
   }
 
@@ -133,7 +147,8 @@ export default function TransportVehiclePage() {
       registrationDate: registrationDate || new Date().toLocaleDateString('en-GB'),
       vehicleType,
       gpsNo: gpsNo || '123456',
-      gpsDeviceName: gpsDeviceName || `Device ${vehicles.length + 1}`
+      gpsDeviceName: gpsDeviceName || `Device ${vehicles.length + 1}`,
+      assignedDriver: assignedDriver || undefined
     }
 
     let updated: VehicleRecord[] = []
@@ -147,6 +162,31 @@ export default function TransportVehiclePage() {
 
     setVehicles(updated)
     localStorage.setItem('transport_vehicles', JSON.stringify(updated))
+
+    // Bidirectional sync with transport_drivers if driver was assigned
+    if (assignedDriver) {
+      try {
+        const savedDrivers = localStorage.getItem('transport_drivers')
+        if (savedDrivers) {
+          const parsedDrivers = JSON.parse(savedDrivers)
+          const vehLabel = registrationNo ? `${vehicleName} (${registrationNo})` : vehicleName
+          const updatedDrivers = parsedDrivers.map((d: any) => {
+            const isMatch = d.driverName === assignedDriver || 
+              `${d.driverName} (${d.contact || d.driverId})` === assignedDriver ||
+              assignedDriver.includes(d.driverName)
+            if (isMatch) {
+              return { ...d, assignedVehicle: vehLabel }
+            }
+            return d
+          })
+          localStorage.setItem('transport_drivers', JSON.stringify(updatedDrivers))
+          setDriversList(updatedDrivers)
+        }
+      } catch (err) {
+        console.error(err)
+      }
+    }
+
     setModalOpen(false)
     
     setToastOpen(true)
@@ -241,6 +281,7 @@ export default function TransportVehiclePage() {
                 <th className="px-4 py-4">Vehicle Type</th>
                 <th className="px-4 py-4">GPS No.</th>
                 <th className="px-4 py-4">GPS Device Name</th>
+                <th className="px-4 py-4">Assigned Driver</th>
                 <th className="px-4 py-4 w-24">Action</th>
               </tr>
             </thead>
@@ -257,6 +298,15 @@ export default function TransportVehiclePage() {
                   <td className="px-4 py-3.5 font-bold text-teal-600">{item.vehicleType}</td>
                   <td className="px-4 py-3.5 font-mono font-bold text-slate-500">{item.gpsNo}</td>
                   <td className="px-4 py-3.5 font-bold text-slate-700">{item.gpsDeviceName}</td>
+                  <td className="px-4 py-3.5">
+                    {item.assignedDriver ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                        👨‍✈️ {item.assignedDriver}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 font-medium italic">Unassigned</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3.5">
                     <div className="flex items-center justify-center gap-1.5">
                       <button 
@@ -279,7 +329,7 @@ export default function TransportVehiclePage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-slate-400 font-bold">No vehicles registered.</td>
+                  <td colSpan={10} className="py-8 text-center text-slate-400 font-bold">No vehicles registered.</td>
                 </tr>
               )}
             </tbody>
@@ -376,6 +426,26 @@ export default function TransportVehiclePage() {
                   {vehicleTypes.map((type, idx) => (
                     <option key={idx} value={type}>{type}</option>
                   ))}
+                </select>
+              </div>
+
+              {/* Assign Driver Dropdown */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Assign Driver</label>
+                <select 
+                  value={assignedDriver}
+                  onChange={e => setAssignedDriver(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg text-xs bg-white dark:bg-slate-900 font-semibold outline-none focus:border-teal-500 cursor-pointer"
+                >
+                  <option value="">-- No Driver Assigned --</option>
+                  {driversList.map((d: any, idx: number) => {
+                    const label = d.driverName + (d.contact ? ` (${d.contact})` : d.driverId ? ` (${d.driverId})` : '')
+                    return (
+                      <option key={d.id || idx} value={label}>
+                        {label}
+                      </option>
+                    )
+                  })}
                 </select>
               </div>
 

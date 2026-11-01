@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { 
   ArrowLeft, Camera, X, CheckCircle2,
   ChevronDown, Users, User, Loader2, Phone,
-  Clock, Calendar, Shield
+  Clock, Calendar, Shield, Sparkles, Lock, Check
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -13,6 +13,105 @@ import { createOneTimeGatePass } from '@/app/institute/gate-pass/actions'
 import { useClasses, useSections } from '@/lib/mastersData'
 
 type GatePassTab = 'student' | 'visitor'
+
+interface ParentOption {
+  id: string
+  name: string
+  mobile: string
+  relation: string
+}
+
+function cleanPhone(val?: any): string {
+  if (!val) return ''
+  const digits = String(val).replace(/\D/g, '')
+  if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2)
+  return digits.slice(-10)
+}
+
+function getStudentParents(student: any, registeredParents: any[] = []): ParentOption[] {
+  if (!student) return []
+  const list: ParentOption[] = []
+  const seen = new Set<string>()
+
+  const add = (id: string, name?: string, phone?: string, relation: string = 'Parent') => {
+    const trimmedName = (name || '').trim()
+    const cleanedMobile = cleanPhone(phone)
+    if (!trimmedName && !cleanedMobile) return
+    const key = `${trimmedName.toLowerCase()}_${cleanedMobile}`
+    if (seen.has(key)) return
+    seen.add(key)
+    list.push({
+      id,
+      name: trimmedName || relation,
+      mobile: cleanedMobile,
+      relation
+    })
+  }
+
+  // 1. Father
+  const fName = student.fatherName || student.father_name || student.father
+  const fPhone = student.fatherContact || student.father_contact || student.fatherMobile || student.father_mobile || student.fatherPhone || student.father_phone
+  if (fName || fPhone) {
+    add('father', fName || 'Father', fPhone, 'Father')
+  }
+
+  // 2. Mother
+  const mName = student.motherName || student.mother_name || student.mother
+  const mPhone = student.motherContact || student.mother_contact || student.motherMobile || student.mother_mobile || student.motherPhone || student.mother_phone
+  if (mName || mPhone) {
+    add('mother', mName || 'Mother', mPhone, 'Mother')
+  }
+
+  // 3. Guardian
+  const gName = student.guardianName || student.guardian_name || student.guardian
+  const gPhone = student.guardianContact || student.guardian_contact || student.guardianMobile || student.guardian_mobile || student.guardianPhone || student.guardian_phone
+  if (gName || gPhone) {
+    add('guardian', gName || 'Guardian', gPhone, 'Guardian')
+  }
+
+  // 4. Embedded student.parents
+  if (Array.isArray(student.parents)) {
+    student.parents.forEach((p: any, idx: number) => {
+      const pName = p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim() || p.parentName
+      const pPhone = p.contact || p.mobile || p.phone || p.mobileNo
+      const pRel = p.parentType || p.relation || 'Parent'
+      add(`embedded_${idx}`, pName, pPhone, pRel)
+    })
+  }
+
+  // 5. Registered parents in localStorage
+  if (Array.isArray(registeredParents) && registeredParents.length > 0) {
+    const sAdm = String(student.admission_no || student.admissionNo || '').trim().toLowerCase()
+    const sId = String(student.id || '').trim().toLowerCase()
+
+    registeredParents.forEach((p: any) => {
+      if (p.deleted) return
+      const pName = p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim()
+      const pPhone = p.contact || p.mobileNo || p.mobile
+      const pRel = p.parentType || (p.gender === 'Female' ? 'Mother' : 'Father')
+
+      const isLinked = (p.studentId && String(p.studentId).toLowerCase() === sId) ||
+                       (p.admissionNo && String(p.admissionNo).toLowerCase() === sAdm) ||
+                       (Array.isArray(p.students) && p.students.some((x: any) => String(x).toLowerCase() === sId || String(x).toLowerCase() === sAdm))
+      
+      const isContactMatch = pPhone && (cleanPhone(pPhone) === cleanPhone(fPhone) || cleanPhone(pPhone) === cleanPhone(mPhone))
+      const isNameMatch = pName && ((fName && pName.toLowerCase() === fName.toLowerCase()) || (mName && pName.toLowerCase() === mName.toLowerCase()))
+
+      if (isLinked || isContactMatch || isNameMatch) {
+        add(`reg_${p.id || pName}`, pName, pPhone, pRel)
+      }
+    })
+  }
+
+  // 6. Generic student parent fallback
+  const genName = student.parent_name || student.parentName
+  const genPhone = student.parent_mobile || student.parentMobile || student.emergency_contact || student.emergencyContact || student.contact || student.mobileNo || student.mobile || student.phone
+  if (list.length === 0 && (genName || genPhone)) {
+    add('general_parent', genName || 'Parent / Guardian', genPhone, 'Parent')
+  }
+
+  return list
+}
 
 export default function OneTimeGatePassPage() {
   const router = useRouter()
@@ -31,6 +130,10 @@ export default function OneTimeGatePassPage() {
   const [selectedClass, setSelectedClass] = useState('')
   const [selectedSection, setSelectedSection] = useState('')
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
+  const [allRegisteredParents, setAllRegisteredParents] = useState<any[]>([])
+  const [parentName, setParentName] = useState('')
+  const [parentRelation, setParentRelation] = useState('')
+  const [selectedParentId, setSelectedParentId] = useState('')
   const [parentsMobile, setParentsMobile] = useState('')
   const [otpSent, setOtpSent] = useState(false)
   const [otpCode, setOtpCode] = useState('')
@@ -59,6 +162,101 @@ export default function OneTimeGatePassPage() {
   const [exitGate, setExitGate] = useState('')
   const [reason, setReason] = useState('')
   const [remarks, setRemarks] = useState('')
+
+  // Load registered parents from localStorage
+  useEffect(() => {
+    try {
+      const p1 = localStorage.getItem('school_institute_parents')
+      const p2 = localStorage.getItem('school_parents')
+      const list: any[] = []
+      if (p1) {
+        const parsed1 = JSON.parse(p1)
+        if (Array.isArray(parsed1)) list.push(...parsed1)
+      }
+      if (p2) {
+        const parsed2 = JSON.parse(p2)
+        if (Array.isArray(parsed2)) list.push(...parsed2)
+      }
+      setAllRegisteredParents(list)
+    } catch (e) {}
+  }, [])
+
+  // Available parents for selected student
+  const availableParents = useMemo(() => {
+    return getStudentParents(selectedStudent, allRegisteredParents)
+  }, [selectedStudent, allRegisteredParents])
+
+  // Auto-populate parent details and pre-fill receiver when student or availableParents change
+  useEffect(() => {
+    if (!selectedStudent) {
+      setParentName('')
+      setParentsMobile('')
+      setParentRelation('')
+      setSelectedParentId('')
+      setOtpSent(false)
+      setOtpVerified(false)
+      setOtpCode('')
+      return
+    }
+
+    if (availableParents.length > 0) {
+      const current = availableParents.find(p => p.id === selectedParentId)
+      const toSelect = current || availableParents[0]
+      setSelectedParentId(toSelect.id)
+      setParentName(toSelect.name)
+      setParentsMobile(toSelect.mobile)
+      setParentRelation(toSelect.relation)
+      setOtpSent(false)
+      setOtpVerified(false)
+      setOtpCode('')
+
+      // Auto-fill receiver data when parent is selected
+      if (!receiverName || (parentName && receiverName === parentName)) {
+        setReceiverName(toSelect.name)
+        setReceiverMobile(toSelect.mobile)
+        setReceiverRelation(toSelect.relation)
+      }
+    } else {
+      setSelectedParentId('')
+      setParentName('')
+      setParentRelation('')
+      const fallbackMobile = cleanPhone(selectedStudent.contact || selectedStudent.mobileNo || selectedStudent.phone || selectedStudent.parent_mobile || selectedStudent.father_mobile)
+      setParentsMobile(fallbackMobile)
+      setOtpSent(false)
+      setOtpVerified(false)
+      setOtpCode('')
+    }
+  }, [selectedStudent, availableParents])
+
+  // Select parent handler (with auto-fill receiver data)
+  const handleSelectParent = (p: ParentOption) => {
+    setSelectedParentId(p.id)
+    setParentName(p.name)
+    setParentsMobile(p.mobile)
+    setParentRelation(p.relation)
+    setOtpSent(false)
+    setOtpVerified(false)
+    setOtpCode('')
+
+    // Auto-fill receiver data after selecting parent
+    if (!receiverName || (parentName && receiverName === parentName)) {
+      setReceiverName(p.name)
+      setReceiverMobile(p.mobile)
+      setReceiverRelation(p.relation)
+    }
+  }
+
+  // Quick sync: receiver is the selected parent
+  const handleSyncReceiverFromParent = () => {
+    if (!parentName && !parentsMobile) {
+      showToast('Select or enter parent details first.', 'error')
+      return
+    }
+    setReceiverName(parentName)
+    setReceiverMobile(parentsMobile)
+    setReceiverRelation(parentRelation || 'Father')
+    showToast(`Receiver details synced from ${parentName || 'Parent'}!`, 'success')
+  }
 
   // Load real students
   useEffect(() => {
@@ -286,6 +484,7 @@ export default function OneTimeGatePassPage() {
             className: selectedClass,
             sectionName: selectedSection,
             rollNo: String(selectedStudent?.roll_no || selectedStudent?.rollNo || ''),
+            parentName,
             parentsMobile,
             receiverName,
             receiverMobile,
@@ -315,6 +514,13 @@ export default function OneTimeGatePassPage() {
 
       const res = await createOneTimeGatePass(payload)
       if (res?.success) {
+        if (typeof window !== 'undefined') {
+          try {
+            const raw = localStorage.getItem('school_gate_passes')
+            const existing = raw ? JSON.parse(raw) : []
+            localStorage.setItem('school_gate_passes', JSON.stringify([payload, ...existing]))
+          } catch (e) {}
+        }
         showToast('Gate pass created successfully!', 'success')
         setTimeout(() => router.push('/institute/gate-pass'), 1200)
       } else {
@@ -489,22 +695,44 @@ export default function OneTimeGatePassPage() {
 
             {/* Selected Student Info Card */}
             {selectedStudent && (
-              <div className="flex items-center gap-3.5 p-3.5 bg-teal-50/70 border border-teal-200 rounded-2xl">
-                <div className="w-10 h-10 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+              <div className="flex items-center gap-3.5 p-4 bg-gradient-to-r from-blue-50/80 to-teal-50/60 dark:from-blue-950/30 dark:to-teal-950/20 border border-blue-200 dark:border-blue-900/60 rounded-2xl shadow-2xs">
+                <div className="w-11 h-11 rounded-2xl bg-[#1b3a60] text-white flex items-center justify-center font-black text-sm flex-shrink-0 shadow-xs">
                   {(selectedStudent.first_name || selectedStudent.name || 'S').charAt(0).toUpperCase()}
                 </div>
-                <div className="min-w-0">
-                  <p className="font-extrabold text-sm text-slate-900 truncate">
-                    {`${selectedStudent.first_name || ''} ${selectedStudent.last_name || ''}`.trim() || selectedStudent.name}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-black text-sm text-slate-900 dark:text-slate-100">
+                      {`${selectedStudent.first_name || ''} ${selectedStudent.last_name || ''}`.trim() || selectedStudent.name}
+                    </p>
+                    <span className="text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200 px-2 py-0.5 rounded-full">
+                      {selectedClass} · Sec {selectedSection}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                    Roll: <strong className="text-slate-700 dark:text-slate-300">{selectedStudent.roll_no || selectedStudent.rollNo || '—'}</strong> &nbsp;|&nbsp; 
+                    Adm No: <strong className="text-slate-700 dark:text-slate-300">{selectedStudent.admission_no || selectedStudent.admissionNo || '—'}</strong>
                   </p>
-                  <p className="text-xs text-slate-600 font-semibold mt-0.5">
-                    {selectedClass} – Sec {selectedSection} &nbsp;|&nbsp; Roll No: {selectedStudent.roll_no || selectedStudent.rollNo || '—'} &nbsp;|&nbsp; {selectedStudent.admission_no || selectedStudent.admissionNo || ''}
-                  </p>
+                  {availableParents.length > 0 && (
+                    <div className="text-[11px] text-teal-700 dark:text-teal-400 font-bold mt-1 flex items-center gap-1.5 flex-wrap">
+                      <Users className="w-3.5 h-3.5 shrink-0" />
+                      <span>
+                        {availableParents.length === 1 ? 'Parent on record: ' : `Detected Parents (${availableParents.length}): `}
+                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {availableParents.map(p => (
+                          <span key={p.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-100/70 dark:bg-teal-950/60 text-teal-900 dark:text-teal-200 text-[10px]">
+                            <strong>{p.name}</strong> ({p.relation})
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <button
                   type="button"
                   onClick={() => setSelectedStudent(null)}
-                  className="ml-auto text-slate-400 hover:text-red-500 p-1 rounded-full hover:bg-red-50 transition-colors flex-shrink-0"
+                  className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 border border-slate-200 dark:border-slate-700 flex items-center justify-center transition-colors shadow-2xs flex-shrink-0"
+                  title="Change Student"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -512,121 +740,267 @@ export default function OneTimeGatePassPage() {
             )}
           </div>
 
-          {/* ── 2. Receiver Details ── */}
+          {/* ── 2. Receiver & Parent Verification Details ── */}
           <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm space-y-5">
-            <h2 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-black">2</span>
-              Receiver Details
-            </h2>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <span className="w-7 h-7 rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-950/70 dark:text-teal-300 flex items-center justify-center text-xs font-black">2</span>
+                Receiver &amp; Parent Verification Details
+              </h2>
+              {selectedStudent && (
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
+                  OTP will be sent to verified Parent mobile
+                </span>
+              )}
+            </div>
 
-            {/* Parents Mobile + Send OTP */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Parents Mobile No. <span className="text-red-500">*</span>
-              </label>
-              <div className="flex items-center gap-3">
-                <div className="relative flex-1">
-                  <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="tel"
-                    placeholder="Enter 10-digit mobile number"
-                    value={parentsMobile}
-                    maxLength={10}
-                    onChange={e => setParentsMobile(e.target.value.replace(/\D/g, ''))}
-                    className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-teal-500"
-                  />
+            {/* Multiple Parents Picker (shown when student has more than 1 parent) */}
+            {availableParents.length > 1 && (
+              <div className="p-4 bg-gradient-to-r from-teal-50 to-blue-50 dark:from-teal-950/40 dark:to-blue-950/30 border border-teal-200 dark:border-teal-800 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-100">
+                      More than 1 Parent Found ({availableParents.length}) — Select one to auto-fill details:
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200 px-2 py-0.5 rounded-full">
+                    {availableParents.find(p => p.id === selectedParentId)?.relation || 'Parent'} Active
+                  </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={otpSent ? handleVerifyOTP : handleSendOTP}
-                  disabled={otpVerified}
-                  className={`px-5 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-all whitespace-nowrap ${
-                    otpVerified
-                      ? 'bg-teal-600 text-white cursor-default'
-                      : 'bg-teal-600 hover:bg-teal-700 text-white'
-                  }`}
-                >
-                  {otpVerified ? '✓ Verified' : otpSent ? 'Verify OTP' : 'Send OTP'}
-                </button>
-              </div>
 
-              {/* OTP Input Field (shown after Send OTP) */}
-              {otpSent && !otpVerified && (
-                <div className="mt-3 flex items-center gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                  {availableParents.map((p) => {
+                    const isSelected = selectedParentId === p.id
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleSelectParent(p)}
+                        className={`p-3 rounded-xl border text-left transition-all flex items-center gap-3 relative ${
+                          isSelected
+                            ? 'bg-teal-600 text-white border-teal-600 shadow-sm ring-2 ring-teal-400/50'
+                            : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-teal-300 hover:bg-teal-50/40'
+                        }`}
+                      >
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 ${
+                          isSelected ? 'bg-white/20 text-white' : 'bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300'
+                        }`}>
+                          {p.relation === 'Mother' ? '👩' : p.relation === 'Father' ? '👨' : '👤'}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-xs truncate">{p.name}</span>
+                            <span className={`text-[9.5px] px-1.5 py-0.2 rounded font-extrabold uppercase ${
+                              isSelected ? 'bg-white/25 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                            }`}>
+                              {p.relation}
+                            </span>
+                          </div>
+                          <p className={`text-[11px] font-mono mt-0.5 ${isSelected ? 'text-teal-100' : 'text-slate-500'}`}>
+                            {p.mobile || 'No Mobile'}
+                          </p>
+                        </div>
+                        {isSelected && (
+                          <div className="w-5 h-5 rounded-full bg-white text-teal-700 flex items-center justify-center shrink-0">
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Parent Details Row (Parent Name column + Parents Mobile No. with Send OTP) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Parent Name Column (Non-editable, Locked) */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-blue-500" />
+                    <span>Parent Name <span className="text-red-500">*</span></span>
+                    <span className="inline-flex items-center gap-0.5 text-[9.5px] font-semibold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                      <Lock className="w-2.5 h-2.5" /> Auto-filled (Locked)
+                    </span>
+                  </label>
+                  {parentRelation && (
+                    <span className="text-[10px] text-teal-600 dark:text-teal-400 font-bold bg-teal-50 dark:bg-teal-950/40 px-2 py-0.5 rounded-md border border-teal-200 dark:border-teal-900/60">
+                      {parentRelation}
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
                   <input
                     type="text"
-                    placeholder="Enter OTP"
-                    value={otpCode}
-                    maxLength={6}
-                    onChange={e => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                    className="flex-1 px-4 py-2.5 border border-teal-400 rounded-xl text-xs font-bold outline-none focus:border-teal-600 tracking-widest"
+                    placeholder="Select student above to load parent name"
+                    value={parentName}
+                    readOnly
+                    tabIndex={-1}
+                    className="w-full pl-3.5 pr-9 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 shadow-2xs cursor-not-allowed select-none"
+                    required
                   />
+                  <Lock className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Parents Mobile No. (For OTP) Column (Non-editable, Locked) */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-blue-500" />
+                    <span>Parents Mobile No. (For OTP) <span className="text-red-500">*</span></span>
+                    <span className="inline-flex items-center gap-0.5 text-[9.5px] font-semibold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                      <Lock className="w-2.5 h-2.5" /> Auto-filled (Locked)
+                    </span>
+                  </label>
+                  {otpVerified && (
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> OTP Verified
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="tel"
+                      placeholder="Select student above to load mobile"
+                      value={parentsMobile}
+                      maxLength={10}
+                      readOnly
+                      tabIndex={-1}
+                      className="w-full pl-3.5 pr-9 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 shadow-2xs font-mono cursor-not-allowed select-none"
+                      required
+                    />
+                    <Lock className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                   <button
                     type="button"
-                    onClick={handleVerifyOTP}
-                    className="px-4 py-2.5 bg-teal-600 text-white rounded-xl text-xs font-bold"
+                    onClick={otpSent ? handleVerifyOTP : handleSendOTP}
+                    disabled={otpVerified || !parentsMobile}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-bold shadow-2xs whitespace-nowrap transition-all ${
+                      otpVerified
+                        ? 'bg-emerald-600 text-white cursor-default'
+                        : 'bg-teal-600 hover:bg-teal-700 text-white disabled:opacity-50'
+                    }`}
                   >
-                    Confirm OTP
+                    {otpVerified ? '✓ Verified' : otpSent ? 'Verify OTP' : 'Send OTP'}
                   </button>
                 </div>
+
+                {/* OTP Input Field (shown after Send OTP) */}
+                {otpSent && !otpVerified && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Enter 6-digit OTP"
+                      value={otpCode}
+                      maxLength={6}
+                      onChange={e => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                      className="flex-1 px-3.5 py-2 border border-teal-400 rounded-xl text-xs font-bold outline-none focus:border-teal-600 tracking-widest bg-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleVerifyOTP}
+                      className="px-4 py-2 bg-teal-600 text-white rounded-xl text-xs font-bold hover:bg-teal-700"
+                    >
+                      Confirm OTP
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Separator / Authorized Receiver Details header with Same as Parent button */}
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between flex-wrap gap-2">
+              <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                Authorized Receiver Details
+              </span>
+              {(parentName || parentsMobile) && (
+                <button
+                  type="button"
+                  onClick={handleSyncReceiverFromParent}
+                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
+                  title="Copy selected parent details to receiver fields"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Same as Parent (Copy {parentName || 'Parent'})</span>
+                </button>
               )}
             </div>
 
             {/* Receiver Name / Mobile / Relation / Vehicle */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Receiver Name <span className="text-red-500">*</span></label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Receiver Name <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   placeholder="Enter Receiver Name"
                   value={receiverName}
                   onChange={e => setReceiverName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-teal-500"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-2xs"
+                  required
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Receiver Mobile No. <span className="text-red-500">*</span></label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Receiver Mobile No. <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="tel"
                   placeholder="Enter Mobile No."
                   value={receiverMobile}
                   onChange={e => setReceiverMobile(e.target.value.replace(/\D/g, ''))}
                   maxLength={10}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-teal-500"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-2xs font-mono"
+                  required
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Student's Relative <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <select
-                    value={receiverRelation}
-                    onChange={e => setReceiverRelation(e.target.value)}
-                    className="w-full appearance-none px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white cursor-pointer"
-                  >
-                    <option value="">Select Relation</option>
-                    <option value="Father">Father</option>
-                    <option value="Mother">Mother</option>
-                    <option value="Brother">Brother</option>
-                    <option value="Sister">Sister</option>
-                    <option value="Uncle">Uncle</option>
-                    <option value="Aunt">Aunt</option>
-                    <option value="Guardian">Guardian</option>
-                    <option value="Other">Other</option>
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Student's Relative <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {['Father', 'Mother', 'Brother', 'Sister', 'Uncle', 'Aunt', 'Grandparent', 'Guardian', 'Driver'].map(rel => (
+                      <button
+                        key={rel}
+                        type="button"
+                        onClick={() => setReceiverRelation(rel)}
+                        className={`text-[9.5px] px-1.5 py-0.5 rounded font-bold transition-colors ${
+                          receiverRelation.toLowerCase() === rel.toLowerCase()
+                            ? 'bg-teal-600 text-white'
+                            : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                        }`}
+                      >
+                        {rel}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                <input
+                  type="text"
+                  placeholder="e.g. Father, Mother, Uncle, Driver"
+                  value={receiverRelation}
+                  onChange={e => setReceiverRelation(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-2xs"
+                  required
+                />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-700">Vehicle No. (If any)</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Vehicle No. (If any)</label>
                 <input
                   type="text"
                   placeholder="Enter Vehicle No."
                   value={vehicleNo}
                   onChange={e => setVehicleNo(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-teal-500"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-2xs uppercase"
                 />
               </div>
             </div>

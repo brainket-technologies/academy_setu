@@ -2149,17 +2149,6 @@ function CertificateTypeCreateContent() {
                             placeholder="Enter signatory name (or leave blank)"
                           />
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Designation / Title</label>
-                          <input
-                            type="text"
-                            value={principalLabel}
-                            disabled={!showPrincipalSign}
-                            onChange={(e) => setPrincipalLabel(e.target.value)}
-                            className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                            placeholder="e.g. Principal & Director"
-                          />
-                        </div>
                       </div>
                     </div>
 
@@ -2248,17 +2237,6 @@ function CertificateTypeCreateContent() {
                             onChange={(e) => setTeacherSignName(e.target.value)}
                             className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
                             placeholder="Enter teacher name (or leave blank)"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Designation / Title</label>
-                          <input
-                            type="text"
-                            value={teacherSignLabel}
-                            disabled={!showTeacherSign}
-                            onChange={(e) => setTeacherSignLabel(e.target.value)}
-                            className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                            placeholder="e.g. Class Teacher's Sign"
                           />
                         </div>
                       </div>
@@ -2351,17 +2329,6 @@ function CertificateTypeCreateContent() {
                             placeholder="Enter controller name (or leave blank)"
                           />
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Designation / Title</label>
-                          <input
-                            type="text"
-                            value={controllerSignLabel}
-                            disabled={!showControllerSign}
-                            onChange={(e) => setControllerSignLabel(e.target.value)}
-                            className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                            placeholder="e.g. Exam Controller"
-                          />
-                        </div>
                       </div>
                     </div>
 
@@ -2452,17 +2419,6 @@ function CertificateTypeCreateContent() {
                             placeholder="Enter authority name (or leave blank)"
                           />
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Designation / Title</label>
-                          <input
-                            type="text"
-                            value={coordinatorSignLabel}
-                            disabled={!showCoordinatorSign}
-                            onChange={(e) => setCoordinatorSignLabel(e.target.value)}
-                            className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                            placeholder="e.g. Authority Signature"
-                          />
-                        </div>
                       </div>
                     </div>
 
@@ -2543,25 +2499,14 @@ function CertificateTypeCreateContent() {
 
                       <div className={`space-y-2.5 transition-opacity ${showParentSign ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
                         <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Signatory Text</label>
+                          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Parent / Guardian Full Name</label>
                           <input
                             type="text"
                             value={parentSignName}
                             disabled={!showParentSign}
                             onChange={(e) => setParentSignName(e.target.value)}
                             className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                            placeholder="Enter signatory text (or leave blank)"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Line Label</label>
-                          <input
-                            type="text"
-                            value={parentSignLabel}
-                            disabled={!showParentSign}
-                            onChange={(e) => setParentSignLabel(e.target.value)}
-                            className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                            placeholder="e.g. Parent's Signature"
+                            placeholder="Enter parent/guardian name (or leave blank)"
                           />
                         </div>
                       </div>
@@ -2642,20 +2587,12 @@ function CertificateTypeCreateContent() {
                         </div>
                       </div>
 
-                      <div className={`space-y-2.5 transition-opacity ${showStudentSign ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Line Label / Title</label>
-                          <input
-                            type="text"
-                            value={studentSignLabel}
-                            disabled={!showStudentSign}
-                            onChange={(e) => setStudentSignLabel(e.target.value)}
-                            className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                            placeholder="e.g. Student's Signature"
-                          />
-                        </div>
+                      <div className={`space-y-2 py-1 transition-opacity ${showStudentSign ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                          Candidate Signature Line
+                        </p>
                         <p className="text-[10px] text-slate-400 leading-tight">
-                          Displays Candidate acknowledgment line for student endorsement on the certificate.
+                          Displays candidate signature line for student endorsement on the certificate.
                         </p>
                       </div>
                     </div>

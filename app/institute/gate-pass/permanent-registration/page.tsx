@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react'
 import {
   ArrowLeft, Camera, X, CheckCircle2,
   ChevronDown, Users, User, Loader2, Phone,
-  Shield, CreditCard, Calendar, Upload, Sparkles, Check
+  Shield, CreditCard, Calendar, Upload, Sparkles, Check, Lock
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -257,6 +257,13 @@ export default function PermanentRegistrationPage() {
       setOtpSent(false)
       setOtpVerified(false)
       setOtpCode('')
+
+      // Auto-fill receiver if not filled yet or if was matching previous parent
+      if (!receiverName || (parentName && receiverName === parentName)) {
+        setReceiverName(toSelect.name)
+        setReceiverMobile(toSelect.mobile)
+        setReceiverRelation(toSelect.relation)
+      }
     } else {
       setSelectedParentId('')
       setParentName('')
@@ -278,6 +285,13 @@ export default function PermanentRegistrationPage() {
     setOtpSent(false)
     setOtpVerified(false)
     setOtpCode('')
+
+    // Auto-fill receiver with selected parent details
+    if (!receiverName || (parentName && receiverName === parentName)) {
+      setReceiverName(p.name)
+      setReceiverMobile(p.mobile)
+      setReceiverRelation(p.relation)
+    }
   }
 
   // Quick sync: receiver is the selected parent
@@ -781,6 +795,9 @@ export default function PermanentRegistrationPage() {
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                     <User className="w-3.5 h-3.5 text-blue-500" />
                     <span>Parent Name <span className="text-red-500">*</span></span>
+                    <span className="inline-flex items-center gap-0.5 text-[9.5px] font-semibold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                      <Lock className="w-2.5 h-2.5" /> Auto-filled (Locked)
+                    </span>
                   </label>
                   {parentRelation && (
                     <span className="text-[10px] text-teal-600 dark:text-teal-400 font-bold bg-teal-50 dark:bg-teal-950/40 px-2 py-0.5 rounded-md border border-teal-200 dark:border-teal-900/60">
@@ -791,12 +808,14 @@ export default function PermanentRegistrationPage() {
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="Enter Parent Name"
+                    placeholder="Select student above to load parent name"
                     value={parentName}
-                    onChange={e => setParentName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-2xs"
+                    readOnly
+                    tabIndex={-1}
+                    className="w-full pl-3.5 pr-9 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 shadow-2xs cursor-not-allowed select-none"
                     required
                   />
+                  <Lock className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
 
@@ -806,6 +825,9 @@ export default function PermanentRegistrationPage() {
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                     <Phone className="w-3.5 h-3.5 text-blue-500" />
                     <span>Parents Mobile No. (For OTP) <span className="text-red-500">*</span></span>
+                    <span className="inline-flex items-center gap-0.5 text-[9.5px] font-semibold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                      <Lock className="w-2.5 h-2.5" /> Auto-filled (Locked)
+                    </span>
                   </label>
                   {otpVerified && (
                     <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
@@ -817,17 +839,15 @@ export default function PermanentRegistrationPage() {
                   <div className="relative flex-1">
                     <input
                       type="tel"
-                      placeholder="Enter 10-digit mobile number"
+                      placeholder="Select student above to load mobile"
                       value={parentsMobile}
                       maxLength={10}
-                      onChange={e => {
-                        setParentsMobile(e.target.value.replace(/\D/g, ''))
-                        setOtpVerified(false)
-                        setOtpSent(false)
-                      }}
-                      className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-2xs font-mono"
+                      readOnly
+                      tabIndex={-1}
+                      className="w-full pl-3.5 pr-9 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 shadow-2xs font-mono cursor-not-allowed select-none"
                       required
                     />
+                    <Lock className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
                   <button
                     type="button"

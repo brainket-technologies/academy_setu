@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { createStudent } from '@/app/institute/students/actions'
@@ -1401,8 +1401,7 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
   const calculateTransFeeForDuration = (found: any, dur: string) => {
     if (!found) return
     let feeStr = ''
-    if (dur === 'One Time' || dur === 'Onetime') feeStr = found.oneTime || found.monthly || found.fee
-    else if (dur === 'Monthly') feeStr = found.monthly || found.fee
+    if (dur === 'Monthly') feeStr = found.monthly || found.fee
     else if (dur === 'Quarterly') feeStr = found.quarterly || found.monthly || found.fee
     else if (dur === 'Half Yearly' || dur === 'Quartly') feeStr = found.halfYearly || found.monthly || found.fee
     else if (dur === 'Yearly' || dur === 'Annually') feeStr = found.yearly || found.monthly || found.fee
@@ -1419,10 +1418,9 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
         if (found.km && formData.transDistance !== `${found.km} Km`) {
           updateForm('transDistance', `${found.km} Km`)
         }
-        const dur = formData.transFeeDuration || 'Monthly'
+        const dur = formData.transFeeDuration && formData.transFeeDuration !== 'One Time' ? formData.transFeeDuration : 'Monthly'
         let feeStr = ''
-        if (dur === 'One Time' || dur === 'Onetime') feeStr = found.oneTime || found.monthly || found.fee
-        else if (dur === 'Monthly') feeStr = found.monthly || found.fee
+        if (dur === 'Monthly') feeStr = found.monthly || found.fee
         else if (dur === 'Quarterly') feeStr = found.quarterly || found.monthly || found.fee
         else if (dur === 'Half Yearly' || dur === 'Quartly') feeStr = found.halfYearly || found.monthly || found.fee
         else if (dur === 'Yearly' || dur === 'Annually') feeStr = found.yearly || found.monthly || found.fee
@@ -1441,8 +1439,8 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
     const found = availableStoppages.find(s => s.location === stopVal)
     if (found) {
       updateForm('transDistance', found.km ? `${found.km} Km` : '')
-      const dur = formData.transFeeDuration || 'Monthly'
-      if (!formData.transFeeDuration) updateForm('transFeeDuration', 'Monthly')
+      const dur = formData.transFeeDuration && formData.transFeeDuration !== 'One Time' ? formData.transFeeDuration : 'Monthly'
+      if (!formData.transFeeDuration || formData.transFeeDuration === 'One Time') updateForm('transFeeDuration', 'Monthly')
       calculateTransFeeForDuration(found, dur)
     } else {
       updateForm('transDistance', '')
@@ -1752,7 +1750,7 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
                  <SelectField 
                    label="Fee Duration" 
                    required 
-                   options={['Select an Option', 'One Time', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']} 
+                   options={['Select an Option', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']} 
                    value={formData.hostelFeeDuration || ''}
                    onChange={(e: any) => handleHostelDurationChange(e.target.value)}
                  />
@@ -1895,7 +1893,7 @@ function Step5({ formData, updateForm, onNext, onBack, onCancel, onOpenPromo }: 
                  <SelectField 
                    label="Fee Duration" 
                    required 
-                   options={['Select an Option', 'One Time', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']} 
+                   options={['Select an Option', 'Monthly', 'Quarterly', 'Half Yearly', 'Yearly']} 
                    value={formData.transFeeDuration || ''}
                    onChange={(e: any) => handleTransFeeDurationChange(e.target.value)}
                  />

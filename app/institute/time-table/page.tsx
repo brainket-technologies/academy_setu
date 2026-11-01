@@ -244,6 +244,7 @@ export default function TimeTablePage() {
 
   // Modal states
   const [addModalOpen, setAddModalOpen] = useState(false)
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add')
   const [activeModalDay, setActiveModalDay] = useState('Monday')
   const [modalClass, setModalClass] = useState('')
   const [modalSection, setModalSection] = useState('')
@@ -814,8 +815,9 @@ export default function TimeTablePage() {
       sortedSchedule[day] = sortSlotsByTime(modalSlots[day] || [])
     })
 
+    const existingRec = records.find(r => r.classes === modalClass && r.section === modalSection)
     const newRecord: TimetableRecord = {
-      id: activeRecord ? activeRecord.id : Date.now().toString(),
+      id: existingRec ? existingRec.id : (activeRecord ? activeRecord.id : Date.now().toString()),
       classes: modalClass,
       section: modalSection,
       schedule: sortedSchedule,
@@ -834,30 +836,46 @@ export default function TimeTablePage() {
     setAddModalOpen(false)
     setConflictReviewModalOpen(false)
 
-    setToastMsg(`Time Table saved for ${modalClass} (${modalSection})!`)
+    setToastMsg(modalMode === 'edit' ? `Time Table updated for ${modalClass} (${modalSection})!` : `Time Table created for ${modalClass} (${modalSection})!`)
     setToastOpen(true)
     setTimeout(() => setToastOpen(false), 3000)
   }
 
   const isCurrentDayOff = modalOffDays.includes(activeModalDay)
 
-  const handleOpenSetupModal = () => {
-    setModalClass(selectedClass)
-    setModalSection(selectedSection)
+  const handleModalClassSectionChange = (cls: string, sec: string) => {
+    setModalClass(cls)
+    setModalSection(sec)
 
-    if (activeRecord) {
-      // Clean any stale or dummy teachers from previous saves that are not in teachersList
+    if (!cls || !sec) return
+
+    const norm = (s: string) => (s || '').trim().toLowerCase().replace(/\s+/g, '')
+    const targetClassNorm = norm(cls)
+    const targetSecNorm = norm(sec)
+
+    const existing = records.find(r => {
+      const rClassNorm = norm(r.classes)
+      const rSecNorm = norm(r.section)
+      const matchClass = rClassNorm === targetClassNorm || rClassNorm.replace(/^class/, '') === targetClassNorm.replace(/^class/, '')
+      const matchSec = rSecNorm === targetSecNorm || rSecNorm.replace(/^section/, '') === targetSecNorm.replace(/^section/, '')
+      return matchClass && matchSec
+    })
+
+    if (existing) {
+      setModalMode('edit')
       const cleanedSchedule: DaySchedule = {}
       ALL_WEEK_DAYS.forEach(day => {
-        cleanedSchedule[day] = sortSlotsByTime((activeRecord.schedule[day] || []).map(slot => ({
+        cleanedSchedule[day] = sortSlotsByTime((existing.schedule[day] || []).map(slot => ({
           ...slot,
-          teacher: teachersList.includes(slot.teacher) ? slot.teacher : ''
+          teacher: teachersList.includes(slot.teacher) ? slot.teacher : (slot.teacher || '')
         })))
       })
       setModalSlots(cleanedSchedule)
-      setModalOffDays(activeRecord.offDays || ['Sunday'])
+      setModalOffDays(existing.offDays || ['Sunday'])
+      const nonOffDay = ALL_WEEK_DAYS.find(d => !(existing.offDays || []).includes(d)) || 'Monday'
+      setActiveModalDay(nonOffDay)
     } else {
-      // Start with a clean blank schedule (no periods pre-populated)
+      setModalMode('add')
       const initialSlots: Record<string, TimeSlot[]> = {
         'Sunday': [],
         'Monday': [],
@@ -867,12 +885,47 @@ export default function TimeTablePage() {
         'Friday': [],
         'Saturday': []
       }
-
       setModalSlots(initialSlots)
       setModalOffDays(['Sunday'])
+      setActiveModalDay('Monday')
     }
+  }
 
+  const handleOpenAddModal = () => {
+    if (selectedClass && selectedSection) {
+      handleModalClassSectionChange(selectedClass, selectedSection)
+    } else {
+      setModalMode('add')
+      setModalClass('')
+      setModalSection('')
+      const initialSlots: Record<string, TimeSlot[]> = {
+        'Sunday': [],
+        'Monday': [],
+        'Tuesday': [],
+        'Wednesday': [],
+        'Thursday': [],
+        'Friday': [],
+        'Saturday': []
+      }
+      setModalSlots(initialSlots)
+      setModalOffDays(['Sunday'])
+      setActiveModalDay('Monday')
+    }
     setAddModalOpen(true)
+  }
+
+  const handleOpenEditModal = () => {
+    if (!selectedClass || !selectedSection) return
+    handleModalClassSectionChange(selectedClass, selectedSection)
+    setAddModalOpen(true)
+  }
+
+  const handleOpenSetupModal = () => {
+    if (activeRecord) {
+      handleOpenEditModal()
+    } else {
+      handleOpenAddModal()
+    }
   }
 
   const handleDeleteTimetable = () => {
@@ -921,6 +974,15 @@ export default function TimeTablePage() {
         </div>
         
         <div className="flex items-center gap-3">
+          <button 
+            type="button"
+            onClick={handleOpenAddModal}
+            className="h-10 px-4 bg-teal-600 hover:bg-teal-700 text-white rounded-xl flex items-center gap-2 text-xs font-bold shadow-sm transition-all"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Add Time Table</span>
+          </button>
+
           <button 
             type="button"
             onClick={() => alert('Exporting weekly timetable format...')}
@@ -978,8 +1040,8 @@ export default function TimeTablePage() {
           </div>
         </div>
 
-        {/* Status badges and unified single action or Edit/Delete buttons (only when class & section are selected) */}
-        {selectedClass && selectedSection && (
+        {/* Status badges and Edit/Delete buttons (only when class & section with timetable are selected) */}
+        {selectedClass && selectedSection && activeRecord && (
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 text-xs font-bold">
               <Calendar className="w-3.5 h-3.5 text-teal-600" />
@@ -991,33 +1053,22 @@ export default function TimeTablePage() {
 
             <button 
               type="button"
-              onClick={handleOpenSetupModal}
+              onClick={handleOpenEditModal}
               className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-2 whitespace-nowrap"
             >
-              {activeRecord ? (
-                <>
-                  <Pencil className="w-3.5 h-3.5" />
-                  <span>Edit Time Table</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                  <span>Setup Time Table</span>
-                </>
-              )}
+              <Pencil className="w-3.5 h-3.5" />
+              <span>Edit Time Table</span>
             </button>
 
-            {activeRecord && (
-              <button 
-                type="button"
-                onClick={handleDeleteTimetable}
-                className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/40 dark:hover:bg-red-900/60 dark:text-red-300 border border-red-200 dark:border-red-800 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap"
-                title="Delete timetable for this class and section"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Delete Time Table</span>
-              </button>
-            )}
+            <button 
+              type="button"
+              onClick={handleDeleteTimetable}
+              className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/40 dark:hover:bg-red-900/60 dark:text-red-300 border border-red-200 dark:border-red-800 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap"
+              title="Delete timetable for this class and section"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete Time Table</span>
+            </button>
           </div>
         )}
       </div>
@@ -1049,17 +1100,9 @@ export default function TimeTablePage() {
               No Time Table Set Up Yet for {selectedClass} ({selectedSection})
             </h3>
             <p className="text-xs text-slate-400 max-w-md mx-auto">
-              This class and section does not have an active timetable schedule yet. Click below to configure daily lecture periods and weekly off days.
+              This class and section does not have an active timetable schedule yet. Click the &ldquo;Add Time Table&rdquo; button above to configure daily lecture periods and weekly off days.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleOpenSetupModal}
-            className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-md transition-all inline-flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>Setup Time Table</span>
-          </button>
         </div>
       ) : (
         /* State 3: When class & section selected AND timetable exists */
@@ -1260,14 +1303,25 @@ export default function TimeTablePage() {
               <X className="w-4 h-4" />
             </button>
 
-            <div className="border-b border-slate-200 dark:border-slate-700 pb-3">
-              <h2 className="text-sm font-black text-[#1b3a60] dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
-                <Clock className="w-4 h-4 text-teal-600" />
-                <span>Configure Class Time Table</span>
-              </h2>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Set daily lecture periods, mark weekly off days, and verify live teacher conflict protection.
-              </p>
+            <div className="border-b border-slate-200 dark:border-slate-700 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-black text-[#1b3a60] dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-teal-600" />
+                  <span>{modalMode === 'edit' ? `Edit Class Time Table${modalClass ? ` — ${modalClass}` : ''}${modalSection ? ` (${modalSection})` : ''}` : 'Add Class Time Table'}</span>
+                </h2>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  {modalMode === 'edit' 
+                    ? 'Existing timetable schedule loaded. You can modify daily lecture periods, off days, and teacher assignments.'
+                    : 'Set daily lecture periods, mark weekly off days, and verify live teacher conflict protection.'}
+                </p>
+              </div>
+
+              {modalMode === 'edit' && modalClass && modalSection && (
+                <span className="self-start sm:self-auto px-2.5 py-1 rounded-full bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800 text-[10px] font-black text-teal-700 dark:text-teal-300 flex items-center gap-1.5 shrink-0">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
+                  <span>Existing Schedule Loaded</span>
+                </span>
+              )}
             </div>
 
             <form onSubmit={(e) => handleSaveModal(e, false)} className="space-y-6 text-xs font-semibold text-slate-700 dark:text-slate-200">
@@ -1280,11 +1334,9 @@ export default function TimeTablePage() {
                     value={modalClass} 
                     onChange={e => {
                       const newClass = e.target.value
-                      setModalClass(newClass)
                       const validSecs = getSectionsForClass(newClass)
-                      if (!validSecs.includes(modalSection)) {
-                        setModalSection(validSecs[0] || '')
-                      }
+                      const targetSec = validSecs.includes(modalSection) ? modalSection : (validSecs[0] || '')
+                      handleModalClassSectionChange(newClass, targetSec)
                     }} 
                     className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none font-bold" 
                     required
@@ -1300,7 +1352,10 @@ export default function TimeTablePage() {
                   <label className="text-slate-500 font-bold uppercase tracking-wider text-[11px]">Section *</label>
                   <select 
                     value={modalSection} 
-                    onChange={e => setModalSection(e.target.value)} 
+                    onChange={e => {
+                      const newSec = e.target.value
+                      handleModalClassSectionChange(modalClass, newSec)
+                    }} 
                     disabled={!modalClass}
                     className={`w-full px-4 py-2.5 border rounded-xl outline-none font-bold text-xs transition-colors ${
                       !modalClass 
@@ -1835,7 +1890,7 @@ export default function TimeTablePage() {
                   className="px-8 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold transition-all shadow-md text-xs flex items-center gap-2"
                 >
                   <Check className="w-4 h-4 stroke-[2.5]" />
-                  <span>Save Time Table</span>
+                  <span>{modalMode === 'edit' ? 'Update Time Table' : 'Save Time Table'}</span>
                 </button>
               </div>
 

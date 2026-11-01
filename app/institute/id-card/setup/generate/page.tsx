@@ -136,7 +136,7 @@ function GenerateIdCardContent() {
 
   // Separate Signatures
   const [hidePrincipalSign, setHidePrincipalSign] = useState(false)
-  const [showHolderSign, setShowHolderSign] = useState(true)
+  const [showHolderSign, setShowHolderSign] = useState(false)
 
   const [bottomNotes, setBottomNotes] = useState(
     'This card belongs to the institute. If found, please return to the institute authorities.'
@@ -434,7 +434,7 @@ function GenerateIdCardContent() {
                 id: 'Student' as const,
                 title: 'Student ID Card',
                 badge: 'Students & Scholars',
-                desc: 'Admission No, Roll No, Class, Father Name, DOB & Student Signature',
+                desc: 'Admission No, Roll No, Class, Father Name, DOB & Official QR',
                 icon: GraduationCap,
                 color: 'text-sky-600 bg-sky-50 dark:bg-sky-950/40 border-sky-200 dark:border-sky-800'
               },
@@ -450,7 +450,7 @@ function GenerateIdCardContent() {
                 id: 'Employee' as const,
                 title: 'Employee / Staff Card',
                 badge: 'Non-Teaching Staff',
-                desc: 'Staff ID, Department, Work Station, Emergency Phone & Staff Signature',
+                desc: 'Staff ID, Department, Work Station, Emergency Phone & Official Sign',
                 icon: Building2,
                 color: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800'
               },
@@ -1486,19 +1486,19 @@ function GenerateIdCardContent() {
               </div>
             </div>
 
-            {/* 2. Separate Signatures Configuration */}
+            {/* 2. Authority Signature Configuration */}
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
                 <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
                   <PenTool className="w-3.5 h-3.5 text-teal-600" />
-                  Separate Signatures (Show & Customize)
+                  Authority / Principal Signature
                 </span>
                 <span className="text-[11px] text-slate-500 font-medium">
-                  Display distinct Authority and Cardholder signature blocks separately on the card
+                  Configure official institutional signatory name, digital signature, and seal
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="w-full">
                 {/* Authority / Principal Signature */}
                 <div className={`p-4 rounded-2xl border transition-all flex flex-col gap-3 ${!hidePrincipalSign ? 'bg-white dark:bg-slate-800 border-teal-500/50 shadow-xs' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 opacity-70'}`}>
                   <div className="flex items-center justify-between flex-wrap gap-2">
@@ -1519,7 +1519,7 @@ function GenerateIdCardContent() {
                         onClick={handleManualAutoFetch}
                         disabled={isAutoFetching}
                         title="Auto-fetch official principal signature from Institution database"
-                        className="text-[10px] bg-teal-50 hover:bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 px-2.5 py-1 rounded-lg border border-teal-200 dark:border-teal-700 font-bold transition-colors flex items-center gap-1 shadow-2xs"
+                        className="text-[10px] bg-teal-50 hover:bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 px-2.5 py-1 rounded-lg border border-teal-200 dark:border-teal-700 font-bold transition-colors flex items-center gap-1 shadow-2xs cursor-pointer"
                       >
                         <RotateCw className={`w-3 h-3 ${isAutoFetching ? 'animate-spin' : ''}`} />
                         <span>Auto-Fetch Sign</span>
@@ -1553,7 +1553,7 @@ function GenerateIdCardContent() {
                     </div>
 
                     {/* Preview Box: Real Sign Image or Cursive Text */}
-                    <div className="h-12 w-32 border rounded-xl flex items-center justify-center p-1 bg-slate-50 dark:bg-slate-900/50 shadow-2xs overflow-hidden relative" style={{ borderColor: themeColor }}>
+                    <div className="h-12 w-36 border rounded-xl flex items-center justify-center p-1 bg-slate-50 dark:bg-slate-900/50 shadow-2xs overflow-hidden relative" style={{ borderColor: themeColor }}>
                       {principalSign ? (
                         <img 
                           src={principalSign} 
@@ -1581,47 +1581,6 @@ function GenerateIdCardContent() {
                         className="hidden" 
                       />
                     </label>
-                  </div>
-                </div>
-
-                {/* Cardholder / Student Signature (Separate Sign!) */}
-                <div className={`p-4 rounded-2xl border transition-all flex flex-col gap-3 ${showHolderSign ? 'bg-white dark:bg-slate-800 border-teal-500/50 shadow-xs' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 opacity-70'}`}>
-                  <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2.5 cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={showHolderSign} 
-                        onChange={(e) => setShowHolderSign(e.target.checked)}
-                        className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500" 
-                      />
-                      <span className="text-xs font-black text-slate-800 dark:text-slate-100">
-                        {fieldLabels.signTitle}
-                      </span>
-                    </label>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
-                      {fieldLabels.signBadge}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <label className="text-[11px] font-semibold text-slate-500 block mb-1">
-                        {selectedRole === 'Teacher' ? 'Cardholder / Faculty Sign Text' : selectedRole === 'Employee' ? 'Staff Sign Text' : 'Student Sign Text'}
-                      </label>
-                      <input 
-                        type="text" 
-                        value={holderSignName}
-                        onChange={(e) => setHolderSignName(e.target.value)}
-                        placeholder={fieldLabels.signPlaceholder}
-                        disabled={!showHolderSign}
-                        className="w-full px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 disabled:bg-slate-100 disabled:text-slate-400"
-                      />
-                    </div>
-                    <div className="h-10 w-28 border border-slate-300 dark:border-slate-600 rounded-xl flex items-center justify-center p-1 bg-slate-50 dark:bg-slate-900/50 shadow-2xs">
-                      <span className="font-serif italic font-semibold text-xs text-slate-700 dark:text-slate-300">
-                        {holderSignName || 'Cardholder'}
-                      </span>
-                    </div>
                   </div>
                 </div>
               </div>

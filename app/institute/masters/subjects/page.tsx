@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, RotateCcw, CheckCircle2, X, Upload, Search, Filter } from 'lucide-react'
+import { Plus, Pencil, Trash2, RotateCcw, CheckCircle2, X, Upload, Search, Filter, ChevronDown, Check } from 'lucide-react'
 
 interface SubjectRecord {
   id: number
@@ -43,6 +43,8 @@ export default function SubjectsPage() {
   const [subjectCode, setSubjectCode] = useState('')
   const [subjectGroup, setSubjectGroup] = useState('')
   const [selectedClass, setSelectedClass] = useState('')
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([])
+  const [classDropdownOpen, setClassDropdownOpen] = useState(false)
   const [selectedSection, setSelectedSection] = useState('')
   const [selectedStream, setSelectedStream] = useState('')
   const [orderNumber, setOrderNumber] = useState('')
@@ -159,27 +161,30 @@ export default function SubjectsPage() {
 
   const handleSaveSubject = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!subjectName.trim() || !subjectGroup || !selectedClass) {
-      alert('Please fill in all mandatory fields (Subject Name, Subject Group, Class).')
+    if (!subjectName.trim() || !subjectGroup || selectedClasses.length === 0) {
+      alert('Please fill in all mandatory fields (Subject Name, Subject Group, and at least one Class).')
       return
     }
 
-    const newSub: SubjectRecord = {
-      id: Date.now(),
+    const baseOrder = parseInt(orderNumber) || (subjects.filter(s => !s.deleted).length + 1)
+    const nowTime = new Date().toLocaleDateString('en-GB') + '\n' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+
+    const newSubs: SubjectRecord[] = selectedClasses.map((cls, idx) => ({
+      id: Date.now() + idx,
       subjectCode: subjectCode.trim() || '01',
       subjectName: subjectName.trim(),
-      orderNo: parseInt(orderNumber) || (subjects.filter(s => !s.deleted).length + 1),
+      orderNo: baseOrder,
       groupName: subjectGroup,
-      className: selectedClass,
+      className: cls,
       streamName: selectedStream || 'General',
-      type: subjectType,
-      createdAt: new Date().toLocaleDateString('en-GB') + '\n' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      type: 'Marks',
+      createdAt: nowTime,
       deleted: false,
       description: description.trim(),
       subjectImage
-    }
+    }))
 
-    const updated = [newSub, ...subjects]
+    const updated = [...newSubs, ...subjects]
     setSubjects(updated)
     localStorage.setItem('school_masters_subjects', JSON.stringify(updated))
     syncGroupCounts(updated)
@@ -189,6 +194,8 @@ export default function SubjectsPage() {
     setSubjectCode('')
     setSubjectGroup('')
     setSelectedClass('')
+    setSelectedClasses([])
+    setClassDropdownOpen(false)
     setSelectedSection('')
     setSelectedStream('')
     setOrderNumber('')
@@ -196,7 +203,7 @@ export default function SubjectsPage() {
     setDescription('')
     setSubjectType('Marks')
     setCreateModalOpen(false)
-    showToast('Subject created successfully!')
+    showToast(`${newSubs.length > 1 ? `${newSubs.length} subjects` : 'Subject'} created successfully!`)
   }
 
   const handleOpenEdit = (sub: SubjectRecord) => {
@@ -230,7 +237,7 @@ export default function SubjectsPage() {
           className: selectedClass,
           streamName: selectedStream || 'General',
           orderNo: parseInt(orderNumber) || s.orderNo,
-          type: subjectType,
+          type: s.type || 'Marks',
           subjectImage,
           description: description.trim()
         }
@@ -298,6 +305,8 @@ export default function SubjectsPage() {
             setSubjectCode('')
             setSubjectGroup('')
             setSelectedClass('')
+            setSelectedClasses([])
+            setClassDropdownOpen(false)
             setSelectedStream('')
             setOrderNumber('')
             setSubjectImage('')
@@ -550,20 +559,112 @@ export default function SubjectsPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-slate-500 font-bold">Class <span className="text-red-500">*</span></label>
-                  <select
-                    value={selectedClass}
-                    onChange={e => setSelectedClass(e.target.value)}
-                    className="px-3 py-2 border rounded-lg bg-white outline-none font-bold text-slate-700"
-                    required
-                  >
-                    <option value="">Select Class</option>
-                    {classList.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
+                <div className="flex flex-col gap-1.5 relative">
+                  <div className="flex items-center justify-between">
+                    <label className="text-slate-500 font-bold">
+                      Classes <span className="text-red-500">*</span>
+                    </label>
+                    {selectedClasses.length > 0 && (
+                      <span className="text-[10px] text-teal-600 font-bold">
+                        {selectedClasses.length} selected
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setClassDropdownOpen(prev => !prev)}
+                      className={`w-full flex items-center justify-between px-3 py-2 border rounded-lg bg-white outline-none font-bold text-xs transition-colors ${
+                        selectedClasses.length === 0 ? 'border-slate-200 text-slate-400' : 'border-teal-400 text-slate-800'
+                      }`}
+                    >
+                      <span className="truncate">
+                        {selectedClasses.length === 0
+                          ? 'Select Class(es)'
+                          : selectedClasses.length === classList.length
+                          ? `All Classes (${classList.length})`
+                          : selectedClasses.join(', ')}
+                      </span>
+                      <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${classDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {classDropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-20"
+                          onClick={() => setClassDropdownOpen(false)}
+                        />
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-30 p-2.5 space-y-2 max-h-56 overflow-y-auto">
+                          <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-[11px]">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedClasses([...classList])}
+                              className="text-teal-600 hover:text-teal-700 font-bold hover:underline"
+                            >
+                              Select All
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedClasses([])}
+                              className="text-slate-400 hover:text-red-500 font-bold hover:underline"
+                            >
+                              Clear All
+                            </button>
+                          </div>
+                          <div className="space-y-1">
+                            {classList.map(c => {
+                              const isChecked = selectedClasses.includes(c)
+                              return (
+                                <label
+                                  key={c}
+                                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors text-xs font-semibold ${
+                                    isChecked ? 'bg-teal-50 text-teal-800 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => {
+                                      if (isChecked) {
+                                        setSelectedClasses(selectedClasses.filter(x => x !== c))
+                                      } else {
+                                        setSelectedClasses([...selectedClasses, c])
+                                      }
+                                    }}
+                                    className="w-3.5 h-3.5 rounded text-teal-600 accent-teal-600 cursor-pointer"
+                                  />
+                                  <span>{c}</span>
+                                </label>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Selected Pills */}
+                  {selectedClasses.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1 max-h-16 overflow-y-auto pt-0.5">
+                      {selectedClasses.map(c => (
+                        <span
+                          key={c}
+                          className="inline-flex items-center gap-1 bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded text-[10px] font-bold"
+                        >
+                          {c}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedClasses(selectedClasses.filter(x => x !== c))}
+                            className="text-teal-500 hover:text-red-500 font-bold leading-none ml-0.5"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
                 <div className="flex flex-col gap-1.5">
                   <label className="text-slate-500 font-bold">Stream</label>
                   <select
@@ -587,24 +688,6 @@ export default function SubjectsPage() {
                     onChange={e => setOrderNumber(e.target.value)}
                     className="px-3 py-2 border rounded-lg outline-none font-bold bg-white"
                   />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-slate-500 font-bold">Subject Evaluation Type</label>
-                <div className="flex items-center gap-6">
-                  {['Marks', 'Grade (Activity)', 'Grade (Discipline)'].map(t => (
-                    <label key={t} className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="subtype"
-                        checked={subjectType === t}
-                        onChange={() => setSubjectType(t as any)}
-                        className="accent-teal-600"
-                      />
-                      <span>{t}</span>
-                    </label>
-                  ))}
                 </div>
               </div>
 
@@ -726,24 +809,6 @@ export default function SubjectsPage() {
                     onChange={e => setOrderNumber(e.target.value)}
                     className="px-3 py-2 border rounded-lg outline-none font-bold bg-white"
                   />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-slate-500 font-bold">Subject Evaluation Type</label>
-                <div className="flex items-center gap-6">
-                  {['Marks', 'Grade (Activity)', 'Grade (Discipline)'].map(t => (
-                    <label key={t} className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="subtype_edit"
-                        checked={subjectType === t}
-                        onChange={() => setSubjectType(t as any)}
-                        className="accent-teal-600"
-                      />
-                      <span>{t}</span>
-                    </label>
-                  ))}
                 </div>
               </div>
 

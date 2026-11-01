@@ -290,7 +290,15 @@ export default function TransportDriverPage() {
                     </td>
                     <td className="px-4 py-3.5 font-bold text-slate-800 dark:text-slate-200">{driver.driverId}</td>
                     <td className="px-4 py-3.5 font-semibold text-slate-600 dark:text-slate-400">{driver.licenseNumber}</td>
-                    <td className="px-4 py-3.5 font-bold text-teal-600 dark:text-teal-400">{driver.assignedVehicle || '-'}</td>
+                    <td className="px-4 py-3.5 font-bold text-teal-600 dark:text-teal-400">
+                      {(() => {
+                        const matchedVeh = vehiclesList.find((v: any) => {
+                          const vD = String(v.assignedDriver || '').toLowerCase()
+                          return vD.includes(driver.driverName.toLowerCase())
+                        })
+                        return matchedVeh ? `${matchedVeh.vehicleName} (${matchedVeh.registrationNo})` : (driver.assignedVehicle || '-')
+                      })()}
+                    </td>
                     <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-300">{driver.contact}</td>
                     <td className="px-4 py-3.5">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase ${
@@ -747,7 +755,7 @@ function DriverWizardModal({
           {/* STEP 2: LICENSE DETAILS */}
           {currentStep === 'License Details' && (
              <div className="space-y-6 animate-in fade-in duration-200">
-                <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider border-b pb-2">License Details & Vehicle Assignment</h3>
+                <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider border-b pb-2">License Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-bold text-slate-700 dark:text-slate-300">License Type *</label>
@@ -768,24 +776,6 @@ function DriverWizardModal({
                    <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Valid Till *</label>
                       <input type="date" value={licenseValidTill} onChange={e => setLicenseValidTill(e.target.value)} className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none" />
-                   </div>
-
-                   {/* Assign Vehicle Dropdown */}
-                   <div className="flex flex-col gap-1.5 md:col-span-2">
-                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Assign Vehicle</label>
-                      <select 
-                         value={assignedVehicle} 
-                         onChange={e => setAssignedVehicle(e.target.value)} 
-                         className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
-                      >
-                         <option value="">-- Select Vehicle --</option>
-                         {vehiclesList.map((v: any, i: number) => {
-                            const vName = v.vehicleName || v.name || 'Vehicle'
-                            const reg = v.registrationNo || v.regNo || v.vehicleNo || v.number || ''
-                            const val = reg ? `${vName} (${reg})` : vName
-                            return <option key={i} value={val}>{val}</option>
-                         })}
-                      </select>
                    </div>
                 </div>
              </div>
@@ -905,7 +895,6 @@ function DriverWizardModal({
                          <div>
                             <span className="text-base font-black text-slate-800 dark:text-slate-100 block">{firstName} {lastName}</span>
                             <span className="text-xs text-slate-500 font-semibold block">ID: {driverId} • Mobile: {mobileNo}</span>
-                            <span className="text-xs text-teal-600 font-bold block mt-1">Vehicle: {assignedVehicle || 'Unassigned'}</span>
                          </div>
                       </div>
                    </div>

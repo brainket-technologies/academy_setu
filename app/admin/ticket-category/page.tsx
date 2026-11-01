@@ -20,6 +20,13 @@ interface TicketCategory {
   created_at: string
 }
 
+interface ParentCategoryItem {
+  id: string
+  name: string
+  description?: string
+  sub_count?: number
+}
+
 interface MetaCounts {
   active: number
   deleted: number
@@ -28,6 +35,7 @@ interface MetaCounts {
 export default function TicketCategoryPage() {
   const [categories, setCategories] = useState<TicketCategory[]>([])
   const [parentCategories, setParentCategories] = useState<string[]>([])
+  const [parentCategoryList, setParentCategoryList] = useState<ParentCategoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'all' | 'deleted'>('all')
   const [counts, setCounts] = useState<MetaCounts>({ active: 0, deleted: 0 })
@@ -53,10 +61,14 @@ export default function TicketCategoryPage() {
   const [editingCatOld, setEditingCatOld] = useState<string | null>(null) // old name for rename
   const [catSubmitting, setCatSubmitting] = useState(false)
 
-  // Delete modal
+  // Delete modal for subcategory
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [permanentDelete, setPermanentDelete] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
+
+  // Delete modal for parent category
+  const [deleteCatTarget, setDeleteCatTarget] = useState<string | null>(null)
+  const [deleteCatLoading, setDeleteCatLoading] = useState(false)
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -70,6 +82,22 @@ export default function TicketCategoryPage() {
   const [appliedStartDate, setAppliedStartDate] = useState('')
   const [appliedEndDate, setAppliedEndDate] = useState('')
 
+  // Fetch parent categories from DB
+  const fetchParentCategories = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/ticket-parent-category')
+      const data = await res.json()
+      if (data.success && Array.isArray(data.data)) {
+        setParentCategoryList(data.data)
+        const names = data.data.map((item: ParentCategoryItem) => item.name).filter(Boolean)
+        setParentCategories(names)
+      }
+    } catch (e) {
+      console.error('Failed to load parent categories:', e)
+    }
+  }, [])
+
+  // Fetch subcategories
   const fetchCategories = useCallback(async (tabStatus = activeTab) => {
     setLoading(true)
     try {
@@ -84,13 +112,14 @@ export default function TicketCategoryPage() {
       if (data.success) {
         setCategories(data.data)
         if (data.meta?.counts) setCounts(data.meta.counts)
-        // Derive unique parent categories from the data
-        const parents = Array.from(
-          new Set(data.data.map((c: TicketCategory) => c.parent_category).filter(Boolean))
-        ) as string[]
-        setParentCategories(parents.sort())
+        if (data.meta?.parents && Array.isArray(data.meta.parents)) {
+          setParentCategories(prev => {
+            const set = new Set([...prev, ...data.meta.parents])
+            return Array.from(set).sort()
+          })
+        }
       } else {
-        toast.error('Failed to load categories')
+        toast.error('Failed to load subcategories')
       }
     } catch {
       toast.error('Something went wrong loading categories')
@@ -99,32 +128,20 @@ export default function TicketCategoryPage() {
     }
   }, [activeTab, searchText, appliedStartDate, appliedEndDate])
 
-  // Also fetch ALL categories (not just filtered) to build parent list
-  const fetchAllParents = useCallback(async () => {
-    try {
-      const res = await fetch('/api/admin/ticket-category?tab=all')
-      const data = await res.json()
-      if (data.success) {
-        const parents = Array.from(
-          new Set(data.data.map((c: TicketCategory) => c.parent_category).filter(Boolean))
-        ) as string[]
-        setParentCategories(parents.sort())
-      }
-    } catch {}
-  }, [])
-
   useEffect(() => {
     fetchCategories(activeTab)
-  }, [fetchCategories, activeTab])
-
-  useEffect(() => {
-    fetchAllParents()
-  }, [fetchAllParents])
+    fetchParentCategories()
+  }, [fetchCategories, fetchParentCategories, activeTab])
 
   useEffect(() => {
     fetch('/api/admin/segment')
       .then(r => r.json())
-      .then(data => { if (data.success) setSegments(data.data) })
+      .then(data => { 
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          setSegments(data.data)
+          setSegment(prev => prev || data.data[0].name)
+        }
+      })
       .catch(() => {})
   }, [])
 
@@ -146,39 +163,56 @@ export default function TicketCategoryPage() {
   const resetSubForm = () => {
     setEditingId(null)
     setName('')
-    setParentCategory('')
-    setSegment('')
+    setParentCategory(parentCategories[0] || '')
+    setSegment(segments[0]?.name || 'Institute')
     setLowTimeline('')
     setMediumTimeline('')
     setHighTimeline('')
     setIsSubModalOpen(false)
   }
 
+  const handleOpenCreateSub = () => {
+    resetSubForm()
+    if (parentCategories.length > 0 && !parentCategory) {
+      setParentCategory(parentCategories[0])
+    }
+    if (segments.length > 0 && !segment) {
+      setSegment(segments[0].name)
+    }
+    setIsSubModalOpen(true)
+  }
+
   const handleSubSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !parentCategory) {
-      toast.error('Name and Category are required')
+    if (!name.trim() || !parentCategory.trim()) {
+      toast.error('Subcategory Name and Category are required')
       return
     }
     setSubmitting(true)
     try {
       const payload = {
-        name, parent_category: parentCategory, segment,
-        low_timeline: lowTimeline, medium_timeline: mediumTimeline, high_timeline: highTimeline
+        name: name.trim(), 
+        parent_category: parentCategory.trim(), 
+        segment: segment || (segments[0]?.name || 'Institute'),
+        low_timeline: lowTimeline.trim(), 
+        medium_timeline: mediumTimeline.trim(), 
+        high_timeline: highTimeline.trim()
       }
       const url = editingId ? `/api/admin/ticket-category/${editingId}` : '/api/admin/ticket-category'
       const method = editingId ? 'PUT' : 'POST'
       const res = await fetch(url, {
-        method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+        method, 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify(payload)
       })
       const data = await res.json()
       if (data.success) {
-        toast.success(editingId ? 'Subcategory updated' : 'Subcategory created')
+        toast.success(editingId ? 'Subcategory updated successfully!' : 'Subcategory created and saved to DB!')
         resetSubForm()
-        fetchCategories(activeTab)
-        fetchAllParents()
+        await fetchCategories(activeTab)
+        await fetchParentCategories()
       } else {
-        toast.error(data.error || 'Failed to save')
+        toast.error(data.error || 'Failed to save subcategory')
       }
     } catch {
       toast.error('Something went wrong saving subcategory')
@@ -191,48 +225,87 @@ export default function TicketCategoryPage() {
     setEditingId(cat.id)
     setName(cat.name)
     setParentCategory(cat.parent_category || '')
-    setSegment(cat.segment || '')
+    setSegment(cat.segment || segments[0]?.name || '')
     setLowTimeline(cat.low_timeline || '')
     setMediumTimeline(cat.medium_timeline || '')
     setHighTimeline(cat.high_timeline || '')
     setIsSubModalOpen(true)
   }
 
-  // Category (parent) CRUD — stored by renaming all subcategories or just managing the name list
+  // Category (parent) CRUD — stored in DB via /api/admin/ticket-parent-category
   const handleCatSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!catName.trim()) { toast.error('Category name is required'); return }
+    const trimmed = catName.trim()
+    if (!trimmed) { 
+      toast.error('Category name is required')
+      return 
+    }
     setCatSubmitting(true)
     try {
       if (editingCatOld) {
-        // Rename: update all subcategories with old parent_category name to new name
-        // We'll do this via a special API call - since there's no dedicated route, we use a direct approach
-        // by patching each subcategory. For now, we do a batch rename via the fetch loop.
-        const toRename = categories.filter(c => c.parent_category === editingCatOld)
-        await Promise.all(toRename.map(c =>
-          fetch(`/api/admin/ticket-category/${c.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...c, parent_category: catName.trim() })
-          })
-        ))
-        toast.success(`Category renamed from "${editingCatOld}" to "${catName}"`)
+        // Rename category
+        const res = await fetch('/api/admin/ticket-parent-category', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ oldName: editingCatOld, name: trimmed })
+        })
+        const data = await res.json()
+        if (data.success) {
+          toast.success(`Category renamed to "${trimmed}"`)
+        } else {
+          toast.error(data.error || 'Failed to rename category')
+          return
+        }
       } else {
-        // Create new parent category: create a placeholder subcategory with a "_placeholder" marker
-        // or simply track in the list. Here we just add it to the local state and the user must add subcategories.
-        // We'll store as a "root" record in the same table with name = '(placeholder)' — but better to just add to local list.
-        setParentCategories(prev => [...prev, catName.trim()].sort())
-        toast.success(`Category "${catName}" created. Now add subcategories under it.`)
+        // Create new category in DB
+        const res = await fetch('/api/admin/ticket-parent-category', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: trimmed })
+        })
+        const data = await res.json()
+        if (data.success) {
+          toast.success(`Category "${trimmed}" created and saved to DB!`)
+          // Automatically set as active selection for subcategory if needed
+          setParentCategory(trimmed)
+        } else {
+          toast.error(data.error || 'Failed to save category')
+          return
+        }
       }
+
       setCatName('')
       setEditingCatOld(null)
       setIsCatModalOpen(false)
-      fetchCategories(activeTab)
-      fetchAllParents()
+      await fetchParentCategories()
+      await fetchCategories(activeTab)
     } catch {
-      toast.error('Failed to save category')
+      toast.error('Failed to save category to database')
     } finally {
       setCatSubmitting(false)
+    }
+  }
+
+  const handleDeleteParentCategory = async () => {
+    if (!deleteCatTarget) return
+    setDeleteCatLoading(true)
+    try {
+      const res = await fetch(`/api/admin/ticket-parent-category?name=${encodeURIComponent(deleteCatTarget)}`, {
+        method: 'DELETE'
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(`Category "${deleteCatTarget}" moved to trash`)
+        setDeleteCatTarget(null)
+        await fetchParentCategories()
+        await fetchCategories(activeTab)
+      } else {
+        toast.error(data.error || 'Failed to delete category')
+      }
+    } catch {
+      toast.error('Error occurred deleting category')
+    } finally {
+      setDeleteCatLoading(false)
     }
   }
 
@@ -249,8 +322,8 @@ export default function TicketCategoryPage() {
       const data = await res.json()
       if (data.success) {
         toast.success(permanentDelete ? 'Subcategory permanently deleted' : 'Subcategory moved to trash')
-        fetchCategories(activeTab)
-        fetchAllParents()
+        await fetchCategories(activeTab)
+        await fetchParentCategories()
       } else {
         toast.error(data.error || 'Failed to delete')
       }
@@ -267,12 +340,13 @@ export default function TicketCategoryPage() {
       const res = await fetch(`/api/admin/ticket-category/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_deleted: false, name: 'dummy' })
+        body: JSON.stringify({ is_deleted: false })
       })
       const data = await res.json()
       if (data.success) {
         toast.success('Subcategory restored successfully!')
-        fetchCategories(activeTab)
+        await fetchCategories(activeTab)
+        await fetchParentCategories()
       } else {
         toast.error(data.error || 'Failed to restore')
       }
@@ -328,7 +402,7 @@ export default function TicketCategoryPage() {
               onClick={() => setView(v => v === 'sub' ? 'parent' : 'sub')}
               className="flex items-center gap-2 px-4 py-2.5 border border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 rounded-xl text-sm font-bold hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors cursor-pointer"
             >
-              {view === 'sub' ? <><FolderOpen className="w-4 h-4" /> Manage Categories</> : <><Tag className="w-4 h-4" /> Manage Subcategories</>}
+              {view === 'sub' ? <><FolderOpen className="w-4 h-4" /> Manage Categories ({parentCategories.length})</> : <><Tag className="w-4 h-4" /> Manage Subcategories</>}
             </button>
           </div>
         </div>
@@ -339,7 +413,7 @@ export default function TicketCategoryPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-base font-bold text-slate-700 dark:text-slate-200">Categories</h2>
-                <p className="text-xs text-slate-400 mt-0.5">Top-level ticket categories. Subcategories are assigned under these.</p>
+                <p className="text-xs text-slate-400 mt-0.5">Top-level ticket categories stored in DB. Subcategories are assigned under these.</p>
               </div>
               <button
                 onClick={() => { setCatName(''); setEditingCatOld(null); setIsCatModalOpen(true) }}
@@ -357,20 +431,33 @@ export default function TicketCategoryPage() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {parentCategories.map(cat => {
-                  const subCount = categories.filter(c => c.parent_category === cat && !c.is_deleted).length
+                  const item = parentCategoryList.find(p => p.name === cat)
+                  const subCount = item?.sub_count ?? categories.filter(c => c.parent_category === cat && !c.is_deleted).length
                   return (
-                    <div key={cat} className="group border border-slate-100 dark:border-slate-700 rounded-xl p-4 hover:border-indigo-200 dark:hover:border-indigo-700 hover:shadow-sm transition-all bg-slate-50/50 dark:bg-slate-900/30 flex items-start justify-between gap-3">
+                    <div key={cat} className="group border border-slate-200 dark:border-slate-700 rounded-xl p-4 hover:border-indigo-300 dark:hover:border-indigo-600 hover:shadow-sm transition-all bg-slate-50/60 dark:bg-slate-900/40 flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-bold text-slate-700 dark:text-slate-200 text-sm">{cat}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{subCount} subcategory{subCount !== 1 ? 'ies' : 'y'}</p>
+                        <div className="flex items-center gap-2">
+                          <FolderOpen className="w-4 h-4 text-indigo-600" />
+                          <p className="font-bold text-slate-800 dark:text-slate-100 text-sm">{cat}</p>
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 pl-6">
+                          {subCount} subcategor{subCount === 1 ? 'y' : 'ies'}
+                        </p>
                       </div>
                       <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => { setCatName(cat); setEditingCatOld(cat); setIsCatModalOpen(true) }}
-                          className="w-7 h-7 flex items-center justify-center bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200 text-xs"
-                          title="Rename"
+                          className="w-7 h-7 flex items-center justify-center bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg text-xs transition-colors"
+                          title="Rename Category"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteCatTarget(cat)}
+                          className="w-7 h-7 flex items-center justify-center bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-lg text-xs transition-colors"
+                          title="Delete Category"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -423,13 +510,22 @@ export default function TicketCategoryPage() {
                   {showFilters ? <ChevronUp className="w-4 h-4" /> : <Filter className="w-4 h-4" />}
                 </button>
               </div>
+
               {activeTab === 'all' && (
-                <button
-                  onClick={() => { resetSubForm(); setIsSubModalOpen(true) }}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md transition-colors cursor-pointer shrink-0"
-                >
-                  <Plus className="w-4 h-4" /> Create Subcategory
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => { setCatName(''); setEditingCatOld(null); setIsCatModalOpen(true) }}
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 border border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs sm:text-sm font-bold hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" /> Add Category
+                  </button>
+                  <button
+                    onClick={handleOpenCreateSub}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" /> Create Subcategory
+                  </button>
+                </div>
               )}
             </div>
 
@@ -490,9 +586,9 @@ export default function TicketCategoryPage() {
                           </td>
                           <td className="px-5 py-4 text-center">
                             <div className="flex justify-center gap-1.5 text-xs font-bold font-mono">
-                              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded">{cat.low_timeline || '-'}</span>
-                              <span className="bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded">{cat.medium_timeline || '-'}</span>
-                              <span className="bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded">{cat.high_timeline || '-'}</span>
+                              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded" title="Low">{cat.low_timeline || '-'}</span>
+                              <span className="bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded" title="Medium">{cat.medium_timeline || '-'}</span>
+                              <span className="bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded" title="High">{cat.high_timeline || '-'}</span>
                             </div>
                           </td>
                           <td className="px-5 py-4 text-slate-500 text-xs font-semibold leading-relaxed whitespace-nowrap">
@@ -544,26 +640,39 @@ export default function TicketCategoryPage() {
       {/* Create/Edit Category Modal */}
       {isCatModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md p-8 border border-slate-100 dark:border-slate-700 shadow-2xl relative animate-in zoom-in-95 duration-200">
-            <button onClick={() => setIsCatModalOpen(false)} className="absolute top-4 right-4 p-1 rounded-full text-slate-400 hover:bg-slate-50 transition-all cursor-pointer"><X className="w-5 h-5" /></button>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md p-7 border border-slate-100 dark:border-slate-700 shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <button onClick={() => setIsCatModalOpen(false)} className="absolute top-4 right-4 p-1 rounded-full text-slate-400 hover:bg-slate-100 transition-all cursor-pointer"><X className="w-5 h-5" /></button>
             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-1">{editingCatOld ? 'Rename Category' : 'Create Category'}</h2>
-            <p className="text-xs text-slate-400 mb-6">This is the top-level category. Add subcategories under it afterwards.</p>
-            <form onSubmit={handleCatSubmit} className="flex flex-col gap-5">
+            <p className="text-xs text-slate-400 mb-5">Saved directly to database. Subcategories can then be assigned under it.</p>
+            <form onSubmit={handleCatSubmit} className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Category Name <span className="text-red-500">*</span></label>
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Category Name <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={catName}
                   onChange={(e) => setCatName(e.target.value)}
                   required
-                  placeholder="e.g. Technical, Billing, Students..."
-                  className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                  placeholder="e.g. Technical Support, Billing, Academics..."
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200 font-semibold"
                 />
               </div>
-              <button type="submit" disabled={catSubmitting} className="py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-md flex justify-center items-center gap-2">
-                {catSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editingCatOld ? 'Rename Category' : 'Create Category'}
-              </button>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCatModalOpen(false)}
+                  className="px-4 py-2 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit" 
+                  disabled={catSubmitting} 
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex justify-center items-center gap-2"
+                >
+                  {catSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {editingCatOld ? 'Save Changes' : 'Create Category'}
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -572,83 +681,114 @@ export default function TicketCategoryPage() {
       {/* Create/Edit Subcategory Modal */}
       {isSubModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-2xl p-8 border border-slate-100 dark:border-slate-700 shadow-2xl relative animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-            <button onClick={resetSubForm} className="absolute top-4 right-4 p-1 rounded-full text-slate-400 hover:bg-slate-50 transition-all cursor-pointer"><X className="w-5 h-5" /></button>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-6">{editingId ? 'Edit Subcategory' : 'Create Subcategory'}</h2>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-2xl p-7 border border-slate-100 dark:border-slate-700 shadow-2xl relative animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            <button onClick={resetSubForm} className="absolute top-4 right-4 p-1 rounded-full text-slate-400 hover:bg-slate-100 transition-all cursor-pointer"><X className="w-5 h-5" /></button>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-5">{editingId ? 'Edit Subcategory' : 'Create Subcategory'}</h2>
 
-            <form onSubmit={handleSubSubmit} className="flex flex-col gap-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <form onSubmit={handleSubSubmit} className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                {/* Category Selector */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Category <span className="text-red-500">*</span></label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                      Category <span className="text-red-500">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => { setCatName(''); setEditingCatOld(null); setIsCatModalOpen(true) }}
+                      className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                    >
+                      + Add New Category
+                    </button>
+                  </div>
+                  
                   <select
                     value={parentCategory}
                     onChange={(e) => setParentCategory(e.target.value)}
                     required
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                   >
                     <option value="">Select Category</option>
                     {parentCategories.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                   </select>
-                  <button
-                    type="button"
-                    onClick={() => { setCatName(''); setEditingCatOld(null); setIsCatModalOpen(true) }}
-                    className="text-xs text-indigo-600 dark:text-indigo-400 text-left hover:underline cursor-pointer mt-0.5"
-                  >
-                    + Create new category
-                  </button>
                 </div>
+
+                {/* Subcategory Name */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Subcategory Name <span className="text-red-500">*</span></label>
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                    Subcategory Name <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
-                    placeholder="e.g. Hardware, Registration..."
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                    placeholder="e.g. Hardware, Login Issue, Receipt Error..."
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                   />
                 </div>
+
+                {/* Segment */}
                 <div className="flex flex-col gap-1.5 md:col-span-2">
-                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Segment <span className="text-red-500">*</span></label>
+                  <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                    Segment <span className="text-red-500">*</span>
+                  </label>
                   <select
                     value={segment}
                     onChange={(e) => setSegment(e.target.value)}
                     required
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                   >
-                    <option value="">Select Segment</option>
+                    {segments.length === 0 && <option value="Institute">Institute</option>}
                     {segments.map(seg => <option key={seg.id} value={seg.name}>{seg.name}</option>)}
                   </select>
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-100 dark:border-slate-700 mt-2">
-                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Timeline Settings</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Low Timeline</label>
-                    <input type="text" value={lowTimeline} onChange={(e) => setLowTimeline(e.target.value)} placeholder="Ex: 24 hrs" className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200" />
+              {/* Timeline Settings */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-100 dark:border-slate-700 mt-1">
+                <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">Resolution Timeline Targets (L / M / H)</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-bold text-slate-500">Low Priority Timeline</label>
+                    <input type="text" value={lowTimeline} onChange={(e) => setLowTimeline(e.target.value)} placeholder="e.g. 24 hrs" className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200" />
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Medium Timeline</label>
-                    <input type="text" value={mediumTimeline} onChange={(e) => setMediumTimeline(e.target.value)} placeholder="Ex: 12 hrs" className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200" />
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-bold text-slate-500">Medium Priority Timeline</label>
+                    <input type="text" value={mediumTimeline} onChange={(e) => setMediumTimeline(e.target.value)} placeholder="e.g. 12 hrs" className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200" />
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">High Timeline</label>
-                    <input type="text" value={highTimeline} onChange={(e) => setHighTimeline(e.target.value)} placeholder="Ex: 4 hrs" className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200" />
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-bold text-slate-500">High Priority Timeline</label>
+                    <input type="text" value={highTimeline} onChange={(e) => setHighTimeline(e.target.value)} placeholder="e.g. 4 hrs" className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200" />
                   </div>
                 </div>
               </div>
 
-              <button type="submit" disabled={submitting} className="mt-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-md flex justify-center items-center gap-2">
-                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editingId ? 'Update Subcategory' : 'Create Subcategory'}
-              </button>
+              {/* Modal Actions */}
+              <div className="flex justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={resetSubForm}
+                  className="px-5 py-2.5 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit" 
+                  disabled={submitting} 
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex justify-center items-center gap-2"
+                >
+                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {editingId ? 'Update Subcategory' : 'Save Subcategory'}
+                </button>
+              </div>
             </form>
           </div>
         </div>
       )}
 
+      {/* Delete Subcategory Modal */}
       <DeleteConfirmationModal
         isOpen={deleteTargetId !== null}
         onClose={() => setDeleteTargetId(null)}
@@ -656,6 +796,16 @@ export default function TicketCategoryPage() {
         loading={deleteLoading}
         title={permanentDelete ? "Permanent Delete Subcategory" : "Move to Trash"}
         description={permanentDelete ? "Are you sure you want to permanently delete this subcategory? This cannot be undone." : "Are you sure you want to move this subcategory to the trash? It can be restored later."}
+      />
+
+      {/* Delete Parent Category Modal */}
+      <DeleteConfirmationModal
+        isOpen={deleteCatTarget !== null}
+        onClose={() => setDeleteCatTarget(null)}
+        onConfirm={handleDeleteParentCategory}
+        loading={deleteCatLoading}
+        title={`Move Category "${deleteCatTarget}" to Trash`}
+        description={`Are you sure you want to move the category "${deleteCatTarget}" and its subcategories to trash?`}
       />
     </>
   )

@@ -701,60 +701,6 @@ function StudentAttendanceMain() {
         </div>
       )}
 
-      {/* ── TOP BREADCRUMBS BAR (Full Width) ── */}
-      <div className="flex items-center justify-between flex-wrap gap-2 text-xs font-semibold text-slate-500 bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-2xs w-full">
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-          <Link href="/institute/attendance/student" className="hover:text-teal-600 transition-colors shrink-0 font-bold">
-            Attendance
-          </Link>
-          <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-
-          <button
-            type="button"
-            onClick={() => setCurrentStep('overview')}
-            className={`cursor-pointer transition-colors shrink-0 ${
-              currentStep === 'overview' ? 'text-[#0f766e] font-black' : 'hover:text-teal-600'
-            }`}
-          >
-            1. Manual Attendance
-          </button>
-
-          {currentStep === 'mark' && activeClass && (
-            <>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="text-[#0f766e] font-black shrink-0">
-                2. {activeClass.className} Section {activeClass.section}
-              </span>
-            </>
-          )}
-        </div>
-
-        {/* Quick Hub Navigation Pills */}
-        <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-          <span className="px-3 py-1 rounded-xl text-xs font-black bg-[#0f766e] text-white shadow-2xs">
-            Student Attendance
-          </span>
-          <Link
-            href="/institute/attendance/staff"
-            className="px-3 py-1 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-          >
-            Staff Attendance
-          </Link>
-          <Link
-            href="/institute/attendance/log"
-            className="px-3 py-1 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-          >
-            Attendance Log
-          </Link>
-          <Link
-            href="/institute/attendance/biometric"
-            className="px-3 py-1 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-          >
-            Biometric
-          </Link>
-        </div>
-      </div>
-
       {/* ═══════════════════════════════════════════════════════════════════
           SCREEN 1: CLASSES OVERVIEW (Exact Layout of Screenshot 1)
       ═══════════════════════════════════════════════════════════════════ */}

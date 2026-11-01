@@ -247,7 +247,8 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
     { 
       icon: Ticket, label: 'Gate Pass', href: '#',
       subItems: [
-        { label: 'All Gate Pass', href: '/institute/gate-pass' },
+        { label: 'One Time Gate Pass', href: '/institute/gate-pass' },
+        { label: 'Permanent Gate Pass', href: '/institute/gate-pass/permanent' },
         { label: 'Gate Pass Entry', href: '/institute/gate-pass/entry' },
         { label: 'Gate Pass Settings', href: '/institute/gate-pass/settings' },
       ]
@@ -268,13 +269,7 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
       ]
     },
     { icon: FileText, label: 'Offline / Weekly Test', href: '/institute/offline-test' },
-    { 
-      icon: Image, label: 'Events Gallery', href: '#',
-      subItems: [
-        { label: 'All Events', href: '/institute/gallery' },
-        { label: 'Create New Events', href: '/institute/gallery/create' },
-      ]
-    },
+    { icon: Image, label: 'Events Gallery', href: '/institute/gallery' },
     { icon: LifeBuoy, label: 'Support Tickets', href: '/institute/support' },
     { icon: Home, label: 'House / Blocks', href: '/institute/house' },
     { icon: Tag, label: 'Tags', href: '/institute/tags' },

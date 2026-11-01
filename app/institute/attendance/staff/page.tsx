@@ -528,44 +528,6 @@ export default function StaffAttendancePage() {
         </div>
       )}
 
-      {/* ── TOP BREADCRUMBS BAR (Full Width) ── */}
-      <div className="flex items-center justify-between flex-wrap gap-2 text-xs font-semibold text-slate-500 bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-2xs w-full">
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-          <Link href="/institute/attendance/student" className="hover:text-teal-600 transition-colors shrink-0">
-            Attendance
-          </Link>
-          <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          <span className="text-[#0f766e] font-black shrink-0">
-            Staff Attendance
-          </span>
-        </div>
-
-        {/* Quick Hub Navigation Pills */}
-        <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-          <Link
-            href="/institute/attendance/student"
-            className="px-3 py-1 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-          >
-            Student Attendance
-          </Link>
-          <span className="px-3 py-1 rounded-xl text-xs font-black bg-[#0f766e] text-white shadow-2xs">
-            Staff Attendance
-          </span>
-          <Link
-            href="/institute/attendance/log"
-            className="px-3 py-1 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-          >
-            Attendance Log
-          </Link>
-          <Link
-            href="/institute/attendance/biometric"
-            className="px-3 py-1 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-          >
-            Biometric Devices
-          </Link>
-        </div>
-      </div>
-
       {/* ── TOP CURVED TEAL HEADER matching Student Attendance style ── */}
       <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between gap-3 w-full">
         <div className="flex items-center gap-3">
