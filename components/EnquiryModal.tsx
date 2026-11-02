@@ -1,7 +1,23 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { X, Loader2, Save, ShoppingBag, School, User, Phone, MapPin, Calendar, Tag, FileText } from 'lucide-react'
+import {
+  X,
+  Loader2,
+  Save,
+  ShoppingBag,
+  School,
+  User,
+  Phone,
+  MapPin,
+  Calendar,
+  Tag,
+  FileText,
+  IndianRupee,
+  CreditCard,
+  Layers,
+  Palette
+} from 'lucide-react'
 import { toast } from 'sonner'
 
 export interface EnquiryRecord {
@@ -15,6 +31,12 @@ export interface EnquiryRecord {
   enquiry_date: string
   status?: string
   remarks?: string
+  price?: number | string
+  total_amount?: number | string
+  admin_remarks?: string
+  size?: string
+  color?: string
+  payment_status?: string
 }
 
 interface EnquiryModalProps {
@@ -26,7 +48,8 @@ interface EnquiryModalProps {
 
 const STATUS_OPTIONS = [
   { value: 'Enquired', label: 'Enquired', color: 'bg-amber-500' },
-  { value: 'Order Generated', label: 'Order Generated', color: 'bg-emerald-500' },
+  { value: 'Ready to Pay', label: 'Ready to Pay (To Pay)', color: 'bg-emerald-500' },
+  { value: 'Order Generated', label: 'Order Generated / Paid', color: 'bg-indigo-500' },
   { value: 'Closed', label: 'Closed', color: 'bg-slate-500' },
 ]
 
@@ -43,6 +66,13 @@ export function EnquiryModal({ isOpen, onClose, onSuccess, enquiry }: EnquiryMod
   const [enquiryDate, setEnquiryDate] = useState('')
   const [status, setStatus] = useState('Enquired')
   const [remarks, setRemarks] = useState('')
+
+  // New Quotation & Amount editing fields for Admin
+  const [price, setPrice] = useState<number | string>(0)
+  const [totalAmount, setTotalAmount] = useState<number | string>(0)
+  const [adminRemarks, setAdminRemarks] = useState('')
+  const [size, setSize] = useState('')
+  const [color, setColor] = useState('')
 
   // Auxiliary data
   const [schoolsList, setSchoolsList] = useState<any[]>([])
@@ -77,7 +107,19 @@ export function EnquiryModal({ isOpen, onClose, onSuccess, enquiry }: EnquiryMod
       setName(enquiry.name || '')
       setMobileNo(enquiry.mobile_no || '')
       setProductName(enquiry.product_name || '')
-      setQuantity(enquiry.quantity || 1)
+      const q = enquiry.quantity || 1
+      setQuantity(q)
+      
+      const p = enquiry.price !== undefined ? parseFloat(String(enquiry.price)) : 0
+      setPrice(p)
+      const tot = enquiry.total_amount !== undefined && Number(enquiry.total_amount) > 0
+        ? parseFloat(String(enquiry.total_amount))
+        : p * Number(q)
+      setTotalAmount(tot)
+
+      setAdminRemarks(enquiry.admin_remarks || '')
+      setSize(enquiry.size || '')
+      setColor(enquiry.color || '')
       
       // Format date for <input type="date" /> (YYYY-MM-DD)
       let dateVal = ''
@@ -103,6 +145,11 @@ export function EnquiryModal({ isOpen, onClose, onSuccess, enquiry }: EnquiryMod
       setMobileNo('')
       setProductName('')
       setQuantity(1)
+      setPrice(0)
+      setTotalAmount(0)
+      setAdminRemarks('')
+      setSize('')
+      setColor('')
       setEnquiryDate(new Date().toISOString().split('T')[0])
       setStatus('Enquired')
       setRemarks('')
@@ -119,6 +166,34 @@ export function EnquiryModal({ isOpen, onClose, onSuccess, enquiry }: EnquiryMod
       if (foundSchool.contact_person) setName(foundSchool.contact_person)
       if (foundSchool.mobile_no) setMobileNo(foundSchool.mobile_no)
     }
+  }
+
+  // Handle Product select to auto populate sell_price
+  const handleProductSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selName = e.target.value
+    setProductName(selName)
+    const matched = productsList.find(p => p.name === selName)
+    if (matched) {
+      const sellPrice = parseFloat(matched.sell_price || 0)
+      setPrice(sellPrice)
+      const q = Number(quantity) || 1
+      setTotalAmount(sellPrice * q)
+    }
+  }
+
+  // Auto calculate total when unit price or quantity changes
+  const handlePriceChange = (val: string) => {
+    setPrice(val)
+    const p = parseFloat(val) || 0
+    const q = Number(quantity) || 1
+    setTotalAmount((p * q).toFixed(2))
+  }
+
+  const handleQuantityChange = (val: string) => {
+    setQuantity(val)
+    const q = Number(val) || 1
+    const p = parseFloat(String(price)) || 0
+    setTotalAmount((p * q).toFixed(2))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -156,7 +231,12 @@ export function EnquiryModal({ isOpen, onClose, onSuccess, enquiry }: EnquiryMod
         quantity: Number(quantity),
         enquiry_date: enquiryDate || new Date().toISOString().split('T')[0],
         status,
-        remarks: remarks.trim()
+        remarks: remarks.trim(),
+        price: parseFloat(String(price || 0)),
+        total_amount: parseFloat(String(totalAmount || 0)),
+        admin_remarks: adminRemarks.trim(),
+        size: size.trim(),
+        color: color.trim()
       }
 
       const url = enquiry
@@ -172,7 +252,7 @@ export function EnquiryModal({ isOpen, onClose, onSuccess, enquiry }: EnquiryMod
 
       const data = await res.json()
       if (data.success) {
-        toast.success(enquiry ? 'Enquiry updated successfully!' : 'Enquiry created successfully!')
+        toast.success(enquiry ? 'Enquiry & Quotation updated successfully!' : 'Enquiry created successfully!')
         onSuccess()
         onClose()
       } else {
@@ -198,11 +278,11 @@ export function EnquiryModal({ isOpen, onClose, onSuccess, enquiry }: EnquiryMod
               <ShoppingBag className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-                {enquiry ? 'Edit Product Enquiry' : 'New Product Enquiry'}
+              <h2 className="text-lg font-bold text-slate-850 dark:text-slate-100">
+                {enquiry ? 'Manage Enquiry & Quotation' : 'New Product Enquiry'}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {enquiry ? 'Update enquiry details, notes, and status' : 'Record a new school product enquiry'}
+                Set price quotation, update status to "Ready to Pay", and manage order dispatch
               </p>
             </div>
           </div>
@@ -222,7 +302,7 @@ export function EnquiryModal({ isOpen, onClose, onSuccess, enquiry }: EnquiryMod
               <Tag className="w-3.5 h-3.5 text-indigo-500" />
               Enquiry Status <span className="text-red-500">*</span>
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {STATUS_OPTIONS.map((s) => {
                 const isSelected = status === s.value
                 return (
@@ -241,6 +321,72 @@ export function EnquiryModal({ isOpen, onClose, onSuccess, enquiry }: EnquiryMod
                   </button>
                 )
               })}
+            </div>
+            {status === 'Ready to Pay' && (
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-2.5 flex items-center gap-1">
+                ✓ Institute will now see the "Pay Now" button with the total quoted amount on their shop portal.
+              </p>
+            )}
+          </div>
+
+          {/* Pricing & Quotation Details (Editable by Admin) */}
+          <div className="p-4 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-2xl border border-indigo-100 dark:border-indigo-900/50 space-y-4">
+            <h3 className="text-xs font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+              <IndianRupee className="w-3.5 h-3.5 text-indigo-600" />
+              Quotation & Amount Settings (Editable by Admin)
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Unit Price Quoted (₹)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={price}
+                    onChange={(e) => handlePriceChange(e.target.value)}
+                    className="w-full pl-8 pr-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Total Amount for Institute to Pay (₹)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={totalAmount}
+                    onChange={(e) => setTotalAmount(e.target.value)}
+                    className="w-full pl-8 pr-3.5 py-2.5 bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-700 rounded-xl text-sm font-black text-indigo-700 dark:text-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-500 font-bold text-xs">₹</span>
+                </div>
+              </div>
+
+              {/* Admin Remarks / Quotation Notes */}
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1">
+                  <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                  Admin Remarks / Quotation Notes (Visible to Institute)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Quoted after 10% institutional discount. Valid for 7 days."
+                  value={adminRemarks}
+                  onChange={(e) => setAdminRemarks(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200"
+                />
+              </div>
             </div>
           </div>
 
@@ -328,7 +474,7 @@ export function EnquiryModal({ isOpen, onClose, onSuccess, enquiry }: EnquiryMod
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Device 1, Main Campus"
+                    placeholder="e.g. Main Campus, Admin Block"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     className="w-full pl-9 pr-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200"
@@ -342,7 +488,7 @@ export function EnquiryModal({ isOpen, onClose, onSuccess, enquiry }: EnquiryMod
           {/* Product & Quantity Information */}
           <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-700">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <ShoppingBag className="w-3.5 h-3.5 text-indigo-500" /> Product Details
+              <ShoppingBag className="w-3.5 h-3.5 text-indigo-500" /> Product Details & Specifications
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -362,12 +508,12 @@ export function EnquiryModal({ isOpen, onClose, onSuccess, enquiry }: EnquiryMod
                   />
                   {productsList.length > 0 && (
                     <select
-                      onChange={(e) => setProductName(e.target.value)}
+                      onChange={handleProductSelect}
                       value=""
                       className="px-2.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-600 dark:text-slate-300 focus:outline-none focus:border-indigo-500 cursor-pointer"
                       title="Select product from shop catalogue"
                     >
-                      <option value="" disabled>Products</option>
+                      <option value="" disabled>Catalogue</option>
                       {productsList.map((p) => (
                         <option key={p.id || p.name} value={p.name}>
                           {p.name}
@@ -388,8 +534,36 @@ export function EnquiryModal({ isOpen, onClose, onSuccess, enquiry }: EnquiryMod
                   min="1"
                   required
                   value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
+                  onChange={(e) => handleQuantityChange(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200 font-bold"
+                />
+              </div>
+
+              {/* Size */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1">
+                  <Layers className="w-3.5 h-3.5 text-slate-400" /> Size
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 32, XL, Standard"
+                  value={size}
+                  onChange={(e) => setSize(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
+                />
+              </div>
+
+              {/* Color */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1">
+                  <Palette className="w-3.5 h-3.5 text-slate-400" /> Color
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Navy Blue, White"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 dark:text-slate-200"
                 />
               </div>
 
@@ -408,15 +582,15 @@ export function EnquiryModal({ isOpen, onClose, onSuccess, enquiry }: EnquiryMod
                 />
               </div>
 
-              {/* Remarks / Notes */}
-              <div className="sm:col-span-2">
+              {/* Institute Query / Requirement Remarks */}
+              <div className="sm:col-span-3">
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1">
                   <FileText className="w-3.5 h-3.5 text-slate-400" />
-                  Remarks / Follow-up Notes
+                  Institute's Query / Requirement Note
                 </label>
                 <input
                   type="text"
-                  placeholder="Optional notes or remarks on this enquiry..."
+                  placeholder="Institute requirement remarks or questions..."
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-800 dark:text-slate-200"
@@ -447,7 +621,7 @@ export function EnquiryModal({ isOpen, onClose, onSuccess, enquiry }: EnquiryMod
               ) : (
                 <>
                   <Save className="w-4 h-4" />
-                  {enquiry ? 'Update Enquiry' : 'Create Enquiry'}
+                  {enquiry ? 'Update Enquiry & Amount' : 'Create Enquiry'}
                 </>
               )}
             </button>

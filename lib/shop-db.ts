@@ -86,6 +86,13 @@ export async function ensureShopDb(): Promise<void> {
     await pool.query(`ALTER TABLE product_enquiries ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Pending'`)
     await pool.query(`ALTER TABLE product_enquiries ADD COLUMN IF NOT EXISTS remarks TEXT DEFAULT ''`)
     await pool.query(`ALTER TABLE product_enquiries ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`)
+    await pool.query(`ALTER TABLE product_enquiries ADD COLUMN IF NOT EXISTS price NUMERIC(10,2) DEFAULT 0`)
+    await pool.query(`ALTER TABLE product_enquiries ADD COLUMN IF NOT EXISTS total_amount NUMERIC(10,2) DEFAULT 0`)
+    await pool.query(`ALTER TABLE product_enquiries ADD COLUMN IF NOT EXISTS admin_remarks TEXT DEFAULT ''`)
+    await pool.query(`ALTER TABLE product_enquiries ADD COLUMN IF NOT EXISTS size VARCHAR(50) DEFAULT ''`)
+    await pool.query(`ALTER TABLE product_enquiries ADD COLUMN IF NOT EXISTS color VARCHAR(50) DEFAULT ''`)
+    await pool.query(`ALTER TABLE product_enquiries ADD COLUMN IF NOT EXISTS product_id UUID`)
+    await pool.query(`ALTER TABLE product_enquiries ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'Unpaid'`)
 
     // 2. Seed products if empty
     const productCount = await pool.query("SELECT COUNT(*)::int FROM products")
@@ -429,4 +436,5 @@ export async function ensureShopDb(): Promise<void> {
   }
   return globalThis._shopDbPromise
 }
+
 

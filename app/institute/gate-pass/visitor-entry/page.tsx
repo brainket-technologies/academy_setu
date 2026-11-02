@@ -5,7 +5,7 @@ import {
   ArrowLeft, Camera, X, CheckCircle2, ChevronDown,
   Users, User, Loader2, Phone, Clock, Calendar,
   Shield, LogIn, MapPin, Check, Search, AlertCircle, Plus,
-  ShieldCheck, AlertTriangle
+  ShieldCheck, AlertTriangle, UserCheck, CreditCard
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -294,12 +294,96 @@ function SearchableSelect({
   )
 }
 
+const SAMPLE_PERMANENT_PASSES = [
+  {
+    id: 'perm_1',
+    user_type: 'Student',
+    student_name: 'Md Fahad',
+    class_name: 'Class 10',
+    section_name: 'A',
+    roll_no: '01',
+    parent_name: 'Mohd Tariq',
+    parents_mobile: '9876543210',
+    receiver_name: 'Mohd Tariq',
+    receiver_relation: 'Father',
+    receiver_mobile: '9876543210',
+    aadhar_no: '876543210987',
+    valid_from: '2026-04-01',
+    valid_to: '2027-03-31',
+    entry_gate: 'Gate 1',
+    exit_gate: 'Gate 2',
+    status: 'Active',
+    photo_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    created_at: '2026-04-02 09:30 AM'
+  },
+  {
+    id: 'perm_2',
+    user_type: 'Visitor',
+    visitor_name: 'Dr. Sunita Sharma',
+    contact: '9812345678',
+    parent_name: 'N/A',
+    receiver_name: 'Dr. Sunita Sharma',
+    receiver_relation: 'Visiting Doctor',
+    receiver_mobile: '9812345678',
+    aadhar_no: '765432109876',
+    valid_from: '2026-06-01',
+    valid_to: '2026-12-31',
+    entry_gate: 'Main Gate',
+    exit_gate: 'Main Gate',
+    vehicle_no: 'DL 04 AB 9876',
+    status: 'Active',
+    photo_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+    created_at: '2026-06-01 10:15 AM'
+  },
+  {
+    id: 'perm_3',
+    user_type: 'Student',
+    student_name: 'Ananya Roy',
+    class_name: 'Class 8',
+    section_name: 'B',
+    roll_no: '05',
+    parent_name: 'Subhash Roy',
+    parents_mobile: '9765432109',
+    receiver_name: 'Rekha Roy',
+    receiver_relation: 'Mother',
+    receiver_mobile: '9765432109',
+    aadhar_no: '654321098765',
+    valid_from: '2026-04-01',
+    valid_to: '2027-03-31',
+    entry_gate: 'Gate 2',
+    exit_gate: 'Gate 2',
+    status: 'Active',
+    photo_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
+    created_at: '2026-04-05 11:45 AM'
+  },
+  {
+    id: 'perm_4',
+    user_type: 'Visitor',
+    visitor_name: 'Ramesh Verma',
+    contact: '9823456789',
+    parent_name: 'N/A',
+    receiver_name: 'Ramesh Verma',
+    receiver_relation: 'IT Maintenance Vendor',
+    receiver_mobile: '9823456789',
+    aadhar_no: '654312348765',
+    valid_from: '2026-05-01',
+    valid_to: '2027-04-30',
+    entry_gate: 'Main Gate',
+    exit_gate: 'Main Gate',
+    vehicle_no: 'UP 16 CD 4321',
+    status: 'Active',
+    photo_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    created_at: '2026-05-01 11:00 AM'
+  }
+]
+
 export default function VisitorEntryPage() {
   const router = useRouter()
   const classesData = useClasses()
   const sectionsData = useSections()
 
   const passType = 'permanent' as const
+  const [userType, setUserType] = useState<'student' | 'visitor'>('student')
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ open: boolean; msg: string; type: 'success' | 'error' }>({ open: false, msg: '', type: 'success' })
 
@@ -374,28 +458,44 @@ export default function VisitorEntryPage() {
         const dbPasses = (permRes?.success && Array.isArray(permRes.data)) ? permRes.data : []
         const dbIds = new Set(dbPasses.map((p: any) => String(p.id)))
         const uniqueLocalPasses = localPasses.filter((p: any) => !dbIds.has(String(p.id)))
-        const rawCombined = [...dbPasses, ...uniqueLocalPasses]
+        let rawCombined = [...dbPasses, ...uniqueLocalPasses]
+
+        if (rawCombined.length === 0) {
+          rawCombined = SAMPLE_PERMANENT_PASSES
+        } else {
+          // If no visitor passes exist in rawCombined, merge sample visitor passes so they are readily available
+          const hasVisitor = rawCombined.some(p => String(p.user_type || p.userType).toLowerCase() === 'visitor' || (!p.student_name && p.receiver_name))
+          if (!hasVisitor) {
+            rawCombined = [...rawCombined, ...SAMPLE_PERMANENT_PASSES.filter(p => p.user_type === 'Visitor')]
+          }
+        }
 
         // Normalize each pass for uniform access
         const normalized = rawCombined.map(p => ({
           ...p,
           id: p.id || `perm-${Math.random()}`,
+          user_type: p.user_type || p.userType || (p.student_name || p.studentName ? 'Student' : 'Visitor'),
           student_name: p.student_name || p.studentName || '',
           class_name: p.class_name || p.className || '',
           section_name: p.section_name || p.sectionName || '',
           roll_no: String(p.roll_no || p.rollNo || ''),
           admission_no: p.admission_no || p.admissionNo || '',
+          visitor_name: p.visitor_name || p.visitorName || '',
           receiver_name: p.receiver_name || p.receiverName || p.visitor_name || p.visitorName || '',
           receiver_mobile: p.receiver_mobile || p.receiverMobile || p.contact || p.parents_mobile || p.visitorMobile || '',
-          receiver_relation: p.receiver_relation || p.receiverRelation || 'Authorized',
-          photo_url: p.photo_url || p.photoUrl || ''
+          receiver_relation: p.receiver_relation || p.receiverRelation || (String(p.user_type || p.userType).toLowerCase() === 'visitor' ? 'Permanent Visitor' : 'Authorized'),
+          photo_url: p.photo_url || p.photoUrl || '',
+          aadhar_no: p.aadhar_no || p.aadharNo || '',
+          valid_from: p.valid_from || p.validFrom || '',
+          valid_to: p.valid_to || p.validTo || '',
+          vehicle_no: p.vehicle_no || p.vehicleNo || ''
         }))
 
         setRegisteredPasses(normalized)
       } catch {
         if (localStudents.length > 0) setAllStudents(localStudents)
         const localPasses = parseLocal('school_gate_passes').filter((p: any) => (p.passType || p.pass_type) === 'permanent')
-        setRegisteredPasses(localPasses)
+        setRegisteredPasses(localPasses.length > 0 ? localPasses : SAMPLE_PERMANENT_PASSES)
       } finally {
         setLoadingPasses(false)
       }
@@ -518,8 +618,11 @@ export default function VisitorEntryPage() {
   // STRICT FILTER: after selecting student, show ONLY visitors created related to that student!
   const matchingPasses = useMemo(() => {
     if (!selectedStudent) {
-      // If no student is selected yet, show all registered permanent passes for general lookup
-      return registeredPasses
+      // If no student is selected yet, show only student-relative permanent passes for lookup
+      return registeredPasses.filter(p => {
+        const uType = String(p.user_type || p.userType || '').toLowerCase()
+        return uType === 'student' || Boolean(p.student_name)
+      })
     }
 
     const sFirst = (selectedStudent.first_name || '').trim().toLowerCase()
@@ -553,12 +656,20 @@ export default function VisitorEntryPage() {
     return matches
   }, [registeredPasses, selectedStudent, selectedClass, selectedSection])
 
+  // ── NON-STUDENT PERMANENT VISITORS (Vendors, Contractors, Doctors, Official Personnel) ──
+  const visitorPasses = useMemo(() => {
+    return registeredPasses.filter(p => {
+      const uType = String(p.user_type || p.userType || '').toLowerCase()
+      return uType === 'visitor' || (!p.student_name && Boolean(p.receiver_name || p.visitor_name))
+    })
+  }, [registeredPasses])
+
   // Auto-populate visitor if exactly 1 matching visitor is registered for this student
   useEffect(() => {
-    if (selectedStudent && matchingPasses.length === 1 && !selectedPass) {
+    if (userType === 'student' && selectedStudent && matchingPasses.length === 1 && !selectedPass) {
       handleSelectPass(matchingPasses[0])
     }
-  }, [selectedStudent, matchingPasses])
+  }, [userType, selectedStudent, matchingPasses])
 
   // File handlers
   const readFile = (file: File, cb: (url: string) => void) => {
@@ -572,23 +683,38 @@ export default function VisitorEntryPage() {
     setTimeout(() => setToast(p => ({ ...p, open: false })), 3500)
   }
 
+  // When switching user type (Student's Relative vs Permanent Visitor)
+  const handleSwitchUserType = (type: 'student' | 'visitor') => {
+    setUserType(type)
+    handleClearReceiver()
+    if (type === 'visitor') {
+      setSelectedClass('')
+      setSelectedSection('')
+      setSelectedStudent(null)
+    }
+  }
+
   // When permanent pass selected, auto-fill receiver info
   const handleSelectPass = (pass: any) => {
     setSelectedPass(pass)
     setReceiverName(pass.receiver_name || pass.receiverName || pass.visitor_name || pass.visitorName || '')
     setReceiverMobile(pass.receiver_mobile || pass.receiverMobile || pass.contact || pass.parents_mobile || '')
-    setReceiverRelation(pass.receiver_relation || pass.receiverRelation || 'Authorized')
+    setReceiverRelation(pass.receiver_relation || pass.receiverRelation || (userType === 'visitor' ? 'Permanent Visitor' : 'Authorized'))
     if (pass.photo_url || pass.photoUrl) setUploadedPhotoUrl(pass.photo_url || pass.photoUrl)
+    if (pass.vehicle_no || pass.vehicleNo) setVehicleNo(pass.vehicle_no || pass.vehicleNo)
+    if (pass.reason) setReason(pass.reason)
     
     // Auto-fill student info if not selected yet
-    if (pass.class_name && !selectedClass) setSelectedClass(pass.class_name)
-    if (pass.section_name && !selectedSection) setSelectedSection(pass.section_name)
-    if (pass.student_name && !selectedStudent) {
-      const foundS = allStudents.find(s => {
-        const n = `${s.first_name || ''} ${s.last_name || ''}`.trim().toLowerCase()
-        return n && (n === pass.student_name.toLowerCase() || pass.student_name.toLowerCase().includes(n))
-      })
-      if (foundS) setSelectedStudent(foundS)
+    if (userType === 'student') {
+      if (pass.class_name && !selectedClass) setSelectedClass(pass.class_name)
+      if (pass.section_name && !selectedSection) setSelectedSection(pass.section_name)
+      if (pass.student_name && !selectedStudent) {
+        const foundS = allStudents.find(s => {
+          const n = `${s.first_name || ''} ${s.last_name || ''}`.trim().toLowerCase()
+          return n && (n === pass.student_name.toLowerCase() || pass.student_name.toLowerCase().includes(n))
+        })
+        if (foundS) setSelectedStudent(foundS)
+      }
     }
   }
 
@@ -599,7 +725,10 @@ export default function VisitorEntryPage() {
     setReceiverMobile('')
     setReceiverRelation('')
     setUploadedPhotoUrl('')
+    setLivePhotoUrl('')
     setVerificationDone(false)
+    setVehicleNo('')
+    setReason('')
   }
 
   // Verify
@@ -614,8 +743,12 @@ export default function VisitorEntryPage() {
 
   // Save Gate Pass Entry
   const handleSave = async () => {
+    if (userType === 'student' && !selectedStudent && !selectedPass?.student_name) {
+      showToast('Please select a student first.', 'error')
+      return
+    }
     if (!receiverName) {
-      showToast('Please select a registered receiver / visitor.', 'error')
+      showToast(userType === 'student' ? 'Please select a registered receiver.' : 'Please select a registered permanent visitor.', 'error')
       return
     }
     if (!visitDate || !visitTime) {
@@ -625,21 +758,23 @@ export default function VisitorEntryPage() {
 
     setSaving(true)
     try {
-      const studentName = selectedStudent
-        ? `${selectedStudent.first_name || ''} ${selectedStudent.last_name || ''}`.trim() || selectedStudent.name || ''
-        : (selectedPass?.student_name || '')
+      const studentName = userType === 'student'
+        ? (selectedStudent
+            ? `${selectedStudent.first_name || ''} ${selectedStudent.last_name || ''}`.trim() || selectedStudent.name || ''
+            : (selectedPass?.student_name || ''))
+        : ''
 
       const res = await createGatePassEntry({
         passId: selectedPass?.id || undefined,
         passType,
-        userType: 'Student',
+        userType: userType === 'student' ? 'Student' : 'Visitor',
         studentName,
-        className: selectedClass || selectedPass?.class_name || '',
-        sectionName: selectedSection || selectedPass?.section_name || '',
-        rollNo: String(selectedStudent?.roll_no || selectedStudent?.rollNo || selectedPass?.roll_no || ''),
+        className: userType === 'student' ? (selectedClass || selectedPass?.class_name || '') : '',
+        sectionName: userType === 'student' ? (selectedSection || selectedPass?.section_name || '') : '',
+        rollNo: userType === 'student' ? String(selectedStudent?.roll_no || selectedStudent?.rollNo || selectedPass?.roll_no || '') : '',
         receiverName,
         receiverMobile,
-        receiverRelation,
+        receiverRelation: receiverRelation || (userType === 'visitor' ? 'Permanent Visitor' : 'Authorized'),
         livePhotoUrl: livePhotoUrl || uploadedPhotoUrl,
         visitDate,
         visitTime,
@@ -660,14 +795,14 @@ export default function VisitorEntryPage() {
             const newEntry = {
               id: res.data?.id || `entry-${Date.now()}`,
               pass_type: 'permanent',
-              user_type: 'Student',
+              user_type: userType === 'student' ? 'Student' : 'Visitor',
               student_name: studentName,
-              class_name: selectedClass || selectedPass?.class_name || '',
-              section_name: selectedSection || selectedPass?.section_name || '',
-              roll_no: String(selectedStudent?.roll_no || selectedStudent?.rollNo || selectedPass?.roll_no || ''),
+              class_name: userType === 'student' ? (selectedClass || selectedPass?.class_name || '') : '',
+              section_name: userType === 'student' ? (selectedSection || selectedPass?.section_name || '') : '',
+              roll_no: userType === 'student' ? String(selectedStudent?.roll_no || selectedStudent?.rollNo || selectedPass?.roll_no || '') : '',
               receiver_name: receiverName,
               receiver_mobile: receiverMobile,
-              receiver_relation: receiverRelation,
+              receiver_relation: receiverRelation || (userType === 'visitor' ? 'Permanent Visitor' : 'Authorized'),
               live_photo_url: livePhotoUrl || uploadedPhotoUrl,
               visit_date: visitDate,
               visit_time: visitTime,
@@ -684,7 +819,12 @@ export default function VisitorEntryPage() {
           } catch (e) {}
         }
 
-        showToast('Permanent gate pass entry saved successfully!', 'success')
+        showToast(
+          userType === 'student'
+            ? 'Permanent gate pass entry saved successfully!'
+            : 'Permanent visitor entry saved successfully!',
+          'success'
+        )
         setTimeout(() => router.push('/institute/gate-pass/entry'), 1200)
       } else {
         showToast(res?.error || 'Failed to save entry.', 'error')
@@ -734,7 +874,7 @@ export default function VisitorEntryPage() {
     })
   }, [filteredStudents])
 
-  // Receiver Search Options
+  // Receiver Search Options (for Student Relative mode)
   const receiverSelectOptions: SearchableOption[] = useMemo(() => {
     return matchingPasses.map(p => {
       const rName = p.receiver_name || p.receiverName || p.visitor_name || p.visitorName || 'Unknown Receiver'
@@ -753,6 +893,27 @@ export default function VisitorEntryPage() {
       }
     })
   }, [matchingPasses, selectedStudent])
+
+  // Permanent Visitor (Non-Relative) Search Options
+  const visitorSelectOptions: SearchableOption[] = useMemo(() => {
+    return visitorPasses.map(p => {
+      const vName = p.visitor_name || p.receiver_name || 'Unknown Visitor'
+      const vRel = p.receiver_relation || 'Permanent Visitor'
+      const vMob = p.receiver_mobile || p.contact || ''
+      const vVeh = p.vehicle_no ? `Veh: ${p.vehicle_no}` : ''
+      const vValid = p.valid_to ? `Valid till: ${p.valid_to}` : ''
+
+      return {
+        value: String(p.id),
+        label: vName,
+        sublabel: [vMob, vVeh, vValid].filter(Boolean).join(' · '),
+        badge: vRel,
+        photo: p.photo_url || p.photoUrl || '',
+        icon: <UserCheck className="w-3.5 h-3.5 text-teal-600" />,
+        data: p
+      }
+    })
+  }, [visitorPasses])
 
   // Gate Options
   const gateOptions: SearchableOption[] = useMemo(() => [
@@ -787,7 +948,9 @@ export default function VisitorEntryPage() {
               Entry Permanent Gate Pass
             </h1>
             <p className="text-xs text-teal-100 mt-0.5">
-              Log a verified permanent visitor entry — select student to view their authorized visitors
+              {userType === 'student'
+                ? 'Log a verified permanent visitor entry — select student to view their authorized visitors'
+                : 'Log a verified permanent visitor entry — select a registered permanent visitor, contractor, or vendor'}
             </p>
           </div>
         </div>
@@ -811,427 +974,817 @@ export default function VisitorEntryPage() {
         </div>
       </div>
 
+      {/* ── USER TYPE TABS ── */}
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-2 shadow-sm flex gap-2">
+        <button
+          type="button"
+          onClick={() => handleSwitchUserType('student')}
+          className={`flex-1 flex items-center justify-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            userType === 'student'
+              ? 'bg-gradient-to-r from-[#1b3a60] to-teal-700 text-white shadow-sm'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+          }`}
+        >
+          <Users className="w-4 h-4" /> Student&apos;s Relative
+        </button>
+        <button
+          type="button"
+          onClick={() => handleSwitchUserType('visitor')}
+          className={`flex-1 flex items-center justify-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            userType === 'visitor'
+              ? 'bg-gradient-to-r from-[#1b3a60] to-teal-700 text-white shadow-sm'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+          }`}
+        >
+          <User className="w-4 h-4" /> Permanent Visitor (Not Relative)
+        </button>
+      </div>
+
       {/* ══════════════════════════════════════════════════════
-          FORM SECTION
+          FORM SECTION: STUDENT'S RELATIVE
       ══════════════════════════════════════════════════════ */}
-      <div className="space-y-5">
+      {userType === 'student' ? (
+        <div className="space-y-5">
 
-        {/* 1. Student Details (With Searchable Dropdowns) */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm space-y-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-900/60 dark:text-teal-300 flex items-center justify-center text-xs font-black">1</span>
-              Student Details
-            </h2>
-            <span className="text-[11px] font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 px-2.5 py-1 rounded-full">
-              Step 1: Select Student
-            </span>
-          </div>
+          {/* 1. Student Details (With Searchable Dropdowns) */}
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm space-y-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <span className="w-7 h-7 rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-900/60 dark:text-teal-300 flex items-center justify-center text-xs font-black">1</span>
+                Student Details
+              </h2>
+              <span className="text-[11px] font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 px-2.5 py-1 rounded-full">
+                Step 1: Select Student
+              </span>
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            
-            {/* Searchable Class Dropdown */}
-            <SearchableSelect
-              label="Class"
-              required
-              placeholder="Search or Select Class"
-              searchPlaceholder="Type to search class (e.g. Class 1)..."
-              options={classSelectOptions}
-              value={selectedClass}
-              onChange={val => {
-                setSelectedClass(val)
-                setSelectedSection('')
-                setSelectedStudent(null)
-                handleClearReceiver()
-              }}
-            />
-
-            {/* Searchable Section Dropdown */}
-            <SearchableSelect
-              label="Section"
-              required
-              placeholder="Search or Select Section"
-              searchPlaceholder="Type section (e.g. A, B)..."
-              disabled={!selectedClass}
-              disabledMessage="Select Class first"
-              options={sectionSelectOptions}
-              value={selectedSection}
-              onChange={val => {
-                setSelectedSection(val)
-                setSelectedStudent(null)
-                handleClearReceiver()
-              }}
-            />
-
-            {/* Searchable Student Dropdown */}
-            <SearchableSelect
-              label="Student Name with Roll No."
-              required
-              placeholder="Search or Select Student"
-              searchPlaceholder="Search by student name, roll number, or admission no..."
-              disabled={!selectedClass || !selectedSection}
-              disabledMessage="Select Class & Section first"
-              emptyMessage={selectedClass && selectedSection ? "No students found in this section" : "Select class and section to view students"}
-              options={studentSelectOptions}
-              value={selectedStudent?.id ? String(selectedStudent.id) : ''}
-              onChange={(val, opt) => {
-                const student = opt?.data || filteredStudents.find(s => String(s.id) === val) || null
-                setSelectedStudent(student)
-                handleClearReceiver()
-              }}
-            />
-          </div>
-
-          {/* Student Info Card Confirmation */}
-          {selectedStudent && (
-            <div className="p-3.5 bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-900/50 rounded-2xl flex items-center justify-between gap-3 animate-in fade-in duration-150">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center font-black text-sm">
-                  {selectedStudentName.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{selectedStudentName}</p>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-teal-600 text-white">
-                      Enrolled
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                    Class: <span className="font-bold text-slate-700 dark:text-slate-200">{selectedClass} ({selectedSection})</span>
-                    &nbsp;|&nbsp; Roll No: <span className="font-bold text-slate-700 dark:text-slate-200">{selectedStudent.roll_no || selectedStudent.rollNo || '—'}</span>
-                    {(selectedStudent.admission_no || selectedStudent.admissionNo) && (
-                      <> &nbsp;|&nbsp; Admission: <span className="font-bold text-slate-700 dark:text-slate-200">{selectedStudent.admission_no || selectedStudent.admissionNo}</span></>
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              
+              {/* Searchable Class Dropdown */}
+              <SearchableSelect
+                label="Class"
+                required
+                placeholder="Search or Select Class"
+                searchPlaceholder="Type to search class (e.g. Class 1)..."
+                options={classSelectOptions}
+                value={selectedClass}
+                onChange={val => {
+                  setSelectedClass(val)
+                  setSelectedSection('')
                   setSelectedStudent(null)
                   handleClearReceiver()
                 }}
-                className="text-xs font-bold text-slate-400 hover:text-red-500 p-1 flex items-center gap-1"
-              >
-                <X className="w-4 h-4" /> Change
-              </button>
-            </div>
-          )}
-        </div>
+              />
 
-        {/* 2. Receiver Details (Filtered strictly by selected student) */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <h2 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 flex items-center justify-center text-xs font-black">2</span>
-              Authorized Receiver Details
-            </h2>
-
-            {selectedStudent ? (
-              matchingPasses.length > 0 ? (
-                <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full flex items-center gap-1.5 self-start">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  {matchingPasses.length} permanent visitor{matchingPasses.length > 1 ? 's' : ''} registered for {selectedStudentName}
-                </span>
-              ) : (
-                <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-full flex items-center gap-1.5 self-start">
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                  No permanent visitor registered for {selectedStudentName}
-                </span>
-              )
-            ) : (
-              <span className="text-[11px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-full self-start">
-                Select a student to filter visitors
-              </span>
-            )}
-          </div>
-
-          {/* Searchable Receiver Dropdown */}
-          <div className="space-y-2">
-            <SearchableSelect
-              label="Receiver Name"
-              required
-              placeholder={
-                selectedStudent
-                  ? matchingPasses.length > 0
-                    ? "Search or Select Registered Visitor"
-                    : `No registered visitors found for ${selectedStudentName}`
-                  : "Select a student above or search any registered visitor"
-              }
-              searchPlaceholder="Search visitor by name, relation (e.g. Father, Mother), or phone..."
-              options={receiverSelectOptions}
-              value={selectedPass?.id ? String(selectedPass.id) : ''}
-              onChange={(val, opt) => {
-                const pass = opt?.data || matchingPasses.find(p => String(p.id) === val) || null
-                if (pass) {
-                  handleSelectPass(pass)
-                } else {
+              {/* Searchable Section Dropdown */}
+              <SearchableSelect
+                label="Section"
+                required
+                placeholder="Search or Select Section"
+                searchPlaceholder="Type section (e.g. A, B)..."
+                disabled={!selectedClass}
+                disabledMessage="Select Class first"
+                options={sectionSelectOptions}
+                value={selectedSection}
+                onChange={val => {
+                  setSelectedSection(val)
+                  setSelectedStudent(null)
                   handleClearReceiver()
-                }
-              }}
-              emptyMessage={
-                selectedStudent
-                  ? `No permanent visitor created for ${selectedStudentName}`
-                  : "No registered permanent passes found"
-              }
-              emptyAction={
-                <Link
-                  href="/institute/gate-pass/permanent-registration"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold transition-colors shadow-2xs"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Register Permanent Visitor Now
-                </Link>
-              }
-            />
+                }}
+              />
 
-            {/* When student selected but has NO visitors */}
-            {selectedStudent && matchingPasses.length === 0 && (
-              <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 text-amber-800 dark:text-amber-200 text-xs font-semibold">
-                  <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-                  <span>
-                    No permanent visitor is registered for <strong className="font-black">{selectedStudentName}</strong>. You must register an authorized visitor with Aadhar/photo verification.
-                  </span>
+              {/* Searchable Student Dropdown */}
+              <SearchableSelect
+                label="Student Name with Roll No."
+                required
+                placeholder="Search or Select Student"
+                searchPlaceholder="Search by student name, roll number, or admission no..."
+                disabled={!selectedClass || !selectedSection}
+                disabledMessage="Select Class & Section first"
+                emptyMessage={selectedClass && selectedSection ? "No students found in this section" : "Select class and section to view students"}
+                options={studentSelectOptions}
+                value={selectedStudent?.id ? String(selectedStudent.id) : ''}
+                onChange={(val, opt) => {
+                  const student = opt?.data || filteredStudents.find(s => String(s.id) === val) || null
+                  setSelectedStudent(student)
+                  handleClearReceiver()
+                }}
+              />
+            </div>
+
+            {/* Student Info Card Confirmation */}
+            {selectedStudent && (
+              <div className="p-3.5 bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-900/50 rounded-2xl flex items-center justify-between gap-3 animate-in fade-in duration-150">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center font-black text-sm">
+                    {selectedStudentName.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-extrabold text-sm text-slate-900 dark:text-slate-100">{selectedStudentName}</p>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-teal-600 text-white">
+                        Enrolled
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                      Class: <span className="font-bold text-slate-700 dark:text-slate-200">{selectedClass} ({selectedSection})</span>
+                      &nbsp;|&nbsp; Roll No: <span className="font-bold text-slate-700 dark:text-slate-200">{selectedStudent.roll_no || selectedStudent.rollNo || '—'}</span>
+                      {(selectedStudent.admission_no || selectedStudent.admissionNo) && (
+                        <> &nbsp;|&nbsp; Admission: <span className="font-bold text-slate-700 dark:text-slate-200">{selectedStudent.admission_no || selectedStudent.admissionNo}</span></>
+                      )}
+                    </p>
+                  </div>
                 </div>
-                <Link
-                  href="/institute/gate-pass/permanent-registration"
-                  className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedStudent(null)
+                    handleClearReceiver()
+                  }}
+                  className="text-xs font-bold text-slate-400 hover:text-red-500 p-1 flex items-center gap-1"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Register Visitor
-                </Link>
+                  <X className="w-4 h-4" /> Change
+                </button>
               </div>
             )}
           </div>
 
-          {/* Selected Receiver Verified Card */}
-          {selectedPass && (
-            <div className="flex items-center gap-3 p-3.5 bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-900/50 rounded-2xl shadow-2xs animate-in fade-in duration-150">
-              {uploadedPhotoUrl ? (
-                <img
-                  src={uploadedPhotoUrl}
-                  alt={receiverName}
-                  className="w-12 h-12 rounded-xl object-cover border border-teal-300 shadow-xs shrink-0"
-                />
+          {/* 2. Receiver Details (Filtered strictly by selected student) */}
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <h2 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <span className="w-7 h-7 rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 flex items-center justify-center text-xs font-black">2</span>
+                Authorized Receiver Details
+              </h2>
+
+              {selectedStudent ? (
+                matchingPasses.length > 0 ? (
+                  <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full flex items-center gap-1.5 self-start">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    {matchingPasses.length} permanent visitor{matchingPasses.length > 1 ? 's' : ''} registered for {selectedStudentName}
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-full flex items-center gap-1.5 self-start">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                    No permanent visitor registered for {selectedStudentName}
+                  </span>
+                )
               ) : (
-                <div className="w-12 h-12 rounded-xl bg-teal-600 text-white flex items-center justify-center font-bold text-base shrink-0">
-                  {(receiverName || 'R').charAt(0).toUpperCase()}
+                <span className="text-[11px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-full self-start">
+                  Select a student to filter visitors
+                </span>
+              )}
+            </div>
+
+            {/* Searchable Receiver Dropdown */}
+            <div className="space-y-2">
+              <SearchableSelect
+                label="Receiver Name"
+                required
+                placeholder={
+                  selectedStudent
+                    ? matchingPasses.length > 0
+                      ? "Search or Select Registered Visitor"
+                      : `No registered visitors found for ${selectedStudentName}`
+                    : "Select a student above or search any registered visitor"
+                }
+                searchPlaceholder="Search visitor by name, relation (e.g. Father, Mother), or phone..."
+                options={receiverSelectOptions}
+                value={selectedPass?.id ? String(selectedPass.id) : ''}
+                onChange={(val, opt) => {
+                  const pass = opt?.data || matchingPasses.find(p => String(p.id) === val) || null
+                  if (pass) {
+                    handleSelectPass(pass)
+                  } else {
+                    handleClearReceiver()
+                  }
+                }}
+                emptyMessage={
+                  selectedStudent
+                    ? `No permanent visitor created for ${selectedStudentName}`
+                    : "No registered permanent passes found"
+                }
+                emptyAction={
+                  <Link
+                    href="/institute/gate-pass/permanent-registration"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold transition-colors shadow-2xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Register Permanent Visitor Now
+                  </Link>
+                }
+              />
+
+              {/* When student selected but has NO visitors */}
+              {selectedStudent && matchingPasses.length === 0 && (
+                <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 text-amber-800 dark:text-amber-200 text-xs font-semibold">
+                    <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+                    <span>
+                      No permanent visitor is registered for <strong className="font-black">{selectedStudentName}</strong>. You must register an authorized visitor with Aadhar/photo verification.
+                    </span>
+                  </div>
+                  <Link
+                    href="/institute/gate-pass/permanent-registration"
+                    className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Register Visitor
+                  </Link>
                 </div>
               )}
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="font-extrabold text-sm text-slate-900 dark:text-slate-100 truncate">{receiverName}</p>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-black bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
-                    {receiverRelation}
-                  </span>
+            </div>
+
+            {/* Selected Receiver Verified Card */}
+            {selectedPass && (
+              <div className="flex items-center gap-3 p-3.5 bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-900/50 rounded-2xl shadow-2xs animate-in fade-in duration-150">
+                {uploadedPhotoUrl ? (
+                  <img
+                    src={uploadedPhotoUrl}
+                    alt={receiverName}
+                    className="w-12 h-12 rounded-xl object-cover border border-teal-300 shadow-xs shrink-0"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-teal-600 text-white flex items-center justify-center font-bold text-base shrink-0">
+                    {(receiverName || 'R').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-extrabold text-sm text-slate-900 dark:text-slate-100 truncate">{receiverName}</p>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-black bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
+                      {receiverRelation}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-semibold mt-0.5 flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5 text-slate-400" /> {receiverMobile || '—'}
+                  </p>
                 </div>
-                <p className="text-xs text-slate-500 font-semibold mt-0.5 flex items-center gap-1">
-                  <Phone className="w-3.5 h-3.5 text-slate-400" /> {receiverMobile || '—'}
-                </p>
+                <button
+                  type="button"
+                  onClick={handleClearReceiver}
+                  className="text-slate-400 hover:text-red-500 p-1 shrink-0"
+                  title="Deselect receiver"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
+            )}
+
+            {/* Photo upload + Live check */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+              {/* Uploaded / DB Photo */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                  Uploaded Photo (from DB)
+                </label>
+                <div
+                  onClick={() => uploadRef.current?.click()}
+                  className={`relative w-full h-36 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors ${
+                    uploadedPhotoUrl ? 'border-teal-300 bg-teal-50/30' : 'border-slate-300 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/40 dark:border-slate-700'
+                  }`}
+                >
+                  {uploadedPhotoUrl ? (
+                    <>
+                      <img src={uploadedPhotoUrl} alt="Uploaded" className="w-full h-full object-cover rounded-2xl" />
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); setUploadedPhotoUrl('') }}
+                        className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full shadow flex items-center justify-center text-red-500"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-10 h-10 rounded-xl bg-teal-100 text-teal-600 flex items-center justify-center">
+                        <Camera className="w-5 h-5" />
+                      </div>
+                      <p className="text-xs font-bold text-teal-600">Tap to Select Photo</p>
+                      <p className="text-[10px] text-slate-400">Database photo will auto-populate</p>
+                    </>
+                  )}
+                </div>
+                <input ref={uploadRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) readFile(f, setUploadedPhotoUrl) }} />
+              </div>
+
+              {/* Live Check */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                  Live Check (Optional)
+                </label>
+                <div
+                  onClick={() => liveRef.current?.click()}
+                  className={`relative w-full h-36 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors ${
+                    livePhotoUrl ? 'border-orange-300 bg-orange-50/30' : 'border-slate-300 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/40 dark:border-slate-700'
+                  }`}
+                >
+                  {livePhotoUrl ? (
+                    <>
+                      <img src={livePhotoUrl} alt="Live" className="w-full h-full object-cover rounded-2xl" />
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); setLivePhotoUrl('') }}
+                        className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full shadow flex items-center justify-center text-red-500"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                        <span className="text-xl">😊</span>
+                      </div>
+                      <p className="text-xs font-bold text-orange-600">Tap for Live Check</p>
+                      <p className="text-[10px] text-red-500 font-semibold">Ensure face is clearly visible for live check</p>
+                    </>
+                  )}
+                </div>
+                <input ref={liveRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) readFile(f, setLivePhotoUrl) }} />
+              </div>
+            </div>
+
+            {/* Verification Checkbox */}
+            <div className="flex items-center gap-2.5 pt-1">
               <button
                 type="button"
-                onClick={handleClearReceiver}
-                className="text-slate-400 hover:text-red-500 p-1 shrink-0"
-                title="Deselect receiver"
+                onClick={handleVerify}
+                className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                  verificationDone ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 hover:border-teal-400'
+                }`}
               >
-                <X className="w-4 h-4" />
+                {verificationDone && <Check className="w-3.5 h-3.5 text-white" />}
               </button>
-            </div>
-          )}
-
-          {/* Photo upload + Live check */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-            {/* Uploaded / DB Photo */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
-                Uploaded Photo (from DB)
-              </label>
-              <div
-                onClick={() => uploadRef.current?.click()}
-                className={`relative w-full h-36 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors ${
-                  uploadedPhotoUrl ? 'border-teal-300 bg-teal-50/30' : 'border-slate-300 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/40 dark:border-slate-700'
-                }`}
-              >
-                {uploadedPhotoUrl ? (
-                  <>
-                    <img src={uploadedPhotoUrl} alt="Uploaded" className="w-full h-full object-cover rounded-2xl" />
-                    <button
-                      type="button"
-                      onClick={e => { e.stopPropagation(); setUploadedPhotoUrl('') }}
-                      className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full shadow flex items-center justify-center text-red-500"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-10 h-10 rounded-xl bg-teal-100 text-teal-600 flex items-center justify-center">
-                      <Camera className="w-5 h-5" />
-                    </div>
-                    <p className="text-xs font-bold text-teal-600">Tap to Select Photo</p>
-                    <p className="text-[10px] text-slate-400">Database photo will auto-populate</p>
-                  </>
-                )}
-              </div>
-              <input ref={uploadRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) readFile(f, setUploadedPhotoUrl) }} />
-            </div>
-
-            {/* Live Check */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
-                Live Check (Optional)
-              </label>
-              <div
-                onClick={() => liveRef.current?.click()}
-                className={`relative w-full h-36 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors ${
-                  livePhotoUrl ? 'border-orange-300 bg-orange-50/30' : 'border-slate-300 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/40 dark:border-slate-700'
-                }`}
-              >
-                {livePhotoUrl ? (
-                  <>
-                    <img src={livePhotoUrl} alt="Live" className="w-full h-full object-cover rounded-2xl" />
-                    <button
-                      type="button"
-                      onClick={e => { e.stopPropagation(); setLivePhotoUrl('') }}
-                      className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full shadow flex items-center justify-center text-red-500"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
-                      <span className="text-xl">😊</span>
-                    </div>
-                    <p className="text-xs font-bold text-orange-600">Tap for Live Check</p>
-                    <p className="text-[10px] text-red-500 font-semibold">Ensure face is clearly visible for live check</p>
-                  </>
-                )}
-              </div>
-              <input ref={liveRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) readFile(f, setLivePhotoUrl) }} />
+              <p className={`text-xs font-bold ${verificationDone ? 'text-emerald-600' : 'text-slate-600 dark:text-slate-300'}`}>
+                Verification successful: uploaded and live person are identical.
+              </p>
             </div>
           </div>
 
-          {/* Verification Checkbox */}
-          <div className="flex items-center gap-2.5 pt-1">
-            <button
-              type="button"
-              onClick={handleVerify}
-              className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                verificationDone ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 hover:border-teal-400'
-              }`}
-            >
-              {verificationDone && <Check className="w-3.5 h-3.5 text-white" />}
-            </button>
-            <p className={`text-xs font-bold ${verificationDone ? 'text-emerald-600' : 'text-slate-600 dark:text-slate-300'}`}>
-              Verification successful: uploaded and live person are identical.
-            </p>
-          </div>
-        </div>
+          {/* 3. Visit Details */}
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm space-y-5">
+            <h2 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <span className="w-7 h-7 rounded-xl bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300 flex items-center justify-center text-xs font-black">3</span>
+              Visit Details
+            </h2>
 
-        {/* 3. Visit Details (Searchable Gates + Date/Time) */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm space-y-5">
-          <h2 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <span className="w-7 h-7 rounded-xl bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300 flex items-center justify-center text-xs font-black">3</span>
-            Visit Details
-          </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Date <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="date"
+                    value={visitDate}
+                    onChange={e => setVisitDate(e.target.value)}
+                    className="w-full pl-10 pr-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
+                  />
+                </div>
+              </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Date <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Time <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <Clock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="time"
+                    value={visitTime}
+                    onChange={e => setVisitTime(e.target.value)}
+                    className="w-full pl-10 pr-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Vehicle No. (If any)</label>
                 <input
-                  type="date"
-                  value={visitDate}
-                  onChange={e => setVisitDate(e.target.value)}
-                  className="w-full pl-10 pr-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
+                  type="text"
+                  placeholder="Enter Vehicle No. (e.g. DL 01 AB 1234)"
+                  value={vehicleNo}
+                  onChange={e => setVehicleNo(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 uppercase"
                 />
               </div>
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <SearchableSelect
+                label="Entry Gate"
+                placeholder="Select Entry Gate"
+                searchPlaceholder="Search or type gate name..."
+                options={gateOptions}
+                value={entryGate}
+                onChange={val => setEntryGate(val)}
+                allowCustom
+              />
+
+              <SearchableSelect
+                label="Exit Gate"
+                placeholder="Select Exit Gate"
+                searchPlaceholder="Search or type gate name..."
+                options={gateOptions}
+                value={exitGate}
+                onChange={val => setExitGate(val)}
+                allowCustom
+              />
+            </div>
+          </div>
+
+          {/* 4. Additional Information (With Quick Chips) */}
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm space-y-4">
+            <h2 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <span className="w-7 h-7 rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300 flex items-center justify-center text-xs font-black">4</span>
+              Additional Information
+            </h2>
+
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Time <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <Clock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <div className="flex items-center justify-between flex-wrap gap-1">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Quick Purpose / Reason</label>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {['Early Pickup', 'Sick / Medical', 'Fee Deposit', 'Parent Teacher Meet', 'Emergency Pickup', 'Document Submission'].map(chip => (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => setReason(chip)}
+                      className={`text-[10px] px-2.5 py-1 rounded-lg font-bold transition-all ${
+                        reason === chip
+                          ? 'bg-teal-600 text-white shadow-2xs'
+                          : 'bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Reason / Purpose</label>
                 <input
-                  type="time"
-                  value={visitTime}
-                  onChange={e => setVisitTime(e.target.value)}
-                  className="w-full pl-10 pr-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
+                  type="text"
+                  placeholder="e.g. Early Pickup, Sick Leave, Fee Deposit"
+                  value={reason}
+                  onChange={e => setReason(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Remarks</label>
+                <input
+                  type="text"
+                  placeholder="Enter Remarks (optional)"
+                  value={remarks}
+                  onChange={e => setRemarks(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ══════════════════════════════════════════════════════
+            FORM SECTION: PERMANENT VISITOR (NOT RELATIVE)
+        ══════════════════════════════════════════════════════ */
+        <div className="space-y-5">
+
+          {/* 1. Permanent Visitor Details */}
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <h2 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <span className="w-7 h-7 rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-900/60 dark:text-teal-300 flex items-center justify-center text-xs font-black">1</span>
+                Permanent Visitor Details
+              </h2>
+
+              <span className="text-[11px] font-bold text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 px-2.5 py-1 rounded-full flex items-center gap-1.5 self-start">
+                <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
+                {visitorPasses.length} registered permanent visitor{visitorPasses.length === 1 ? '' : 's'} (vendors, contractors, official personnel)
+              </span>
+            </div>
+
+            {/* Searchable Visitor Dropdown */}
+            <div className="space-y-2">
+              <SearchableSelect
+                label="Permanent Visitor Name"
+                required
+                placeholder="Search or Select Registered Permanent Visitor"
+                searchPlaceholder="Search visitor by name, role (e.g. Doctor, Vendor), phone, vehicle..."
+                options={visitorSelectOptions}
+                value={selectedPass?.id ? String(selectedPass.id) : ''}
+                onChange={(val, opt) => {
+                  const pass = opt?.data || visitorPasses.find(p => String(p.id) === val) || null
+                  if (pass) {
+                    handleSelectPass(pass)
+                  } else {
+                    handleClearReceiver()
+                  }
+                }}
+                emptyMessage="No permanent visitors registered"
+                emptyAction={
+                  <Link
+                    href="/institute/gate-pass/permanent-registration"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold transition-colors shadow-2xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Register Permanent Visitor Now
+                  </Link>
+                }
+              />
+
+              {visitorPasses.length === 0 && (
+                <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 text-amber-800 dark:text-amber-200 text-xs font-semibold">
+                    <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+                    <span>
+                      No non-relative permanent visitors are registered yet. Register permanent vendors, contractors, or staff visitors with Aadhar verification.
+                    </span>
+                  </div>
+                  <Link
+                    href="/institute/gate-pass/permanent-registration"
+                    className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Register Permanent Visitor
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* Selected Visitor Verified Card */}
+            {selectedPass && (
+              <div className="p-4 bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-900/50 rounded-2xl shadow-2xs animate-in fade-in duration-150 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    {uploadedPhotoUrl ? (
+                      <img
+                        src={uploadedPhotoUrl}
+                        alt={receiverName}
+                        className="w-13 h-13 rounded-2xl object-cover border border-teal-300 shadow-xs shrink-0"
+                      />
+                    ) : (
+                      <div className="w-13 h-13 rounded-2xl bg-[#1b3a60] text-white flex items-center justify-center font-black text-lg shrink-0">
+                        {(receiverName || 'V').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-black text-base text-slate-900 dark:text-slate-100 truncate">{receiverName}</p>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-teal-600 text-white shadow-2xs">
+                          {receiverRelation || 'Permanent Visitor'}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                          Active Verified
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-slate-500 font-semibold mt-1 flex-wrap">
+                        <span className="flex items-center gap-1">
+                          <Phone className="w-3.5 h-3.5 text-slate-400" />
+                          <strong className="text-slate-700 dark:text-slate-200">{receiverMobile || '—'}</strong>
+                        </span>
+                        {selectedPass.aadhar_no && (
+                          <span className="flex items-center gap-1">
+                            <CreditCard className="w-3.5 h-3.5 text-slate-400" />
+                            Aadhar: <strong className="text-slate-700 dark:text-slate-200 font-mono">{selectedPass.aadhar_no}</strong>
+                          </span>
+                        )}
+                        {selectedPass.vehicle_no && (
+                          <span className="flex items-center gap-1">
+                            Veh: <strong className="text-slate-700 dark:text-slate-200 font-mono uppercase">{selectedPass.vehicle_no}</strong>
+                          </span>
+                        )}
+                        {selectedPass.valid_to && (
+                          <span className="flex items-center gap-1 text-teal-700 dark:text-teal-300">
+                            <Calendar className="w-3.5 h-3.5 text-teal-600" />
+                            Valid till: <strong>{selectedPass.valid_to}</strong>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleClearReceiver}
+                    className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 border border-slate-200 dark:border-slate-700 flex items-center justify-center transition-colors shadow-2xs shrink-0"
+                    title="Deselect visitor"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Photo upload + Live check */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+              {/* Uploaded / DB Photo */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                  Uploaded Photo (from DB)
+                </label>
+                <div
+                  onClick={() => uploadRef.current?.click()}
+                  className={`relative w-full h-36 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors ${
+                    uploadedPhotoUrl ? 'border-teal-300 bg-teal-50/30' : 'border-slate-300 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/40 dark:border-slate-700'
+                  }`}
+                >
+                  {uploadedPhotoUrl ? (
+                    <>
+                      <img src={uploadedPhotoUrl} alt="Uploaded" className="w-full h-full object-cover rounded-2xl" />
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); setUploadedPhotoUrl('') }}
+                        className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full shadow flex items-center justify-center text-red-500"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-10 h-10 rounded-xl bg-teal-100 text-teal-600 flex items-center justify-center">
+                        <Camera className="w-5 h-5" />
+                      </div>
+                      <p className="text-xs font-bold text-teal-600">Tap to Select Photo</p>
+                      <p className="text-[10px] text-slate-400">Database photo will auto-populate</p>
+                    </>
+                  )}
+                </div>
+                <input ref={uploadRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) readFile(f, setUploadedPhotoUrl) }} />
+              </div>
+
+              {/* Live Check */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                  Live Check (Optional)
+                </label>
+                <div
+                  onClick={() => liveRef.current?.click()}
+                  className={`relative w-full h-36 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors ${
+                    livePhotoUrl ? 'border-orange-300 bg-orange-50/30' : 'border-slate-300 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/40 dark:border-slate-700'
+                  }`}
+                >
+                  {livePhotoUrl ? (
+                    <>
+                      <img src={livePhotoUrl} alt="Live" className="w-full h-full object-cover rounded-2xl" />
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); setLivePhotoUrl('') }}
+                        className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full shadow flex items-center justify-center text-red-500"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                        <span className="text-xl">😊</span>
+                      </div>
+                      <p className="text-xs font-bold text-orange-600">Tap for Live Check</p>
+                      <p className="text-[10px] text-red-500 font-semibold">Ensure face is clearly visible for live check</p>
+                    </>
+                  )}
+                </div>
+                <input ref={liveRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) readFile(f, setLivePhotoUrl) }} />
+              </div>
+            </div>
+
+            {/* Verification Checkbox */}
+            <div className="flex items-center gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={handleVerify}
+                className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                  verificationDone ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 hover:border-teal-400'
+                }`}
+              >
+                {verificationDone && <Check className="w-3.5 h-3.5 text-white" />}
+              </button>
+              <p className={`text-xs font-bold ${verificationDone ? 'text-emerald-600' : 'text-slate-600 dark:text-slate-300'}`}>
+                Verification successful: uploaded and live person are identical.
+              </p>
+            </div>
+          </div>
+
+          {/* 2. Visit Details */}
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm space-y-5">
+            <h2 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <span className="w-7 h-7 rounded-xl bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300 flex items-center justify-center text-xs font-black">2</span>
+              Visit Details
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Date <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="date"
+                    value={visitDate}
+                    onChange={e => setVisitDate(e.target.value)}
+                    className="w-full pl-10 pr-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Time <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <Clock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="time"
+                    value={visitTime}
+                    onChange={e => setVisitTime(e.target.value)}
+                    className="w-full pl-10 pr-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Vehicle No. (If any)</label>
+                <input
+                  type="text"
+                  placeholder="Enter Vehicle No. (e.g. DL 01 AB 1234)"
+                  value={vehicleNo}
+                  onChange={e => setVehicleNo(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 uppercase"
                 />
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Vehicle No. (If any)</label>
-              <input
-                type="text"
-                placeholder="Enter Vehicle No. (e.g. DL 01 AB 1234)"
-                value={vehicleNo}
-                onChange={e => setVehicleNo(e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 uppercase"
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <SearchableSelect
+                label="Entry Gate"
+                placeholder="Select Entry Gate"
+                searchPlaceholder="Search or type gate name..."
+                options={gateOptions}
+                value={entryGate}
+                onChange={val => setEntryGate(val)}
+                allowCustom
+              />
+
+              <SearchableSelect
+                label="Exit Gate"
+                placeholder="Select Exit Gate"
+                searchPlaceholder="Search or type gate name..."
+                options={gateOptions}
+                value={exitGate}
+                onChange={val => setExitGate(val)}
+                allowCustom
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Searchable Entry Gate */}
-            <SearchableSelect
-              label="Entry Gate"
-              placeholder="Select Entry Gate"
-              searchPlaceholder="Search or type gate name..."
-              options={gateOptions}
-              value={entryGate}
-              onChange={val => setEntryGate(val)}
-              allowCustom
-            />
+          {/* 3. Additional Information (With Visitor Quick Chips) */}
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm space-y-4">
+            <h2 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <span className="w-7 h-7 rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300 flex items-center justify-center text-xs font-black">3</span>
+              Additional Information
+            </h2>
 
-            {/* Searchable Exit Gate */}
-            <SearchableSelect
-              label="Exit Gate"
-              placeholder="Select Exit Gate"
-              searchPlaceholder="Search or type gate name..."
-              options={gateOptions}
-              value={exitGate}
-              onChange={val => setExitGate(val)}
-              allowCustom
-            />
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between flex-wrap gap-1">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Quick Visitor Purpose</label>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {['Maintenance / Repair', 'Official Meeting', 'Delivery / Supply', 'Medical Service', 'Campus Inspection', 'IT Support', 'Guest / Trustee Visit'].map(chip => (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => setReason(chip)}
+                      className={`text-[10px] px-2.5 py-1 rounded-lg font-bold transition-all ${
+                        reason === chip
+                          ? 'bg-teal-600 text-white shadow-2xs'
+                          : 'bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Reason / Purpose</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Maintenance / Repair, Official Meeting, Delivery"
+                  value={reason}
+                  onChange={e => setReason(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Remarks</label>
+                <input
+                  type="text"
+                  placeholder="Enter Remarks (optional)"
+                  value={remarks}
+                  onChange={e => setRemarks(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
+                />
+              </div>
+            </div>
           </div>
         </div>
-
-        {/* 4. Additional Information */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm space-y-4">
-          <h2 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <span className="w-7 h-7 rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300 flex items-center justify-center text-xs font-black">4</span>
-            Additional Information
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Reason / Purpose</label>
-              <input
-                type="text"
-                placeholder="e.g. Early Pickup, Sick Leave, Fee Deposit"
-                value={reason}
-                onChange={e => setReason(e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Remarks</label>
-              <input
-                type="text"
-                placeholder="Enter Remarks (optional)"
-                value={remarks}
-                onChange={e => setRemarks(e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* ── FOOTER ── */}
       <div className="flex items-center justify-between gap-4 pt-2">

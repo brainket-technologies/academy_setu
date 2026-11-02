@@ -26,7 +26,23 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     await ensureShopDb()
     const { id } = await params
     const body = await request.json()
-    const { school_name, address, name, mobile_no, product_name, quantity, enquiry_date, status, remarks } = body
+    const {
+      school_name,
+      address,
+      name,
+      mobile_no,
+      product_name,
+      quantity,
+      enquiry_date,
+      status,
+      remarks,
+      price,
+      total_amount,
+      admin_remarks,
+      size,
+      color,
+      payment_status
+    } = body
 
     const existingResult = await pool.query('SELECT * FROM product_enquiries WHERE id = $1', [id])
     if (existingResult.rows.length === 0) {
@@ -41,8 +57,19 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const updatedProduct = product_name !== undefined ? product_name : current.product_name
     const updatedQuantity = quantity !== undefined ? parseInt(quantity) : current.quantity
     const updatedDate = enquiry_date !== undefined ? enquiry_date : current.enquiry_date
-    const updatedStatus = status !== undefined ? status : (current.status || 'Pending')
+    const updatedStatus = status !== undefined ? status : (current.status || 'Enquired')
     const updatedRemarks = remarks !== undefined ? remarks : (current.remarks || '')
+
+    const parsedPrice = price !== undefined ? parseFloat(price) : parseFloat(current.price || 0)
+    let parsedTotal = total_amount !== undefined ? parseFloat(total_amount) : parseFloat(current.total_amount || 0)
+    if (total_amount === undefined && price !== undefined) {
+      parsedTotal = parsedPrice * updatedQuantity
+    }
+
+    const updatedAdminRemarks = admin_remarks !== undefined ? admin_remarks : (current.admin_remarks || '')
+    const updatedSize = size !== undefined ? size : (current.size || '')
+    const updatedColor = color !== undefined ? color : (current.color || '')
+    const updatedPaymentStatus = payment_status !== undefined ? payment_status : (current.payment_status || 'Unpaid')
 
     const result = await pool.query(
       `UPDATE product_enquiries
@@ -55,8 +82,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
            enquiry_date = $7,
            status = $8,
            remarks = $9,
+           price = $10,
+           total_amount = $11,
+           admin_remarks = $12,
+           size = $13,
+           color = $14,
+           payment_status = $15,
            updated_at = NOW()
-       WHERE id = $10
+       WHERE id = $16
        RETURNING *`,
       [
         updatedSchool,
@@ -68,9 +101,49 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         updatedDate,
         updatedStatus,
         updatedRemarks,
+        parsedPrice,
+        parsedTotal,
+        updatedAdminRemarks,
+        updatedSize,
+        updatedColor,
+        updatedPaymentStatus,
         id
       ]
     )
+
+    // If status updated to 'Order Generated', sync to product_dispatches if not already there
+    if (updatedStatus === 'Order Generated') {
+      try {
+        const checkDispatch = await pool.query(
+          `SELECT id FROM product_dispatches WHERE school_name = $1 AND product_name = $2 AND quantity = $3 AND name = $4 LIMIT 1`,
+          [updatedSchool, updatedProduct, updatedQuantity, updatedName]
+        )
+        if (checkDispatch.rows.length === 0) {
+          await pool.query(`
+            INSERT INTO product_dispatches (
+              school_name, address, name, mobile_no, product_name,
+              product_description, quantity, size, product_as, dispatch_date, status,
+              price, tax_percent, total_amount, courier_name, courier_id, transactions,
+              created_at, updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Purchase', CURRENT_DATE, 'Order Generated', $9, 18, $10, '', '', '[]'::jsonb, NOW(), NOW())
+          `, [
+            updatedSchool,
+            updatedAddress,
+            updatedName,
+            updatedMobile,
+            updatedProduct,
+            `From Approved Enquiry (${updatedColor ? 'Color: ' + updatedColor + ', ' : ''}${updatedSize ? 'Size: ' + updatedSize : ''})`,
+            updatedQuantity,
+            updatedSize,
+            parsedPrice,
+            parsedTotal
+          ])
+        }
+      } catch (syncErr) {
+        console.warn('Sync dispatch error:', syncErr)
+      }
+    }
 
     return NextResponse.json({ success: true, data: result.rows[0] })
   } catch (error) {

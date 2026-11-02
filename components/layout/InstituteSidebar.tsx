@@ -248,19 +248,13 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
       icon: Ticket, label: 'Gate Pass', href: '#',
       subItems: [
         { label: 'One Time Gate Pass', href: '/institute/gate-pass' },
-        { label: 'Permanent Gate Pass', href: '/institute/gate-pass/permanent' },
-        { label: 'Gate Pass Entry', href: '/institute/gate-pass/entry' },
+        { label: 'Permanent Gate Pass', href: '/institute/gate-pass/entry' },
+        { label: 'Permanent Visitor List', href: '/institute/gate-pass/permanent' },
         { label: 'Gate Pass Settings', href: '/institute/gate-pass/settings' },
       ]
     },
     { icon: BookOpen, label: 'Lesson Plans', href: '/institute/lesson-plans' },
-    { 
-      icon: Files, label: 'Study Material', href: '#',
-      subItems: [
-        { label: 'Video Lecture', href: '/institute/study-material/video-lecture' },
-        { label: 'PDF/Image Notes', href: '/institute/study-material/notes' },
-      ]
-    },
+    { icon: Files, label: 'Study Material', href: '/institute/study-material' },
     { 
       icon: MonitorPlay, label: 'Online Quiz / Test', href: '#',
       subItems: [

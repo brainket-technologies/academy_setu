@@ -17,13 +17,15 @@ import {
   Clock,
   XCircle,
   Tag,
-  ShoppingBag
+  ShoppingBag,
+  IndianRupee,
+  CreditCard
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { EnquiryModal, EnquiryRecord } from '@/components/EnquiryModal'
 import { DeleteConfirmationModal } from '@/components/DeleteConfirmationModal'
 
-const STATUS_LIST = ['Enquired', 'Order Generated', 'Closed']
+const STATUS_LIST = ['Enquired', 'Ready to Pay', 'Order Generated', 'Closed']
 
 export default function ProductEnquiryPage() {
   const [enquiries, setEnquiries] = useState<EnquiryRecord[]>([])
@@ -182,6 +184,13 @@ export default function ProductEnquiryPage() {
   const getStatusBadge = (status: string = 'Enquired') => {
     const norm = status || 'Enquired'
     switch (norm) {
+      case 'Ready to Pay':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-950/40 dark:text-teal-400 dark:border-teal-800">
+            <CreditCard className="w-3.5 h-3.5" />
+            Ready to Pay
+          </span>
+        )
       case 'Order Generated':
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800">
@@ -355,6 +364,7 @@ export default function ProductEnquiryPage() {
                 <th className="py-4 px-6 min-w-[130px]">Mobile No.</th>
                 <th className="py-4 px-6 min-w-[150px]">Product Name</th>
                 <th className="py-4 px-6 text-center">Quantity</th>
+                <th className="py-4 px-6 min-w-[140px]">Quoted Amount</th>
                 <th className="py-4 px-6 min-w-[130px]">Enquiry Date</th>
                 <th className="py-4 px-6 min-w-[170px]">Status</th>
                 <th className="py-4 px-6 text-center min-w-[110px]">Action</th>
@@ -363,14 +373,14 @@ export default function ProductEnquiryPage() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-750 text-sm text-slate-750 dark:text-slate-300">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="py-20 text-center">
+                  <td colSpan={11} className="py-20 text-center">
                     <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
                     <span className="text-xs text-slate-400 mt-2 block">Loading enquiries...</span>
                   </td>
                 </tr>
               ) : paginatedEnquiries.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-16 text-center text-slate-500 dark:text-slate-400">
+                  <td colSpan={11} className="py-16 text-center text-slate-500 dark:text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <ShoppingBag className="w-8 h-8 text-slate-300 dark:text-slate-600" />
                       <p className="font-semibold text-sm">No enquiries found</p>
@@ -406,6 +416,22 @@ export default function ProductEnquiryPage() {
                       <td className="py-4 px-6 text-center font-bold text-slate-800 dark:text-slate-100">
                         {enq.quantity}
                       </td>
+                      <td className="py-4 px-6 font-mono text-xs">
+                        {Number(enq.total_amount) > 0 ? (
+                          <div className="flex flex-col">
+                            <span className="font-black text-indigo-600 dark:text-indigo-400">
+                              ₹{parseFloat(String(enq.total_amount)).toFixed(2)}
+                            </span>
+                            {Number(enq.price) > 0 && (
+                              <span className="text-[10px] text-slate-400">₹{parseFloat(String(enq.price)).toFixed(2)} / pc</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-amber-600 dark:text-amber-400 font-bold text-[11px] bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md">
+                            Pending Quote
+                          </span>
+                        )}
+                      </td>
                       <td className="py-4 px-6 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 text-slate-400" />
@@ -421,7 +447,9 @@ export default function ProductEnquiryPage() {
                               value={enq.status || 'Enquired'}
                               onChange={(e) => handleQuickStatusChange(enq.id, e.target.value)}
                               className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-all cursor-pointer focus:outline-none ${
-                                (enq.status || 'Enquired') === 'Order Generated'
+                                (enq.status || 'Enquired') === 'Ready to Pay'
+                                  ? 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-400 dark:border-teal-800 font-black'
+                                  : (enq.status || 'Enquired') === 'Order Generated'
                                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
                                   : (enq.status || 'Enquired') === 'Closed'
                                   ? 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-750 dark:text-slate-300 dark:border-slate-700'
@@ -429,6 +457,7 @@ export default function ProductEnquiryPage() {
                               }`}
                             >
                               <option value="Enquired">Enquired</option>
+                              <option value="Ready to Pay">Ready to Pay</option>
                               <option value="Order Generated">Order Generated</option>
                               <option value="Closed">Closed</option>
                             </select>

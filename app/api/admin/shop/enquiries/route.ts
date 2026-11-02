@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       query += ` AND (name ILIKE $${params.length} OR product_name ILIKE $${params.length} OR school_name ILIKE $${params.length} OR mobile_no ILIKE $${params.length})`
     }
 
-    query += ' ORDER BY enquiry_date DESC, created_at DESC'
+    query += ' ORDER BY created_at DESC, enquiry_date DESC'
 
     const result = await pool.query(query, params)
     return NextResponse.json({ success: true, data: result.rows })
@@ -54,26 +54,56 @@ export async function POST(request: NextRequest) {
   try {
     await ensureShopDb()
     const body = await request.json()
-    const { school_name, address, name, mobile_no, product_name, quantity, enquiry_date, status, remarks } = body
+    const {
+      school_name,
+      address,
+      name,
+      mobile_no,
+      product_name,
+      quantity,
+      enquiry_date,
+      status = 'Enquired',
+      remarks = '',
+      price = 0,
+      total_amount = 0,
+      admin_remarks = '',
+      size = '',
+      color = '',
+      payment_status = 'Unpaid'
+    } = body
 
-    if (!school_name || !address || !name || !mobile_no || !product_name || !quantity) {
+    if (!school_name || !name || !mobile_no || !product_name || !quantity) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 })
     }
 
+    const qty = parseInt(String(quantity)) || 1
+    const unitPrice = parseFloat(String(price || 0))
+    const total = parseFloat(String(total_amount || 0)) || (unitPrice * qty)
+
     const result = await pool.query(
-      `INSERT INTO product_enquiries (school_name, address, name, mobile_no, product_name, quantity, enquiry_date, status, remarks)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING *`,
+      `INSERT INTO product_enquiries (
+        school_name, address, name, mobile_no, product_name, quantity,
+        enquiry_date, status, remarks, price, total_amount, admin_remarks,
+        size, color, payment_status, created_at, updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
+      RETURNING *`,
       [
-        school_name,
-        address,
-        name,
-        mobile_no,
-        product_name,
-        parseInt(quantity),
+        school_name.trim(),
+        address ? address.trim() : 'Campus Delivery',
+        name.trim(),
+        mobile_no.trim(),
+        product_name.trim(),
+        qty,
         enquiry_date || new Date().toISOString().split('T')[0],
-        status || 'Pending',
-        remarks || ''
+        status,
+        remarks ? remarks.trim() : '',
+        unitPrice,
+        total,
+        admin_remarks ? admin_remarks.trim() : '',
+        size,
+        color,
+        payment_status
       ]
     )
 

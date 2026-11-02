@@ -28,7 +28,9 @@ import {
   PenTool,
   Type,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  MoveLeft,
+  MoveRight
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -43,6 +45,7 @@ import {
 } from '@/components/certificates/CertificateTemplates'
 import { saveCertificateType, fetchCertificateTypes } from '../../actions'
 import { fetchInstituteName } from '@/app/institute/actions'
+import { fetchCurrentInstitutionDetails } from '@/app/institute/id-card/actions'
 
 function loadInstituteAddedClasses(): string[] {
   if (typeof window === 'undefined') return []
@@ -216,19 +219,20 @@ function CertificateTypeCreateContent() {
 
   // ─── Signatures & Credentials State ───
   // 1. Principal & Director
+  const [instPrincipalName, setInstPrincipalName] = useState('')
   const [principalName, setPrincipalName] = useState('')
-  const [principalLabel, setPrincipalLabel] = useState('Principal & Director')
+  const [principalLabel, setPrincipalLabel] = useState("Principal's Signature")
   const [showPrincipalSign, setShowPrincipalSign] = useState(true)
 
   // 2. Class Teacher
   const [teacherSignName, setTeacherSignName] = useState('')
-  const [teacherSignLabel, setTeacherSignLabel] = useState("Class Teacher's Sign")
-  const [showTeacherSign, setShowTeacherSign] = useState(false)
+  const [teacherSignLabel, setTeacherSignLabel] = useState("Class Teacher's Signature")
+  const [showTeacherSign, setShowTeacherSign] = useState(true)
 
   // 3. Exam Controller
   const [controllerSignName, setControllerSignName] = useState('')
   const [controllerSignLabel, setControllerSignLabel] = useState('Exam Controller')
-  const [showControllerSign, setShowControllerSign] = useState(false)
+  const [showControllerSign, setShowControllerSign] = useState(true)
 
   // 4. Authority Signature
   const [coordinatorSignName, setCoordinatorSignName] = useState('')
@@ -239,9 +243,7 @@ function CertificateTypeCreateContent() {
   const [signatureOrder, setSignatureOrder] = useState<string[]>([
     'teacherSign',
     'controllerSign',
-    'coordinatorSign',
     'parentSign',
-    'studentSign',
     'principalSign'
   ])
 
@@ -260,28 +262,27 @@ function CertificateTypeCreateContent() {
 
   // 5. Parent / Guardian
   const [parentSignName, setParentSignName] = useState('')
-  const [parentSignLabel, setParentSignLabel] = useState("Parent's Signature")
-  const [showParentSign, setShowParentSign] = useState(false)
+  const [parentSignLabel, setParentSignLabel] = useState('Parent / Guardian Sign')
+  const [showParentSign, setShowParentSign] = useState(true)
 
   // 6. Student / Candidate
   const [studentSignLabel, setStudentSignLabel] = useState("Student's Signature")
   const [showStudentSign, setShowStudentSign] = useState(false)
 
   // 7. Date of Issue
-  const [issueDate, setIssueDate] = useState('15 October 2025')
+  const [issueDate, setIssueDate] = useState('15 October 2026')
   const [dateLabel, setDateLabel] = useState('Date of Issue')
   const [showIssueDate, setShowIssueDate] = useState(true)
 
   // 8. Seal & QR Code
   const [showSeal, setShowSeal] = useState(true)
+  const [sealLabel, setSealLabel] = useState('ACADEMIC EXCELLENCE')
   const [showQr, setShowQr] = useState(true)
 
-  // Visibility / Hidden Fields (Default: only principal sign, issue date, seal & QR visible for a clean aesthetic)
+  // Visibility / Hidden Fields (Default: core 4 signatures active, authority and student sign hidden)
   const [hiddenFields, setHiddenFields] = useState<string[]>([
-    'Teacher Sign',
-    'Controller Sign',
     'Coordinator Sign',
-    'Parent Sign',
+    'Secondary Sign',
     'Student Sign'
   ])
 
@@ -294,9 +295,9 @@ function CertificateTypeCreateContent() {
   const [subtitleFontSize, setSubtitleFontSize] = useState<string>('11')
   const [photoWidth, setPhotoWidth] = useState<string>('48')
   const [qrCodeSize, setQrCodeSize] = useState<string>('68')
-  const [sealSize, setSealSize] = useState<string>('60')
-  const [signatureWidth, setSignatureWidth] = useState<string>('115')
-  const [signatureFontSize, setSignatureFontSize] = useState<string>('9')
+  const [sealSize, setSealSize] = useState<string>('72')
+  const [signatureWidth, setSignatureWidth] = useState<string>('110')
+  const [signatureFontSize, setSignatureFontSize] = useState<string>('10')
 
   const isPhotoVisible = !hiddenFields.includes('Student Photo') && !hiddenFields.includes('Photo')
   const togglePhotoVisibility = () => {
@@ -349,6 +350,18 @@ function CertificateTypeCreateContent() {
     fetchInstituteName().then(name => {
       if (name && name !== 'Name') {
         setSchoolName(name)
+      }
+    })
+
+    fetchCurrentInstitutionDetails().then(res => {
+      if (res?.success && res.data) {
+        if (res.data.principalName) {
+          setInstPrincipalName(res.data.principalName)
+          setPrincipalName(prev => prev || res.data.principalName)
+        }
+        if (res.data.schoolName) {
+          setSchoolName(prev => (prev && prev !== 'Name') ? prev : res.data.schoolName)
+        }
       }
     })
 
@@ -420,6 +433,9 @@ function CertificateTypeCreateContent() {
             if (found.customLabels.photoWidth) setPhotoWidth(found.customLabels.photoWidth)
             if (found.customLabels.qrCodeSize) setQrCodeSize(found.customLabels.qrCodeSize)
             if (found.customLabels.sealSize) setSealSize(found.customLabels.sealSize)
+            if (found.customLabels.seal_label || found.customLabels.sealLabel) {
+              setSealLabel(found.customLabels.seal_label || found.customLabels.sealLabel)
+            }
             if (found.customLabels.signatureWidth) setSignatureWidth(found.customLabels.signatureWidth)
             if (found.customLabels.signatureFontSize) setSignatureFontSize(found.customLabels.signatureFontSize)
             if (found.customLabels.presented_to || found.customLabels.presentedTo) {
@@ -472,6 +488,17 @@ function CertificateTypeCreateContent() {
 
   // Dedicated Signature Toggle Handlers
   const handleTogglePrincipalSign = (checked: boolean) => {
+    if (checked) {
+      const activeCount = [true, showTeacherSign, showControllerSign, showParentSign, showCoordinatorSign, showStudentSign].filter(Boolean).length
+      if (activeCount > 4) {
+        setToastMessage('Maximum 4 signatures can be displayed simultaneously.')
+        setTimeout(() => setToastMessage(null), 3000)
+        return
+      }
+      if (!signatureOrder.includes('principalSign')) {
+        setSignatureOrder(prev => [...prev, 'principalSign'])
+      }
+    }
     setShowPrincipalSign(checked)
     setHiddenFields(prev => checked 
       ? prev.filter(f => f !== 'Principal Sign' && f !== 'Principal / Director Sign') 
@@ -480,6 +507,17 @@ function CertificateTypeCreateContent() {
   }
 
   const handleToggleTeacherSign = (checked: boolean) => {
+    if (checked) {
+      const activeCount = [showPrincipalSign, true, showControllerSign, showParentSign, showCoordinatorSign, showStudentSign].filter(Boolean).length
+      if (activeCount > 4) {
+        setToastMessage('Maximum 4 signatures can be displayed simultaneously.')
+        setTimeout(() => setToastMessage(null), 3000)
+        return
+      }
+      if (!signatureOrder.includes('teacherSign')) {
+        setSignatureOrder(prev => ['teacherSign', ...prev])
+      }
+    }
     setShowTeacherSign(checked)
     setHiddenFields(prev => checked 
       ? prev.filter(f => f !== 'Teacher Sign' && f !== 'Class Teacher Sign') 
@@ -488,6 +526,17 @@ function CertificateTypeCreateContent() {
   }
 
   const handleToggleControllerSign = (checked: boolean) => {
+    if (checked) {
+      const activeCount = [showPrincipalSign, showTeacherSign, true, showParentSign, showCoordinatorSign, showStudentSign].filter(Boolean).length
+      if (activeCount > 4) {
+        setToastMessage('Maximum 4 signatures can be displayed simultaneously.')
+        setTimeout(() => setToastMessage(null), 3000)
+        return
+      }
+      if (!signatureOrder.includes('controllerSign')) {
+        setSignatureOrder(prev => [...prev, 'controllerSign'])
+      }
+    }
     setShowControllerSign(checked)
     setHiddenFields(prev => checked 
       ? prev.filter(f => f !== 'Controller Sign' && f !== 'Exam Controller Sign') 
@@ -496,6 +545,17 @@ function CertificateTypeCreateContent() {
   }
 
   const handleToggleCoordinatorSign = (checked: boolean) => {
+    if (checked) {
+      const activeCount = [showPrincipalSign, showTeacherSign, showControllerSign, showParentSign, true, showStudentSign].filter(Boolean).length
+      if (activeCount > 4) {
+        setToastMessage('Maximum 4 signatures can be displayed simultaneously.')
+        setTimeout(() => setToastMessage(null), 3000)
+        return
+      }
+      if (!signatureOrder.includes('coordinatorSign')) {
+        setSignatureOrder(prev => [...prev, 'coordinatorSign'])
+      }
+    }
     setShowCoordinatorSign(checked)
     setHiddenFields(prev => checked 
       ? prev.filter(f => f !== 'Coordinator Sign' && f !== 'Secondary Sign' && f !== 'Coordinator / In-Charge Sign') 
@@ -504,6 +564,17 @@ function CertificateTypeCreateContent() {
   }
 
   const handleToggleParentSign = (checked: boolean) => {
+    if (checked) {
+      const activeCount = [showPrincipalSign, showTeacherSign, showControllerSign, true, showCoordinatorSign, showStudentSign].filter(Boolean).length
+      if (activeCount > 4) {
+        setToastMessage('Maximum 4 signatures can be displayed simultaneously.')
+        setTimeout(() => setToastMessage(null), 3000)
+        return
+      }
+      if (!signatureOrder.includes('parentSign')) {
+        setSignatureOrder(prev => [...prev, 'parentSign'])
+      }
+    }
     setShowParentSign(checked)
     setHiddenFields(prev => checked 
       ? prev.filter(f => f !== 'Parent Sign' && f !== 'Parent / Guardian Sign') 
@@ -512,6 +583,17 @@ function CertificateTypeCreateContent() {
   }
 
   const handleToggleStudentSign = (checked: boolean) => {
+    if (checked) {
+      const activeCount = [showPrincipalSign, showTeacherSign, showControllerSign, showParentSign, showCoordinatorSign, true].filter(Boolean).length
+      if (activeCount > 4) {
+        setToastMessage('Maximum 4 signatures can be displayed simultaneously.')
+        setTimeout(() => setToastMessage(null), 3000)
+        return
+      }
+      if (!signatureOrder.includes('studentSign')) {
+        setSignatureOrder(prev => [...prev, 'studentSign'])
+      }
+    }
     setShowStudentSign(checked)
     setHiddenFields(prev => checked 
       ? prev.filter(f => f !== 'Student Sign' && f !== 'Student Signature Line') 
@@ -597,6 +679,7 @@ function CertificateTypeCreateContent() {
     else if (field === 'controllerSignName') setControllerSignName(val)
     else if (field === 'secondarySignName') setCoordinatorSignName(val)
     else if (field === 'parentSignName') setParentSignName(val)
+    else if (field === 'seal_label' || field === 'sealLabel') setSealLabel(val)
     else if (field === 'schoolNameFontSize') setSchoolNameFontSize(String(val))
     else if (field === 'titleFontSize') setTitleFontSize(String(val))
     else if (field === 'subtitleFontSize') setSubtitleFontSize(String(val))
@@ -669,6 +752,8 @@ function CertificateTypeCreateContent() {
         photoWidth: String(photoWidth),
         qrCodeSize: String(qrCodeSize),
         sealSize: String(sealSize),
+        seal_label: sealLabel,
+        sealLabel,
         signatureWidth: String(signatureWidth),
         signatureFontSize: String(signatureFontSize),
         signatureOrder: JSON.stringify(signatureOrder)
@@ -1436,51 +1521,6 @@ function CertificateTypeCreateContent() {
               </div>
 
             </div>
-
-            {/* Sub-Card: Official Seal & Signature Line Sizing */}
-            <div className="p-3 rounded-xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/20 flex flex-wrap items-center justify-between gap-4 text-xs">
-              <div className="flex items-center gap-3">
-                <span className="font-bold text-slate-700 dark:text-slate-300 text-[11px]">Official Seal Scale:</span>
-                <input
-                  type="range"
-                  min="40"
-                  max="90"
-                  step="2"
-                  value={Number(sealSize) || 60}
-                  onChange={e => setSealSize(e.target.value)}
-                  className="w-20 accent-blue-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                />
-                <span className="font-mono font-bold text-blue-600 dark:text-blue-400 text-[10.5px]">{sealSize}px</span>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <span className="font-bold text-slate-700 dark:text-slate-300 text-[11px]">Signature Width:</span>
-                <input
-                  type="range"
-                  min="80"
-                  max="160"
-                  step="5"
-                  value={Number(signatureWidth) || 115}
-                  onChange={e => setSignatureWidth(e.target.value)}
-                  className="w-20 accent-blue-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                />
-                <span className="font-mono font-bold text-blue-600 dark:text-blue-400 text-[10.5px]">{signatureWidth}px</span>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <span className="font-bold text-slate-700 dark:text-slate-300 text-[11px]">Sign Font Size:</span>
-                <input
-                  type="range"
-                  min="8"
-                  max="13"
-                  step="1"
-                  value={Number(signatureFontSize) || 9}
-                  onChange={e => setSignatureFontSize(e.target.value)}
-                  className="w-16 accent-blue-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                />
-                <span className="font-mono font-bold text-blue-600 dark:text-blue-400 text-[10.5px]">{signatureFontSize}px</span>
-              </div>
-            </div>
           </div>
 
           {/* ─── QUICK TYPOGRAPHY & FONT SIZING CONTROLS ─── */}
@@ -1681,7 +1721,9 @@ function CertificateTypeCreateContent() {
                     secondarySignLabel: coordinatorSignLabel,
                     parentSignName,
                     parentSignLabel,
-                    studentSignLabel
+                    studentSignLabel,
+                    seal_label: sealLabel,
+                    sealLabel
                   }}
                   editable={true}
                   onUpdateField={handleCanvasUpdateField}
@@ -1738,7 +1780,9 @@ function CertificateTypeCreateContent() {
                     secondarySignLabel: coordinatorSignLabel,
                     parentSignName,
                     parentSignLabel,
-                    studentSignLabel
+                    studentSignLabel,
+                    seal_label: sealLabel,
+                    sealLabel
                   }}
                   editable={true}
                   onUpdateField={handleCanvasUpdateField}
@@ -1795,7 +1839,9 @@ function CertificateTypeCreateContent() {
                     secondarySignLabel: coordinatorSignLabel,
                     parentSignName,
                     parentSignLabel,
-                    studentSignLabel
+                    studentSignLabel,
+                    seal_label: sealLabel,
+                    sealLabel
                   }}
                   editable={true}
                   onUpdateField={handleCanvasUpdateField}
@@ -1852,7 +1898,9 @@ function CertificateTypeCreateContent() {
                     secondarySignLabel: coordinatorSignLabel,
                     parentSignName,
                     parentSignLabel,
-                    studentSignLabel
+                    studentSignLabel,
+                    seal_label: sealLabel,
+                    sealLabel
                   }}
                   editable={true}
                   onUpdateField={handleCanvasUpdateField}
@@ -2069,8 +2117,8 @@ function CertificateTypeCreateContent() {
         </section>
 
         {/* ─── 7. SIGNATURES & STAMP CONFIGURATION (SEPARATE SECTION) ─── */}
-        <section>
-          <div className="flex items-center justify-between gap-4 mb-4">
+        <section className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="w-6 h-6 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
                 7
@@ -2087,184 +2135,224 @@ function CertificateTypeCreateContent() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          {/* Live Print Sequence Ribbon Indicator */}
+          <div className="flex items-center gap-1.5 p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 overflow-x-auto">
+            <span className="text-[10px] font-black uppercase text-slate-400 px-2 shrink-0">Print Sequence:</span>
+            {signatureOrder.map((key, idx) => {
+              let isEnabled = false
+              let label = ''
+              if (key === 'teacherSign') { isEnabled = showTeacherSign; label = "Teacher's Sign" }
+              else if (key === 'controllerSign') { isEnabled = showControllerSign; label = "Controller's Sign" }
+              else if (key === 'parentSign') { isEnabled = showParentSign; label = "Parent's Sign" }
+              else if (key === 'principalSign') { isEnabled = showPrincipalSign; label = "Principal's Sign" }
+              else if (key === 'coordinatorSign') { isEnabled = showCoordinatorSign; label = 'Authority Sign' }
+              else if (key === 'studentSign') { isEnabled = showStudentSign; label = 'Student Sign' }
+
+              return (
+                <React.Fragment key={key}>
+                  <div className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10.5px] font-bold shrink-0 transition-all border ${
+                    isEnabled 
+                      ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300' 
+                      : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400 line-through'
+                  }`}>
+                    <span className="text-[10.5px] font-black">{idx + 1}</span>
+                    <span>{label}</span>
+                  </div>
+                  {idx < signatureOrder.length - 1 && (
+                    <span className="text-slate-300 dark:text-slate-600 text-xs shrink-0">→</span>
+                  )}
+                </React.Fragment>
+              )
+            })}
+          </div>
+
+          {/* Signature Sizing Controls (Width & Typography) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+            {/* Signature Line Width */}
+            <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 space-y-3 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Line Width</span>
+                <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                  {signatureWidth} px
+                </span>
+              </div>
+
+              <div className="grid grid-cols-4 gap-1 p-1 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                {[
+                  { label: 'S (75px)', size: '75' },
+                  { label: 'M (100px)', size: '100' },
+                  { label: 'L (130px)', size: '130' },
+                  { label: 'XL (165px)', size: '165' }
+                ].map(p => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => setSignatureWidth(p.size)}
+                    className={`py-1 rounded text-[10px] font-bold transition-all ${
+                      signatureWidth === p.size
+                        ? 'bg-blue-600 text-white shadow-2xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {p.label.split(' ')[0]}
+                  </button>
+                ))}
+              </div>
+
+              <div className="pt-1 text-[11px]">
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-500 font-semibold w-12 shrink-0">Width:</span>
+                  <input
+                    type="range"
+                    min="50"
+                    max="180"
+                    step="5"
+                    value={Number(signatureWidth) || 110}
+                    onChange={e => setSignatureWidth(e.target.value)}
+                    className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                  />
+                  <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{signatureWidth}px</span>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">Adjusts width of teacher, controller, parent, and principal sign lines.</p>
+              </div>
+            </div>
+
+            {/* Signature Font Size */}
+            <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 space-y-3 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Signature Title Font Size</span>
+                <span className="text-[10px] font-mono font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50">
+                  {signatureFontSize} px
+                </span>
+              </div>
+
+              <div className="grid grid-cols-4 gap-1 p-1 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                {[
+                  { label: 'S (8px)', size: '8' },
+                  { label: 'M (10px)', size: '10' },
+                  { label: 'L (12px)', size: '12' },
+                  { label: 'XL (14px)', size: '14' }
+                ].map(p => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => setSignatureFontSize(p.size)}
+                    className={`py-1 rounded text-[10px] font-bold transition-all ${
+                      signatureFontSize === p.size
+                        ? 'bg-blue-600 text-white shadow-2xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {p.label.split(' ')[0]}
+                  </button>
+                ))}
+              </div>
+
+              <div className="pt-1 text-[11px]">
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-500 font-semibold w-12 shrink-0">Scale:</span>
+                  <input
+                    type="range"
+                    min="7"
+                    max="16"
+                    step="1"
+                    value={Number(signatureFontSize) || 10}
+                    onChange={e => setSignatureFontSize(e.target.value)}
+                    className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                  />
+                  <span className="font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{signatureFontSize}px</span>
+                </div>
+                <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800 mt-2">
+                  <p className="text-[10px] text-slate-400">Controls signature label typography.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignatureWidth('110')
+                      setSignatureFontSize('10')
+                    }}
+                    className="text-[9.5px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline shrink-0"
+                  >
+                    Default Size
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 4 Primary Signatures Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
             {signatureOrder.map((key, idx) => {
               const isFirst = idx === 0
               const isLast = idx === signatureOrder.length - 1
 
-              if (key === 'principalSign') {
-                return (
-                  <div
-                    key={key}
-                    className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
-                      showPrincipalSign
-                        ? 'bg-white dark:bg-slate-800 border-blue-400 dark:border-blue-700 shadow-sm ring-1 ring-blue-500/15'
-                        : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-80'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100 dark:border-slate-700/60">
-                        <div className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
-                            {idx + 1}
-                          </span>
-                          <div>
-                            <h3 className="text-xs font-black text-slate-800 dark:text-slate-200">Principal Sign</h3>
-                            <span className="text-[10px] text-slate-400">Primary Authority</span>
-                          </div>
-                        </div>
-
-                        {/* Toggle Button */}
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                            showPrincipalSign ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300' : 'bg-slate-200 text-slate-500'
-                          }`}>
-                            {showPrincipalSign ? 'ON' : 'OFF'}
-                          </span>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={showPrincipalSign}
-                            onClick={() => handleTogglePrincipalSign(!showPrincipalSign)}
-                            className={`w-9 h-5 rounded-full transition-colors relative flex items-center px-0.5 focus:outline-none ${
-                              showPrincipalSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'
-                            }`}
-                          >
-                            <span className={`w-4 h-4 rounded-full bg-white shadow-xs transform transition-transform ${
-                              showPrincipalSign ? 'translate-x-4' : 'translate-x-0'
-                            }`} />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className={`space-y-2.5 transition-opacity ${showPrincipalSign ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Signatory Full Name</label>
-                          <input
-                            type="text"
-                            value={principalName}
-                            disabled={!showPrincipalSign}
-                            onChange={(e) => setPrincipalName(e.target.value)}
-                            className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                            placeholder="Enter signatory name (or leave blank)"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Order / Position Badge & Move Buttons */}
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px]">
-                      <span className="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
-                        Position #{idx + 1}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleMoveSignature(key, 'left')}
-                          disabled={isFirst}
-                          className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed font-bold"
-                          title="Move signature to the left"
-                        >
-                          ← Left
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleMoveSignature(key, 'right')}
-                          disabled={isLast}
-                          className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed font-bold"
-                          title="Move signature to the right"
-                        >
-                          Right →
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )
-              }
-
               if (key === 'teacherSign') {
                 return (
-                  <div
-                    key={key}
-                    className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
-                      showTeacherSign
-                        ? 'bg-white dark:bg-slate-800 border-blue-400 dark:border-blue-700 shadow-sm ring-1 ring-blue-500/15'
-                        : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-80'
+                  <div 
+                    key={key} 
+                    className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
+                      showTeacherSign 
+                        ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
+                        : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
                     }`}
                   >
                     <div>
-                      <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100 dark:border-slate-700/60">
+                      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
                         <div className="flex items-center gap-2">
                           <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                             {idx + 1}
                           </span>
-                          <div>
-                            <h3 className="text-xs font-black text-slate-800 dark:text-slate-200">Teacher Sign</h3>
-                            <span className="text-[10px] text-slate-400">Class Mentor</span>
-                          </div>
-                        </div>
-
-                        {/* Toggle Button */}
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                            showTeacherSign ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300' : 'bg-slate-200 text-slate-500'
+                          <span className="text-xs font-black text-slate-800 dark:text-slate-100">Class Teacher Sign</span>
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                            showTeacherSign 
+                              ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
+                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
                           }`}>
                             {showTeacherSign ? 'ON' : 'OFF'}
                           </span>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={showTeacherSign}
-                            onClick={() => handleToggleTeacherSign(!showTeacherSign)}
-                            className={`w-9 h-5 rounded-full transition-colors relative flex items-center px-0.5 focus:outline-none ${
-                              showTeacherSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'
-                            }`}
-                          >
-                            <span className={`w-4 h-4 rounded-full bg-white shadow-xs transform transition-transform ${
-                              showTeacherSign ? 'translate-x-4' : 'translate-x-0'
-                            }`} />
-                          </button>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleTeacherSign(!showTeacherSign)}
+                          className={`w-10 h-5.5 rounded-full relative transition-colors ${showTeacherSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                        >
+                          <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showTeacherSign ? 'left-5' : 'left-0.5'}`} />
+                        </button>
                       </div>
 
-                      <div className={`space-y-2.5 transition-opacity ${showTeacherSign ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Teacher Full Name</label>
-                          <input
-                            type="text"
-                            value={teacherSignName}
-                            disabled={!showTeacherSign}
-                            onChange={(e) => setTeacherSignName(e.target.value)}
-                            className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                            placeholder="Enter teacher name (or leave blank)"
-                          />
-                        </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                        <input
+                          type="text"
+                          value={teacherSignLabel}
+                          onChange={e => setTeacherSignLabel(e.target.value)}
+                          disabled={!showTeacherSign}
+                          placeholder="Class Teacher's Signature"
+                          className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                        />
                       </div>
                     </div>
 
-                    {/* Order / Position Badge & Move Buttons */}
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px]">
-                      <span className="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
-                        Position #{idx + 1}
-                      </span>
-                      <div className="flex items-center gap-1">
+                    {/* Reorder Buttons */}
+                    <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-700/60 text-[10px] font-bold">
+                      <span className="text-slate-400">Position #{idx + 1}</span>
+                      <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => handleMoveSignature(key, 'left')}
                           disabled={isFirst}
-                          className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed font-bold"
-                          title="Move signature to the left"
+                          onClick={() => handleMoveSignature(key, 'left')}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                          title="Move Left"
                         >
-                          ← Left
+                          <MoveLeft className="w-3 h-3" /> Move Left
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleMoveSignature(key, 'right')}
                           disabled={isLast}
-                          className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed font-bold"
-                          title="Move signature to the right"
+                          onClick={() => handleMoveSignature(key, 'right')}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                          title="Move Right"
                         >
-                          Right →
+                          Move Right <MoveRight className="w-3 h-3" />
                         </button>
                       </div>
                     </div>
@@ -2274,177 +2362,72 @@ function CertificateTypeCreateContent() {
 
               if (key === 'controllerSign') {
                 return (
-                  <div
-                    key={key}
-                    className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
-                      showControllerSign
-                        ? 'bg-white dark:bg-slate-800 border-blue-400 dark:border-blue-700 shadow-sm ring-1 ring-blue-500/15'
-                        : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-80'
+                  <div 
+                    key={key} 
+                    className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
+                      showControllerSign 
+                        ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
+                        : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
                     }`}
                   >
                     <div>
-                      <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100 dark:border-slate-700/60">
+                      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
                         <div className="flex items-center gap-2">
                           <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                             {idx + 1}
                           </span>
-                          <div>
-                            <h3 className="text-xs font-black text-slate-800 dark:text-slate-200">Exam Controller</h3>
-                            <span className="text-[10px] text-slate-400">Examination Cell</span>
-                          </div>
-                        </div>
-
-                        {/* Toggle Button */}
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                            showControllerSign ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300' : 'bg-slate-200 text-slate-500'
+                          <span className="text-xs font-black text-slate-800 dark:text-slate-100">Exam Controller Sign</span>
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                            showControllerSign 
+                              ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
+                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
                           }`}>
                             {showControllerSign ? 'ON' : 'OFF'}
                           </span>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={showControllerSign}
-                            onClick={() => handleToggleControllerSign(!showControllerSign)}
-                            className={`w-9 h-5 rounded-full transition-colors relative flex items-center px-0.5 focus:outline-none ${
-                              showControllerSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'
-                            }`}
-                          >
-                            <span className={`w-4 h-4 rounded-full bg-white shadow-xs transform transition-transform ${
-                              showControllerSign ? 'translate-x-4' : 'translate-x-0'
-                            }`} />
-                          </button>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleControllerSign(!showControllerSign)}
+                          className={`w-10 h-5.5 rounded-full relative transition-colors ${showControllerSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                        >
+                          <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showControllerSign ? 'left-5' : 'left-0.5'}`} />
+                        </button>
                       </div>
 
-                      <div className={`space-y-2.5 transition-opacity ${showControllerSign ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Controller Name</label>
-                          <input
-                            type="text"
-                            value={controllerSignName}
-                            disabled={!showControllerSign}
-                            onChange={(e) => setControllerSignName(e.target.value)}
-                            className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                            placeholder="Enter controller name (or leave blank)"
-                          />
-                        </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                        <input
+                          type="text"
+                          value={controllerSignLabel}
+                          onChange={e => setControllerSignLabel(e.target.value)}
+                          disabled={!showControllerSign}
+                          placeholder="Exam Controller"
+                          className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                        />
                       </div>
                     </div>
 
-                    {/* Order / Position Badge & Move Buttons */}
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px]">
-                      <span className="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
-                        Position #{idx + 1}
-                      </span>
-                      <div className="flex items-center gap-1">
+                    {/* Reorder Buttons */}
+                    <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-700/60 text-[10px] font-bold">
+                      <span className="text-slate-400">Position #{idx + 1}</span>
+                      <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => handleMoveSignature(key, 'left')}
                           disabled={isFirst}
-                          className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed font-bold"
-                          title="Move signature to the left"
-                        >
-                          ← Left
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleMoveSignature(key, 'right')}
-                          disabled={isLast}
-                          className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed font-bold"
-                          title="Move signature to the right"
-                        >
-                          Right →
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )
-              }
-
-              if (key === 'coordinatorSign') {
-                return (
-                  <div
-                    key={key}
-                    className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
-                      showCoordinatorSign
-                        ? 'bg-white dark:bg-slate-800 border-blue-400 dark:border-blue-700 shadow-sm ring-1 ring-blue-500/15'
-                        : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-80'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100 dark:border-slate-700/60">
-                        <div className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
-                            {idx + 1}
-                          </span>
-                          <div>
-                            <h3 className="text-xs font-black text-slate-800 dark:text-slate-200">Authority Signature</h3>
-                            <span className="text-[10px] text-slate-400">Authorized Signatory</span>
-                          </div>
-                        </div>
-
-                        {/* Toggle Button */}
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                            showCoordinatorSign ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300' : 'bg-slate-200 text-slate-500'
-                          }`}>
-                            {showCoordinatorSign ? 'ON' : 'OFF'}
-                          </span>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={showCoordinatorSign}
-                            onClick={() => handleToggleCoordinatorSign(!showCoordinatorSign)}
-                            className={`w-9 h-5 rounded-full transition-colors relative flex items-center px-0.5 focus:outline-none ${
-                              showCoordinatorSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'
-                            }`}
-                          >
-                            <span className={`w-4 h-4 rounded-full bg-white shadow-xs transform transition-transform ${
-                              showCoordinatorSign ? 'translate-x-4' : 'translate-x-0'
-                            }`} />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className={`space-y-2.5 transition-opacity ${showCoordinatorSign ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Signatory Full Name</label>
-                          <input
-                            type="text"
-                            value={coordinatorSignName}
-                            disabled={!showCoordinatorSign}
-                            onChange={(e) => setCoordinatorSignName(e.target.value)}
-                            className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                            placeholder="Enter authority name (or leave blank)"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Order / Position Badge & Move Buttons */}
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px]">
-                      <span className="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
-                        Position #{idx + 1}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
                           onClick={() => handleMoveSignature(key, 'left')}
-                          disabled={isFirst}
-                          className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed font-bold"
-                          title="Move signature to the left"
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                          title="Move Left"
                         >
-                          ← Left
+                          <MoveLeft className="w-3 h-3" /> Move Left
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleMoveSignature(key, 'right')}
                           disabled={isLast}
-                          className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed font-bold"
-                          title="Move signature to the right"
+                          onClick={() => handleMoveSignature(key, 'right')}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                          title="Move Right"
                         >
-                          Right →
+                          Move Right <MoveRight className="w-3 h-3" />
                         </button>
                       </div>
                     </div>
@@ -2454,87 +2437,245 @@ function CertificateTypeCreateContent() {
 
               if (key === 'parentSign') {
                 return (
-                  <div
-                    key={key}
-                    className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
-                      showParentSign
-                        ? 'bg-white dark:bg-slate-800 border-blue-400 dark:border-blue-700 shadow-sm ring-1 ring-blue-500/15'
-                        : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-80'
+                  <div 
+                    key={key} 
+                    className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
+                      showParentSign 
+                        ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
+                        : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
                     }`}
                   >
                     <div>
-                      <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100 dark:border-slate-700/60">
+                      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
                         <div className="flex items-center gap-2">
                           <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                             {idx + 1}
                           </span>
-                          <div>
-                            <h3 className="text-xs font-black text-slate-800 dark:text-slate-200">Parent / Guardian</h3>
-                            <span className="text-[10px] text-slate-400">Family Endorsement</span>
-                          </div>
-                        </div>
-
-                        {/* Toggle Button */}
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                            showParentSign ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300' : 'bg-slate-200 text-slate-500'
+                          <span className="text-xs font-black text-slate-800 dark:text-slate-100">Parent Sign</span>
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                            showParentSign 
+                              ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
+                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
                           }`}>
                             {showParentSign ? 'ON' : 'OFF'}
                           </span>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={showParentSign}
-                            onClick={() => handleToggleParentSign(!showParentSign)}
-                            className={`w-9 h-5 rounded-full transition-colors relative flex items-center px-0.5 focus:outline-none ${
-                              showParentSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'
-                            }`}
-                          >
-                            <span className={`w-4 h-4 rounded-full bg-white shadow-xs transform transition-transform ${
-                              showParentSign ? 'translate-x-4' : 'translate-x-0'
-                            }`} />
-                          </button>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleParentSign(!showParentSign)}
+                          className={`w-10 h-5.5 rounded-full relative transition-colors ${showParentSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                        >
+                          <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showParentSign ? 'left-5' : 'left-0.5'}`} />
+                        </button>
                       </div>
 
-                      <div className={`space-y-2.5 transition-opacity ${showParentSign ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Parent / Guardian Full Name</label>
-                          <input
-                            type="text"
-                            value={parentSignName}
-                            disabled={!showParentSign}
-                            onChange={(e) => setParentSignName(e.target.value)}
-                            className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                            placeholder="Enter parent/guardian name (or leave blank)"
-                          />
-                        </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                        <input
+                          type="text"
+                          value={parentSignLabel}
+                          onChange={e => setParentSignLabel(e.target.value)}
+                          disabled={!showParentSign}
+                          placeholder="Parent / Guardian Sign"
+                          className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                        />
                       </div>
                     </div>
 
-                    {/* Order / Position Badge & Move Buttons */}
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px]">
-                      <span className="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
-                        Position #{idx + 1}
-                      </span>
-                      <div className="flex items-center gap-1">
+                    {/* Reorder Buttons */}
+                    <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-700/60 text-[10px] font-bold">
+                      <span className="text-slate-400">Position #{idx + 1}</span>
+                      <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => handleMoveSignature(key, 'left')}
                           disabled={isFirst}
-                          className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed font-bold"
-                          title="Move signature to the left"
+                          onClick={() => handleMoveSignature(key, 'left')}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                          title="Move Left"
                         >
-                          ← Left
+                          <MoveLeft className="w-3 h-3" /> Move Left
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleMoveSignature(key, 'right')}
                           disabled={isLast}
-                          className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed font-bold"
-                          title="Move signature to the right"
+                          onClick={() => handleMoveSignature(key, 'right')}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                          title="Move Right"
                         >
-                          Right →
+                          Move Right <MoveRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              }
+
+              if (key === 'principalSign') {
+                return (
+                  <div 
+                    key={key} 
+                    className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
+                      showPrincipalSign 
+                        ? 'bg-white dark:bg-slate-800 border-blue-300 dark:border-blue-700/80 shadow-xs ring-1 ring-blue-500/15' 
+                        : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+                            {idx + 1}
+                          </span>
+                          <span className="text-xs font-black text-slate-800 dark:text-slate-100">Principal Sign</span>
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                            showPrincipalSign 
+                              ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
+                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                          }`}>
+                            {showPrincipalSign ? 'ON' : 'OFF'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePrincipalSign(!showPrincipalSign)}
+                          className={`w-10 h-5.5 rounded-full relative transition-colors ${showPrincipalSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                        >
+                          <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showPrincipalSign ? 'left-5' : 'left-0.5'}`} />
+                        </button>
+                      </div>
+
+                      {/* Auto-fetch Institute Detail Pill */}
+                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/80 text-[10.5px] text-blue-800 dark:text-blue-200 mb-2.5">
+                        <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <div className="truncate">
+                          <span className="text-slate-500 dark:text-slate-400 text-[10px] block">Auto-fetched from Institute:</span>
+                          <span className="font-extrabold capitalize text-blue-700 dark:text-blue-300">{instPrincipalName || principalName || 'Principal'}</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                          {(instPrincipalName || principalName) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const name = instPrincipalName || principalName
+                                setPrincipalLabel(`Principal's Signature (${name})`)
+                              }}
+                              className="text-[9px] font-bold text-blue-600 hover:text-blue-700 underline cursor-pointer"
+                            >
+                              + Add Name
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          value={principalLabel}
+                          onChange={e => setPrincipalLabel(e.target.value)}
+                          disabled={!showPrincipalSign}
+                          placeholder="Principal's Signature"
+                          className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Reorder Buttons */}
+                    <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-700/60 text-[10px] font-bold">
+                      <span className="text-slate-400">Position #{idx + 1}</span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          disabled={isFirst}
+                          onClick={() => handleMoveSignature(key, 'left')}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                          title="Move Left"
+                        >
+                          <MoveLeft className="w-3 h-3" /> Move Left
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isLast}
+                          onClick={() => handleMoveSignature(key, 'right')}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                          title="Move Right"
+                        >
+                          Move Right <MoveRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              }
+
+              if (key === 'coordinatorSign') {
+                return (
+                  <div 
+                    key={key} 
+                    className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
+                      showCoordinatorSign 
+                        ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
+                        : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+                            {idx + 1}
+                          </span>
+                          <span className="text-xs font-black text-slate-800 dark:text-slate-100">Authority Sign</span>
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                            showCoordinatorSign 
+                              ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
+                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                          }`}>
+                            {showCoordinatorSign ? 'ON' : 'OFF'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleCoordinatorSign(!showCoordinatorSign)}
+                          className={`w-10 h-5.5 rounded-full relative transition-colors ${showCoordinatorSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                        >
+                          <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showCoordinatorSign ? 'left-5' : 'left-0.5'}`} />
+                        </button>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                        <input
+                          type="text"
+                          value={coordinatorSignLabel}
+                          onChange={e => setCoordinatorSignLabel(e.target.value)}
+                          disabled={!showCoordinatorSign}
+                          placeholder="Authority Signature"
+                          className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Reorder Buttons */}
+                    <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-700/60 text-[10px] font-bold">
+                      <span className="text-slate-400">Position #{idx + 1}</span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          disabled={isFirst}
+                          onClick={() => handleMoveSignature(key, 'left')}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                          title="Move Left"
+                        >
+                          <MoveLeft className="w-3 h-3" /> Move Left
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isLast}
+                          onClick={() => handleMoveSignature(key, 'right')}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                          title="Move Right"
+                        >
+                          Move Right <MoveRight className="w-3 h-3" />
                         </button>
                       </div>
                     </div>
@@ -2544,82 +2685,72 @@ function CertificateTypeCreateContent() {
 
               if (key === 'studentSign') {
                 return (
-                  <div
-                    key={key}
-                    className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
-                      showStudentSign
-                        ? 'bg-white dark:bg-slate-800 border-blue-400 dark:border-blue-700 shadow-sm ring-1 ring-blue-500/15'
-                        : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-80'
+                  <div 
+                    key={key} 
+                    className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 ${
+                      showStudentSign 
+                        ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
+                        : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
                     }`}
                   >
                     <div>
-                      <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100 dark:border-slate-700/60">
+                      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
                         <div className="flex items-center gap-2">
                           <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                             {idx + 1}
                           </span>
-                          <div>
-                            <h3 className="text-xs font-black text-slate-800 dark:text-slate-200">Candidate Sign</h3>
-                            <span className="text-[10px] text-slate-400">Recipient Acceptance</span>
-                          </div>
-                        </div>
-
-                        {/* Toggle Button */}
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                            showStudentSign ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300' : 'bg-slate-200 text-slate-500'
+                          <span className="text-xs font-black text-slate-800 dark:text-slate-100">Student Sign Line</span>
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                            showStudentSign 
+                              ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
+                              : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
                           }`}>
                             {showStudentSign ? 'ON' : 'OFF'}
                           </span>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={showStudentSign}
-                            onClick={() => handleToggleStudentSign(!showStudentSign)}
-                            className={`w-9 h-5 rounded-full transition-colors relative flex items-center px-0.5 focus:outline-none ${
-                              showStudentSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'
-                            }`}
-                          >
-                            <span className={`w-4 h-4 rounded-full bg-white shadow-xs transform transition-transform ${
-                              showStudentSign ? 'translate-x-4' : 'translate-x-0'
-                            }`} />
-                          </button>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStudentSign(!showStudentSign)}
+                          className={`w-10 h-5.5 rounded-full relative transition-colors ${showStudentSign ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                        >
+                          <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showStudentSign ? 'left-5' : 'left-0.5'}`} />
+                        </button>
                       </div>
 
-                      <div className={`space-y-2 py-1 transition-opacity ${showStudentSign ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                          Candidate Signature Line
-                        </p>
-                        <p className="text-[10px] text-slate-400 leading-tight">
-                          Displays candidate signature line for student endorsement on the certificate.
-                        </p>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                        <input
+                          type="text"
+                          value={studentSignLabel}
+                          onChange={e => setStudentSignLabel(e.target.value)}
+                          disabled={!showStudentSign}
+                          placeholder="Student's Signature"
+                          className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                        />
                       </div>
                     </div>
 
-                    {/* Order / Position Badge & Move Buttons */}
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px]">
-                      <span className="font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
-                        Position #{idx + 1}
-                      </span>
-                      <div className="flex items-center gap-1">
+                    {/* Reorder Buttons */}
+                    <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-700/60 text-[10px] font-bold">
+                      <span className="text-slate-400">Position #{idx + 1}</span>
+                      <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => handleMoveSignature(key, 'left')}
                           disabled={isFirst}
-                          className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed font-bold"
-                          title="Move signature to the left"
+                          onClick={() => handleMoveSignature(key, 'left')}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                          title="Move Left"
                         >
-                          ← Left
+                          <MoveLeft className="w-3 h-3" /> Move Left
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleMoveSignature(key, 'right')}
                           disabled={isLast}
-                          className="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed font-bold"
-                          title="Move signature to the right"
+                          onClick={() => handleMoveSignature(key, 'right')}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-700 dark:hover:bg-blue-950 text-slate-700 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1"
+                          title="Move Right"
                         >
-                          Right →
+                          Move Right <MoveRight className="w-3 h-3" />
                         </button>
                       </div>
                     </div>
@@ -2629,134 +2760,149 @@ function CertificateTypeCreateContent() {
 
               return null
             })}
+          </div>
 
-            {/* 7. Certificate Issue Date */}
-            <div className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
-              showIssueDate
-                ? 'bg-white dark:bg-slate-800 border-blue-400 dark:border-blue-700 shadow-sm ring-1 ring-blue-500/15'
-                : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-80'
+          {/* Certificate Credentials & Verification Seals Sub-Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            {/* Official Gold Seal / Crest */}
+            <div className={`p-4 rounded-2xl border transition-all ${
+              showSeal 
+                ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
+                : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
             }`}>
-              <div>
-                <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-100 dark:border-slate-700/60">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center shrink-0">
-                      <Calendar className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <h3 className="text-xs font-black text-slate-800 dark:text-slate-200">Date of Issue</h3>
-                      <span className="text-[10px] text-slate-400">Issuance Timestamp</span>
-                    </div>
-                  </div>
+              <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">Official Seal</span>
+                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                    showSeal 
+                      ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
+                      : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                  }`}>
+                    {showSeal ? 'ON' : 'OFF'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleToggleSeal(!showSeal)}
+                  className={`w-10 h-5.5 rounded-full relative transition-colors ${showSeal ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                >
+                  <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showSeal ? 'left-5' : 'left-0.5'}`} />
+                </button>
+              </div>
 
-                  {/* Toggle Button */}
-                  <div className="flex items-center gap-1.5">
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                      showIssueDate ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300' : 'bg-slate-200 text-slate-500'
-                    }`}>
-                      {showIssueDate ? 'ON' : 'OFF'}
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Seal Crest Text</label>
+                  <input
+                    type="text"
+                    value={sealLabel}
+                    onChange={e => setSealLabel(e.target.value)}
+                    disabled={!showSeal}
+                    placeholder="ACADEMIC EXCELLENCE"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs uppercase"
+                  />
+                </div>
+
+                <div className="space-y-1.5 pt-1 border-t border-slate-100 dark:border-slate-700/60">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500 font-semibold">Official Seal Diameter:</span>
+                    <span className="font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded text-[10px]">
+                      {sealSize} px
                     </span>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={showIssueDate}
-                      onClick={() => handleToggleIssueDate(!showIssueDate)}
-                      className={`w-9 h-5 rounded-full transition-colors relative flex items-center px-0.5 focus:outline-none ${
-                        showIssueDate ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'
-                      }`}
-                    >
-                      <span className={`w-4 h-4 rounded-full bg-white shadow-xs transform transition-transform ${
-                        showIssueDate ? 'translate-x-4' : 'translate-x-0'
-                      }`} />
-                    </button>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1 p-1 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-700">
+                    {[
+                      { label: 'S (44px)', size: '44' },
+                      { label: 'M (56px)', size: '56' },
+                      { label: 'L (72px)', size: '72' },
+                      { label: 'XL (84px)', size: '84' }
+                    ].map(p => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => setSealSize(p.size)}
+                        className={`py-0.5 rounded text-[10px] font-bold transition-all ${
+                          sealSize === p.size
+                            ? 'bg-blue-600 text-white shadow-2xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        {p.label.split(' ')[0]}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <input
+                      type="range"
+                      min="36"
+                      max="90"
+                      step="2"
+                      value={Number(sealSize) || 72}
+                      onChange={e => setSealSize(e.target.value)}
+                      disabled={!showSeal}
+                      className="w-full accent-blue-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                    />
                   </div>
                 </div>
 
-                <div className={`space-y-2.5 transition-opacity ${showIssueDate ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Sample Date Text</label>
-                    <input
-                      type="text"
-                      value={issueDate}
-                      disabled={!showIssueDate}
-                      onChange={(e) => setIssueDate(e.target.value)}
-                      className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                      placeholder="e.g. 15 October 2025"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Date Label</label>
-                    <input
-                      type="text"
-                      value={dateLabel}
-                      disabled={!showIssueDate}
-                      onChange={(e) => setDateLabel(e.target.value)}
-                      className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs outline-none focus:border-blue-500"
-                      placeholder="e.g. Date of Issue"
-                    />
-                  </div>
+                <div className="p-2 rounded-xl bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200/50 dark:border-blue-800/40 text-[10px] text-blue-800 dark:text-blue-300 flex items-center gap-1.5">
+                  <Award className="w-3.5 h-3.5 shrink-0 text-blue-600" />
+                  <span>Vector 300 DPI Institutional Crest with themed ribbon</span>
                 </div>
               </div>
             </div>
 
-            {/* 8. Official Seal & QR Code */}
-            <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm flex flex-col justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2 pb-3 mb-3 border-b border-slate-100 dark:border-slate-700/60">
-                  <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center shrink-0">
-                    <Sparkles className="w-3.5 h-3.5" />
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-black text-slate-800 dark:text-slate-200">Seal & Security QR</h3>
-                    <span className="text-[10px] text-slate-400">Official Authentications</span>
-                  </div>
+            {/* Date of Issue */}
+            <div className={`p-4 rounded-2xl border transition-all ${
+              showIssueDate 
+                ? 'bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-500/10' 
+                : 'bg-slate-50/70 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75'
+            }`}>
+              <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100 dark:border-slate-700/60">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">Date of Issue</span>
+                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                    showIssueDate 
+                      ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
+                      : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                  }`}>
+                    {showIssueDate ? 'ON' : 'OFF'}
+                  </span>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => handleToggleIssueDate(!showIssueDate)}
+                  className={`w-10 h-5.5 rounded-full relative transition-colors ${showIssueDate ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                >
+                  <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${showIssueDate ? 'left-5' : 'left-0.5'}`} />
+                </button>
+              </div>
 
-                <div className="space-y-4 pt-1">
-                  {/* Seal Toggle */}
-                  <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center gap-2">
-                      <Award className="w-4 h-4 text-amber-500 shrink-0" />
-                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Golden Seal / Stamp</span>
-                    </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={showSeal}
-                      onClick={() => handleToggleSeal(!showSeal)}
-                      className={`w-9 h-5 rounded-full transition-colors relative flex items-center px-0.5 focus:outline-none ${
-                        showSeal ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'
-                      }`}
-                    >
-                      <span className={`w-4 h-4 rounded-full bg-white shadow-xs transform transition-transform ${
-                        showSeal ? 'translate-x-4' : 'translate-x-0'
-                      }`} />
-                    </button>
-                  </div>
-
-                  {/* QR Toggle */}
-                  <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center gap-2">
-                      <QrCode className="w-4 h-4 text-blue-600 shrink-0" />
-                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Security QR Code</span>
-                    </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={showQr}
-                      onClick={() => handleToggleQr(!showQr)}
-                      className={`w-9 h-5 rounded-full transition-colors relative flex items-center px-0.5 focus:outline-none ${
-                        showQr ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'
-                      }`}
-                    >
-                      <span className={`w-4 h-4 rounded-full bg-white shadow-xs transform transition-transform ${
-                        showQr ? 'translate-x-4' : 'translate-x-0'
-                      }`} />
-                    </button>
-                  </div>
+              <div className="space-y-2.5">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Date Footer Title</label>
+                  <input
+                    type="text"
+                    value={dateLabel}
+                    onChange={e => setDateLabel(e.target.value)}
+                    disabled={!showIssueDate}
+                    placeholder="Date of Issue"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Certificate Issue Date / Event Date</label>
+                  <input
+                    type="text"
+                    value={issueDate}
+                    onChange={e => setIssueDate(e.target.value)}
+                    disabled={!showIssueDate}
+                    placeholder="e.g. 15 October 2026"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                  />
                 </div>
               </div>
             </div>
-
           </div>
         </section>
 

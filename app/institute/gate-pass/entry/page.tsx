@@ -235,9 +235,9 @@ export default function GatePassEntryPage() {
           </Link>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black tracking-tight">Gate Pass Entry</h1>
+              <h1 className="text-xl font-black tracking-tight">Permanent Gate Pass</h1>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-teal-400 text-teal-950 uppercase tracking-wider">
-                Permanent Passes
+                Daily Entries Log
               </span>
             </div>
             <p className="text-xs text-teal-100 mt-0.5">
