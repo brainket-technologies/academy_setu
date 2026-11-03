@@ -9,7 +9,7 @@ import {
   Filter, Sparkles, Download, Eye, ChevronDown,
   BarChart3, MessageSquare, Award, CheckCircle, XCircle,
   LayoutGrid, Table as TableIcon, Printer, ArrowUpRight,
-  RefreshCw, TrendingUp, Star
+  RefreshCw, TrendingUp, Star, Paperclip, UserCheck, Layers
 } from 'lucide-react'
 import Link from 'next/link'
 import { useClasses, useSections, useSubjects } from '@/lib/mastersData'
@@ -74,6 +74,7 @@ interface ClassCardItem {
   notCompletedCount: number
   rescheduledCount: number
   tasksCount: number
+  completionRate: number
 }
 
 interface SubjectItem {
@@ -92,6 +93,9 @@ interface SubjectItem {
   completionPct?: number
   isRemarkDone?: boolean
   taskTitle?: string
+  taskId?: string
+  assignDate?: string
+  dueDate?: string
 }
 
 interface StudentReportItem {
@@ -105,6 +109,8 @@ interface StudentReportItem {
   rating?: number
   remark?: string
   submittedAt?: string
+  rescheduledDate?: string
+  isAssigned?: boolean
 }
 
 // Subject color palettes for dynamic subjects
@@ -120,7 +126,7 @@ const SUBJECT_PALETTES = [
 // Canonical class and section matching helper
 function matchesClassAndSection(student: any, cardClassName: string, cardSection: string): boolean {
   const sClass = String(
-    student.class || student.className || student.class_name || student.current_class || ''
+    student.class || student.className || student.class_name || student.current_class || student.classes || ''
   ).trim()
   const sSec = String(
     student.section || student.sectionName || student.section_name || student.current_section || ''
@@ -144,6 +150,7 @@ function matchesClassAndSection(student: any, cardClassName: string, cardSection
   const normSec = (s: string) =>
     s.toLowerCase()
       .replace(/^section\s+/i, '')
+      .replace(/^sec\s+/i, '')
       .replace(/[-_\s]/g, '')
       .trim()
 
@@ -182,12 +189,16 @@ export default function HomeworkReportPage() {
   const [taskSubmissionsMap, setTaskSubmissionsMap] = useState<Record<string, any[]>>({})
   const [loading, setLoading] = useState<boolean>(true)
 
+  // Two Main Report Types requested by user: 'remark' (default) vs 'assign'
+  const [reportType, setReportType] = useState<'remark' | 'assign'>('remark')
+
   // Navigation steps: 'classes' (Screen 1) -> 'subjects' (Screen 2) -> 'report' (Screen 3)
   const [currentStep, setCurrentStep] = useState<'classes' | 'subjects' | 'report'>('classes')
 
   // Selections
   const [selectedClassCard, setSelectedClassCard] = useState<ClassCardItem | null>(null)
   const [selectedSubject, setSelectedSubject] = useState<SubjectItem | null>(null)
+  const [selectedTask, setSelectedTask] = useState<any | null>(null)
 
   // Date selection state - default to today
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date())
@@ -202,6 +213,7 @@ export default function HomeworkReportPage() {
   // Search & Filter on Screen 3
   const [studentSearch, setStudentSearch] = useState<string>('')
   const [statusTab, setStatusTab] = useState<'All' | 'Completed' | 'Not Completed' | 'Rescheduled' | 'Pending'>('All')
+  const [remarkSubjectFilter, setRemarkSubjectFilter] = useState<string>('All')
 
   // Generate 7-day strip centered on dateStripCenter
   const dateStrip = useMemo(() => {
@@ -244,8 +256,6 @@ export default function HomeworkReportPage() {
     async function loadData() {
       setLoading(true)
       try {
-        // 1. Fetch Real Students from DB and LocalStorage
-        let combinedStudents: any[] = []
         const parseLocal = (k: string) => {
           try {
             const raw = localStorage.getItem(k)
@@ -253,6 +263,8 @@ export default function HomeworkReportPage() {
           } catch { return [] }
         }
 
+        // 1. Fetch Real Students from DB and LocalStorage
+        let combinedStudents: any[] = []
         const l1 = parseLocal('school_students')
         const l2 = parseLocal('school_institute_students')
         const l3 = parseLocal('students')
@@ -340,55 +352,73 @@ export default function HomeworkReportPage() {
     loadData()
   }, [])
 
+  // Sync data dynamically on storage change or window focus
+  useEffect(() => {
+    const syncData = () => {
+      try {
+        const rawTasks = localStorage.getItem('school_homework_tasks')
+        if (rawTasks) {
+          const parsed = JSON.parse(rawTasks)
+          if (Array.isArray(parsed)) {
+            setAllTasks(prev => {
+              const map = new Map<string, any>()
+              prev.forEach(t => map.set(String(t.id), t))
+              parsed.forEach((t: any) => {
+                if (t && t.id) {
+                  const existing = map.get(String(t.id))
+                  map.set(String(t.id), { ...t, ...(existing || {}) })
+                }
+              })
+              return Array.from(map.values())
+            })
+          }
+        }
+      } catch {}
+    }
+    window.addEventListener('storage', syncData)
+    window.addEventListener('focus', syncData)
+    return () => {
+      window.removeEventListener('storage', syncData)
+      window.removeEventListener('focus', syncData)
+    }
+  }, [])
+
   // When viewing Screen 3, fetch submissions for active task
   useEffect(() => {
-    if (currentStep === 'report' && selectedClassCard && selectedSubject) {
-      const matchedTask = allTasks.find(t => 
-        t.classes && selectedClassCard.className &&
-        t.classes.toLowerCase().trim() === selectedClassCard.className.toLowerCase().trim() &&
-        t.subject && selectedSubject.subjectName &&
-        t.subject.toLowerCase().trim() === selectedSubject.subjectName.toLowerCase().trim()
-      )
-      if (matchedTask?.id && !taskSubmissionsMap[matchedTask.id]) {
-        fetchTaskSubmissions(matchedTask.id).then(res => {
-          if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-            setTaskSubmissionsMap(prev => ({
-              ...prev,
-              [matchedTask.id]: res.data
-            }))
-          }
-        })
-      }
+    const currentTaskId = selectedTask?.id || activeTask?.id
+    if (currentStep === 'report' && currentTaskId && !taskSubmissionsMap[currentTaskId]) {
+      fetchTaskSubmissions(currentTaskId).then(res => {
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          setTaskSubmissionsMap(prev => ({
+            ...prev,
+            [currentTaskId]: res.data
+          }))
+        }
+      }).catch(() => {})
     }
-  }, [currentStep, selectedClassCard, selectedSubject, allTasks, taskSubmissionsMap])
+  }, [currentStep, selectedTask, taskSubmissionsMap])
 
   // Build Real Class Cards (Deduplicated, 100% Real Enrolled Students & Real Tasks)
   const classCards: ClassCardItem[] = useMemo(() => {
     const list: ClassCardItem[] = []
     const processedKeys = new Set<string>()
-
-    // Selected date formatted string
     const selectedDateStr = formatDateToISO(selectedDate)
 
-    // 1. Gather all unique classes either from mastersData or from enrolled students
     const classesSource = (classesData && classesData.length > 0)
       ? classesData
       : Array.from(new Set(allStudents.map(s => s.class || s.className || s.class_name).filter(Boolean)))
           .map(name => ({ className: name }))
 
-    classesSource.forEach((cls: any, cIdx: number) => {
+    classesSource.forEach((cls: any) => {
       const cName = String(cls.className || cls.name || '').trim()
       if (!cName) return
 
-      // Determine valid sections for this class without duplicating
       let secList: string[] = []
-
       if (Array.isArray(cls.sections) && cls.sections.length > 0) {
         secList = Array.from(new Set(
           cls.sections.map((s: any) => String(s.name || s.sectionName || s).trim().toUpperCase())
         )).filter(Boolean) as string[]
       } else {
-        // Check sections of students enrolled in this class
         const studentSecs = Array.from(new Set(
           allStudents
             .filter(s => matchesClassAndSection(s, cName, 'all'))
@@ -398,7 +428,6 @@ export default function HomeworkReportPage() {
         if (studentSecs.length > 0) {
           secList = studentSecs
         } else if (sectionsData && sectionsData.length > 0) {
-          // Use unique section names from sectionsData
           secList = Array.from(new Set(
             sectionsData.map((s: any) => String(s.sectionName || s.name || s).trim().toUpperCase())
           )).filter(Boolean) as string[]
@@ -407,40 +436,35 @@ export default function HomeworkReportPage() {
         }
       }
 
-      // Add each section once
       secList.forEach(sec => {
         const uniqueKey = `${cName.toLowerCase()}___${sec.toLowerCase()}`
         if (processedKeys.has(uniqueKey)) return
         processedKeys.add(uniqueKey)
 
-        // Real enrolled students in this class and section
         const matchedStudents = allStudents.filter(s => matchesClassAndSection(s, cName, sec))
         const count = matchedStudents.length
 
-        // Find all subjects belonging to this class
         const fromMasters = (subjectsData && subjectsData.length > 0)
           ? subjectsData.filter((s: any) => !s.deleted && (!s.className || s.className.toLowerCase().trim() === cName.toLowerCase().trim()))
           : []
         const masterSubNames = fromMasters.map((s: any) => String(s.subjectName || s.name || '').trim()).filter(Boolean)
 
-        // All tasks for this class & section
         const allClassTasks = allTasks.filter(t => matchesClassAndSection({ class: t.classes, section: t.section }, cName, sec))
         const taskSubs = allClassTasks.map(t => String(t.subject || '').trim()).filter(Boolean)
 
-        // Distinct subject names for this class & section
         const allSubjectNames = Array.from(new Set([...masterSubNames, ...taskSubs]))
         const totalSubjects = allSubjectNames.length > 0 ? allSubjectNames.length : (masterSubNames.length > 0 ? masterSubNames.length : 1)
 
-        // Match real tasks assigned for this class and section on selectedDate
+        // Filter tasks that belong to this date
         const matchingTasks = allClassTasks.filter(t => {
           const aDate = normalizeDateStr(t.assignDate || t.assign_date)
           const sDate = normalizeDateStr(t.submissionDate || t.submission_date)
-          return (!aDate && !sDate) || aDate === selectedDateStr || sDate === selectedDateStr
+          const cDate = normalizeDateStr(t.createdAt || t.created_at)
+          return aDate === selectedDateStr || sDate === selectedDateStr || cDate === selectedDateStr
         })
 
         const relevantTasks = matchingTasks.length > 0 ? matchingTasks : allClassTasks
 
-        // Which subjects have homework assigned?
         const assignedSubjectSet = new Set(
           relevantTasks.map(t => String(t.subject || '').trim().toLowerCase()).filter(Boolean)
         )
@@ -448,7 +472,6 @@ export default function HomeworkReportPage() {
         const assignedSubjects = assignedSubjectSet.size
         const notAssignedSubjects = Math.max(0, totalSubjects - assignedSubjects)
 
-        // Remark Done vs Remark Pending
         let remarkDoneCount = 0
         let remarkPendingCount = 0
 
@@ -470,7 +493,7 @@ export default function HomeworkReportPage() {
             if (Array.isArray(subs) && subs.length > 0) {
               const done = subs.some((s: any) => {
                 const st = String(s.status || '').toLowerCase()
-                return st === 'completed' || st === 'done' || st === 'submitted' || !!s.remark || (typeof s.rating === 'number' && s.rating > 0)
+                return st === 'completed' || st === 'done' || st === 'submitted' || st === 'rescheduled' || !!s.remark || (typeof s.rating === 'number' && s.rating > 0)
               })
               if (done) hasEvaluated = true
             }
@@ -483,7 +506,6 @@ export default function HomeworkReportPage() {
           }
         })
 
-        // Real submission counts from actual submissions
         let completed = 0
         let notCompleted = 0
         let rescheduled = 0
@@ -509,10 +531,9 @@ export default function HomeworkReportPage() {
           }
         })
 
-        // Real assigned count: if tasks exist, count enrolled students; else 0
-        const assigned = relevantTasks.length > 0 ? (count > 0 ? count : 0) : 0
+        const assigned = relevantTasks.length > 0 ? (count > 0 ? count : 1) : 0
+        const completionRate = assigned > 0 ? Math.min(100, Math.round(((completed + rescheduled) / assigned) * 100)) : 0
 
-        // Find real class teacher from allTeachers
         const matchedTeacher = allTeachers.find((t: any) => {
           const assignedClasses = t.assigned_classes || t.assignedClasses || []
           const text = JSON.stringify(assignedClasses).toLowerCase()
@@ -534,7 +555,8 @@ export default function HomeworkReportPage() {
           completedCount: completed,
           notCompletedCount: notCompleted,
           rescheduledCount: rescheduled,
-          tasksCount: relevantTasks.length
+          tasksCount: relevantTasks.length,
+          completionRate
         })
       })
     })
@@ -576,18 +598,30 @@ export default function HomeworkReportPage() {
     })
   }, [classCards, classFilter, sectionFilter, searchQuery])
 
-  // Overall Statistics for Screen 1 (100% Real Calculations)
+  // Overall Statistics for Screen 1
   const overallStats = useMemo(() => {
     const totalClasses = new Set(filteredClassCards.map(c => c.className)).size
     const totalStudents = filteredClassCards.reduce((acc, c) => acc + c.studentsCount, 0)
     const totalAssigned = filteredClassCards.reduce((acc, c) => acc + c.assignedCount, 0)
     const totalCompleted = filteredClassCards.reduce((acc, c) => acc + c.completedCount, 0)
+    const totalTasks = filteredClassCards.reduce((acc, c) => acc + c.tasksCount, 0)
+    const totalRemarksDone = filteredClassCards.reduce((acc, c) => acc + c.remarkDoneSubjects, 0)
+    const totalUnassigned = filteredClassCards.reduce((acc, c) => acc + c.notAssignedSubjects, 0)
     const completionRate = totalAssigned > 0 ? Math.round((totalCompleted / totalAssigned) * 100) : 0
 
-    return { totalClasses, totalStudents, totalAssigned, totalCompleted, completionRate }
+    return { 
+      totalClasses, 
+      totalStudents, 
+      totalAssigned, 
+      totalCompleted, 
+      totalTasks,
+      totalRemarksDone,
+      totalUnassigned,
+      completionRate 
+    }
   }, [filteredClassCards])
 
-  // Build Real Subjects for Selected Class with Subject-Wise Completion Rate
+  // Real Subjects for Selected Class with Subject-Wise Remarks & Completion Rate
   const classSubjects: SubjectItem[] = useMemo(() => {
     if (!selectedClassCard) return []
 
@@ -614,10 +648,8 @@ export default function HomeworkReportPage() {
       })
     }
 
-    // Also check if any tasks exist for this class with subjects
     const tasksForClass = allTasks.filter(t => 
-      t.classes && t.classes.toLowerCase().trim() === cName &&
-      (!t.section || !cSec || t.section.toLowerCase().trim() === cSec)
+      matchesClassAndSection({ class: t.classes, section: t.section }, cName, cSec)
     )
 
     tasksForClass.forEach((t, idx) => {
@@ -638,20 +670,24 @@ export default function HomeworkReportPage() {
       const sLower = s.subjectName.toLowerCase().trim()
 
       const subTasks = allTasks.filter(t => 
-        t.classes && t.classes.toLowerCase().trim() === cName &&
-        t.subject && t.subject.toLowerCase().trim() === sLower &&
-        (!t.section || !cSec || t.section.toLowerCase().trim() === cSec)
+        matchesClassAndSection({ class: t.classes, section: t.section }, cName, cSec) &&
+        t.subject && t.subject.toLowerCase().trim() === sLower
       )
 
       const dateTasks = subTasks.filter(t => {
         const aDate = normalizeDateStr(t.assignDate || t.assign_date)
         const sDate = normalizeDateStr(t.submissionDate || t.submission_date)
-        return (!aDate && !sDate) || aDate === selectedDateStr || sDate === selectedDateStr
+        const cDate = normalizeDateStr(t.createdAt || t.created_at)
+        return aDate === selectedDateStr || sDate === selectedDateStr || cDate === selectedDateStr
       })
       const activeSubTasks = dateTasks.length > 0 ? dateTasks : subTasks
 
       const hasTask = activeSubTasks.length > 0
-      const taskTitle = hasTask ? activeSubTasks[0].title : undefined
+      const activeT = hasTask ? activeSubTasks[0] : null
+      const taskTitle = activeT?.title || undefined
+      const taskId = activeT?.id || undefined
+      const assignDate = activeT?.assignDate || activeT?.assign_date || undefined
+      const dueDate = activeT?.submissionDate || activeT?.submission_date || undefined
 
       let completed = 0
       let notCompleted = 0
@@ -680,7 +716,10 @@ export default function HomeworkReportPage() {
 
       const assignedCount = hasTask ? (studentCount > 0 ? studentCount : 1) : 0
       const completionPct = assignedCount > 0 ? Math.min(100, Math.round((completed / assignedCount) * 100)) : 0
-      const isRemarkDone = hasTask && completed > 0
+      const isRemarkDone = hasTask && (completed > 0 || subTasks.some(t => {
+        const rawLocal = localStorage.getItem(`school_task_subs_${t.id}`)
+        return rawLocal && rawLocal.includes('remark')
+      }))
 
       const matchedTeacher = allTeachers.find((t: any) => {
         const assigned = JSON.stringify(t.assigned_classes || t.assignedClasses || []).toLowerCase()
@@ -696,7 +735,10 @@ export default function HomeworkReportPage() {
         textColor: palette.textColor,
         badgeColor: palette.badgeColor,
         hasTask,
+        taskId,
         taskTitle,
+        assignDate,
+        dueDate,
         assignedCount,
         completedCount: completed,
         notCompletedCount: notCompleted,
@@ -707,38 +749,198 @@ export default function HomeworkReportPage() {
     })
   }, [selectedClassCard, subjectsData, allTeachers, allTasks, taskSubmissionsMap, selectedDate])
 
-  // Active Task for Screen 3
+  // Task-Wise Remarks for Selected Class (for Remark Report Screen 2)
+  const classTasksForRemark = useMemo(() => {
+    if (!selectedClassCard) return []
+    const cName = selectedClassCard.className.toLowerCase().trim()
+    const cSec = selectedClassCard.section.toLowerCase().trim()
+    const selectedDateStr = formatDateToISO(selectedDate)
+
+    const allClassTasks = allTasks.filter(t => 
+      matchesClassAndSection({ class: t.classes, section: t.section }, cName, cSec)
+    )
+
+    const dateTasks = allClassTasks.filter(t => {
+      const aDate = normalizeDateStr(t.assignDate || t.assign_date)
+      const sDate = normalizeDateStr(t.submissionDate || t.submission_date)
+      const cDate = normalizeDateStr(t.createdAt || t.created_at)
+      return aDate === selectedDateStr || sDate === selectedDateStr || cDate === selectedDateStr
+    })
+
+    const tasksToUse = dateTasks.length > 0 ? dateTasks : allClassTasks
+
+    return tasksToUse.map((task, idx) => {
+      let subs: any[] = []
+      try {
+        const rawLocal = localStorage.getItem(`school_task_subs_${task.id}`) || localStorage.getItem(`hw_sub_${task.id}`)
+        if (rawLocal) subs = JSON.parse(rawLocal)
+      } catch {}
+
+      if ((!subs || subs.length === 0) && taskSubmissionsMap[task.id]) {
+        subs = getSafeSubmissionsArray(taskSubmissionsMap[task.id])
+      }
+
+      let completed = 0
+      let rescheduled = 0
+      let notCompleted = 0
+      let evaluated = 0
+
+      if (Array.isArray(subs)) {
+        subs.forEach((sub: any) => {
+          const st = String(sub.status || '').toLowerCase()
+          const hasRatingOrRemark = !!sub.remark || (typeof sub.rating === 'number' && sub.rating > 0)
+          if (st === 'completed' || st === 'done' || st === 'submitted') {
+            completed++
+            evaluated++
+          } else if (st === 'rescheduled') {
+            rescheduled++
+            evaluated++
+          } else if (st === 'not completed' || st === 'incomplete') {
+            notCompleted++
+            evaluated++
+          } else if (hasRatingOrRemark) {
+            evaluated++
+          }
+        })
+      }
+
+      const assignedCount = Array.isArray(task.assignedStudentIds) && task.assignedStudentIds.length > 0
+        ? task.assignedStudentIds.length
+        : (task.studentsCount || selectedClassCard.studentsCount || 1)
+
+      const pendingCount = Math.max(0, assignedCount - evaluated)
+      const evaluationPct = assignedCount > 0 ? Math.min(100, Math.round((evaluated / assignedCount) * 100)) : 0
+      const strictlyCompletedPct = assignedCount > 0 ? Math.min(100, Math.round((completed / assignedCount) * 100)) : 0
+
+      const isRemarkDone = evaluated > 0
+
+      const matchedTeacher = allTeachers.find((t: any) => {
+        const assigned = JSON.stringify(t.assigned_classes || t.assignedClasses || []).toLowerCase()
+        return (
+          t.name?.toLowerCase() === String(task.teacherName || task.assignedBy || task.assigned_by || '').toLowerCase() ||
+          assigned.includes(String(task.subject || '').toLowerCase())
+        )
+      })?.name || task.teacherName || task.assignedBy || task.assigned_by || 'Assigned Teacher'
+
+      const palette = SUBJECT_PALETTES[idx % SUBJECT_PALETTES.length]
+
+      return {
+        id: task.id,
+        rawTask: task,
+        title: task.title,
+        description: task.description,
+        subject: task.subject,
+        assignDate: task.assignDate || task.assign_date || '—',
+        dueDate: task.submissionDate || task.submission_date || '—',
+        teacherName: matchedTeacher,
+        assignedCount,
+        completedCount: completed,
+        rescheduledCount: rescheduled,
+        notCompletedCount: notCompleted,
+        pendingCount,
+        evaluatedCount: evaluated,
+        completionPct: evaluationPct,
+        strictlyCompletedPct,
+        isRemarkDone,
+        palette
+      }
+    })
+  }, [selectedClassCard, allTasks, taskSubmissionsMap, allTeachers, selectedDate])
+
+  // Unique subjects with tasks for Remark Screen 2 filter
+  const remarkSubjectsList = useMemo(() => {
+    const set = new Set<string>()
+    classTasksForRemark.forEach(t => {
+      if (t.subject) set.add(t.subject)
+    })
+    return Array.from(set)
+  }, [classTasksForRemark])
+
+  // Filtered tasks by subject tab in Screen 2
+  const filteredRemarkTasks = useMemo(() => {
+    if (remarkSubjectFilter === 'All') return classTasksForRemark
+    return classTasksForRemark.filter(t => t.subject?.toLowerCase() === remarkSubjectFilter.toLowerCase())
+  }, [classTasksForRemark, remarkSubjectFilter])
+
+  // Unassigned master subjects for the selected class
+  const unassignedSubjectsForClass = useMemo(() => {
+    if (!selectedClassCard) return []
+    const cName = selectedClassCard.className.toLowerCase().trim()
+    const fromMasters = (subjectsData && subjectsData.length > 0)
+      ? subjectsData.filter((s: any) => !s.deleted && (!s.className || s.className.toLowerCase().trim() === cName))
+      : []
+    const masterSubNames = fromMasters.map((s: any) => String(s.subjectName || s.name || '').trim()).filter(Boolean)
+    const assignedSubs = new Set(classTasksForRemark.map(t => String(t.subject || '').toLowerCase().trim()))
+    return masterSubNames.filter(m => !assignedSubs.has(m.toLowerCase()))
+  }, [selectedClassCard, subjectsData, classTasksForRemark])
+
+  // Assigned Tasks for Selected Class (for Assign Report Screen 2)
+  const assignedClassTasks = useMemo(() => {
+    if (!selectedClassCard) return []
+    const cName = selectedClassCard.className.toLowerCase().trim()
+    const cSec = selectedClassCard.section.toLowerCase().trim()
+    const selectedDateStr = formatDateToISO(selectedDate)
+
+    const allClassTasks = allTasks.filter(t => 
+      matchesClassAndSection({ class: t.classes, section: t.section }, cName, cSec)
+    )
+
+    const dateTasks = allClassTasks.filter(t => {
+      const aDate = normalizeDateStr(t.assignDate || t.assign_date)
+      const sDate = normalizeDateStr(t.submissionDate || t.submission_date)
+      const cDate = normalizeDateStr(t.createdAt || t.created_at)
+      return aDate === selectedDateStr || sDate === selectedDateStr || cDate === selectedDateStr
+    })
+
+    return dateTasks.length > 0 ? dateTasks : allClassTasks
+  }, [selectedClassCard, allTasks, selectedDate])
+
+  // Active Task for Screen 3 in Remark Report
   const activeTask = useMemo(() => {
+    if (selectedTask) return selectedTask
     if (!selectedClassCard || !selectedSubject) return null
     return allTasks.find(t => 
-      t.classes && selectedClassCard.className &&
-      t.classes.toLowerCase().trim() === selectedClassCard.className.toLowerCase().trim() &&
+      matchesClassAndSection({ class: t.classes, section: t.section }, selectedClassCard.className, selectedClassCard.section) &&
       t.subject && selectedSubject.subjectName &&
       t.subject.toLowerCase().trim() === selectedSubject.subjectName.toLowerCase().trim()
     ) || null
-  }, [selectedClassCard, selectedSubject, allTasks])
+  }, [selectedTask, selectedClassCard, selectedSubject, allTasks])
 
-  // Student Report Items for Screen 3 (100% Real Enrolled Students Only)
+  // Student Report Items for Screen 3 in Remark Report
   const studentReports: StudentReportItem[] = useMemo(() => {
     if (!selectedClassCard) return []
 
-    // Only get students really enrolled in this specific class & section
     const enrolled = allStudents.filter(s => 
       matchesClassAndSection(s, selectedClassCard.className, selectedClassCard.section)
     )
 
     if (enrolled.length === 0) return []
 
-    const rawSubs = activeTask?.id ? taskSubmissionsMap[activeTask.id] : []
-    const submissions = getSafeSubmissionsArray(rawSubs)
+    let submissions: any[] = []
+    if (activeTask?.id) {
+      try {
+        const rawLocal = localStorage.getItem(`school_task_subs_${activeTask.id}`) || localStorage.getItem(`hw_sub_${activeTask.id}`)
+        if (rawLocal) submissions = JSON.parse(rawLocal)
+      } catch {}
+      if ((!submissions || submissions.length === 0) && taskSubmissionsMap[activeTask.id]) {
+        submissions = getSafeSubmissionsArray(taskSubmissionsMap[activeTask.id])
+      }
+    }
+
     const subMap = new Map<string, any>()
     submissions.forEach((sub: any) => {
       subMap.set(String(sub.student_id || sub.studentId || sub.id), sub)
+      if (sub.admissionNo || sub.admission_no) {
+        subMap.set(String(sub.admissionNo || sub.admission_no).toLowerCase(), sub)
+      }
+      if (sub.rollNo || sub.roll_no) {
+        subMap.set(`roll_${sub.rollNo || sub.roll_no}`, sub)
+      }
     })
 
     return enrolled.map((s, idx) => {
       const sId = String(s.id || s.admission_no || s.admissionNo || idx)
-      const sub = subMap.get(sId)
+      const sub = subMap.get(sId) || subMap.get(String(s.admissionNo || s.admission_no).toLowerCase()) || subMap.get(`roll_${s.rollNo}`)
       
       let status: 'Completed' | 'Not Completed' | 'Rescheduled' | 'Pending' = 'Pending'
       if (sub?.status) {
@@ -765,34 +967,166 @@ export default function HomeworkReportPage() {
         avatar: s.avatar || s.photo,
         status,
         rating: rawRating,
-        remark: sub?.remark || ''
+        remark: sub?.remark || '',
+        rescheduledDate: sub?.rescheduled_date || sub?.rescheduledDate || ''
       }
     })
   }, [selectedClassCard, allStudents, activeTask, taskSubmissionsMap])
 
-  // Calculated stats for Screen 3 overview
-  const reportStats = useMemo(() => {
+  // Assigned Students for Screen 3 in Assign Report
+  const assignedStudentsForTask: StudentReportItem[] = useMemo(() => {
+    if (!selectedClassCard || !selectedTask) return []
+
+    const enrolled = allStudents.filter(s =>
+      matchesClassAndSection(s, selectedClassCard.className, selectedClassCard.section)
+    )
+
+    let taskSubs: any[] = []
+    try {
+      const rawLocal = localStorage.getItem(`school_task_subs_${selectedTask.id}`) || localStorage.getItem(`hw_sub_${selectedTask.id}`)
+      if (rawLocal) {
+        const parsed = JSON.parse(rawLocal)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          taskSubs = parsed
+        }
+      }
+    } catch {}
+
+    if (taskSubs.length === 0 && taskSubmissionsMap[selectedTask.id]) {
+      taskSubs = taskSubmissionsMap[selectedTask.id]
+    }
+
+    const subMap = new Map<string, any>()
+    taskSubs.forEach((sub: any) => {
+      const k = String(sub.id || sub.student_id || sub.studentId || sub.admissionNo || sub.admission_no || sub.rollNo || sub.roll_no)
+      subMap.set(k, sub)
+      if (sub.admissionNo || sub.admission_no) {
+        subMap.set(String(sub.admissionNo || sub.admission_no).toLowerCase(), sub)
+      }
+      if (sub.rollNo || sub.roll_no) {
+        subMap.set(`roll_${sub.rollNo || sub.roll_no}`, sub)
+      }
+    })
+
+    if (Array.isArray(selectedTask.assignedStudentIds) && selectedTask.assignedStudentIds.length > 0) {
+      const assignedSet = new Set(selectedTask.assignedStudentIds.map((id: any) => String(id).toLowerCase()))
+      const matched = enrolled.filter(s => {
+        const sId = String(s.id || '').toLowerCase()
+        const sAdm = String(s.admissionNo || s.admission_no || '').toLowerCase()
+        const sRoll = String(s.rollNo || s.roll_no || '').toLowerCase()
+        return assignedSet.has(sId) || assignedSet.has(sAdm) || assignedSet.has(sRoll)
+      })
+
+      if (matched.length > 0) {
+        return matched.map((s, idx) => {
+          const sKey = String(s.id || s.admissionNo || s.admission_no || idx)
+          const sub = subMap.get(sKey) || subMap.get(String(s.admissionNo || s.admission_no).toLowerCase()) || subMap.get(`roll_${s.rollNo}`)
+          return {
+            id: sKey,
+            name: s.name || `${s.first_name || ''} ${s.last_name || ''}`.trim() || `Student ${idx + 1}`,
+            fatherName: s.fatherName || s.father_name || '—',
+            rollNo: String(s.rollNo || s.roll_no || '—'),
+            admissionNo: String(s.admissionNo || s.admission_no || '—'),
+            avatar: s.avatar || s.photo,
+            status: (sub?.status || 'Pending') as 'Completed' | 'Not Completed' | 'Rescheduled' | 'Pending',
+            remark: sub?.remark || '',
+            rating: sub?.rating,
+            isAssigned: true
+          }
+        })
+      }
+    }
+
+    if (taskSubs.length > 0) {
+      return enrolled.map((s, idx) => {
+        const sKey = String(s.id || s.admissionNo || s.admission_no || idx)
+        const sub = subMap.get(sKey) || subMap.get(String(s.admissionNo || s.admission_no).toLowerCase()) || subMap.get(`roll_${s.rollNo}`)
+        const isAssigned = !!sub || !selectedTask.assignedStudentIds || selectedTask.assignedStudentIds.length === 0
+        return {
+          id: sKey,
+          name: s.name || `${s.first_name || ''} ${s.last_name || ''}`.trim() || `Student ${idx + 1}`,
+          fatherName: s.fatherName || s.father_name || '—',
+          rollNo: String(s.rollNo || s.roll_no || '—'),
+          admissionNo: String(s.admissionNo || s.admission_no || '—'),
+          avatar: s.avatar || s.photo,
+          status: (sub?.status || 'Pending') as 'Completed' | 'Not Completed' | 'Rescheduled' | 'Pending',
+          remark: sub?.remark || '',
+          rating: sub?.rating,
+          isAssigned
+        }
+      }).filter(s => s.isAssigned)
+    }
+
+    return enrolled.map((s, idx) => ({
+      id: String(s.id || s.admissionNo || s.admission_no || idx),
+      name: s.name || `${s.first_name || ''} ${s.last_name || ''}`.trim() || `Student ${idx + 1}`,
+      fatherName: s.fatherName || s.father_name || '—',
+      rollNo: String(s.rollNo || s.roll_no || '—'),
+      admissionNo: String(s.admissionNo || s.admission_no || '—'),
+      avatar: s.avatar || s.photo,
+      status: 'Pending' as const,
+      remark: '',
+      rating: undefined,
+      isAssigned: true
+    }))
+  }, [selectedClassCard, selectedTask, allStudents, taskSubmissionsMap])
+
+  // Calculated stats for Screen 3 Remark Report
+  const remarkReportStats = useMemo(() => {
     const completed = studentReports.filter(s => s.status === 'Completed').length
     const notCompleted = studentReports.filter(s => s.status === 'Not Completed').length
     const rescheduled = studentReports.filter(s => s.status === 'Rescheduled').length
     const pending = studentReports.filter(s => s.status === 'Pending').length
     const total = studentReports.length
 
+    const evaluated = studentReports.filter(s => 
+      s.status === 'Completed' || 
+      s.status === 'Rescheduled' || 
+      s.status === 'Not Completed' || 
+      !!s.remark || 
+      (typeof s.rating === 'number' && s.rating > 0)
+    ).length
+
+    const evaluationPct = total > 0 ? Math.min(100, Math.round((evaluated / total) * 100)) : 0
+    const completedPct = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0
+    const rescheduledPct = total > 0 ? Math.min(100, Math.round((rescheduled / total) * 100)) : 0
+    const notCompletedPct = total > 0 ? Math.min(100, Math.round((notCompleted / total) * 100)) : 0
+
     return {
       completed,
       notCompleted,
       rescheduled,
       pending,
+      evaluated,
       total,
-      completedPct: total > 0 ? Math.round((completed / total) * 100) : 0,
-      notCompletedPct: total > 0 ? Math.round((notCompleted / total) * 100) : 0,
-      rescheduledPct: total > 0 ? Math.round((rescheduled / total) * 100) : 0
+      evaluationPct,
+      completedPct,
+      notCompletedPct,
+      rescheduledPct
     }
   }, [studentReports])
 
+  // Calculated stats for Screen 3 Assign Report
+  const assignReportStats = useMemo(() => {
+    const totalAssigned = assignedStudentsForTask.length
+    const totalEnrolled = selectedClassCard ? selectedClassCard.studentsCount : totalAssigned
+    const completed = assignedStudentsForTask.filter(s => s.status === 'Completed').length
+    const pending = totalAssigned - completed
+    const completionPct = totalAssigned > 0 ? Math.round((completed / totalAssigned) * 100) : 0
+
+    return {
+      totalAssigned,
+      totalEnrolled,
+      completed,
+      pending,
+      completionPct
+    }
+  }, [assignedStudentsForTask, selectedClassCard])
+
   // Filtered Students for Screen 3
+  const activeStudentList = reportType === 'remark' ? studentReports : assignedStudentsForTask
   const filteredStudents = useMemo(() => {
-    return studentReports.filter(s => {
+    return activeStudentList.filter(s => {
       if (statusTab !== 'All' && s.status !== statusTab) {
         return false
       }
@@ -805,49 +1139,118 @@ export default function HomeworkReportPage() {
       }
       return true
     })
-  }, [studentReports, statusTab, studentSearch])
+  }, [activeStudentList, statusTab, studentSearch])
 
   // Export CSV Handler
   const handleExportCSV = () => {
-    if (studentReports.length === 0) return
-    const headers = ['Roll No', 'Student Name', "Father's Name", 'Admission No', 'Class', 'Section', 'Subject', 'Status', 'Rating', 'Remarks']
-    const rows = studentReports.map(s => [
-      s.rollNo,
-      `"${s.name}"`,
-      `"${s.fatherName || ''}"`,
-      s.admissionNo,
-      selectedClassCard?.className || '',
-      selectedClassCard?.section || '',
-      selectedSubject?.subjectName || '',
-      s.status,
-      s.rating || 5,
-      `"${s.remark || ''}"`
-    ])
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement('a')
-    link.setAttribute('href', encodedUri)
-    link.setAttribute('download', `homework_report_${selectedClassCard?.className}_${selectedSubject?.subjectName}_${formatDateToISO(selectedDate)}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    if (reportType === 'remark') {
+      if (studentReports.length === 0) return
+      const headers = ['Roll No', 'Student Name', "Father's Name", 'Admission No', 'Class', 'Section', 'Subject', 'Status', 'Rating', 'Remarks']
+      const rows = studentReports.map(s => [
+        s.rollNo,
+        `"${s.name}"`,
+        `"${s.fatherName || ''}"`,
+        s.admissionNo,
+        selectedClassCard?.className || '',
+        selectedClassCard?.section || '',
+        selectedSubject?.subjectName || '',
+        s.status,
+        s.rating || 5,
+        `"${s.remark || ''}"`
+      ])
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
+      const encodedUri = encodeURI(csvContent)
+      const link = document.createElement('a')
+      link.setAttribute('href', encodedUri)
+      link.setAttribute('download', `homework_remark_report_${selectedClassCard?.className}_${selectedSubject?.subjectName}_${formatDateToISO(selectedDate)}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } else {
+      if (assignedStudentsForTask.length === 0) return
+      const headers = ['Roll No', 'Student Name', "Father's Name", 'Admission No', 'Class', 'Section', 'Subject', 'Task Title', 'Assign Date', 'Due Date', 'Status', 'Remark']
+      const rows = assignedStudentsForTask.map(s => [
+        s.rollNo,
+        `"${s.name}"`,
+        `"${s.fatherName || ''}"`,
+        s.admissionNo,
+        selectedClassCard?.className || '',
+        selectedClassCard?.section || '',
+        selectedTask?.subject || '',
+        `"${selectedTask?.title || ''}"`,
+        selectedTask?.assignDate || selectedTask?.assign_date || '',
+        selectedTask?.submissionDate || selectedTask?.submission_date || '',
+        s.status,
+        `"${s.remark || ''}"`
+      ])
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
+      const encodedUri = encodeURI(csvContent)
+      const link = document.createElement('a')
+      link.setAttribute('href', encodedUri)
+      link.setAttribute('download', `assigned_students_report_${selectedClassCard?.className}_${selectedTask?.subject}_${formatDateToISO(selectedDate)}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
   }
 
   // Navigation Handlers
   const handleViewReport = (card: ClassCardItem) => {
     setSelectedClassCard(card)
+    setSelectedSubject(null)
+    setSelectedTask(null)
+    setRemarkSubjectFilter('All')
     setCurrentStep('subjects')
+  }
+
+  const handleSelectTaskForRemark = (item: any) => {
+    setSelectedTask(item.rawTask)
+    setSelectedSubject({
+      id: item.id,
+      subjectName: item.subject,
+      teacherName: item.teacherName,
+      bgColor: item.palette.bgColor,
+      borderColor: item.palette.borderColor,
+      textColor: item.palette.textColor,
+      badgeColor: item.palette.badgeColor,
+      taskId: item.id,
+      taskTitle: item.title,
+      assignDate: item.assignDate,
+      dueDate: item.dueDate,
+      assignedCount: item.assignedCount,
+      completedCount: item.completedCount,
+      rescheduledCount: item.rescheduledCount,
+      notCompletedCount: item.notCompletedCount,
+      completionPct: item.completionPct,
+      isRemarkDone: item.isRemarkDone
+    })
+    setStatusTab('All')
+    setStudentSearch('')
+    setCurrentStep('report')
   }
 
   const handleSelectSubject = (subj: SubjectItem) => {
     setSelectedSubject(subj)
+    if (subj.taskId) {
+      const t = allTasks.find(x => x.id === subj.taskId)
+      if (t) setSelectedTask(t)
+    }
+    setStatusTab('All')
+    setStudentSearch('')
+    setCurrentStep('report')
+  }
+
+  const handleSelectTaskForAssign = (task: any) => {
+    setSelectedTask(task)
+    setStatusTab('All')
+    setStudentSearch('')
     setCurrentStep('report')
   }
 
   return (
-    <div className="flex flex-col gap-6 w-full pb-16 animate-in fade-in duration-200">
+    <div className="flex flex-col gap-5 w-full pb-16 animate-in fade-in duration-200">
       
-      {/* Top Curved Teal Header matching assign, remark & other homework pages */}
+      {/* ── TOP CURVED TEAL HEADER ── */}
       <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
         <button
           type="button"
@@ -863,9 +1266,17 @@ export default function HomeworkReportPage() {
         </button>
 
         <h1 className="text-xl md:text-2xl font-black tracking-tight text-white flex-1 text-center px-4">
-          {currentStep === 'classes' && 'Homework Reports & Analytics'}
-          {currentStep === 'subjects' && `Select Subject — ${selectedClassCard?.className} Sec ${selectedClassCard?.section}`}
-          {currentStep === 'report' && `${selectedSubject?.subjectName} Homework Report`}
+          {currentStep === 'classes' && (reportType === 'remark' ? 'Homework Remark Report' : 'Homework Assign Report')}
+          {currentStep === 'subjects' && (
+            reportType === 'remark' 
+              ? `Subject Remarks — ${selectedClassCard?.className} Sec ${selectedClassCard?.section}`
+              : `Assigned Homework — ${selectedClassCard?.className} Sec ${selectedClassCard?.section}`
+          )}
+          {currentStep === 'report' && (
+            reportType === 'remark'
+              ? `${selectedSubject?.subjectName || 'Subject'} Homework Remark Report`
+              : `${selectedTask?.subject || 'Assigned'} Homework — Assigned Students`
+          )}
         </h1>
 
         <div className="flex items-center gap-2 shrink-0">
@@ -874,7 +1285,7 @@ export default function HomeworkReportPage() {
               <button
                 type="button"
                 onClick={handleExportCSV}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white text-teal-700 hover:bg-teal-50 rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white text-teal-800 hover:bg-teal-50 rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
               >
                 <Download className="w-4 h-4" />
                 Export
@@ -894,16 +1305,62 @@ export default function HomeworkReportPage() {
         </div>
       </div>
 
+      {/* ── 2 REPORT MODES TOGGLE (REMARK REPORT vs ASSIGN REPORT) ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-2.5 rounded-2xl md:rounded-3xl border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
+        <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-900 rounded-2xl">
+          <button
+            type="button"
+            onClick={() => {
+              setReportType('remark')
+              setStatusTab('All')
+            }}
+            className={`px-5 py-2.5 rounded-xl text-xs md:text-sm font-black transition-all flex items-center gap-2 cursor-pointer ${
+              reportType === 'remark'
+                ? 'bg-[#0f766e] text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Award className="w-4 h-4" />
+            <span>Remark Report</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setReportType('assign')
+              setStatusTab('All')
+            }}
+            className={`px-5 py-2.5 rounded-xl text-xs md:text-sm font-black transition-all flex items-center gap-2 cursor-pointer ${
+              reportType === 'assign'
+                ? 'bg-[#0f766e] text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>Assign Report</span>
+          </button>
+        </div>
+
+        <div className="text-xs font-bold text-slate-500 dark:text-slate-400 px-3 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-[#0f766e]" />
+          <span>
+            {reportType === 'remark'
+              ? 'Subject-wise remarks, evaluation ratings & student completion rates'
+              : 'Assigned homework tasks and their assigned student lists'}
+          </span>
+        </div>
+      </div>
+
       {/* ========================================================================= */}
       {/* SCREEN 1: CLASSES OVERVIEW (DESKTOP WEB VIEW - REAL DATA)                  */}
       {/* ========================================================================= */}
       {currentStep === 'classes' && (
         <div className="space-y-6">
 
-          {/* 4 Desktop Metric Summary Cards (100% Real Numbers) */}
+          {/* 4 Metric Summary Cards Tailored to Selected Report Mode */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center font-bold">
+              <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 flex items-center justify-center font-bold">
                 <GraduationCap className="w-6 h-6" />
               </div>
               <div>
@@ -913,7 +1370,7 @@ export default function HomeworkReportPage() {
             </div>
 
             <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 flex items-center justify-center font-bold">
                 <Users className="w-6 h-6" />
               </div>
               <div>
@@ -922,34 +1379,60 @@ export default function HomeworkReportPage() {
               </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center font-bold">
-                <CheckCircle2 className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500">Total Completed</p>
-                <h3 className="text-2xl font-black text-slate-800 dark:text-white mt-0.5">{overallStats.totalCompleted} Submissions</h3>
-              </div>
-            </div>
+            {reportType === 'remark' ? (
+              <>
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 flex items-center justify-center font-bold">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500">Remarks Done</p>
+                    <h3 className="text-2xl font-black text-slate-800 dark:text-white mt-0.5">{overallStats.totalRemarksDone} Subjects</h3>
+                  </div>
+                </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
-                <TrendingUp className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500">Avg Completion Rate</p>
-                <h3 className="text-2xl font-black text-slate-800 dark:text-white mt-0.5">{overallStats.completionRate}%</h3>
-              </div>
-            </div>
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-700 flex items-center justify-center font-bold">
+                    <TrendingUp className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500">Avg Completion Rate</p>
+                    <h3 className="text-2xl font-black text-slate-800 dark:text-white mt-0.5">{overallStats.completionRate}%</h3>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 flex items-center justify-center font-bold">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500">Tasks Assigned</p>
+                    <h3 className="text-2xl font-black text-slate-800 dark:text-white mt-0.5">{overallStats.totalTasks} Tasks</h3>
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 flex items-center justify-center font-bold">
+                    <AlertCircle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500">Unassigned Subjects</p>
+                    <h3 className="text-2xl font-black text-slate-800 dark:text-white mt-0.5">{overallStats.totalUnassigned} Left</h3>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Desktop Date Ribbon & Filter Toolbar */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
             
             {/* Top row: Date navigation ribbon */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-700">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 flex items-center justify-center">
                   <Calendar className="w-4 h-4" />
                 </div>
                 <div>
@@ -977,10 +1460,10 @@ export default function HomeworkReportPage() {
                       key={idx}
                       type="button"
                       onClick={() => setSelectedDate(item.date)}
-                      className={`flex flex-col items-center justify-center px-3 py-1.5 rounded-xl transition-all ${
+                      className={`flex flex-col items-center justify-center px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
                         item.isSelected
-                          ? 'bg-teal-600 text-white shadow-sm font-bold scale-105'
-                          : 'hover:bg-slate-100 text-slate-700 dark:text-slate-300'
+                          ? 'bg-[#0f766e] text-white shadow-sm font-bold scale-105'
+                          : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
                       }`}
                     >
                       <span className="text-xs font-semibold opacity-80">{item.dayName}</span>
@@ -1014,7 +1497,7 @@ export default function HomeworkReportPage() {
                       }
                     }
                   }}
-                  className="px-3 py-1.5 text-xs font-semibold border border-slate-200 rounded-xl outline-none focus:border-teal-600 bg-white shadow-2xs cursor-pointer"
+                  className="px-3 py-1.5 text-xs font-semibold border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-teal-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-2xs cursor-pointer"
                 />
               </div>
             </div>
@@ -1030,7 +1513,7 @@ export default function HomeworkReportPage() {
                   placeholder="Search class or teacher name..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-teal-600 shadow-2xs"
+                  className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-2xs"
                 />
               </div>
 
@@ -1042,7 +1525,7 @@ export default function HomeworkReportPage() {
                     setClassFilter(e.target.value)
                     setSectionFilter('All Sections')
                   }}
-                  className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-teal-600 bg-white shadow-2xs cursor-pointer"
+                  className="px-3.5 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-2xs cursor-pointer"
                 >
                   <option value="All Classes">All Classes</option>
                   {Array.from(new Set(classCards.map(c => c.className))).map(cName => (
@@ -1054,7 +1537,7 @@ export default function HomeworkReportPage() {
                   disabled={!classFilter || classFilter === 'All Classes'}
                   value={sectionFilter}
                   onChange={e => setSectionFilter(e.target.value)}
-                  className="px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-teal-600 bg-white shadow-2xs cursor-pointer disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                  className="px-3.5 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-2xs cursor-pointer disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed"
                 >
                   <option value="All Sections">{!classFilter || classFilter === 'All Classes' ? 'Select Class First' : 'All Sections'}</option>
                   {availableFilterSections.map(sec => (
@@ -1063,12 +1546,12 @@ export default function HomeworkReportPage() {
                 </select>
 
                 {/* View Mode Toggle: Grid vs Table */}
-                <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <div className="flex items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
                   <button
                     type="button"
                     onClick={() => setViewMode('grid')}
                     className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                      viewMode === 'grid' ? 'bg-white text-teal-700 shadow-xs' : 'text-slate-500 hover:text-slate-700'
+                      viewMode === 'grid' ? 'bg-white dark:bg-slate-800 text-teal-700 shadow-xs' : 'text-slate-500 hover:text-slate-700'
                     }`}
                     title="Grid View"
                   >
@@ -1078,7 +1561,7 @@ export default function HomeworkReportPage() {
                     type="button"
                     onClick={() => setViewMode('table')}
                     className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                      viewMode === 'table' ? 'bg-white text-teal-700 shadow-xs' : 'text-slate-500 hover:text-slate-700'
+                      viewMode === 'table' ? 'bg-white dark:bg-slate-800 text-teal-700 shadow-xs' : 'text-slate-500 hover:text-slate-700'
                     }`}
                     title="Table View"
                   >
@@ -1100,13 +1583,13 @@ export default function HomeworkReportPage() {
                 return (
                   <div
                     key={card.id}
-                    className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md hover:border-teal-400 transition-all flex flex-col justify-between space-y-4 group"
+                    className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md hover:border-teal-500 transition-all flex flex-col justify-between space-y-4 group"
                   >
                     <div>
                       {/* Top Row: Class Info & Section Pill */}
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-11 h-11 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold shadow-xs">
+                          <div className="w-11 h-11 rounded-2xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 flex items-center justify-center font-bold shadow-xs">
                             <GraduationCap className="w-6 h-6" />
                           </div>
                           <div>
@@ -1119,7 +1602,7 @@ export default function HomeworkReportPage() {
                           </div>
                         </div>
 
-                        <span className="px-2.5 py-1 rounded-lg bg-teal-50 text-teal-700 border border-teal-200/60 text-[11px] font-bold shadow-2xs">
+                        <span className="px-2.5 py-1 rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-800 dark:text-teal-300 border border-teal-200/60 text-[11px] font-bold shadow-2xs">
                           Sec {card.section}
                         </span>
                       </div>
@@ -1135,49 +1618,49 @@ export default function HomeworkReportPage() {
                         </span>
                       </div>
 
-                      {/* 4 Metric Badges in 2x2 Grid (Subject-wise metrics) */}
+                      {/* 4 Metric Badges in 2x2 Grid */}
                       <div className="grid grid-cols-2 gap-2 mt-3">
-                        <div className="bg-emerald-50/80 border border-emerald-100 rounded-xl px-2.5 py-2 flex flex-col gap-0.5">
-                          <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-700">
+                        <div className="bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-800/60 rounded-xl px-2.5 py-2 flex flex-col gap-0.5">
+                          <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-700 dark:text-emerald-300">
                             Assigned
                           </span>
-                          <span className="text-sm font-black text-emerald-950">
-                            {card.assignedSubjects} <span className="text-[10px] font-semibold text-emerald-700">Subjects</span>
+                          <span className="text-sm font-black text-emerald-950 dark:text-emerald-200">
+                            {card.assignedSubjects} <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">Subjects</span>
                           </span>
                         </div>
 
-                        <div className="bg-slate-100/90 border border-slate-200 rounded-xl px-2.5 py-2 flex flex-col gap-0.5">
-                          <span className="text-[10px] uppercase tracking-wider font-bold text-slate-600">
+                        <div className="bg-slate-100/90 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-2.5 py-2 flex flex-col gap-0.5">
+                          <span className="text-[10px] uppercase tracking-wider font-bold text-slate-600 dark:text-slate-400">
                             Not Assigned
                           </span>
-                          <span className="text-sm font-black text-slate-900">
-                            {card.notAssignedSubjects} <span className="text-[10px] font-semibold text-slate-600">Subjects</span>
+                          <span className="text-sm font-black text-slate-900 dark:text-slate-200">
+                            {card.notAssignedSubjects} <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">Subjects</span>
                           </span>
                         </div>
 
-                        <div className="bg-teal-50/80 border border-teal-100 rounded-xl px-2.5 py-2 flex flex-col gap-0.5">
-                          <span className="text-[10px] uppercase tracking-wider font-bold text-teal-700">
+                        <div className="bg-teal-50/80 dark:bg-teal-950/30 border border-teal-100 dark:border-teal-800/60 rounded-xl px-2.5 py-2 flex flex-col gap-0.5">
+                          <span className="text-[10px] uppercase tracking-wider font-bold text-teal-700 dark:text-teal-300">
                             Remark Done
                           </span>
-                          <span className="text-sm font-black text-teal-950">
-                            {card.remarkDoneSubjects} <span className="text-[10px] font-semibold text-teal-700">Subjects</span>
+                          <span className="text-sm font-black text-teal-950 dark:text-teal-200">
+                            {card.remarkDoneSubjects} <span className="text-[10px] font-semibold text-teal-700 dark:text-teal-300">Subjects</span>
                           </span>
                         </div>
 
-                        <div className="bg-amber-50/80 border border-amber-100 rounded-xl px-2.5 py-2 flex flex-col gap-0.5">
-                          <span className="text-[10px] uppercase tracking-wider font-bold text-amber-700">
+                        <div className="bg-amber-50/80 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-800/60 rounded-xl px-2.5 py-2 flex flex-col gap-0.5">
+                          <span className="text-[10px] uppercase tracking-wider font-bold text-amber-700 dark:text-amber-300">
                             Remark Pending
                           </span>
-                          <span className="text-sm font-black text-amber-950">
-                            {card.remarkPendingSubjects} <span className="text-[10px] font-semibold text-amber-700">Subjects</span>
+                          <span className="text-sm font-black text-amber-950 dark:text-amber-200">
+                            {card.remarkPendingSubjects} <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">Subjects</span>
                           </span>
                         </div>
                       </div>
                     </div>
 
                     {/* Footer Row */}
-                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300">
                         <Users className="w-4 h-4 text-slate-400" />
                         <span>{card.studentsCount} Students</span>
                       </div>
@@ -1185,10 +1668,10 @@ export default function HomeworkReportPage() {
                       <button
                         type="button"
                         onClick={() => handleViewReport(card)}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-2xs group-hover:scale-102 transition-all cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0f766e] hover:bg-[#0d655f] text-white rounded-xl text-xs font-bold shadow-2xs group-hover:scale-102 transition-all cursor-pointer"
                       >
                         <BarChart3 className="w-3.5 h-3.5" />
-                        View Report
+                        <span>{reportType === 'remark' ? 'View Remark Report' : 'View Assign Report'}</span>
                       </button>
                     </div>
                   </div>
@@ -1196,7 +1679,7 @@ export default function HomeworkReportPage() {
               })}
 
               {filteredClassCards.length === 0 && (
-                <div className="col-span-full bg-white dark:bg-slate-800 rounded-2xl p-12 text-center text-slate-400 font-bold border border-slate-200">
+                <div className="col-span-full bg-white dark:bg-slate-800 rounded-2xl p-12 text-center text-slate-400 font-bold border border-slate-200 dark:border-slate-700">
                   No classes match the selected filter. Please verify enrolled students or classes in Masters.
                 </div>
               )}
@@ -1223,42 +1706,42 @@ export default function HomeworkReportPage() {
                       <th className="px-5 py-3.5 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700 font-semibold text-slate-700 dark:text-slate-300">
                     {filteredClassCards.map(card => {
                       return (
-                        <tr key={card.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="px-5 py-3.5 font-bold text-slate-900">
+                        <tr key={card.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition-colors">
+                          <td className="px-5 py-3.5 font-bold text-slate-900 dark:text-white">
                             {card.className} - Sec {card.section}
                           </td>
-                          <td className="px-5 py-3.5 text-slate-600 font-medium">
+                          <td className="px-5 py-3.5 text-slate-600 dark:text-slate-400 font-medium">
                             {card.classTeacher}
                           </td>
                           <td className="px-5 py-3.5 font-bold">
                             {card.studentsCount} Students
                           </td>
-                          <td className="px-5 py-3.5 font-bold text-slate-800">
+                          <td className="px-5 py-3.5 font-bold text-slate-800 dark:text-slate-200">
                             {card.totalSubjects} Subjects
                           </td>
-                          <td className="px-5 py-3.5 font-bold text-emerald-700">
+                          <td className="px-5 py-3.5 font-bold text-emerald-700 dark:text-emerald-400">
                             {card.assignedSubjects} Subjects
                           </td>
-                          <td className="px-5 py-3.5 font-bold text-slate-600">
+                          <td className="px-5 py-3.5 font-bold text-slate-600 dark:text-slate-400">
                             {card.notAssignedSubjects} Subjects
                           </td>
-                          <td className="px-5 py-3.5 font-bold text-teal-700">
+                          <td className="px-5 py-3.5 font-bold text-teal-700 dark:text-teal-400">
                             {card.remarkDoneSubjects} Subjects
                           </td>
-                          <td className="px-5 py-3.5 font-bold text-amber-600">
+                          <td className="px-5 py-3.5 font-bold text-amber-600 dark:text-amber-400">
                             {card.remarkPendingSubjects} Subjects
                           </td>
                           <td className="px-5 py-3.5 text-right">
                             <button
                               type="button"
                               onClick={() => handleViewReport(card)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0f766e] hover:bg-[#0d655f] text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
                             >
                               <BarChart3 className="w-3.5 h-3.5" />
-                              View
+                              <span>{reportType === 'remark' ? 'View' : 'Assign'}</span>
                             </button>
                           </td>
                         </tr>
@@ -1274,15 +1757,15 @@ export default function HomeworkReportPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* SCREEN 2: SELECT SUBJECT (DESKTOP WEB VIEW - REAL SUBJECTS ONLY)           */}
+      {/* SCREEN 2: SUBJECTS / TASKS REPORT VIEW FOR SELECTED CLASS                 */}
       {/* ========================================================================= */}
       {currentStep === 'subjects' && selectedClassCard && (
         <div className="space-y-6">
           
-          {/* Class Summary Bar */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* Class Summary Banner */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-bold shadow-sm">
+              <div className="w-12 h-12 rounded-2xl bg-[#0f766e] text-white flex items-center justify-center font-bold shadow-sm">
                 <GraduationCap className="w-6 h-6" />
               </div>
               <div>
@@ -1290,12 +1773,12 @@ export default function HomeworkReportPage() {
                   <h2 className="text-xl font-black text-slate-900 dark:text-white">
                     {selectedClassCard.className}
                   </h2>
-                  <span className="px-2.5 py-0.5 rounded-lg bg-teal-600 text-white text-xs font-bold">
+                  <span className="px-2.5 py-0.5 rounded-lg bg-[#0f766e] text-white text-xs font-bold">
                     Section {selectedClassCard.section}
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                  Class Teacher: <strong className="text-slate-700">{selectedClassCard.classTeacher}</strong> • Enrolled: <strong className="text-slate-700">{selectedClassCard.studentsCount} Students</strong>
+                  Class Teacher: <strong className="text-slate-700 dark:text-slate-300">{selectedClassCard.classTeacher}</strong> • Enrolled: <strong className="text-slate-700 dark:text-slate-300">{selectedClassCard.studentsCount} Students</strong>
                 </p>
               </div>
             </div>
@@ -1304,210 +1787,491 @@ export default function HomeworkReportPage() {
               <button
                 type="button"
                 onClick={() => setCurrentStep('classes')}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
               >
-                Choose Different Class
+                ‹ Choose Different Class
               </button>
             </div>
           </div>
 
-          {/* Section Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-black text-slate-900 dark:text-white">
-                Available Subjects ({classSubjects.length})
-              </h2>
-              <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                Click on any subject below to view student evaluations and detailed report
-              </p>
-            </div>
-          </div>
+          {/* ─────────────────────────────────────────────────────────────
+              CASE A: REMARK REPORT (TASK-WISE REMARKS & COMPLETION RATE)
+             ───────────────────────────────────────────────────────────── */}
+          {reportType === 'remark' && (
+            <div className="space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-black text-slate-900 dark:text-white">
+                    Assigned Homework Tasks & Evaluation ({classTasksForRemark.length})
+                  </h2>
+                  <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                    Click any task to inspect student-wise evaluations, star ratings, and teacher remarks.
+                  </p>
+                </div>
 
-          {/* Responsive Multi-Column Subjects Grid with Subject-Wise Completion Rate */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {classSubjects.map(subj => {
-              const compPct = subj.completionPct ?? 0
-              const isAssigned = !!subj.hasTask
-
-              return (
-                <div
-                  key={subj.id}
-                  onClick={() => handleSelectSubject(subj)}
-                  className={`rounded-2xl p-5 shadow-xs border transition-all cursor-pointer flex flex-col justify-between space-y-4 hover:shadow-md hover:scale-[1.02] active:scale-[0.99] group ${subj.bgColor} ${subj.borderColor}`}
-                >
-                  <div>
-                    {/* Header: Icon, Subject Title & Remark / Assigned Badge */}
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="w-9 h-9 rounded-xl bg-white shadow-2xs flex items-center justify-center text-teal-700 font-bold shrink-0">
-                        <BookOpen className="w-4 h-4" />
-                      </span>
-
-                      {isAssigned ? (
-                        subj.isRemarkDone ? (
-                          <span className="px-2.5 py-1 rounded-lg bg-teal-100 text-teal-800 border border-teal-200 text-[10px] font-bold">
-                            Remark Done
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-bold">
-                            Remark Pending
-                          </span>
-                        )
-                      ) : (
-                        <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-bold">
-                          Not Assigned
-                        </span>
-                      )}
-                    </div>
-
-                    <h3 className={`font-black text-base mt-3 leading-tight ${subj.textColor}`}>
-                      {subj.subjectName}
-                    </h3>
-
-                    {subj.taskTitle && (
-                      <p className="text-[11px] text-slate-500 font-medium truncate mt-1">
-                        Task: {subj.taskTitle}
-                      </p>
-                    )}
-
-                    <div className="mt-2.5 inline-block px-3 py-1 rounded-lg bg-white shadow-2xs border border-slate-100 text-xs font-bold text-slate-700">
-                      Teacher: {subj.teacherName}
-                    </div>
-
-                    {/* Subject-Wise Completion Rate */}
-                    <div className="mt-3.5 bg-white/90 rounded-xl p-3 border border-slate-100 shadow-2xs space-y-1.5">
-                      <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                        <span className="flex items-center gap-1.5 text-slate-600">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
-                          Completion Rate
-                        </span>
-                        <span className="text-teal-700 font-black">{compPct}%</span>
-                      </div>
-
-                      <div className="w-full bg-slate-200/80 h-2 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-teal-600 h-full rounded-full transition-all duration-300"
-                          style={{ width: `${compPct}%` }}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold pt-0.5">
-                        <span>Completed: <strong className="text-slate-800 font-bold">{subj.completedCount || 0}</strong>/{subj.assignedCount || 0}</span>
-                        {(subj.rescheduledCount || 0) > 0 && (
-                          <span className="text-amber-700 font-bold">{subj.rescheduledCount} Resched.</span>
-                        )}
-                      </div>
-                    </div>
+                {/* Filter Pills by Subject */}
+                {remarkSubjectsList.length > 1 && (
+                  <div className="flex items-center gap-1.5 flex-wrap bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => setRemarkSubjectFilter('All')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        remarkSubjectFilter === 'All'
+                          ? 'bg-white dark:bg-slate-700 text-[#0f766e] dark:text-teal-300 shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                      }`}
+                    >
+                      All Tasks ({classTasksForRemark.length})
+                    </button>
+                    {remarkSubjectsList.map(subj => {
+                      const count = classTasksForRemark.filter(t => t.subject?.toLowerCase() === subj.toLowerCase()).length
+                      return (
+                        <button
+                          key={subj}
+                          type="button"
+                          onClick={() => setRemarkSubjectFilter(subj)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            remarkSubjectFilter.toLowerCase() === subj.toLowerCase()
+                              ? 'bg-white dark:bg-slate-700 text-[#0f766e] dark:text-teal-300 shadow-xs'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                          }`}
+                        >
+                          {subj} ({count})
+                        </button>
+                      )
+                    })}
                   </div>
+                )}
+              </div>
 
-                  <div className="pt-2 border-t border-slate-200/50 flex items-center justify-between text-xs font-bold text-slate-600">
-                    <span>View Student Reports</span>
-                    <span className="text-teal-700 group-hover:translate-x-1 transition-transform">→</span>
+              {/* Task Cards Grid with Task-Wise Completion Rates */}
+              {filteredRemarkTasks.length === 0 ? (
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center border border-slate-200 dark:border-slate-700 space-y-3">
+                  <AlertCircle className="w-12 h-12 text-amber-500 mx-auto" />
+                  <p className="text-base font-black text-slate-800 dark:text-slate-200">
+                    No homework tasks assigned for {selectedClassCard.className} on this date.
+                  </p>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    You can assign homework directly or pick another date from the date strip above.
+                  </p>
+                  <div className="pt-2">
+                    <Link
+                      href="/institute/homework/assign"
+                      className="px-5 py-2.5 rounded-xl bg-[#0f766e] text-white text-xs font-bold inline-flex items-center gap-2 shadow-xs hover:bg-[#0d655f] transition-all"
+                    >
+                      Assign Homework Now &rarr;
+                    </Link>
                   </div>
                 </div>
-              )
-            })}
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredRemarkTasks.map(item => {
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => handleSelectTaskForRemark(item)}
+                        className={`rounded-2xl p-5 shadow-xs border transition-all cursor-pointer flex flex-col justify-between space-y-4 hover:shadow-md hover:scale-[1.01] active:scale-[0.99] group ${item.palette.bgColor} ${item.palette.borderColor}`}
+                      >
+                        <div className="space-y-3">
+                          {/* Subject Badge & Remark Status */}
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="px-3 py-1 rounded-xl bg-white dark:bg-slate-900 text-teal-800 dark:text-teal-200 border border-teal-200/80 dark:border-teal-800 text-xs font-extrabold shadow-2xs">
+                              {item.subject}
+                            </span>
+                            {item.isRemarkDone ? (
+                              <span className="px-2.5 py-1 rounded-lg bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-200 border border-teal-200 text-[11px] font-bold flex items-center gap-1 shadow-2xs">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                Remark Done
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 border border-amber-200 text-[11px] font-bold flex items-center gap-1 shadow-2xs">
+                                <Clock className="w-3 h-3 text-amber-600" />
+                                Remark Pending
+                              </span>
+                            )}
+                          </div>
 
-            {classSubjects.length === 0 && (
-              <div className="col-span-full bg-white dark:bg-slate-800 rounded-2xl p-10 text-center text-slate-400 font-bold border border-slate-200">
-                No subjects configured for {selectedClassCard.className}. Please add subjects in Masters &gt; Subjects.
+                          {/* Task Title & Description */}
+                          <div>
+                            <h3 className={`font-black text-base leading-tight group-hover:text-teal-800 dark:group-hover:text-teal-300 transition-colors ${item.palette.textColor}`}>
+                              {item.title}
+                            </h3>
+                            {item.description && (
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                                {item.description}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Teacher & Due Date */}
+                          <div className="flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-400 pt-1">
+                            <span className="truncate max-w-[55%]">Teacher: <strong className="text-slate-800 dark:text-slate-200 font-bold">{item.teacherName}</strong></span>
+                            <span className="text-amber-700 dark:text-amber-400 font-bold">Due: {item.dueDate}</span>
+                          </div>
+
+                          {/* Task-Wise Completion / Evaluation Rate Bar */}
+                          <div className="bg-white/90 dark:bg-slate-900/90 rounded-xl p-3 border border-slate-100 dark:border-slate-700 shadow-2xs space-y-1.5">
+                            <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
+                              <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
+                                Completion Rate
+                              </span>
+                              <span className="text-teal-700 dark:text-teal-300 font-black">{item.completionPct}%</span>
+                            </div>
+
+                            <div className="w-full bg-slate-200/80 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                              <div 
+                                className="bg-[#0f766e] h-full rounded-full transition-all duration-300"
+                                style={{ width: `${item.completionPct}%` }}
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold pt-0.5">
+                              <span>Completed: <strong className="text-slate-800 dark:text-slate-200 font-bold">{item.completedCount}</strong>/{item.assignedCount}</span>
+                              {item.rescheduledCount > 0 && (
+                                <span className="text-amber-700 dark:text-amber-400 font-bold">{item.rescheduledCount} Resched.</span>
+                              )}
+                              {item.pendingCount > 0 && (
+                                <span className="text-slate-400 font-medium">{item.pendingCount} Pending</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Card Footer */}
+                        <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-xs font-bold text-teal-700 dark:text-teal-300 group-hover:text-teal-800">
+                          <span>View Student Remarks & Evaluation</span>
+                          <span className="group-hover:translate-x-1 transition-transform">→</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Unassigned Subjects Summary if any */}
+              {unassignedSubjectsForClass.length > 0 && (
+                <div className="mt-8 pt-5 border-t border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs uppercase tracking-wider font-extrabold text-slate-400 dark:text-slate-500">
+                      Subjects Not Assigned on this Date ({unassignedSubjectsForClass.length})
+                    </h3>
+                    <Link
+                      href="/institute/homework/pending-assign"
+                      className="text-xs font-bold text-teal-700 dark:text-teal-400 hover:underline inline-flex items-center gap-1"
+                    >
+                      Assign Pending Work &rarr;
+                    </Link>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {unassignedSubjectsForClass.map(s => (
+                      <div
+                        key={s}
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-2"
+                      >
+                        <span>{s}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-500 font-bold">No Task</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ─────────────────────────────────────────────────────────────
+              CASE B: ASSIGN REPORT (TASKS ASSIGNED & ENROLLED STUDENTS)
+             ───────────────────────────────────────────────────────────── */}
+          {reportType === 'assign' && (
+            <div className="space-y-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-black text-slate-900 dark:text-white">
+                    Assigned Homework Tasks ({assignedClassTasks.length})
+                  </h2>
+                  <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                    Click any task to view all assigned students and their assignment status.
+                  </p>
+                </div>
+
+                <Link
+                  href="/institute/homework/assign"
+                  className="px-4 py-2 bg-[#0f766e] hover:bg-[#0d655f] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  + Assign New Homework
+                </Link>
               </div>
-            )}
-          </div>
+
+              {assignedClassTasks.length === 0 ? (
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center border border-slate-200 dark:border-slate-700 space-y-3">
+                  <AlertCircle className="w-12 h-12 text-amber-500 mx-auto" />
+                  <p className="text-base font-black text-slate-800 dark:text-slate-200">
+                    No homework assigned for {selectedClassCard.className} on this date.
+                  </p>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    You can assign homework directly or pick another date from the date strip above.
+                  </p>
+                  <div className="pt-2">
+                    <Link
+                      href="/institute/homework/assign"
+                      className="px-5 py-2.5 rounded-xl bg-[#0f766e] text-white text-xs font-bold inline-flex items-center gap-2 shadow-xs"
+                    >
+                      Assign Homework Now &rarr;
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {assignedClassTasks.map(task => {
+                    const taskAssignedCount = Array.isArray(task.assignedStudentIds) && task.assignedStudentIds.length > 0
+                      ? task.assignedStudentIds.length
+                      : (task.studentsCount || selectedClassCard.studentsCount || 0)
+
+                    return (
+                      <div
+                        key={task.id}
+                        onClick={() => handleSelectTaskForAssign(task)}
+                        className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-xs hover:border-teal-500 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 group"
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="px-2.5 py-1 rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-800 dark:text-teal-200 border border-teal-200 dark:border-teal-800 text-xs font-bold">
+                              {task.subject}
+                            </span>
+                            <span className="text-[11px] font-semibold text-slate-400">
+                              Due: {task.submissionDate || task.submission_date || '—'}
+                            </span>
+                          </div>
+
+                          <div>
+                            <h3 className="font-black text-base text-slate-900 dark:text-white leading-tight group-hover:text-teal-700 transition-colors">
+                              {task.title}
+                            </h3>
+                            {task.description && (
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                                {task.description}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl space-y-1.5 border border-slate-100 dark:border-slate-700 text-xs">
+                            <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+                              <span>Teacher:</span>
+                              <strong className="text-slate-900 dark:text-white">{task.assignedBy || 'Faculty'}</strong>
+                            </div>
+                            <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+                              <span>Assign Date:</span>
+                              <strong>{task.assignDate || task.assign_date || '—'}</strong>
+                            </div>
+                            <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+                              <span>Assigned To:</span>
+                              <span className="inline-flex items-center gap-1 font-bold text-teal-700 dark:text-teal-300">
+                                <Users className="w-3.5 h-3.5" />
+                                {taskAssignedCount} Students
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between text-xs font-bold text-teal-700 dark:text-teal-300">
+                          <span>View Assigned Students ({taskAssignedCount})</span>
+                          <span className="group-hover:translate-x-1 transition-transform">&rarr;</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* SCREEN 3: DETAILED STUDENT HOMEWORK REPORT (REAL ENROLLED STUDENTS ONLY)   */}
+      {/* SCREEN 3: DETAILED STUDENT REPORT (REMARK OR ASSIGN REPORT)               */}
       {/* ========================================================================= */}
-      {currentStep === 'report' && selectedClassCard && selectedSubject && (
+      {currentStep === 'report' && selectedClassCard && (
         <div className="space-y-6">
-          
-          {/* Assignment Overview Wide Banner */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 space-y-5">
-            
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-bold shadow-sm flex-shrink-0">
-                  <FileText className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-2.5 py-0.5 rounded-lg bg-emerald-100 text-teal-800 text-xs font-bold">
-                      {selectedSubject.subjectName}
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">
-                      {selectedClassCard.className} Sec {selectedClassCard.section}
-                    </span>
-                    <span className="text-xs text-slate-500 font-semibold">
-                      Due: {activeTask?.submissionDate || activeTask?.submission_date || '—'}
-                    </span>
+
+          {/* ─────────────────────────────────────────────────────────────
+              CASE 3A: REMARK REPORT (STUDENT REMARKS, RATINGS & COMPLETION)
+             ───────────────────────────────────────────────────────────── */}
+          {reportType === 'remark' && selectedSubject && (
+            <>
+              {/* Assignment Overview Banner */}
+              <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 space-y-5">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-[#0f766e] text-white flex items-center justify-center font-bold shadow-sm flex-shrink-0">
+                      <Award className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="px-2.5 py-0.5 rounded-lg bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 text-xs font-bold">
+                          {selectedSubject.subjectName}
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold">
+                          {selectedClassCard.className} Sec {selectedClassCard.section}
+                        </span>
+                        <span className="text-xs text-slate-500 font-semibold">
+                          Due: {activeTask?.submissionDate || activeTask?.submission_date || '—'}
+                        </span>
+                      </div>
+                      <h2 className="text-xl font-black text-slate-900 dark:text-white mt-1.5 leading-tight">
+                        {activeTask?.title || `${selectedSubject.subjectName} Homework Remarks & Evaluation`}
+                      </h2>
+                    </div>
                   </div>
-                  <h2 className="text-xl font-black text-slate-900 dark:text-white mt-1.5 leading-tight">
-                    {activeTask?.title || `${selectedSubject.subjectName} Homework Assignment`}
-                  </h2>
+
+                  {/* Progress Bar Badge */}
+                  <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl border border-slate-200/70 dark:border-slate-700">
+                    <div className="text-right">
+                      <span className="text-xs font-semibold text-slate-500">Evaluation Rate</span>
+                      <p className="text-lg font-black text-teal-600">{remarkReportStats.evaluationPct}%</p>
+                    </div>
+                    <div className="w-20 bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
+                      <div className="bg-[#0f766e] h-full" style={{ width: `${remarkReportStats.evaluationPct}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4 Metric Summary Boxes */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                  <div 
+                    onClick={() => setStatusTab('All')}
+                    className={`rounded-2xl p-4 cursor-pointer transition-all border ${
+                      statusTab === 'All' ? 'ring-2 ring-teal-500 bg-teal-50/50 dark:bg-teal-950/40 border-teal-200 shadow-xs' : 'bg-slate-50 dark:bg-slate-900 border-slate-200/70 dark:border-slate-700 hover:bg-slate-100/70'
+                    }`}
+                  >
+                    <div className="text-2xl font-black text-slate-800 dark:text-white">{remarkReportStats.total}</div>
+                    <div className="text-xs font-bold text-slate-600 dark:text-slate-400 mt-1">Total Enrolled</div>
+                  </div>
+
+                  <div 
+                    onClick={() => setStatusTab('Completed')}
+                    className={`rounded-2xl p-4 cursor-pointer transition-all border ${
+                      statusTab === 'Completed' ? 'ring-2 ring-emerald-500 bg-teal-50 dark:bg-teal-950/40 border-teal-200 shadow-xs' : 'bg-teal-50/50 dark:bg-teal-950/20 border-emerald-100 hover:bg-teal-50'
+                    }`}
+                  >
+                    <div className="text-2xl font-black text-teal-700 dark:text-teal-300">{remarkReportStats.completed}</div>
+                    <div className="text-xs font-bold text-teal-800 dark:text-teal-200 mt-1">Completed ({remarkReportStats.completedPct}%)</div>
+                  </div>
+
+                  <div 
+                    onClick={() => setStatusTab('Rescheduled')}
+                    className={`rounded-2xl p-4 cursor-pointer transition-all border ${
+                      statusTab === 'Rescheduled' ? 'ring-2 ring-amber-500 bg-amber-50 dark:bg-amber-950/40 border-amber-200 shadow-xs' : 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-100 hover:bg-amber-50'
+                    }`}
+                  >
+                    <div className="text-2xl font-black text-amber-700 dark:text-amber-300">{remarkReportStats.rescheduled}</div>
+                    <div className="text-xs font-bold text-amber-800 dark:text-amber-200 mt-1">Rescheduled ({remarkReportStats.rescheduledPct}%)</div>
+                  </div>
+
+                  <div 
+                    onClick={() => setStatusTab('Pending')}
+                    className={`rounded-2xl p-4 cursor-pointer transition-all border ${
+                      statusTab === 'Pending' ? 'ring-2 ring-rose-500 bg-rose-50 dark:bg-rose-950/40 border-rose-200 shadow-xs' : 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-100 hover:bg-rose-50'
+                    }`}
+                  >
+                    <div className="text-2xl font-black text-rose-700 dark:text-rose-300">{remarkReportStats.pending + remarkReportStats.notCompleted}</div>
+                    <div className="text-xs font-bold text-rose-800 dark:text-rose-200 mt-1">Pending / Not Done</div>
+                  </div>
                 </div>
               </div>
+            </>
+          )}
 
-              {/* Progress Bar Badge */}
-              <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200/70">
-                <div className="text-right">
-                  <span className="text-xs font-semibold text-slate-500">Overall Completion</span>
-                  <p className="text-lg font-black text-teal-600">{reportStats.completedPct}%</p>
+          {/* ─────────────────────────────────────────────────────────────
+              CASE 3B: ASSIGN REPORT (ASSIGNED STUDENTS FOR SELECTED TASK)
+             ───────────────────────────────────────────────────────────── */}
+          {reportType === 'assign' && selectedTask && (
+            <>
+              {/* Task Details Overview Banner */}
+              <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 space-y-5">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-[#0f766e] text-white flex items-center justify-center font-bold shadow-sm flex-shrink-0">
+                      <FileText className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="px-2.5 py-0.5 rounded-lg bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 text-xs font-bold">
+                          {selectedTask.subject}
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold">
+                          {selectedClassCard.className} Sec {selectedClassCard.section}
+                        </span>
+                        <span className="text-xs text-slate-500 font-semibold">
+                          Assigned: {selectedTask.assignDate || selectedTask.assign_date || '—'}
+                        </span>
+                        <span className="text-xs text-amber-600 font-bold">
+                          Due: {selectedTask.submissionDate || selectedTask.submission_date || '—'}
+                        </span>
+                      </div>
+                      <h2 className="text-xl font-black text-slate-900 dark:text-white mt-1.5 leading-tight">
+                        {selectedTask.title}
+                      </h2>
+                      {selectedTask.description && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          {selectedTask.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl border border-slate-200/70 dark:border-slate-700">
+                    <div className="text-right">
+                      <span className="text-xs font-semibold text-slate-500">Teacher</span>
+                      <p className="text-sm font-black text-slate-900 dark:text-white">{selectedTask.assignedBy || 'Faculty'}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="w-20 bg-slate-200 h-2.5 rounded-full overflow-hidden">
-                  <div className="bg-teal-600 h-full" style={{ width: `${reportStats.completedPct}%` }} />
+
+                {/* 4 Summary Boxes for Assign Report */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                  <div 
+                    onClick={() => setStatusTab('All')}
+                    className={`rounded-2xl p-4 cursor-pointer transition-all border ${
+                      statusTab === 'All' ? 'ring-2 ring-teal-500 bg-teal-50/50 dark:bg-teal-950/40 border-teal-200 shadow-xs' : 'bg-slate-50 dark:bg-slate-900 border-slate-200/70 dark:border-slate-700 hover:bg-slate-100/70'
+                    }`}
+                  >
+                    <div className="text-2xl font-black text-slate-800 dark:text-white">{assignReportStats.totalAssigned}</div>
+                    <div className="text-xs font-bold text-slate-600 dark:text-slate-400 mt-1">Students Assigned</div>
+                  </div>
+
+                  <div className="rounded-2xl p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200/70 dark:border-slate-700">
+                    <div className="text-2xl font-black text-slate-800 dark:text-white">{assignReportStats.totalEnrolled}</div>
+                    <div className="text-xs font-bold text-slate-600 dark:text-slate-400 mt-1">Class Enrolled</div>
+                  </div>
+
+                  <div 
+                    onClick={() => setStatusTab('Completed')}
+                    className={`rounded-2xl p-4 cursor-pointer transition-all border ${
+                      statusTab === 'Completed' ? 'ring-2 ring-emerald-500 bg-teal-50 dark:bg-teal-950/40 border-teal-200 shadow-xs' : 'bg-teal-50/50 dark:bg-teal-950/20 border-emerald-100 hover:bg-teal-50'
+                    }`}
+                  >
+                    <div className="text-2xl font-black text-teal-700 dark:text-teal-300">{assignReportStats.completed}</div>
+                    <div className="text-xs font-bold text-teal-800 dark:text-teal-200 mt-1">Completed ({assignReportStats.completionPct}%)</div>
+                  </div>
+
+                  <div 
+                    onClick={() => setStatusTab('Pending')}
+                    className={`rounded-2xl p-4 cursor-pointer transition-all border ${
+                      statusTab === 'Pending' ? 'ring-2 ring-amber-500 bg-amber-50 dark:bg-amber-950/40 border-amber-200 shadow-xs' : 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-100 hover:bg-amber-50'
+                    }`}
+                  >
+                    <div className="text-2xl font-black text-amber-700 dark:text-amber-300">{assignReportStats.pending}</div>
+                    <div className="text-xs font-bold text-amber-800 dark:text-amber-200 mt-1">Pending Submission</div>
+                  </div>
                 </div>
               </div>
-            </div>
+            </>
+          )}
 
-            {/* 4 Metric Summary Boxes in a Grid (100% Real Numbers) */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-              <div 
-                onClick={() => setStatusTab('All')}
-                className={`rounded-2xl p-4 cursor-pointer transition-all border ${
-                  statusTab === 'All' ? 'ring-2 ring-teal-500 bg-teal-50/50 border-teal-200 shadow-xs' : 'bg-slate-50 border-slate-200/70 hover:bg-slate-100/70'
-                }`}
-              >
-                <div className="text-2xl font-black text-slate-800">{reportStats.total}</div>
-                <div className="text-xs font-bold text-slate-600 mt-1">Total Enrolled</div>
-              </div>
-
-              <div 
-                onClick={() => setStatusTab('Completed')}
-                className={`rounded-2xl p-4 cursor-pointer transition-all border ${
-                  statusTab === 'Completed' ? 'ring-2 ring-emerald-500 bg-teal-50 border-teal-200 shadow-xs' : 'bg-teal-50/50 border-emerald-100 hover:bg-teal-50'
-                }`}
-              >
-                <div className="text-2xl font-black text-teal-700">{reportStats.completed}</div>
-                <div className="text-xs font-bold text-teal-800 mt-1">Completed ({reportStats.completedPct}%)</div>
-              </div>
-
-              <div 
-                onClick={() => setStatusTab('Not Completed')}
-                className={`rounded-2xl p-4 cursor-pointer transition-all border ${
-                  statusTab === 'Not Completed' ? 'ring-2 ring-rose-500 bg-rose-50 border-rose-200 shadow-xs' : 'bg-rose-50/50 border-rose-100 hover:bg-rose-50'
-                }`}
-              >
-                <div className="text-2xl font-black text-rose-700">{reportStats.notCompleted}</div>
-                <div className="text-xs font-bold text-rose-800 mt-1">Not Completed ({reportStats.notCompletedPct}%)</div>
-              </div>
-
-              <div 
-                onClick={() => setStatusTab('Pending')}
-                className={`rounded-2xl p-4 cursor-pointer transition-all border ${
-                  statusTab === 'Pending' ? 'ring-2 ring-amber-500 bg-amber-50 border-amber-200 shadow-xs' : 'bg-amber-50/50 border-amber-100 hover:bg-amber-50'
-                }`}
-              >
-                <div className="text-2xl font-black text-amber-700">{reportStats.pending}</div>
-                <div className="text-xs font-bold text-amber-800 mt-1">Pending / Rescheduled</div>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Desktop Toolbar: Search, Status Filter Tabs & Actions */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row items-center justify-between gap-4">
+          {/* Search, Status Filter Tabs & Export */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row items-center justify-between gap-4">
             
             {/* Search Input */}
             <div className="relative w-full md:w-80">
@@ -1516,14 +2280,14 @@ export default function HomeworkReportPage() {
                 type="text"
                 value={studentSearch}
                 onChange={e => setStudentSearch(e.target.value)}
-                placeholder="Search by student name, roll no..."
-                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-teal-600 shadow-2xs"
+                placeholder="Search by student name, roll no, adm no..."
+                className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-2xs"
               />
               {studentSearch && (
                 <button
                   type="button"
                   onClick={() => setStudentSearch('')}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1531,42 +2295,51 @@ export default function HomeworkReportPage() {
             </div>
 
             {/* Status Filter Tabs */}
-            <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700 flex-wrap">
               <button
                 type="button"
                 onClick={() => setStatusTab('All')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                  statusTab === 'All' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                  statusTab === 'All' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                All ({reportStats.total})
+                All ({activeStudentList.length})
               </button>
               <button
                 type="button"
                 onClick={() => setStatusTab('Completed')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                  statusTab === 'Completed' ? 'bg-white text-teal-700 shadow-xs' : 'text-slate-600 hover:text-teal-700'
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                  statusTab === 'Completed' ? 'bg-white dark:bg-slate-800 text-teal-700 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-teal-700'
                 }`}
               >
-                Completed ({reportStats.completed})
+                Completed ({activeStudentList.filter(s => s.status === 'Completed').length})
               </button>
               <button
                 type="button"
-                onClick={() => setStatusTab('Not Completed')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                  statusTab === 'Not Completed' ? 'bg-white text-rose-700 shadow-xs' : 'text-slate-600 hover:text-rose-700'
+                onClick={() => setStatusTab('Rescheduled')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                  statusTab === 'Rescheduled' ? 'bg-white dark:bg-slate-800 text-amber-700 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-amber-700'
                 }`}
               >
-                Not Done ({reportStats.notCompleted})
+                Rescheduled ({activeStudentList.filter(s => s.status === 'Rescheduled').length})
               </button>
               <button
                 type="button"
                 onClick={() => setStatusTab('Pending')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                  statusTab === 'Pending' ? 'bg-white text-amber-700 shadow-xs' : 'text-slate-600 hover:text-amber-700'
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                  statusTab === 'Pending' ? 'bg-white dark:bg-slate-800 text-amber-700 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-amber-700'
                 }`}
               >
-                Pending ({reportStats.pending})
+                Pending ({activeStudentList.filter(s => s.status === 'Pending').length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusTab('Not Completed')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                  statusTab === 'Not Completed' ? 'bg-white dark:bg-slate-800 text-rose-700 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-rose-700'
+                }`}
+              >
+                Not Done ({activeStudentList.filter(s => s.status === 'Not Completed').length})
               </button>
             </div>
 
@@ -1575,17 +2348,17 @@ export default function HomeworkReportPage() {
               <button
                 type="button"
                 onClick={handleExportCSV}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-xl text-xs font-bold transition-colors border border-teal-200 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 text-teal-800 dark:text-teal-200 rounded-xl text-xs font-bold transition-colors border border-teal-200 dark:border-teal-800 cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
-                Export
+                Export CSV
               </button>
             </div>
 
           </div>
 
-          {/* Desktop Student Data Table (100% Real Enrolled Students) */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+          {/* Student Data Table */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left border-collapse">
                 <thead className="bg-slate-50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 font-extrabold border-b">
@@ -1594,14 +2367,23 @@ export default function HomeworkReportPage() {
                     <th className="px-5 py-4">Student Name</th>
                     <th className="px-5 py-4">Roll No</th>
                     <th className="px-5 py-4">Admission No</th>
+                    {reportType === 'assign' && (
+                      <th className="px-5 py-4">Assignment Scope</th>
+                    )}
                     <th className="px-5 py-4">Status</th>
-                    <th className="px-5 py-4">Rating</th>
-                    <th className="px-5 py-4">Teacher Remark</th>
+                    {reportType === 'remark' ? (
+                      <>
+                        <th className="px-5 py-4">Rating</th>
+                        <th className="px-5 py-4">Teacher Remark</th>
+                      </>
+                    ) : (
+                      <th className="px-5 py-4">Submission Remark</th>
+                    )}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700 font-semibold text-slate-700 dark:text-slate-300">
                   {filteredStudents.map((student, idx) => (
-                    <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={student.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition-colors">
                       <td className="px-5 py-3.5 text-slate-400 font-bold">
                         {idx + 1}.
                       </td>
@@ -1624,61 +2406,94 @@ export default function HomeworkReportPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 font-bold text-slate-700">
+                      <td className="px-5 py-3.5 font-bold text-slate-700 dark:text-slate-300">
                         {student.rollNo}
                       </td>
-                      <td className="px-5 py-3.5 text-slate-600 font-mono">
+                      <td className="px-5 py-3.5 text-slate-600 dark:text-slate-400 font-mono">
                         {student.admissionNo}
                       </td>
+
+                      {reportType === 'assign' && (
+                        <td className="px-5 py-3.5">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-800 dark:text-teal-200 border border-teal-200 dark:border-teal-800 text-[11px] font-bold">
+                            <Check className="w-3 h-3 text-teal-600 stroke-[3]" />
+                            Assigned
+                          </span>
+                        </td>
+                      )}
+
                       <td className="px-5 py-3.5">
                         {student.status === 'Completed' && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 text-teal-700 border border-teal-200 text-xs font-bold shadow-2xs">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 text-xs font-bold shadow-2xs">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                             Completed
                           </span>
                         )}
                         {student.status === 'Not Completed' && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold shadow-2xs">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 text-xs font-bold shadow-2xs">
                             <XCircle className="w-3.5 h-3.5 text-rose-600" />
                             Not Completed
                           </span>
                         )}
                         {student.status === 'Rescheduled' && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold shadow-2xs">
-                            <Clock className="w-3.5 h-3.5 text-amber-600" />
-                            Rescheduled
-                          </span>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 text-xs font-bold shadow-2xs w-fit">
+                              <Clock className="w-3.5 h-3.5 text-amber-600" />
+                              Rescheduled
+                            </span>
+                            {student.rescheduledDate && (
+                              <span className="text-[10px] text-amber-800 dark:text-amber-400 font-semibold">
+                                Due: {student.rescheduledDate}
+                              </span>
+                            )}
+                          </div>
                         )}
                         {student.status === 'Pending' && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-xs font-bold shadow-2xs">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 text-xs font-bold shadow-2xs">
                             <Clock className="w-3.5 h-3.5 text-slate-400" />
                             Pending
                           </span>
                         )}
                       </td>
-                      <td className="px-5 py-3.5">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200/60 text-xs font-bold shadow-2xs">
-                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
-                          {student.rating ? `${student.rating}★` : '—'}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        {student.remark ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold">
-                            <MessageSquare className="w-3 h-3 text-emerald-600" />
-                            {student.remark}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 text-xs">—</span>
-                        )}
-                      </td>
+
+                      {reportType === 'remark' ? (
+                        <>
+                          <td className="px-5 py-3.5">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/60 text-xs font-bold shadow-2xs">
+                              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                              {student.rating ? `${student.rating}★` : '—'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            {student.remark ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-200 text-xs font-bold">
+                                <MessageSquare className="w-3 h-3 text-emerald-600" />
+                                {student.remark}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-xs">—</span>
+                            )}
+                          </td>
+                        </>
+                      ) : (
+                        <td className="px-5 py-3.5">
+                          {student.remark ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 dark:bg-teal-950/40 border border-teal-200 text-teal-800 dark:text-teal-200 text-xs font-bold">
+                              <MessageSquare className="w-3 h-3 text-emerald-600" />
+                              {student.remark}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 text-xs">—</span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
 
                   {filteredStudents.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-5 py-10 text-center text-slate-400 font-bold">
-                        No students enrolled in {selectedClassCard.className} Section {selectedClassCard.section}.
+                      <td colSpan={reportType === 'assign' ? 7 : 7} className="px-5 py-10 text-center text-slate-400 font-bold">
+                        No students found for the selected filter.
                       </td>
                     </tr>
                   )}
@@ -1692,9 +2507,9 @@ export default function HomeworkReportPage() {
             <button
               type="button"
               onClick={() => setCurrentStep('subjects')}
-              className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+              className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-colors shadow-2xs cursor-pointer"
             >
-              ‹ Choose Different Subject
+              ‹ Back to Assigned Tasks
             </button>
           </div>
 

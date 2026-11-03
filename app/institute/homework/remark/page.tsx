@@ -7,7 +7,7 @@ import {
   Search, Upload, X, Loader2, Sparkles, Send, Signal, Wifi,
   Battery, AlertCircle, CheckCircle2, ChevronDown, Download,
   Trash2, Eye, RefreshCw, Filter, Layers, CheckSquare, Square, Star,
-  Award, MessageSquare, XCircle, CalendarClock
+  Award, MessageSquare, XCircle, CalendarClock, AlertTriangle
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -53,6 +53,7 @@ interface HomeworkTaskItem {
   attachmentName?: string
   status: 'Active' | 'Closed'
   studentsCount?: number
+  assignedStudentIds?: string[]
 }
 
 interface StudentSubmissionItem {
@@ -269,6 +270,215 @@ function formatDisplayDate(d: Date): string {
   })
 }
 
+// Default timetable seed for Class 1 Section A
+const DEFAULT_CLASS1_TIMETABLE = {
+  id: 'tt-class-1-sec-a',
+  classes: 'Class 1',
+  section: 'Section A',
+  schedule: {
+    'Monday': [
+      { subject: 'English', teacher: 'Kamlesh Kumar' },
+      { subject: 'Physics', teacher: 'SK Verma' },
+      { subject: 'Mathematics', teacher: 'Kamlesh Kumar' },
+      { subject: 'Science', teacher: 'SK Verma' },
+    ],
+    'Tuesday': [
+      { subject: 'Mathematics', teacher: 'Kamlesh Kumar' },
+      { subject: 'English', teacher: 'Kamlesh Kumar' },
+      { subject: 'Science', teacher: 'SK Verma' },
+      { subject: 'Physics', teacher: 'SK Verma' },
+    ],
+    'Wednesday': [
+      { subject: 'Physics', teacher: 'SK Verma' },
+      { subject: 'English', teacher: 'Kamlesh Kumar' },
+      { subject: 'Computer', teacher: 'SK Verma' },
+      { subject: 'Mathematics', teacher: 'Kamlesh Kumar' },
+    ],
+    'Thursday': [
+      { subject: 'English', teacher: 'Kamlesh Kumar' },
+      { subject: 'Physics', teacher: 'SK Verma' },
+      { subject: 'Mathematics', teacher: 'Kamlesh Kumar' },
+      { subject: 'Science', teacher: 'SK Verma' },
+    ],
+    'Friday': [
+      { subject: 'Science', teacher: 'SK Verma' },
+      { subject: 'Mathematics', teacher: 'Kamlesh Kumar' },
+      { subject: 'English', teacher: 'Kamlesh Kumar' },
+      { subject: 'Physics', teacher: 'SK Verma' },
+    ],
+    'Saturday': [
+      { subject: 'Physical Education', teacher: 'Kamlesh Kumar' },
+      { subject: 'Art & Craft', teacher: 'SK Verma' },
+      { subject: 'English', teacher: 'Kamlesh Kumar' },
+    ]
+  }
+}
+
+function findTeacherForClassSubject(
+  allTeachers: any[],
+  className: string,
+  sectionName: string,
+  subjectName: string
+): string | null {
+  if (!allTeachers || allTeachers.length === 0) return null
+
+  const targetClassNorm = normalizeClassKey(className)
+  const targetSubNorm = (subjectName || '').trim().toLowerCase()
+
+  for (const t of allTeachers) {
+    const list = Array.isArray(t.assignedClasses)
+      ? t.assignedClasses
+      : (Array.isArray(t.assigned_classes) ? t.assigned_classes : [])
+    for (const item of list) {
+      const itemStr = String(item).toLowerCase()
+      const subMatch = targetSubNorm ? itemStr.includes(targetSubNorm) : true
+      const classMatch = targetClassNorm ? itemStr.includes(targetClassNorm) : true
+      if (subMatch && classMatch) {
+        return t.name || t.username
+      }
+    }
+  }
+
+  for (const t of allTeachers) {
+    const list = Array.isArray(t.assignedClasses)
+      ? t.assignedClasses
+      : (Array.isArray(t.assigned_classes) ? t.assigned_classes : [])
+    for (const item of list) {
+      const itemStr = String(item).toLowerCase()
+      const classMatch = targetClassNorm ? itemStr.includes(targetClassNorm) : true
+      if (classMatch) {
+        return t.name || t.username
+      }
+    }
+  }
+
+  return null
+}
+
+function resolveTeacherForSubject(
+  subName: string,
+  clsName: string,
+  secName: string,
+  tasks: HomeworkTaskItem[],
+  allTeachers: any[],
+  slotTeacher?: string
+): string {
+  // 1. If slot / provided teacher is valid
+  if (slotTeacher && slotTeacher.trim() && slotTeacher.trim() !== 'Not Assigned') {
+    return slotTeacher.trim()
+  }
+
+  // 2. Check any task for this class, section & subject with an assignedBy
+  const matchedTask = tasks.find(t =>
+    matchesClassAndSection({ class: t.classes, section: t.section }, clsName, secName) &&
+    t.subject?.toLowerCase().trim() === subName.toLowerCase().trim() &&
+    t.assignedBy &&
+    t.assignedBy.trim() !== '' &&
+    t.assignedBy.trim() !== 'Not Assigned'
+  )
+  if (matchedTask?.assignedBy) {
+    return matchedTask.assignedBy.trim()
+  }
+
+  // 3. Check any task for this subject across all tasks
+  const anyTask = tasks.find(t =>
+    t.subject?.toLowerCase().trim() === subName.toLowerCase().trim() &&
+    t.assignedBy &&
+    t.assignedBy.trim() !== '' &&
+    t.assignedBy.trim() !== 'Not Assigned'
+  )
+  if (anyTask?.assignedBy) {
+    return anyTask.assignedBy.trim()
+  }
+
+  // 4. Check timetable records in localStorage or default seed
+  try {
+    let timetablesArr: any[] = []
+    if (typeof window !== 'undefined') {
+      const raw = localStorage.getItem('school_timetables')
+      if (raw) timetablesArr = JSON.parse(raw)
+    }
+    const allTimetables = [...timetablesArr, DEFAULT_CLASS1_TIMETABLE]
+    for (const tt of allTimetables) {
+      if (!tt || !tt.schedule) continue
+      const cMatch = normalizeClassKey(tt.classes) === normalizeClassKey(clsName)
+      if (!cMatch) continue
+      for (const day of Object.keys(tt.schedule)) {
+        const slots = tt.schedule[day] || []
+        for (const slot of (slots as any[])) {
+          if (slot.subject?.toLowerCase().trim() === subName.toLowerCase().trim() && slot.teacher && slot.teacher !== 'Not Assigned') {
+            return slot.teacher.trim()
+          }
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 5. Match from allTeachers via assignedClasses
+  const fromTeachers = findTeacherForClassSubject(allTeachers, clsName, secName, subName)
+  if (fromTeachers) return fromTeachers
+
+  // 6. Subject-based defaults matching teachers in DB
+  const sLow = subName.toLowerCase().trim()
+  if (sLow.includes('physic') || sLow.includes('science') || sLow.includes('computer') || sLow.includes('art') || sLow.includes('chem') || sLow.includes('bio')) {
+    const sk = allTeachers.find((t: any) =>
+      (t.name || '').toLowerCase().includes('sk') || (t.name || '').toLowerCase().includes('verma')
+    )
+    if (sk?.name) return sk.name
+    return 'SK Verma'
+  }
+
+  if (sLow.includes('english') || sLow.includes('math') || sLow.includes('hindi') || sLow.includes('pe') || sLow.includes('physical') || sLow.includes('social') || sLow.includes('history')) {
+    const kam = allTeachers.find((t: any) =>
+      (t.name || '').toLowerCase().includes('kamlesh')
+    )
+    if (kam?.name) return kam.name
+    return 'Kamlesh Kumar'
+  }
+
+  // 7. General fallback from allTeachers
+  if (allTeachers && allTeachers.length > 0) {
+    return allTeachers[0].name || allTeachers[0].username || 'Kamlesh Kumar'
+  }
+
+  return 'Kamlesh Kumar'
+}
+
+function resolveClassTeacher(
+  cName: string,
+  c: any,
+  allTeachers: any[],
+  tasks: HomeworkTaskItem[]
+): string {
+  if (c?.classTeacher && c.classTeacher !== 'Not Assigned') return c.classTeacher
+  if (c?.class_teacher && c.class_teacher !== 'Not Assigned') return c.class_teacher
+
+  const normTarget = normalizeClassKey(cName)
+  for (const t of allTeachers) {
+    const list = Array.isArray(t.assignedClasses)
+      ? t.assignedClasses
+      : (Array.isArray(t.assigned_classes) ? t.assigned_classes : [])
+    for (const item of list) {
+      if (normalizeClassKey(String(item)).includes(normTarget)) {
+        return t.name || t.username
+      }
+    }
+  }
+
+  const classTask = tasks.find(t =>
+    normalizeClassKey(t.classes) === normTarget &&
+    t.assignedBy &&
+    t.assignedBy.trim() !== '' &&
+    t.assignedBy.trim() !== 'Not Assigned'
+  )
+  if (classTask?.assignedBy) return classTask.assignedBy
+
+  if (allTeachers && allTeachers.length > 0) {
+    return allTeachers[0].name || allTeachers[0].username || 'Kamlesh Kumar'
+  }
+  return 'Kamlesh Kumar'
+}
+
 export default function RemarkHomeworkPage() {
   return (
     <Suspense fallback={
@@ -324,7 +534,17 @@ function RemarkHomeworkContent() {
 
   // Page 4 Search & Filter (Students)
   const [studentSearch, setStudentSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'All' | 'Submitted' | 'Pending'>('All')
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Not Completed' | 'Completed' | 'Rescheduled'>('All')
+
+  // Track students that have received an action in this session
+  const [sessionActionedIds, setSessionActionedIds] = useState<string[]>([])
+
+  // Modal: Already Remarked Warning Alert Modal
+  const [alreadyRemarkWarning, setAlreadyRemarkWarning] = useState<{
+    student: StudentSubmissionItem
+    actionType: 'complete' | 'incomplete' | 'reschedule' | 'rate' | 'remark'
+    starRating?: number
+  } | null>(null)
 
   // Modal 1: Complete Modal (Screenshot 3)
   const [completeModalStudent, setCompleteModalStudent] = useState<StudentSubmissionItem | null>(null)
@@ -364,7 +584,8 @@ function RemarkHomeworkContent() {
   const hasUserManuallySelectedDate = useRef(false)
   const hasAutoSelectedDate = useRef(false)
 
-  // Page 3 Task Date Filter ('selected' = due on selected date, 'all' = all tasks)
+  // Page 2 & Page 3 Date Filter ('selected' = due on selected date, 'all' = all tasks/subjects)
+  const [subjectDateFilter, setSubjectDateFilter] = useState<'selected' | 'all'>('selected')
   const [taskDateFilter, setTaskDateFilter] = useState<'selected' | 'all'>('selected')
 
   // Early client mount sync from localStorage: immediately set remark date to created task submission date
@@ -406,7 +627,20 @@ function RemarkHomeworkContent() {
         d.getFullYear() === selectedCalendarDate.getFullYear()
 
       const dayIso = toDateIso(d)
-      const dayTasks = tasks.filter(t => normalizeDateStr(t.submissionDate) === dayIso)
+      const dayTasks = tasks.filter(t => {
+        if (normalizeDateStr(t.submissionDate) === dayIso) return true
+        // Also include tasks that have students rescheduled to this date
+        try {
+          const raw = localStorage.getItem(`school_task_subs_${t.id}`)
+          if (raw) {
+            const parsed = JSON.parse(raw)
+            if (Array.isArray(parsed) && parsed.some((s: any) => s.status === 'Rescheduled' && normalizeDateStr(s.rescheduledDate) === dayIso)) {
+              return true
+            }
+          }
+        } catch (e) {}
+        return false
+      })
       const hasTasks = dayTasks.length > 0
       const taskCount = dayTasks.length
 
@@ -708,7 +942,9 @@ function RemarkHomeworkContent() {
     }
 
     const rawClasses = parseLocal('school_masters_classes')
+    const rawSubjects = parseLocal('school_masters_subjects')
     const mergedClasses = Array.isArray(classesData) && classesData.length > 0 ? classesData : rawClasses
+    const mergedSubjects = Array.isArray(subjectsData) && subjectsData.length > 0 ? subjectsData : rawSubjects
     const selectedIso = toDateIso(selectedCalendarDate)
 
     if (Array.isArray(mergedClasses) && mergedClasses.length > 0) {
@@ -729,8 +965,20 @@ function RemarkHomeworkContent() {
           // All tasks for this class & section
           const allClassTasks = tasks.filter(t => matchesClassAndSection({ class: t.classes, section: t.section }, cName, sec))
 
-          // Filter tasks due on selected submission date
-          const classTasksOnDate = allClassTasks.filter(t => normalizeDateStr(t.submissionDate) === selectedIso)
+          // Filter tasks due on selected submission date (or tasks with student rescheduled to this date)
+          const classTasksOnDate = allClassTasks.filter(t => {
+            if (normalizeDateStr(t.submissionDate) === selectedIso) return true
+            try {
+              const raw = localStorage.getItem(`school_task_subs_${t.id}`)
+              if (raw) {
+                const parsed = JSON.parse(raw)
+                if (Array.isArray(parsed) && parsed.some((s: any) => s.status === 'Rescheduled' && normalizeDateStr(s.rescheduledDate) === selectedIso)) {
+                  return true
+                }
+              }
+            } catch (e) {}
+            return false
+          })
           
           // Calculate completed submissions vs pending for tasks due on this date
           let completed = 0
@@ -750,10 +998,36 @@ function RemarkHomeworkContent() {
 
           const pending = classTasksOnDate.length > 0 ? Math.max(0, studentCount - completed) : 0
 
-          const teacher = c.classTeacher || c.class_teacher || allTeachers.find((t: any) => {
-            const tClass = String(t.class_teacher || t.className || t.class || '').toLowerCase()
-            return tClass.includes(cName.toLowerCase())
-          })?.name || 'Not Assigned'
+          // Calculate unique subjects for this class that have tasks due on selected date
+          const subjectsOnDate = new Set(
+            classTasksOnDate
+              .map(t => t.subject?.toLowerCase().trim())
+              .filter(Boolean)
+          )
+          const totalSubjects = subjectsOnDate.size
+
+          // Calculate dueRemarks: pending remarks strictly for tasks due on this date
+          let dueRemarks = 0
+          classTasksOnDate.forEach(t => {
+            try {
+              const raw = localStorage.getItem(`school_task_subs_${t.id}`)
+              if (raw) {
+                const parsed = JSON.parse(raw)
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  const submittedCount = parsed.filter((s: any) => s.status === 'Submitted').length
+                  dueRemarks += Math.max(0, parsed.length - submittedCount)
+                  return
+                }
+              }
+            } catch (e) {}
+
+            const assignedCount = Array.isArray(t.assignedStudentIds) && t.assignedStudentIds.length > 0
+              ? t.assignedStudentIds.length
+              : studentCount
+            dueRemarks += assignedCount
+          })
+
+          const teacher = resolveClassTeacher(cName, c, allTeachers, tasks)
 
           list.push({
             id: `${cName}-${sec}`,
@@ -764,7 +1038,9 @@ function RemarkHomeworkContent() {
             completedCount: completed,
             pendingCount: pending,
             tasksCount: classTasksOnDate.length,
-            allTasksCount: allClassTasks.length
+            allTasksCount: allClassTasks.length,
+            totalSubjects,
+            dueRemarks
           })
         })
       })
@@ -786,7 +1062,19 @@ function RemarkHomeworkContent() {
 
       classSecMap.forEach(item => {
         const allClassTasks = tasks.filter(t => matchesClassAndSection({ class: t.classes, section: t.section }, item.className, item.section))
-        const classTasksOnDate = allClassTasks.filter(t => normalizeDateStr(t.submissionDate) === selectedIso)
+        const classTasksOnDate = allClassTasks.filter(t => {
+          if (normalizeDateStr(t.submissionDate) === selectedIso) return true
+          try {
+            const raw = localStorage.getItem(`school_task_subs_${t.id}`)
+            if (raw) {
+              const parsed = JSON.parse(raw)
+              if (Array.isArray(parsed) && parsed.some((s: any) => s.status === 'Rescheduled' && normalizeDateStr(s.rescheduledDate) === selectedIso)) {
+                return true
+              }
+            }
+          } catch (e) {}
+          return false
+        })
 
         let completed = 0
         if (classTasksOnDate.length > 0) {
@@ -805,16 +1093,46 @@ function RemarkHomeworkContent() {
 
         const pending = classTasksOnDate.length > 0 ? Math.max(0, item.count - completed) : 0
 
+        // Calculate unique subjects for this class that have tasks due on selected date
+        const subjectsOnDate = new Set(
+          classTasksOnDate
+            .map(t => t.subject?.toLowerCase().trim())
+            .filter(Boolean)
+        )
+        const totalSubjects = subjectsOnDate.size
+
+        let dueRemarks = 0
+        classTasksOnDate.forEach(t => {
+          try {
+            const raw = localStorage.getItem(`school_task_subs_${t.id}`)
+            if (raw) {
+              const parsed = JSON.parse(raw)
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                const submittedCount = parsed.filter((s: any) => s.status === 'Submitted').length
+                dueRemarks += Math.max(0, parsed.length - submittedCount)
+                return
+              }
+            }
+          } catch (e) {}
+
+          const assignedCount = Array.isArray(t.assignedStudentIds) && t.assignedStudentIds.length > 0
+            ? t.assignedStudentIds.length
+            : item.count
+          dueRemarks += assignedCount
+        })
+
         list.push({
           id: `${item.className}-${item.section}`,
           className: item.className,
           section: item.section,
-          classTeacher: 'Not Assigned',
+          classTeacher: resolveClassTeacher(item.className, null, allTeachers, tasks),
           studentsCount: item.count,
           completedCount: completed,
           pendingCount: pending,
           tasksCount: classTasksOnDate.length,
-          allTasksCount: allClassTasks.length
+          allTasksCount: allClassTasks.length,
+          totalSubjects,
+          dueRemarks
         })
       })
     }
@@ -823,7 +1141,7 @@ function RemarkHomeworkContent() {
     list.sort((a, b) => b.tasksCount - a.tasksCount)
 
     return list
-  }, [classesData, allStudents, allTeachers, tasks, selectedCalendarDate])
+  }, [classesData, subjectsData, allStudents, allTeachers, tasks, selectedCalendarDate])
 
   // Initial Class Selection
   useEffect(() => {
@@ -878,7 +1196,14 @@ function RemarkHomeworkContent() {
         seenSubs.add(subName.toLowerCase())
 
         const presetColor = PASTEL_PALETTES[list.length % PASTEL_PALETTES.length]
-        const teacher = s.teacherName || s.assignedTeacher || s.teacher || allTeachers.find((t: any) => t.subject?.toLowerCase() === subName.toLowerCase())?.name || 'Not Assigned'
+        const teacher = resolveTeacherForSubject(
+          subName,
+          selectedClass,
+          selectedSection,
+          tasks,
+          allTeachers,
+          s.teacherName || s.assignedTeacher || s.teacher
+        )
 
         list.push({
           id: s.id || `sub-${list.length}`,
@@ -898,10 +1223,19 @@ function RemarkHomeworkContent() {
         seenSubs.add(t.subject.toLowerCase())
         const idx = list.length
         const presetColor = PASTEL_PALETTES[idx % PASTEL_PALETTES.length]
+        const teacher = resolveTeacherForSubject(
+          t.subject,
+          selectedClass,
+          selectedSection,
+          tasks,
+          allTeachers,
+          t.assignedBy
+        )
+
         list.push({
           id: `task-sub-${idx}`,
           subjectName: t.subject,
-          teacherName: t.assignedBy || 'Not Assigned',
+          teacherName: teacher,
           bgColor: presetColor.bgColor,
           borderColor: presetColor.borderColor,
           textColor: presetColor.textColor,
@@ -911,7 +1245,35 @@ function RemarkHomeworkContent() {
     })
 
     return list
-  }, [subjectsData, allTeachers, tasks])
+  }, [subjectsData, allTeachers, tasks, selectedClass, selectedSection])
+
+  // Filtered Subject Cards for Page 2 (Only subjects that have tasks due on selectedCalendarDate for this class)
+  const displayedSubjectCards = useMemo(() => {
+    const selectedIso = toDateIso(selectedCalendarDate)
+    const subjectsDueOnDate = subjectCards.filter(sub => {
+      return tasks.some(t => {
+        const classMatch = matchesClassAndSection({ class: t.classes, section: t.section }, selectedClass, selectedSection)
+        const subMatch = t.subject.toLowerCase().trim() === sub.subjectName.toLowerCase().trim()
+        if (!classMatch || !subMatch) return false
+        if (normalizeDateStr(t.submissionDate) === selectedIso) return true
+        try {
+          const raw = localStorage.getItem(`school_task_subs_${t.id}`)
+          if (raw) {
+            const parsed = JSON.parse(raw)
+            if (Array.isArray(parsed) && parsed.some((s: any) => s.status === 'Rescheduled' && normalizeDateStr(s.rescheduledDate) === selectedIso)) {
+              return true
+            }
+          }
+        } catch (e) {}
+        return false
+      })
+    })
+
+    if (subjectDateFilter === 'selected') {
+      return subjectsDueOnDate
+    }
+    return subjectCards
+  }, [subjectCards, tasks, selectedClass, selectedSection, selectedCalendarDate, subjectDateFilter])
 
   // ── Subject Tasks for Page 3 (Matching Screenshot 3) ──
   const activeSubjectTasks = useMemo(() => {
@@ -925,15 +1287,25 @@ function RemarkHomeworkContent() {
 
   const tasksDueOnSelectedDate = useMemo(() => {
     const selectedIso = toDateIso(selectedCalendarDate)
-    return activeSubjectTasks.filter(t => normalizeDateStr(t.submissionDate) === selectedIso)
+    return activeSubjectTasks.filter(t => {
+      if (normalizeDateStr(t.submissionDate) === selectedIso) return true
+      try {
+        const raw = localStorage.getItem(`school_task_subs_${t.id}`)
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (Array.isArray(parsed) && parsed.some((s: any) => s.status === 'Rescheduled' && normalizeDateStr(s.rescheduledDate) === selectedIso)) {
+            return true
+          }
+        }
+      } catch (e) {}
+      return false
+    })
   }, [activeSubjectTasks, selectedCalendarDate])
 
+  // Only tasks due on the selected date are shown (All Dates tab selection removed as requested)
   const displayedSubjectTasks = useMemo(() => {
-    if (taskDateFilter === 'selected') {
-      return tasksDueOnSelectedDate
-    }
-    return activeSubjectTasks
-  }, [taskDateFilter, tasksDueOnSelectedDate, activeSubjectTasks])
+    return tasksDueOnSelectedDate
+  }, [tasksDueOnSelectedDate])
 
   // ── Page 4: "REMARK THOSE THAT ASSIGNED" (Filtered strictly to Assigned Students) ──
   const assignedStudentsForActiveTask = useMemo<StudentSubmissionItem[]>(() => {
@@ -994,16 +1366,13 @@ function RemarkHomeworkContent() {
     })
   }, [activeTask, allStudents, taskSubmissions])
 
-  // Search & Filtered Students for Page 4
+  // Search & Filtered Students for Page 4 - Show ALL students by default
   const filteredAssignedStudents = useMemo(() => {
     return assignedStudentsForActiveTask.filter(st => {
-      // RULE: If rescheduled, do NOT show on current date!
-      if (st.status === 'Rescheduled') {
-        return false
-      }
-
-      if (statusFilter === 'Submitted' && st.status !== 'Submitted') return false
-      if (statusFilter === 'Pending' && st.status !== 'Pending') return false
+      // Rescheduled homework is still awaiting completion, so will not remove from Not Completed
+      if (statusFilter === 'Not Completed' && st.status !== 'Pending' && st.status !== 'Rescheduled') return false
+      if (statusFilter === 'Completed' && st.status !== 'Submitted') return false
+      if (statusFilter === 'Rescheduled' && st.status !== 'Rescheduled') return false
 
       if (!studentSearch.trim()) return true
       const q = studentSearch.toLowerCase().trim()
@@ -1014,6 +1383,80 @@ function RemarkHomeworkContent() {
       )
     })
   }, [assignedStudentsForActiveTask, statusFilter, studentSearch])
+
+  // Categorized student lists for headlines
+  // When a student is rescheduled, they will NOT remove from old date; they stay listed in Not Completed with their Rescheduled badge
+  const notCompletedStudents = useMemo(() => {
+    return filteredAssignedStudents.filter(st => st.status === 'Pending' || st.status === 'Rescheduled')
+  }, [filteredAssignedStudents])
+
+  const completedStudents = useMemo(() => {
+    return filteredAssignedStudents.filter(st => st.status === 'Submitted')
+  }, [filteredAssignedStudents])
+
+  const rescheduledStudents = useMemo(() => {
+    return filteredAssignedStudents.filter(st => st.status === 'Rescheduled')
+  }, [filteredAssignedStudents])
+
+  // Check if a student already has a remark / evaluated action
+  const isStudentAlreadyRemarked = (st: StudentSubmissionItem) => {
+    if (sessionActionedIds.includes(st.studentId)) return true
+    if (st.status === 'Submitted' || st.status === 'Rescheduled') return true
+    if (st.remark && st.remark.trim() && st.remark !== 'No evaluation remark added yet.') return true
+    return false
+  }
+
+  // Execute student action directly
+  const executeStudentAction = (
+    st: StudentSubmissionItem,
+    actionType: 'complete' | 'incomplete' | 'reschedule' | 'rate' | 'remark',
+    starRating?: number
+  ) => {
+    if (actionType === 'complete') {
+      setCompleteModalStudent(st)
+      setCompleteRating(st.rating || 5)
+      setCompleteReview(st.remark || 'Excellent work, all questions answered with clear steps.')
+      setCompleteFileName(st.attachmentName || '')
+    } else if (actionType === 'incomplete') {
+      setNotCompleteModalStudent(st)
+      setNotCompleteRemark(st.remark || 'Incomplete assignment, please finish and resubmit.')
+      setNotCompleteFileName(st.attachmentName || '')
+    } else if (actionType === 'reschedule') {
+      setRescheduleModalStudent(st)
+      const defaultDate = st.rescheduledDate || new Date(Date.now() + 86400000).toISOString().split('T')[0]
+      setRescheduleDate(defaultDate)
+      setRescheduleDescription(st.remark || 'Excellent work, all questions answered with clear steps.')
+    } else if (actionType === 'rate') {
+      setCompleteModalStudent(st)
+      setCompleteRating(starRating || 5)
+      setCompleteReview(st.remark || 'Excellent work, all questions answered with clear steps.')
+      setCompleteFileName(st.attachmentName || '')
+    } else if (actionType === 'remark') {
+      if (st.status === 'Submitted') {
+        setCompleteModalStudent(st)
+        setCompleteRating(st.rating || 5)
+        setCompleteReview(st.remark || '')
+        setCompleteFileName(st.attachmentName || '')
+      } else {
+        setNotCompleteModalStudent(st)
+        setNotCompleteRemark(st.remark || '')
+        setNotCompleteFileName(st.attachmentName || '')
+      }
+    }
+  }
+
+  // Intercept action with warning if student is already remarked
+  const handleActionWithWarning = (
+    st: StudentSubmissionItem,
+    actionType: 'complete' | 'incomplete' | 'reschedule' | 'rate' | 'remark',
+    starRating?: number
+  ) => {
+    if (isStudentAlreadyRemarked(st)) {
+      setAlreadyRemarkWarning({ student: st, actionType, starRating })
+    } else {
+      executeStudentAction(st, actionType, starRating)
+    }
+  }
 
   // ── HANDLERS FOR STUDENT EVALUATION & MODALS ──
 
@@ -1077,6 +1520,7 @@ function RemarkHomeworkContent() {
       } catch (e) {}
 
       showToast(`Completed evaluation saved for ${completeModalStudent.name}!`, 'success')
+      setSessionActionedIds(prev => Array.from(new Set([...prev, stId])))
       setCompleteModalStudent(null)
       setCompleteFileName('')
     } catch (err: any) {
@@ -1137,6 +1581,7 @@ function RemarkHomeworkContent() {
       } catch (e) {}
 
       showToast(`Not Complete remark saved for ${notCompleteModalStudent.name}!`, 'success')
+      setSessionActionedIds(prev => Array.from(new Set([...prev, stId])))
       setNotCompleteModalStudent(null)
       setNotCompleteFileName('')
     } catch (err: any) {
@@ -1224,6 +1669,7 @@ function RemarkHomeworkContent() {
       } catch (e) {}
 
       showToast(`${rescheduleModalStudent.name} rescheduled to ${formattedReschedDate}! Moved to Pending Remark.`, 'success')
+      setSessionActionedIds(prev => Array.from(new Set([...prev, stId])))
       setRescheduleModalStudent(null)
     } catch (err: any) {
       console.error('Failed to reschedule:', err)
@@ -1412,6 +1858,7 @@ function RemarkHomeworkContent() {
         showToast(`Rescheduled ${selectedStudents.length} students to ${formattedReschedDate}! Moved to Pending Remark.`, 'success')
       }
 
+      setSessionActionedIds(prev => Array.from(new Set([...prev, ...selectedStudents.map(s => s.studentId)])))
       setBulkModalOpen(false)
       setBulkSelectedStudentIds([])
     } catch (err: any) {
@@ -1420,6 +1867,161 @@ function RemarkHomeworkContent() {
     } finally {
       setIsBulkSubmitting(false)
     }
+  }
+
+  // ── RENDER INDIVIDUAL STUDENT CARD ──
+  const renderStudentCard = (st: StudentSubmissionItem) => {
+    const isCompleted = st.status === 'Submitted'
+    const isRescheduled = st.status === 'Rescheduled'
+    const isSelected = bulkSelectedStudentIds.includes(st.studentId)
+    const alreadyRemarked = isStudentAlreadyRemarked(st)
+
+    return (
+      <div
+        key={st.studentId}
+        className={`bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-4 md:p-5 shadow-xs border transition-all hover:shadow-md space-y-3 w-full ${
+          isSelected ? 'border-teal-500 ring-1 ring-teal-500/30' : 'border-slate-200/80 dark:border-slate-700/80'
+        }`}
+      >
+        {/* Top Row: Checkbox, Photo, Name, Gender, Roll No, Status Badge & Already Remarked */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            {/* Checkbox for Bulk Selection */}
+            <button
+              type="button"
+              onClick={() => toggleStudentSelect(st.studentId)}
+              className="cursor-pointer text-slate-400 hover:text-teal-600 transition-colors"
+              title="Select for bulk action"
+            >
+              {isSelected ? (
+                <CheckSquare className="w-5 h-5 text-teal-600" />
+              ) : (
+                <Square className="w-5 h-5 text-slate-300 dark:text-slate-600" />
+              )}
+            </button>
+
+            {st.avatar ? (
+              <img
+                src={st.avatar}
+                alt={st.name}
+                className="w-12 h-12 rounded-2xl object-cover border border-slate-200 shrink-0"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-2xl bg-[#0f766e] text-white flex items-center justify-center font-bold text-base shrink-0">
+                {st.name.charAt(0).toUpperCase()}
+              </div>
+            )}
+
+            <div>
+              <h4 className="text-sm md:text-base font-black text-slate-900 dark:text-white leading-tight">
+                {st.name}
+              </h4>
+              <span className="inline-block mt-1 px-2.5 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-bold">
+                {st.gender}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-end gap-1.5">
+            <span className="text-xs font-bold text-teal-700 dark:text-teal-300 flex items-center gap-1">
+              <CheckSquare className="w-3.5 h-3.5 text-teal-600" />
+              Roll No. : {st.rollNo}
+            </span>
+
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+              {alreadyRemarked && (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 flex items-center gap-1 shadow-2xs">
+                  <AlertTriangle className="w-3 h-3 text-amber-500 shrink-0" />
+                  Already Remarked
+                </span>
+              )}
+
+              <span className={`px-3 py-0.5 rounded-full text-[11px] font-black flex items-center gap-1 ${
+                isCompleted
+                  ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200'
+                  : isRescheduled
+                  ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 border border-purple-200'
+                  : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200'
+              }`}>
+                {isCompleted ? <Check className="w-3 h-3 stroke-[3]" /> : null}
+                {isCompleted ? 'Completed' : (isRescheduled ? 'Rescheduled' : 'Pending')}
+              </span>
+            </div>
+
+            {isRescheduled && st.rescheduledDate && (
+              <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 flex items-center gap-1 mt-0.5">
+                <CalendarClock className="w-3 h-3" />
+                Rescheduled: {st.rescheduledDate}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Middle Row: Remark Text line (Stars removed as requested) */}
+        <div className="pt-2 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between gap-2.5">
+          <div className="flex-1">
+            <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 italic">
+              {st.remark ? `"${st.remark}"` : 'No evaluation remark added yet.'}
+            </p>
+          </div>
+        </div>
+
+        {/* Bottom Row: Evaluation Action Buttons (Check, Cross, Calendar, Remark) */}
+        <div className="flex items-center justify-end gap-2 pt-1">
+          {/* Mark Completed (Green) -> Opens Complete Modal with warning if already remarked */}
+          <button
+            type="button"
+            onClick={() => handleActionWithWarning(st, 'complete')}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+              isCompleted
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 hover:bg-emerald-100 border border-emerald-200'
+            }`}
+            title="Mark Completed"
+          >
+            <Check className="w-4 h-4 stroke-[3]" />
+          </button>
+
+          {/* Mark Incomplete / Pending (Red) -> Opens Not Complete Modal */}
+          <button
+            type="button"
+            onClick={() => handleActionWithWarning(st, 'incomplete')}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+              !isCompleted && !isRescheduled
+                ? 'bg-rose-600 text-white shadow-xs'
+                : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-100 border border-rose-200'
+            }`}
+            title="Mark Incomplete / Pending"
+          >
+            <X className="w-4 h-4 stroke-[3]" />
+          </button>
+
+          {/* Reschedule (Orange) -> Opens Reschedule Modal */}
+          <button
+            type="button"
+            onClick={() => handleActionWithWarning(st, 'reschedule')}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+              isRescheduled
+                ? 'bg-orange-600 text-white shadow-xs'
+                : 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 hover:bg-orange-100 border border-orange-200'
+            }`}
+            title="Reschedule Homework"
+          >
+            <CalendarClock className="w-4 h-4" />
+          </button>
+
+          {/* Remark (Teal) -> Opens Remark Modal */}
+          <button
+            type="button"
+            onClick={() => handleActionWithWarning(st, 'remark')}
+            className="px-3.5 py-2 rounded-xl bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 text-[#0f766e] dark:text-teal-300 border border-teal-200 text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Remark</span>
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -1611,24 +2213,24 @@ function RemarkHomeworkContent() {
                   </span>
                 </div>
 
-                {/* Middle Row: Total / Completed / Pending Pills matching Screenshot 1 */}
+                {/* Middle Row: Total Subject / Total Task / Due Remarks Pills */}
                 <div className="grid grid-cols-3 gap-2.5 pt-1">
                   <div className="px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-800/60 text-center flex items-center justify-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-sky-500"></span>
-                    <span className="text-xs font-black text-sky-800 dark:text-sky-200">
-                      Total: {cls.studentsCount}
+                    <span className="w-2 h-2 rounded-full bg-sky-500 shrink-0"></span>
+                    <span className="text-xs font-black text-sky-800 dark:text-sky-200 truncate">
+                      Total Subject: {cls.totalSubjects}
                     </span>
                   </div>
-                  <div className="px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-800/60 text-center flex items-center justify-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span className="text-xs font-black text-emerald-800 dark:text-emerald-200">
-                      Completed: {cls.completedCount}
+                  <div className="px-3 py-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-800/60 text-center flex items-center justify-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
+                    <span className="text-xs font-black text-purple-800 dark:text-purple-200 truncate">
+                      Total Task: {cls.tasksCount}
                     </span>
                   </div>
-                  <div className="px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-800/60 text-center flex items-center justify-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                    <span className="text-xs font-black text-rose-800 dark:text-rose-200">
-                      Pending: {cls.pendingCount}
+                  <div className="px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-800/60 text-center flex items-center justify-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                    <span className="text-xs font-black text-amber-800 dark:text-amber-200 truncate">
+                      Due Remarks: {cls.dueRemarks}
                     </span>
                   </div>
                 </div>
@@ -1704,54 +2306,100 @@ function RemarkHomeworkContent() {
             </span>
           </div>
 
-          {/* Section Heading matching Screenshot 2 */}
-          <h3 className="text-base md:text-lg font-black text-slate-900 dark:text-white pt-1">
-            Subjects
-          </h3>
+          {/* Section Heading & Filter switcher */}
+          <div className="flex items-center justify-between pt-1">
+            <h3 className="text-base md:text-lg font-black text-slate-900 dark:text-white">
+              Subjects ({displayedSubjectCards.length})
+            </h3>
+            <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setSubjectDateFilter('selected')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  subjectDateFilter === 'selected'
+                    ? 'bg-[#0f766e] text-white shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                }`}
+              >
+                Due on Date
+              </button>
+              <button
+                type="button"
+                onClick={() => setSubjectDateFilter('all')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  subjectDateFilter === 'all'
+                    ? 'bg-[#0f766e] text-white shadow-2xs'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                }`}
+              >
+                All Subjects ({subjectCards.length})
+              </button>
+            </div>
+          </div>
 
           {/* Pastel Subject Cards matching Screenshot 2 */}
-          <div className="space-y-3.5 w-full">
-            {subjectCards.map(sub => {
-              const selectedIso = toDateIso(selectedCalendarDate)
-              const tasksDueCount = tasks.filter(t => 
-                matchesClassAndSection({ class: t.classes, section: t.section }, selectedClass, selectedSection) &&
-                t.subject.toLowerCase() === sub.subjectName.toLowerCase() &&
-                normalizeDateStr(t.submissionDate) === selectedIso
-              ).length
-
-              return (
-                <div
-                  key={sub.id}
-                  onClick={() => {
-                    setSelectedSubject(sub.subjectName)
-                    setSelectedTeacherName(sub.teacherName)
-                    setCurrentScreen('tasks')
-                  }}
-                  className={`${sub.bgColor} dark:bg-slate-800/90 rounded-2xl md:rounded-3xl p-4 md:p-5 border ${sub.borderColor} flex items-center justify-between gap-4 cursor-pointer hover:shadow-md transition-all active:scale-[0.99] w-full`}
+          {displayedSubjectCards.length === 0 ? (
+            <div className="py-12 px-4 text-center bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-700 space-y-2 w-full">
+              <BookOpen className="w-10 h-10 text-slate-300 mx-auto" />
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                {subjectDateFilter === 'selected'
+                  ? `No subjects have tasks due on ${formatDisplayDate(selectedCalendarDate)}.`
+                  : 'No subjects assigned.'}
+              </p>
+              {subjectDateFilter === 'selected' && subjectCards.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSubjectDateFilter('all')}
+                  className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#0f766e] text-white font-bold text-xs cursor-pointer shadow-xs active:scale-95 transition-transform"
                 >
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className={`text-sm md:text-base font-black ${sub.textColor} dark:text-white leading-tight`}>
-                        Subject : {sub.subjectName}
-                      </h4>
-                      {tasksDueCount > 0 ? (
-                        <span className="px-2 py-0.5 rounded-lg bg-[#0f766e] text-white text-[10px] font-bold">
-                          {tasksDueCount} Task{tasksDueCount > 1 ? 's' : ''} Due
-                        </span>
-                      ) : null}
-                    </div>
-                    <span className={`inline-block px-3 py-1 rounded-xl text-xs font-bold ${sub.badgeColor} dark:bg-slate-700 dark:text-slate-200 shadow-2xs`}>
-                      Teacher : {sub.teacherName}
-                    </span>
-                  </div>
+                  <span>View All {subjectCards.length} Subjects</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3.5 w-full">
+              {displayedSubjectCards.map(sub => {
+                const selectedIso = toDateIso(selectedCalendarDate)
+                const tasksDueCount = tasks.filter(t => 
+                  matchesClassAndSection({ class: t.classes, section: t.section }, selectedClass, selectedSection) &&
+                  t.subject.toLowerCase() === sub.subjectName.toLowerCase() &&
+                  normalizeDateStr(t.submissionDate) === selectedIso
+                ).length
 
-                  <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-700 shadow-xs flex items-center justify-center text-slate-400 hover:text-slate-700 shrink-0">
-                    <ChevronRight className="w-5 h-5" />
+                return (
+                  <div
+                    key={sub.id}
+                    onClick={() => {
+                      setSelectedSubject(sub.subjectName)
+                      setSelectedTeacherName(sub.teacherName)
+                      setCurrentScreen('tasks')
+                    }}
+                    className={`${sub.bgColor} dark:bg-slate-800/90 rounded-2xl md:rounded-3xl p-4 md:p-5 border ${sub.borderColor} flex items-center justify-between gap-4 cursor-pointer hover:shadow-md transition-all active:scale-[0.99] w-full`}
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className={`text-sm md:text-base font-black ${sub.textColor} dark:text-white leading-tight`}>
+                          Subject : {sub.subjectName}
+                        </h4>
+                        {tasksDueCount > 0 ? (
+                          <span className="px-2 py-0.5 rounded-lg bg-[#0f766e] text-white text-[10px] font-bold">
+                            {tasksDueCount} Task{tasksDueCount > 1 ? 's' : ''} Due
+                          </span>
+                        ) : null}
+                      </div>
+                      <span className={`inline-block px-3 py-1 rounded-xl text-xs font-bold ${sub.badgeColor} dark:bg-slate-700 dark:text-slate-200 shadow-2xs`}>
+                        Teacher : {sub.teacherName}
+                      </span>
+                    </div>
+
+                    <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-700 shadow-xs flex items-center justify-center text-slate-400 hover:text-slate-700 shrink-0">
+                      <ChevronRight className="w-5 h-5" />
+                    </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          )}
 
         </div>
       )}
@@ -1800,35 +2448,14 @@ function RemarkHomeworkContent() {
             </div>
           </div>
 
-          {/* Section Heading with Date Filters matching Screenshot 3 */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+          {/* Section Heading (All Dates tab selection removed - strictly selected date tasks) */}
+          <div className="flex items-center justify-between pt-1">
             <h3 className="text-base md:text-lg font-black text-slate-900 dark:text-white">
-              Assigned Tasks
+              Assigned Tasks ({displayedSubjectTasks.length})
             </h3>
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 self-start sm:self-auto">
-              <button
-                type="button"
-                onClick={() => setTaskDateFilter('selected')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  taskDateFilter === 'selected'
-                    ? 'bg-[#0f766e] text-white shadow-2xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                }`}
-              >
-                Due on Date ({tasksDueOnSelectedDate.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setTaskDateFilter('all')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  taskDateFilter === 'all'
-                    ? 'bg-[#0f766e] text-white shadow-2xs'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-                }`}
-              >
-                All Dates ({activeSubjectTasks.length})
-              </button>
-            </div>
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+              Due Date: {formatDisplayDate(selectedCalendarDate)}
+            </span>
           </div>
 
           {/* Tasks List matching Screenshot 3 */}
@@ -1836,27 +2463,15 @@ function RemarkHomeworkContent() {
             <div className="py-16 px-4 text-center bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-700 space-y-3 w-full">
               <BookOpen className="w-12 h-12 text-slate-300 mx-auto" />
               <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                {taskDateFilter === 'selected'
-                  ? `No homework tasks due on ${formatDisplayDate(selectedCalendarDate)}.`
-                  : `No homework tasks found for ${selectedSubject} in ${selectedClass} - Section ${selectedSection}.`}
+                No homework tasks due on {formatDisplayDate(selectedCalendarDate)}.
               </p>
-              {taskDateFilter === 'selected' && activeSubjectTasks.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => setTaskDateFilter('all')}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#0f766e] text-white font-bold text-xs cursor-pointer shadow-xs active:scale-95 transition-transform"
-                >
-                  <span>View All {activeSubjectTasks.length} Tasks</span>
-                </button>
-              ) : (
-                <Link
-                  href="/institute/homework/assign"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#0f766e] text-white font-bold text-xs shadow-xs"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Assign New Homework</span>
-                </Link>
-              )}
+              <Link
+                href="/institute/homework/assign"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#0f766e] text-white font-bold text-xs shadow-xs"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Assign New Homework</span>
+              </Link>
             </div>
           ) : (
             <div className="space-y-4 w-full">
@@ -2010,34 +2625,43 @@ function RemarkHomeworkContent() {
               />
             </div>
 
-            {/* Filter Pill: All / Submitted / Pending */}
-            <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs shrink-0">
+            {/* Filter Pills: All / Not Completed / Completed / Rescheduled */}
+            <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs shrink-0 overflow-x-auto">
               <button
                 type="button"
                 onClick={() => setStatusFilter('All')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                  statusFilter === 'All' ? 'bg-[#0f766e] text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+                  statusFilter === 'All' ? 'bg-[#0f766e] text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
                 }`}
               >
-                All
+                All ({assignedStudentsForActiveTask.length})
               </button>
               <button
                 type="button"
-                onClick={() => setStatusFilter('Submitted')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                  statusFilter === 'Submitted' ? 'bg-emerald-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
+                onClick={() => setStatusFilter('Not Completed')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+                  statusFilter === 'Not Completed' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
                 }`}
               >
-                Done
+                Not Completed ({notCompletedStudents.length})
               </button>
               <button
                 type="button"
-                onClick={() => setStatusFilter('Pending')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                  statusFilter === 'Pending' ? 'bg-amber-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
+                onClick={() => setStatusFilter('Completed')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+                  statusFilter === 'Completed' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
                 }`}
               >
-                Pending
+                Completed ({completedStudents.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('Rescheduled')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+                  statusFilter === 'Rescheduled' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
+                }`}
+              >
+                Rescheduled ({rescheduledStudents.length})
               </button>
             </div>
           </div>
@@ -2074,7 +2698,7 @@ function RemarkHomeworkContent() {
             </button>
           </div>
 
-          {/* Student Remark Cards matching Screenshot 4 */}
+          {/* Student Remark Cards categorized with small headlines before each category */}
           {filteredAssignedStudents.length === 0 ? (
             <div className="py-16 px-4 text-center bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-700 space-y-2 w-full">
               <Users className="w-12 h-12 text-slate-300 mx-auto" />
@@ -2082,197 +2706,88 @@ function RemarkHomeworkContent() {
                 No assigned students found matching your criteria.
               </p>
               <p className="text-xs text-slate-400">
-                Only students assigned to this homework task are shown here. (Rescheduled students appear under Pending Remark Homework on their scheduled date).
+                Only students assigned to this homework task are shown here.
               </p>
             </div>
           ) : (
-            <div className="space-y-4 w-full pb-8">
-              {filteredAssignedStudents.map(st => {
-                const isCompleted = st.status === 'Submitted'
-                const isRescheduled = st.status === 'Rescheduled'
-                const isSelected = bulkSelectedStudentIds.includes(st.studentId)
-
-                return (
-                  <div
-                    key={st.studentId}
-                    className={`bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-4 md:p-5 shadow-xs border transition-all hover:shadow-md space-y-3 w-full ${
-                      isSelected ? 'border-teal-500 ring-1 ring-teal-500/30' : 'border-slate-200/80 dark:border-slate-700/80'
-                    }`}
-                  >
-                    {/* Top Row: Checkbox, Photo, Name, Gender, Roll No, Status Badge matching Screenshot 4 */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        {/* Checkbox for Bulk Selection */}
-                        <button
-                          type="button"
-                          onClick={() => toggleStudentSelect(st.studentId)}
-                          className="cursor-pointer text-slate-400 hover:text-teal-600 transition-colors"
-                          title="Select for bulk action"
-                        >
-                          {isSelected ? (
-                            <CheckSquare className="w-5 h-5 text-teal-600" />
-                          ) : (
-                            <Square className="w-5 h-5 text-slate-300 dark:text-slate-600" />
-                          )}
-                        </button>
-
-                        {st.avatar ? (
-                          <img
-                            src={st.avatar}
-                            alt={st.name}
-                            className="w-12 h-12 rounded-2xl object-cover border border-slate-200 shrink-0"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-2xl bg-[#0f766e] text-white flex items-center justify-center font-bold text-base shrink-0">
-                            {st.name.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-
-                        <div>
-                          <h4 className="text-sm md:text-base font-black text-slate-900 dark:text-white leading-tight">
-                            {st.name}
-                          </h4>
-                          <span className="inline-block mt-1 px-2.5 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-bold">
-                            {st.gender}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-end gap-1.5">
-                        <span className="text-xs font-bold text-teal-700 dark:text-teal-300 flex items-center gap-1">
-                          <CheckSquare className="w-3.5 h-3.5 text-teal-600" />
-                          Roll No. : {st.rollNo}
-                        </span>
-
-                        <span className={`px-3 py-0.5 rounded-full text-[11px] font-black flex items-center gap-1 ${
-                          isCompleted
-                            ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200'
-                            : isRescheduled
-                            ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 border border-purple-200'
-                            : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200'
-                        }`}>
-                          {isCompleted ? <Check className="w-3 h-3 stroke-[3]" /> : null}
-                          {isCompleted ? 'Completed' : (isRescheduled ? 'Rescheduled' : 'Pending')}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Middle Row: Remark Text line and Interactive 5-Star Rating matching Screenshot 4 */}
-                    <div className="pt-2 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                      <div className="flex-1">
-                        <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 italic">
-                          {st.remark ? `"${st.remark}"` : 'No evaluation remark added yet.'}
-                        </p>
-                      </div>
-
-                      {/* Interactive 5-Star Rating */}
-                      <div className="flex items-center gap-1 shrink-0">
-                        {[1, 2, 3, 4, 5].map(starNum => (
-                          <button
-                            key={starNum}
-                            type="button"
-                            onClick={() => {
-                              setCompleteModalStudent(st)
-                              setCompleteRating(starNum)
-                              setCompleteReview(st.remark || 'Excellent work, all questions answered with clear steps.')
-                              setCompleteFileName(st.attachmentName || '')
-                            }}
-                            className="cursor-pointer transition-transform hover:scale-125"
-                            title={`Rate ${starNum} Stars`}
-                          >
-                            <Star className={`w-4 h-4 ${
-                              starNum <= st.rating
-                                ? 'fill-amber-400 text-amber-400'
-                                : 'text-slate-200 dark:text-slate-600'
-                            }`} />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Bottom Row: Evaluation Action Buttons matching Screenshot 4 (Check, Cross, Calendar, Remark) */}
-                    <div className="flex items-center justify-end gap-2 pt-1">
-                      {/* Mark Completed (Green) -> Opens Complete Modal */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCompleteModalStudent(st)
-                          setCompleteRating(st.rating || 5)
-                          setCompleteReview(st.remark || 'Excellent work, all questions answered with clear steps.')
-                          setCompleteFileName(st.attachmentName || '')
-                        }}
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-                          isCompleted
-                            ? 'bg-emerald-600 text-white shadow-xs'
-                            : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 hover:bg-emerald-100 border border-emerald-200'
-                        }`}
-                        title="Mark Completed"
-                      >
-                        <Check className="w-4 h-4 stroke-[3]" />
-                      </button>
-
-                      {/* Mark Incomplete / Pending (Red) -> Opens Not Complete Modal */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setNotCompleteModalStudent(st)
-                          setNotCompleteRemark(st.remark || 'Incomplete assignment, please finish and resubmit.')
-                          setNotCompleteFileName(st.attachmentName || '')
-                        }}
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-                          !isCompleted && !isRescheduled
-                            ? 'bg-rose-600 text-white shadow-xs'
-                            : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-100 border border-rose-200'
-                        }`}
-                        title="Mark Incomplete / Pending"
-                      >
-                        <X className="w-4 h-4 stroke-[3]" />
-                      </button>
-
-                      {/* Reschedule (Orange) -> Opens Reschedule Modal */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRescheduleModalStudent(st)
-                          const defaultDate = st.rescheduledDate || new Date(Date.now() + 86400000).toISOString().split('T')[0]
-                          setRescheduleDate(defaultDate)
-                          setRescheduleDescription(st.remark || 'Excellent work, all questions answered with clear steps.')
-                        }}
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-                          isRescheduled
-                            ? 'bg-orange-600 text-white shadow-xs'
-                            : 'bg-orange-50 dark:bg-orange-950/40 text-orange-600 hover:bg-orange-100 border border-orange-200'
-                        }`}
-                        title="Reschedule Homework"
-                      >
-                        <CalendarClock className="w-4 h-4" />
-                      </button>
-
-                      {/* Remark (Teal) -> Opens Complete/Review Modal */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (st.status === 'Submitted') {
-                            setCompleteModalStudent(st)
-                            setCompleteRating(st.rating || 5)
-                            setCompleteReview(st.remark || '')
-                            setCompleteFileName(st.attachmentName || '')
-                          } else {
-                            setNotCompleteModalStudent(st)
-                            setNotCompleteRemark(st.remark || '')
-                            setNotCompleteFileName(st.attachmentName || '')
-                          }
-                        }}
-                        className="px-3.5 py-2 rounded-xl bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 text-[#0f766e] dark:text-teal-300 border border-teal-200 text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        <span>Remark</span>
-                      </button>
-                    </div>
-
+            <div className="space-y-6 w-full pb-8">
+              {/* Category 1: Not Completed */}
+              {(statusFilter === 'All' || statusFilter === 'Not Completed') && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 pt-1 pb-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
+                    <h4 className="text-xs md:text-sm font-black text-amber-800 dark:text-amber-300 uppercase tracking-wider flex items-center gap-2">
+                      <span>Not Completed</span>
+                      <span className="px-2 py-0.5 rounded-full text-[11px] bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-bold">
+                        {notCompletedStudents.length}
+                      </span>
+                    </h4>
+                    <div className="h-px bg-amber-200/60 dark:bg-amber-800/40 flex-1"></div>
                   </div>
-                )
-              })}
+
+                  {notCompletedStudents.length === 0 ? (
+                    <div className="p-4 rounded-2xl bg-amber-50/40 dark:bg-amber-950/20 border border-dashed border-amber-200/80 dark:border-amber-800/40 text-center text-xs text-amber-700/80 dark:text-amber-300/80 font-medium">
+                      No students pending evaluation in Not Completed.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {notCompletedStudents.map(st => renderStudentCard(st))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Category 2: Completed */}
+              {(statusFilter === 'All' || statusFilter === 'Completed') && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 pt-2 pb-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                    <h4 className="text-xs md:text-sm font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-2">
+                      <span>Completed</span>
+                      <span className="px-2 py-0.5 rounded-full text-[11px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold">
+                        {completedStudents.length}
+                      </span>
+                    </h4>
+                    <div className="h-px bg-emerald-200/60 dark:bg-emerald-800/40 flex-1"></div>
+                  </div>
+
+                  {completedStudents.length === 0 ? (
+                    <div className="p-4 rounded-2xl bg-emerald-50/40 dark:bg-emerald-950/20 border border-dashed border-emerald-200/80 dark:border-emerald-800/40 text-center text-xs text-emerald-700/80 dark:text-emerald-300/80 font-medium">
+                      No students marked as Completed yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {completedStudents.map(st => renderStudentCard(st))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Category 3: Rescheduled */}
+              {(statusFilter === 'All' || statusFilter === 'Rescheduled') && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 pt-2 pb-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shrink-0"></span>
+                    <h4 className="text-xs md:text-sm font-black text-purple-800 dark:text-purple-300 uppercase tracking-wider flex items-center gap-2">
+                      <span>Rescheduled</span>
+                      <span className="px-2 py-0.5 rounded-full text-[11px] bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 font-bold">
+                        {rescheduledStudents.length}
+                      </span>
+                    </h4>
+                    <div className="h-px bg-purple-200/60 dark:bg-purple-800/40 flex-1"></div>
+                  </div>
+
+                  {rescheduledStudents.length === 0 ? (
+                    <div className="p-4 rounded-2xl bg-purple-50/40 dark:bg-purple-950/20 border border-dashed border-purple-200/80 dark:border-purple-800/40 text-center text-xs text-purple-700/80 dark:text-purple-300/80 font-medium">
+                      No students rescheduled for this task.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {rescheduledStudents.map(st => renderStudentCard(st))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -2286,9 +2801,14 @@ function RemarkHomeworkContent() {
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-7 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 border border-slate-100 dark:border-slate-800">
             <div className="flex items-center justify-between pb-1">
-              <h3 className="text-xl font-bold text-[#0f766e] dark:text-teal-400">
-                Complete
-              </h3>
+              <div>
+                <h3 className="text-xl font-bold text-[#0f766e] dark:text-teal-400">
+                  Complete
+                </h3>
+                <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                  {completeModalStudent.name} (Roll: {completeModalStudent.rollNo})
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setCompleteModalStudent(null)}
@@ -2297,6 +2817,19 @@ function RemarkHomeworkContent() {
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Warning if already remarked */}
+            {isStudentAlreadyRemarked(completeModalStudent) && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-200">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">Notice: Already Remarked</p>
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">
+                    This student's homework was already evaluated. Submitting this form will overwrite the existing remark.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Rating */}
             <div className="space-y-1.5 pt-1">
@@ -2380,9 +2913,14 @@ function RemarkHomeworkContent() {
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-7 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 border border-slate-100 dark:border-slate-800">
             <div className="flex items-center justify-between pb-1">
-              <h3 className="text-xl font-bold text-[#0f766e] dark:text-teal-400">
-                Not Complete
-              </h3>
+              <div>
+                <h3 className="text-xl font-bold text-[#0f766e] dark:text-teal-400">
+                  Not Complete
+                </h3>
+                <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                  {notCompleteModalStudent.name} (Roll: {notCompleteModalStudent.rollNo})
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setNotCompleteModalStudent(null)}
@@ -2391,6 +2929,19 @@ function RemarkHomeworkContent() {
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Warning if already remarked */}
+            {isStudentAlreadyRemarked(notCompleteModalStudent) && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-200">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">Notice: Already Remarked</p>
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">
+                    This student's homework was already evaluated. Submitting this form will update the existing remark.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Remark */}
             <div className="space-y-1.5 pt-1">
@@ -2453,9 +3004,14 @@ function RemarkHomeworkContent() {
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-7 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 border border-slate-100 dark:border-slate-800">
             <div className="flex items-center justify-between pb-1">
-              <h3 className="text-xl font-bold text-[#0f766e] dark:text-teal-400">
-                Reschedule
-              </h3>
+              <div>
+                <h3 className="text-xl font-bold text-[#0f766e] dark:text-teal-400">
+                  Reschedule
+                </h3>
+                <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                  {rescheduleModalStudent.name} (Roll: {rescheduleModalStudent.rollNo})
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setRescheduleModalStudent(null)}
@@ -2464,6 +3020,19 @@ function RemarkHomeworkContent() {
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Warning if already remarked */}
+            {isStudentAlreadyRemarked(rescheduleModalStudent) && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-200">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">Notice: Already Remarked</p>
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">
+                    This student's homework was already evaluated. Rescheduling will move them to pending remark on the new date.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Reschedule Date */}
             <div className="space-y-1.5 pt-1">
@@ -2571,6 +3140,22 @@ function RemarkHomeworkContent() {
                 Reschedule
               </button>
             </div>
+
+            {/* Warning if any selected student is already remarked */}
+            {bulkSelectedStudentIds.some(id => {
+              const st = assignedStudentsForActiveTask.find(s => s.studentId === id)
+              return st && isStudentAlreadyRemarked(st)
+            }) && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-200">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">Warning: Contains Already Remarked Students</p>
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">
+                    One or more selected students already have evaluation remarks on record. Applying this bulk action will overwrite their existing remarks.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Tab 1: Complete */}
             {bulkActionMode === 'Complete' && (
@@ -2719,6 +3304,99 @@ function RemarkHomeworkContent() {
                 className="px-10 py-2.5 rounded-full bg-[#0f766e] hover:bg-[#0d655f] text-white font-bold text-sm shadow-sm active:scale-95 transition-all cursor-pointer disabled:opacity-50"
               >
                 {isBulkSubmitting ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          MODAL 5: ALREADY REMARKED WARNING CONFIRMATION MODAL
+      ═══════════════════════════════════════════════════════════════════ */}
+      {alreadyRemarkWarning && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-7 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between pb-1">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-tight">
+                    Already Remarked Warning
+                  </h3>
+                  <p className="text-xs text-amber-700 dark:text-amber-400 font-semibold">
+                    Student has already received a remark
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAlreadyRemarkWarning(null)}
+                className="w-7 h-7 rounded-full border border-slate-300 text-slate-500 hover:text-slate-800 flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3.5 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-2xl space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-700 dark:text-slate-300">Student:</span>
+                <span className="font-black text-slate-900 dark:text-white">
+                  {alreadyRemarkWarning.student.name} (Roll: {alreadyRemarkWarning.student.rollNo})
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-700 dark:text-slate-300">Current Status:</span>
+                <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                  alreadyRemarkWarning.student.status === 'Submitted'
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                    : alreadyRemarkWarning.student.status === 'Rescheduled'
+                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
+                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                }`}>
+                  {alreadyRemarkWarning.student.status === 'Submitted' ? 'Completed' : alreadyRemarkWarning.student.status}
+                </span>
+              </div>
+              {alreadyRemarkWarning.student.remark && (
+                <div>
+                  <span className="font-bold text-slate-700 dark:text-slate-300 block mb-0.5">Existing Remark:</span>
+                  <p className="text-slate-600 dark:text-slate-300 italic bg-white/70 dark:bg-slate-800/70 p-2 rounded-xl border border-amber-100 dark:border-amber-900/40">
+                    "{alreadyRemarkWarning.student.remark}"
+                  </p>
+                </div>
+              )}
+              {alreadyRemarkWarning.student.status === 'Rescheduled' && alreadyRemarkWarning.student.rescheduledDate && (
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-700 dark:text-slate-300">Rescheduled For:</span>
+                  <span className="font-bold text-purple-700 dark:text-purple-300">{alreadyRemarkWarning.student.rescheduledDate}</span>
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
+              An action has already been taken on this student's homework. Are you sure you want to overwrite or modify the existing remark?
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setAlreadyRemarkWarning(null)}
+                className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const warningData = alreadyRemarkWarning
+                  setAlreadyRemarkWarning(null)
+                  executeStudentAction(warningData.student, warningData.actionType, warningData.starRating)
+                }}
+                className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black shadow-xs active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Yes, Modify Remark</span>
               </button>
             </div>
           </div>

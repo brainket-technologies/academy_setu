@@ -496,6 +496,51 @@ export default function PendingRemarkHomeworkPage() {
           combinedResched.push(lr)
         }
       })
+
+      // Also scan all localStorage keys for school_task_subs_* to catch any rescheduled students
+      if (typeof window !== 'undefined') {
+        try {
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i)
+            if (key && key.startsWith('school_task_subs_')) {
+              const taskId = key.replace('school_task_subs_', '')
+              const val = localStorage.getItem(key)
+              if (val) {
+                const arr = JSON.parse(val)
+                if (Array.isArray(arr)) {
+                  const tObj = loadedTasks.find(t => t.id === taskId)
+                  arr.forEach((item: any) => {
+                    if (item.status === 'Rescheduled' && item.rescheduledDate) {
+                      const stId = String(item.studentId || item.id)
+                      if (!combinedResched.some(cr => cr.taskId === taskId && cr.studentId === stId)) {
+                        combinedResched.push({
+                          id: `resched-${taskId}-${stId}`,
+                          taskId,
+                          taskTitle: tObj?.title || 'Homework',
+                          taskDescription: tObj?.description || '',
+                          subject: tObj?.subject || item.subject || 'Subject',
+                          classes: tObj?.classes || item.className || 'Class 1',
+                          section: tObj?.section || item.section || 'A',
+                          assignDate: tObj?.assignDate || '',
+                          submissionDate: tObj?.submissionDate || '',
+                          studentId: stId,
+                          studentName: item.name || 'Student',
+                          admissionNo: item.admissionNo || '',
+                          rollNo: item.rollNo || '01',
+                          rescheduledDate: item.rescheduledDate,
+                          description: item.remark || 'Rescheduled homework evaluation.',
+                          status: 'Rescheduled'
+                        })
+                      }
+                    }
+                  })
+                }
+              }
+            }
+          }
+        } catch (e) {}
+      }
+
       setRescheduledSubmissions(combinedResched)
 
     } catch (err) {
@@ -751,12 +796,22 @@ export default function PendingRemarkHomeworkPage() {
     return list.length > 0 ? Array.from(new Set(list)) : ['Mathematics', 'Science', 'English', 'Hindi', 'Social Studies', 'Computer Science']
   }, [selectedClass, subjectsData, rescheduledSubmissions])
 
-  // Set default subject when entering Screen 3
+  // Set default subject when entering Screen 3:
+  // If selectedDateItem has rescheduled submissions, prefer the subject of those rescheduled submissions!
   useEffect(() => {
-    if (classSubjects.length > 0 && (!selectedSubject || !classSubjects.includes(selectedSubject))) {
+    if (!selectedClass) return
+    const reschedForDate = rescheduledSubmissions.find(sub => {
+      const dateMatch = !selectedDateItem?.fullDate || normalizeDateStr(sub.rescheduledDate || sub.rescheduled_date) === selectedDateItem.fullDate
+      const classMatch = normalizeClassKey(sub.classes || '') === normalizeClassKey(selectedClass)
+      return dateMatch && classMatch && sub.status !== 'Completed' && sub.subject
+    })
+
+    if (reschedForDate?.subject) {
+      setSelectedSubject(reschedForDate.subject)
+    } else if (classSubjects.length > 0 && (!selectedSubject || !classSubjects.includes(selectedSubject))) {
       setSelectedSubject(classSubjects[0])
     }
-  }, [classSubjects, selectedSubject])
+  }, [classSubjects, selectedSubject, selectedDateItem, selectedClass, rescheduledSubmissions])
 
   // Tasks for the selected class, section & subject
   const currentSubjectTasks = useMemo<HomeworkTaskItem[]>(() => {
@@ -765,16 +820,37 @@ export default function PendingRemarkHomeworkPage() {
     const normS = String(selectedSection || '').toLowerCase().replace(/[-_\s]/g, '')
     const normSub = (selectedSubject || '').trim().toLowerCase()
 
-    const matching = tasks.filter(t => {
+    const matching: HomeworkTaskItem[] = []
+
+    tasks.forEach(t => {
       const tClassNorm = normalizeClassKey(t.classes)
       const tSecNorm = String(t.section || '').toLowerCase().replace(/[-_\s]/g, '')
       const tSubNorm = (t.subject || '').trim().toLowerCase()
 
-      return (
-        (tClassNorm === normC || t.classes.toLowerCase().trim() === selectedClass.toLowerCase().trim()) &&
-        (tSecNorm === normS || !tSecNorm || normS === 'all') &&
-        (tSubNorm === normSub || tSubNorm.includes(normSub) || normSub.includes(tSubNorm))
-      )
+      const classMatch = (tClassNorm === normC || t.classes.toLowerCase().trim() === selectedClass.toLowerCase().trim())
+      const secMatch = (tSecNorm === normS || !tSecNorm || normS === 'all')
+      const subMatch = (tSubNorm === normSub || tSubNorm.includes(normSub) || normSub.includes(tSubNorm))
+
+      if (classMatch && secMatch && subMatch) {
+        const isDueOnDate = selectedDateItem?.fullDate ? normalizeDateStr(t.submissionDate) === selectedDateItem.fullDate : true
+        const hasReschedOnDate = rescheduledSubmissions.some(sub =>
+          sub.taskId === t.id &&
+          (!selectedDateItem?.fullDate || normalizeDateStr(sub.rescheduledDate || sub.rescheduled_date) === selectedDateItem.fullDate) &&
+          sub.status !== 'Completed'
+        )
+
+        if (isDueOnDate || hasReschedOnDate || !selectedDateItem) {
+          const reschedItem = rescheduledSubmissions.find(sub =>
+            sub.taskId === t.id &&
+            (!selectedDateItem?.fullDate || normalizeDateStr(sub.rescheduledDate || sub.rescheduled_date) === selectedDateItem.fullDate) &&
+            sub.status !== 'Completed'
+          )
+          matching.push({
+            ...t,
+            submissionDate: reschedItem?.rescheduledDate || t.submissionDate
+          })
+        }
+      }
     })
 
     // Also include any tasks with rescheduled remarks matching this date, class, and subject
@@ -783,7 +859,9 @@ export default function PendingRemarkHomeworkPage() {
       if (selectedDateItem?.fullDate && subNormDate && subNormDate !== selectedDateItem.fullDate) {
         return
       }
-      const subClass = normalizeClassKey(sub.classes)
+      if (sub.status === 'Completed') return
+
+      const subClass = normalizeClassKey(sub.classes || '')
       const subSec = String(sub.section || '').toLowerCase().replace(/[-_\s]/g, '')
       const subSub = (sub.subject || '').trim().toLowerCase()
 
@@ -795,14 +873,14 @@ export default function PendingRemarkHomeworkPage() {
         if (!matching.some(m => m.id === sub.taskId)) {
           matching.push({
             id: sub.taskId,
-            title: sub.taskTitle || `${selectedSubject} Homework`,
+            title: sub.taskTitle || `${selectedSubject} Homework (Rescheduled)`,
             description: sub.taskDescription || sub.description || '',
             subject: sub.subject || selectedSubject,
             classes: sub.classes || selectedClass,
             section: sub.section || selectedSection,
             assignedBy: 'Faculty',
             assignDate: sub.assignDate || '',
-            submissionDate: sub.submissionDate || (selectedDateItem?.assignFormat || ''),
+            submissionDate: sub.rescheduledDate || (selectedDateItem?.assignFormat || ''),
             hasAttachment: false,
             status: 'Active',
             studentsCount: allStudents.filter(s => matchesClassAndSection(s, selectedClass, selectedSection)).length
@@ -953,7 +1031,9 @@ export default function PendingRemarkHomeworkPage() {
     } as StudentSubmissionItem))
 
     return baseList.filter(s => {
-      if (studentStatusFilter !== 'All' && s.status !== studentStatusFilter) return false
+      // In Pending Remark, 'Pending' filter includes both 'Pending' and 'Rescheduled' so rescheduled students awaiting remark are never filtered out
+      if (studentStatusFilter === 'Pending' && s.status !== 'Pending' && s.status !== 'Rescheduled') return false
+      if (studentStatusFilter === 'Completed' && s.status !== 'Completed') return false
       if (studentSearch.trim()) {
         const q = studentSearch.toLowerCase().trim()
         const matchName = s.name.toLowerCase().includes(q)
@@ -1496,7 +1576,17 @@ export default function PendingRemarkHomeworkPage() {
 
           {/* ── CLASS CARDS LIST (Exact Layout of Screenshot 2) ── */}
           <div className="space-y-4 w-full pb-6">
-            {filteredClasses.map(cls => (
+            {filteredClasses.map(cls => {
+              const reschedForClass = rescheduledSubmissions.filter(sub => {
+                const normC = normalizeClassKey(cls.className)
+                const normS = String(cls.section || '').toLowerCase().replace(/[-_\s]/g, '')
+                const subC = normalizeClassKey(sub.classes || '')
+                const subS = String(sub.section || '').toLowerCase().replace(/[-_\s]/g, '')
+                const dateMatch = !selectedDateItem?.fullDate || normalizeDateStr(sub.rescheduledDate || sub.rescheduled_date) === selectedDateItem.fullDate
+                return dateMatch && normC === subC && (normS === subS || !subS || normS === 'a') && sub.status !== 'Completed'
+              }).length
+
+              return (
               <div
                 key={cls.id}
                 className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 shadow-xs border border-slate-200/80 dark:border-slate-700/80 space-y-4 w-full hover:border-teal-500 transition-colors"
@@ -1519,10 +1609,18 @@ export default function PendingRemarkHomeworkPage() {
                     </div>
                   </div>
 
-                  <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-900/60 flex items-center gap-1.5 shrink-0">
-                    <Users className="w-3.5 h-3.5" />
-                    {cls.studentsCount} Students
-                  </span>
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    {reschedForClass > 0 && (
+                      <span className="px-3 py-1 rounded-full text-xs font-black bg-orange-100 text-orange-800 border border-orange-200 flex items-center gap-1.5 shrink-0">
+                        <Clock className="w-3.5 h-3.5 text-orange-600" />
+                        {reschedForClass} Rescheduled
+                      </span>
+                    )}
+                    <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-900/60 flex items-center gap-1.5 shrink-0">
+                      <Users className="w-3.5 h-3.5" />
+                      {cls.studentsCount} Students
+                    </span>
+                  </div>
                 </div>
 
                 {/* Remark Homework Action Button matching Screenshot 2 */}
@@ -1542,8 +1640,9 @@ export default function PendingRemarkHomeworkPage() {
                   </button>
                 </div>
               </div>
-            ))}
-          </div>
+            )
+          })}
+        </div>
 
         </div>
       )}
@@ -1908,28 +2007,6 @@ export default function PendingRemarkHomeworkPage() {
                       </p>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        {/* Star Rating Display */}
-                        <div className="flex items-center gap-0.5 text-amber-400">
-                          {[1, 2, 3, 4, 5].map(star => (
-                            <button
-                              key={star}
-                              type="button"
-                              onClick={() => {
-                                setCompleteModalStudent(student)
-                                setCompleteRating(star)
-                                setCompleteReview(student.remark || '')
-                                setCompleteFileName(student.attachmentName || '')
-                              }}
-                              className="cursor-pointer transition-transform hover:scale-125"
-                              title={`Rate ${star} Stars`}
-                            >
-                              <Star
-                                className={`w-3.5 h-3.5 ${star <= student.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
-                              />
-                            </button>
-                          ))}
-                        </div>
-
                         <button
                           type="button"
                           onClick={() => {

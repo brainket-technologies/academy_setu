@@ -1,18 +1,19 @@
 'use client'
 
-import React, { useState, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import {
   ArrowLeft, ChevronLeft, ChevronRight, GraduationCap, Users, User,
   BookOpen, FileText, Paperclip, Calendar, Clock, Check, Plus,
   Search, Upload, X, Loader2, Sparkles, Send, Signal, Wifi,
   Battery, AlertCircle, CheckCircle2, ChevronDown, Download,
-  Trash2, Eye, RefreshCw, Filter, Layers, CheckSquare
+  Trash2, Eye, RefreshCw, Filter, Layers, CheckSquare, UserCheck, UserX, Lock
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useClasses, useSections, useSubjects } from '@/lib/mastersData'
 import { fetchStudents } from '@/app/institute/students/actions'
 import { fetchTeachers } from '@/app/institute/teachers/actions'
+import { fetchStudentAttendance } from '@/app/institute/attendance/student/actions'
 import {
   fetchHomeworkTasks,
   createHomeworkTask,
@@ -817,6 +818,125 @@ export default function HomeworkAssignPage() {
     })
   }, [allStudents, selectedClass, selectedSection, studentSearch])
 
+  // ── Attendance State for Selected Class & Section ──
+  const [todayAttendanceRecords, setTodayAttendanceRecords] = useState<any[]>([])
+  const [isAttendanceMarkedToday, setIsAttendanceMarkedToday] = useState(false)
+  const [loadingAttendance, setLoadingAttendance] = useState(false)
+
+  const loadClassAttendance = useCallback(async (className: string, section: string) => {
+    if (!className) return
+    setLoadingAttendance(true)
+    const todayStr = new Date().toISOString().split('T')[0]
+    let records: any[] = []
+    let marked = false
+
+    // 1. Try DB attendance
+    try {
+      const res = await fetchStudentAttendance(todayStr, className, section)
+      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        records = res.data
+        marked = true
+      }
+    } catch (e) {
+      console.error('Error fetching student attendance for homework:', e)
+    }
+
+    // 2. Fallback to localStorage if no DB records found
+    if (!marked && typeof window !== 'undefined') {
+      try {
+        const savedKey = `att_record_${todayStr}_${className}_${section}`
+        const raw = localStorage.getItem(savedKey)
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          const entries = Object.entries(parsed)
+          if (entries.length > 0) {
+            records = entries.map(([stId, val]: [string, any]) => ({
+              id: stId,
+              student_id: stId,
+              status: val.status || 'Present',
+              source_mode: val.sourceMode || 'Manual',
+              marked_by: val.markedBy || 'Staff'
+            }))
+            marked = true
+          }
+        }
+      } catch (e) {}
+
+      if (!marked) {
+        try {
+          const cleanCls = className.toLowerCase().replace(/\s+/g, '')
+          const cleanSec = section.toLowerCase().replace(/^section\s+/i, '').replace(/\s+/g, '')
+          const raw2 = localStorage.getItem(`school_student_attendance_${cleanCls}_${cleanSec}_${todayStr}`)
+          if (raw2) {
+            const parsed2 = JSON.parse(raw2)
+            if (Array.isArray(parsed2) && parsed2.length > 0) {
+              records = parsed2
+              marked = true
+            }
+          }
+        } catch (e) {}
+      }
+    }
+
+    setTodayAttendanceRecords(records)
+    setIsAttendanceMarkedToday(marked)
+    setLoadingAttendance(false)
+  }, [])
+
+  useEffect(() => {
+    if (selectedClass && selectedSection) {
+      loadClassAttendance(selectedClass, selectedSection)
+    }
+  }, [selectedClass, selectedSection, loadClassAttendance])
+
+  // Helper to get attendance status of a student
+  const getStudentAttendanceStatus = useCallback((st: any): 'Present' | 'Absent' | 'Leave' | 'Not Marked' => {
+    if (!isAttendanceMarkedToday || todayAttendanceRecords.length === 0) {
+      return 'Not Marked'
+    }
+
+    const sId = String(st.id || '')
+    const sAdm = String(st.admissionNo || '').toLowerCase()
+    const sRoll = String(st.rollNo || '')
+    const sName = String(st.name || '').toLowerCase().trim()
+
+    const match = todayAttendanceRecords.find((r: any) => {
+      if (r.student_id && String(r.student_id) === sId) return true
+      if (r.id && String(r.id) === sId) return true
+      if (r.admission_no && String(r.admission_no).toLowerCase() === sAdm) return true
+      if (r.roll_no && String(r.roll_no) === sRoll) return true
+      if (r.student_name && String(r.student_name).toLowerCase().trim() === sName) return true
+      return false
+    })
+
+    if (match) {
+      const stStatus = String(match.status || '').toLowerCase()
+      if (stStatus.includes('present') || stStatus === 'p') return 'Present'
+      if (stStatus.includes('absent') || stStatus === 'a') return 'Absent'
+      if (stStatus.includes('leave') || stStatus === 'l') return 'Leave'
+    }
+
+    return 'Not Marked'
+  }, [isAttendanceMarkedToday, todayAttendanceRecords])
+
+  const presentStudents = useMemo(() => {
+    if (!isAttendanceMarkedToday) {
+      // If attendance is not marked today, default to all enrolled students
+      return currentClassStudents
+    }
+    return currentClassStudents.filter(st => getStudentAttendanceStatus(st) === 'Present')
+  }, [currentClassStudents, isAttendanceMarkedToday, getStudentAttendanceStatus])
+
+  const absentStudents = useMemo(() => {
+    if (!isAttendanceMarkedToday) return []
+    return currentClassStudents.filter(st => getStudentAttendanceStatus(st) === 'Absent')
+  }, [currentClassStudents, isAttendanceMarkedToday, getStudentAttendanceStatus])
+
+  const leaveStudents = useMemo(() => {
+    if (!isAttendanceMarkedToday) return []
+    return currentClassStudents.filter(st => getStudentAttendanceStatus(st) === 'Leave')
+  }, [currentClassStudents, isAttendanceMarkedToday, getStudentAttendanceStatus])
+
   // ── Page 4 Assignment State (Checkboxes & Select All) ──
   const [assignedStudentIds, setAssignedStudentIds] = useState<string[]>([])
   const [isAssigningStudents, setIsAssigningStudents] = useState<boolean>(false)
@@ -850,29 +970,39 @@ export default function HomeworkAssignPage() {
     }
   }, [currentScreen, activeTask, allStudents])
 
-  const allClassStudentIds = useMemo(() => {
-    return currentClassStudents.map(st => getStudentKey(st))
-  }, [currentClassStudents])
+  // ── Page 4: Assigned Students Read-Only List ──
+  const assignedStudentsList = useMemo(() => {
+    if (!activeTask) return []
+    const classStudents = allStudents.filter(s => matchesClassAndSection(s, activeTask.classes, activeTask.section))
 
-  const isAllStudentsSelected = useMemo(() => {
-    if (allClassStudentIds.length === 0) return false
-    return allClassStudentIds.every(id => assignedStudentIds.includes(id))
-  }, [allClassStudentIds, assignedStudentIds])
-
-  const handleToggleSelectAll = () => {
-    if (isAllStudentsSelected) {
-      setAssignedStudentIds([])
-    } else {
-      setAssignedStudentIds(allClassStudentIds)
-    }
-  }
-
-  const toggleStudentSelection = (stId: string) => {
-    setAssignedStudentIds(prev => {
-      const exists = prev.includes(stId)
-      return exists ? prev.filter(id => id !== stId) : [...prev, stId]
+    // Filter only students who were assigned to this task
+    let matched = classStudents.filter(st => {
+      const sKey = getStudentKey(st)
+      const sId = String(st.id || '')
+      const sAdm = String(st.admissionNo || '')
+      const sRoll = String(st.rollNo || '')
+      return (
+        assignedStudentIds.includes(sKey) ||
+        (sId && assignedStudentIds.includes(sId)) ||
+        (sAdm && assignedStudentIds.includes(sAdm)) ||
+        (sRoll && assignedStudentIds.includes(sRoll))
+      )
     })
-  }
+
+    // Fallback if assignedStudentIds not yet loaded or if assigned to whole class
+    if (matched.length === 0 && assignedStudentIds.length === 0 && classStudents.length > 0) {
+      matched = classStudents
+    }
+
+    if (!studentSearch.trim()) return matched
+    const q = studentSearch.toLowerCase().trim()
+    return matched.filter(st => {
+      const n = (st.name || '').toLowerCase()
+      const r = String(st.rollNo || '').toLowerCase()
+      const a = String(st.admissionNo || '').toLowerCase()
+      return n.includes(q) || r.includes(q) || a.includes(q)
+    })
+  }, [allStudents, activeTask, assignedStudentIds, studentSearch])
 
   const openTaskAssignedStudents = async (task: HomeworkTaskItem) => {
     setActiveTask(task)
@@ -974,11 +1104,19 @@ export default function HomeworkAssignPage() {
     d.setDate(d.getDate() + 3)
     return d.toISOString().split('T')[0]
   })
-  const [formAssignTarget, setFormAssignTarget] = useState<'entire' | 'specific'>('entire')
+  const [formAssignTarget, setFormAssignTarget] = useState<'present' | 'entire' | 'specific'>('present')
   const [formSelectedStudentIds, setFormSelectedStudentIds] = useState<string[]>([])
   const [formAttachmentName, setFormAttachmentName] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Auto-sync present students as default selection for create_task
+  useEffect(() => {
+    if (currentScreen === 'create_task') {
+      const pIds = presentStudents.map(st => getStudentKey(st))
+      setFormSelectedStudentIds(pIds)
+    }
+  }, [currentScreen, presentStudents])
 
   const handleQuickDuePreset = (days: number) => {
     const d = new Date()
@@ -999,6 +1137,22 @@ export default function HomeworkAssignPage() {
     const todayFormatted = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     const dueFormatted = new Date(formDueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
+    // Resolve assigned students based on target
+    let finalStudents: any[] = []
+    if (formAssignTarget === 'present') {
+      finalStudents = presentStudents.length > 0 ? presentStudents : currentClassStudents
+    } else if (formAssignTarget === 'specific') {
+      finalStudents = currentClassStudents.filter(st => formSelectedStudentIds.includes(getStudentKey(st)))
+    } else {
+      finalStudents = currentClassStudents
+    }
+
+    if (finalStudents.length === 0 && formAssignTarget === 'specific') {
+      showToast('Please select at least 1 student or choose Only Present / Entire Class.', 'error')
+      setIsSubmitting(false)
+      return
+    }
+
     const newTask: HomeworkTaskItem = {
       id: newId,
       title: formTitle.trim(),
@@ -1012,11 +1166,37 @@ export default function HomeworkAssignPage() {
       hasAttachment: !!formAttachmentName,
       attachmentName: formAttachmentName || undefined,
       status: 'Active',
-      studentsCount: formAssignTarget === 'specific' ? formSelectedStudentIds.length : currentClassStudents.length
+      studentsCount: finalStudents.length
     }
 
     try {
       await createHomeworkTask(newTask)
+
+      // Also persist student assignments into DB and local cache
+      try {
+        await Promise.all(
+          finalStudents.map(st =>
+            updateStudentTaskSubmission(
+              newId,
+              getStudentKey(st),
+              'Pending',
+              {
+                studentName: st.name,
+                admissionNo: st.admissionNo,
+                rollNo: st.rollNo
+              }
+            )
+          )
+        )
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(`school_task_subs_${newId}`, JSON.stringify(finalStudents))
+          } catch (e) {}
+        }
+      } catch (subErr) {
+        console.error('Error assigning students to task:', subErr)
+      }
+
       const updated = [newTask, ...tasks]
       setTasks(updated)
       if (typeof window !== 'undefined') {
@@ -1025,11 +1205,12 @@ export default function HomeworkAssignPage() {
         } catch (e) {}
       }
 
-      showToast('Task created and published successfully!', 'success')
+      showToast(`Task created and assigned to ${finalStudents.length} student(s) successfully!`, 'success')
       setFormTitle('')
       setFormDesc('')
       setFormAttachmentName('')
-      setFormSelectedStudentIds([])
+      setFormAssignTarget('present')
+      setFormSelectedStudentIds(presentStudents.map(st => getStudentKey(st)))
       setCurrentScreen('tasks')
     } catch (err: any) {
       showToast(err.message || 'Failed to save task.', 'error')
@@ -1631,85 +1812,52 @@ export default function HomeworkAssignPage() {
             />
           </div>
 
-          {/* Student List Section Heading with Select All & Badges */}
+          {/* Assigned Student List Section Heading (Read-Only) */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
             <div className="flex items-center gap-3">
               <h3 className="text-base md:text-lg font-black text-slate-900 dark:text-white">
-                Student List
+                Assigned Student List
               </h3>
-              <span className="px-3.5 py-1 rounded-full text-xs font-black bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
-                {assignedStudentIds.length} of {currentClassStudents.length} Selected
+              <span className="px-3.5 py-1 rounded-full text-xs font-black bg-teal-50 dark:bg-teal-950/40 text-[#0f766e] dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                {assignedStudentsList.length} {assignedStudentsList.length === 1 ? 'Student' : 'Students'} Assigned
               </span>
             </div>
 
-            {/* Select All Toggle Button */}
-            {currentClassStudents.length > 0 && (
-              <button
-                type="button"
-                onClick={handleToggleSelectAll}
-                className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs cursor-pointer select-none hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors w-fit"
-              >
-                <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                  isAllStudentsSelected
-                    ? 'bg-[#0f766e] border-[#0f766e] text-white'
-                    : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700'
-                }`}>
-                  {isAllStudentsSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                </div>
-                <span className="text-xs font-black text-slate-800 dark:text-slate-200">
-                  {isAllStudentsSelected ? 'Deselect All' : 'Select All'} ({currentClassStudents.length})
-                </span>
-              </button>
-            )}
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 text-xs font-bold w-fit">
+              <Lock className="w-3.5 h-3.5 text-[#0f766e]" />
+              <span>Published &bull; View-Only</span>
+            </div>
           </div>
 
-          {/* Real Student Cards List matching Screenshot 4 with Clean Toggle */}
-          {currentClassStudents.length === 0 ? (
+          {/* Assigned Students Read-Only Roster */}
+          {assignedStudentsList.length === 0 ? (
             <div className="py-16 px-4 text-center bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-700 space-y-2 w-full">
               <Users className="w-12 h-12 text-slate-300 mx-auto" />
               <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                No students enrolled in {selectedClass} - Section {selectedSection}
+                {studentSearch ? 'No assigned students match your search.' : 'No students were assigned to this task.'}
               </p>
               <p className="text-xs text-slate-400">
-                Add students in Student Management to populate this classroom roster.
+                {studentSearch ? 'Try adjusting your search criteria.' : 'Create a new task with assigned students.'}
               </p>
             </div>
           ) : (
-            <div className="space-y-3 w-full">
-              {currentClassStudents.map((st: any) => {
+            <div className="space-y-3 w-full pb-8">
+              {assignedStudentsList.map((st: any, idx: number) => {
                 const sId = getStudentKey(st)
                 const sName = st.name || 'Student'
                 const sRoll = st.rollNo || '001'
                 const sAdm = st.admissionNo || 'ADM-001'
-                const isChecked = assignedStudentIds.includes(sId)
+                const attStatus = getStudentAttendanceStatus(st)
 
                 return (
                   <div
                     key={sId}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => toggleStudentSelection(sId)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        toggleStudentSelection(sId)
-                      }
-                    }}
-                    className={`rounded-2xl md:rounded-3xl p-4 md:p-5 shadow-xs border transition-all flex items-center justify-between gap-3.5 w-full cursor-pointer select-none active:scale-[0.99] ${
-                      isChecked
-                        ? 'bg-teal-50/50 dark:bg-teal-950/20 border-[#0f766e] dark:border-teal-500 shadow-teal-950/5'
-                        : 'bg-white dark:bg-slate-800 border-slate-200/80 dark:border-slate-700/80 hover:border-slate-300'
-                    }`}
+                    className="rounded-2xl md:rounded-3xl p-4 md:p-5 shadow-xs border bg-white dark:bg-slate-800 border-slate-200/80 dark:border-slate-700/80 transition-all flex items-center justify-between gap-3.5 w-full"
                   >
                     <div className="flex items-center gap-3.5 min-w-0">
-                      {/* Styled Checkbox box */}
-                      <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
-                        isChecked
-                          ? 'bg-[#0f766e] border-[#0f766e] text-white'
-                          : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700'
-                      }`}>
-                        {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                      </div>
+                      <span className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center justify-center shrink-0">
+                        {idx + 1}
+                      </span>
 
                       {st.photo ? (
                         <img
@@ -1738,40 +1886,32 @@ export default function HomeworkAssignPage() {
                       </div>
                     </div>
 
-                    {/* Status Badge */}
-                    <span className={`px-3 py-1 rounded-full text-[11px] font-black shrink-0 transition-colors ${
-                      isChecked
-                        ? 'bg-teal-100 dark:bg-teal-900/60 text-[#0f766e] dark:text-teal-300 border border-teal-200 dark:border-teal-700'
-                        : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
-                    }`}>
-                      {isChecked ? 'Assigned' : 'Not Assigned'}
-                    </span>
+                    {/* Status Badges */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {attStatus === 'Present' && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <Check className="w-2.5 h-2.5 stroke-[3]" /> Present
+                        </span>
+                      )}
+                      {attStatus === 'Absent' && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-200">
+                          <X className="w-2.5 h-2.5 stroke-[3]" /> Absent
+                        </span>
+                      )}
+                      {attStatus === 'Leave' && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200">
+                          Leave
+                        </span>
+                      )}
+
+                      <span className="px-3 py-1 rounded-full text-[11px] font-black bg-teal-50 dark:bg-teal-950/40 text-[#0f766e] dark:text-teal-300 border border-teal-200 dark:border-teal-800 flex items-center gap-1 shrink-0">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#0f766e]" />
+                        <span>Assigned</span>
+                      </span>
+                    </div>
                   </div>
                 )
               })}
-            </div>
-          )}
-
-          {/* Assign / Update Homework Action Button */}
-          {currentClassStudents.length > 0 && (
-            <div className="pt-2 pb-8">
-              <button
-                type="button"
-                onClick={handleSaveStudentAssignment}
-                disabled={isAssigningStudents || assignedStudentIds.length === 0}
-                className="w-full py-4 rounded-2xl bg-[#0f766e] hover:bg-[#0d655f] text-white font-black text-sm md:text-base shadow-lg shadow-teal-900/20 flex items-center justify-center gap-2.5 active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer"
-              >
-                {isAssigningStudents ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Check className="w-5 h-5 stroke-[3]" />
-                )}
-                <span>
-                  {assignedStudentIds.length === 0
-                    ? 'Select at least 1 student to assign'
-                    : `Assign Homework to Selected (${assignedStudentIds.length} ${assignedStudentIds.length === 1 ? 'Student' : 'Students'})`}
-                </span>
-              </button>
             </div>
           )}
 
@@ -1923,78 +2063,218 @@ export default function HomeworkAssignPage() {
             </div>
 
             {/* Assign To */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-xs border border-slate-200/80 dark:border-slate-700/80 space-y-2.5 w-full">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                Assign To
-              </label>
-              <div className="grid grid-cols-2 gap-3 max-w-sm">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-xs border border-slate-200/80 dark:border-slate-700/80 space-y-3 w-full">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Assign To
+                </label>
+                {isAttendanceMarkedToday ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 w-fit">
+                    <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    Today's Attendance Marked ({presentStudents.length} Present)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 w-fit">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                    Today's Attendance Not Marked Yet
+                  </span>
+                )}
+              </div>
+
+              {/* 3 Target Options: Only Present (Default), Entire Class, Specific Students */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {/* 1. Only Present Students (Default) */}
                 <button
                   type="button"
-                  onClick={() => setFormAssignTarget('entire')}
-                  className={`py-2.5 px-4 rounded-2xl text-xs font-black transition-all border ${
-                    formAssignTarget === 'entire'
-                      ? 'bg-[#0f766e] text-white border-[#0f766e]'
-                      : 'bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                  onClick={() => {
+                    setFormAssignTarget('present')
+                    setFormSelectedStudentIds(presentStudents.map(st => getStudentKey(st)))
+                  }}
+                  className={`py-3 px-3.5 rounded-2xl text-xs font-black transition-all border flex items-center justify-center gap-2 cursor-pointer select-none ${
+                    formAssignTarget === 'present'
+                      ? 'bg-[#0f766e] text-white border-[#0f766e] shadow-sm'
+                      : 'bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-500'
                   }`}
                 >
-                  Entire Class ({currentClassStudents.length})
+                  <UserCheck className={`w-4 h-4 ${formAssignTarget === 'present' ? 'text-white' : 'text-emerald-600'}`} />
+                  <span>Only Present ({presentStudents.length})</span>
                 </button>
+
+                {/* 2. Entire Class */}
                 <button
                   type="button"
-                  onClick={() => setFormAssignTarget('specific')}
-                  className={`py-2.5 px-4 rounded-2xl text-xs font-black transition-all border ${
-                    formAssignTarget === 'specific'
-                      ? 'bg-[#0f766e] text-white border-[#0f766e]'
-                      : 'bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                  onClick={() => {
+                    setFormAssignTarget('entire')
+                    setFormSelectedStudentIds(currentClassStudents.map(st => getStudentKey(st)))
+                  }}
+                  className={`py-3 px-3.5 rounded-2xl text-xs font-black transition-all border flex items-center justify-center gap-2 cursor-pointer select-none ${
+                    formAssignTarget === 'entire'
+                      ? 'bg-[#0f766e] text-white border-[#0f766e] shadow-sm'
+                      : 'bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-500'
                   }`}
                 >
-                  Specific Students ({formSelectedStudentIds.length})
+                  <Users className="w-4 h-4" />
+                  <span>Entire Class ({currentClassStudents.length})</span>
+                </button>
+
+                {/* 3. Specific Students */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormAssignTarget('specific')
+                    if (formSelectedStudentIds.length === 0) {
+                      setFormSelectedStudentIds(presentStudents.map(st => getStudentKey(st)))
+                    }
+                  }}
+                  className={`py-3 px-3.5 rounded-2xl text-xs font-black transition-all border flex items-center justify-center gap-2 cursor-pointer select-none ${
+                    formAssignTarget === 'specific'
+                      ? 'bg-[#0f766e] text-white border-[#0f766e] shadow-sm'
+                      : 'bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-500'
+                  }`}
+                >
+                  <User className="w-4 h-4" />
+                  <span>Specific Students ({formSelectedStudentIds.length})</span>
                 </button>
               </div>
 
+              {/* Informational Card for 'present' target */}
+              {formAssignTarget === 'present' && (
+                <div className="p-3.5 bg-teal-50/70 dark:bg-teal-950/20 rounded-2xl border border-teal-200 dark:border-teal-800 text-xs text-teal-900 dark:text-teal-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>
+                      {isAttendanceMarkedToday ? (
+                        <>
+                          <strong>{presentStudents.length} Students</strong> marked Present today will receive this homework.
+                          {absentStudents.length > 0 && (
+                            <span className="text-teal-700 dark:text-teal-300 ml-1">
+                              ({absentStudents.length} Absent, {leaveStudents.length} Leave excluded)
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          Today&apos;s attendance hasn&apos;t been marked yet. All <strong>{currentClassStudents.length} students</strong> are currently selected by default.
+                        </>
+                      )}
+                    </span>
+                  </div>
+                  {!isAttendanceMarkedToday && (
+                    <Link
+                      href="/institute/attendance/student"
+                      target="_blank"
+                      className="text-[11px] font-bold text-[#0f766e] hover:underline underline-offset-2 shrink-0 flex items-center gap-1"
+                    >
+                      Mark Attendance &rarr;
+                    </Link>
+                  )}
+                </div>
+              )}
+
+              {/* Informational Card for 'entire' target */}
+              {formAssignTarget === 'entire' && (
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-slate-400 shrink-0" />
+                  <span>
+                    Homework will be assigned to all <strong>{currentClassStudents.length} enrolled students</strong> in {selectedClass} - Section {selectedSection}, regardless of attendance status.
+                  </span>
+                </div>
+              )}
+
+              {/* Interactive Specific Students List */}
               {formAssignTarget === 'specific' && (
-                <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 max-h-56 overflow-y-auto space-y-1.5 mt-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700 mb-2">
-                    <label className="flex items-center gap-2 cursor-pointer font-bold text-xs text-slate-700 dark:text-slate-200 select-none">
-                      <input
-                        type="checkbox"
-                        checked={currentClassStudents.length > 0 && formSelectedStudentIds.length === currentClassStudents.length}
-                        onChange={e => {
-                          if (e.target.checked) setFormSelectedStudentIds(currentClassStudents.map(s => String(s.id || s.admissionNo)))
-                          else setFormSelectedStudentIds([])
-                        }}
-                        className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 accent-[#0f766e] cursor-pointer"
-                      />
-                      <span>Select All ({currentClassStudents.length})</span>
-                    </label>
-                    <span className="text-[11px] font-bold text-teal-700 dark:text-teal-300">
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2 mt-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setFormSelectedStudentIds(presentStudents.map(st => getStudentKey(st)))}
+                        className="px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-black border border-emerald-200 flex items-center gap-1 transition cursor-pointer"
+                      >
+                        <UserCheck className="w-3 h-3 text-emerald-600" />
+                        Select Only Present ({presentStudents.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormSelectedStudentIds(currentClassStudents.map(st => getStudentKey(st)))}
+                        className="px-2.5 py-1 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-[11px] font-bold transition cursor-pointer"
+                      >
+                        Select All ({currentClassStudents.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormSelectedStudentIds([])}
+                        className="px-2.5 py-1 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-[11px] font-bold transition cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    </div>
+
+                    <span className="text-[11px] font-black text-teal-700 dark:text-teal-300">
                       {formSelectedStudentIds.length} of {currentClassStudents.length} Selected
                     </span>
                   </div>
 
-                  {currentClassStudents.map((st: any) => {
-                    const sId = String(st.id || st.admission_no)
-                    const isChecked = formSelectedStudentIds.includes(sId)
-                    return (
-                      <label key={sId} className="flex items-center gap-2 p-2 rounded-xl hover:bg-white dark:hover:bg-slate-700 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={e => {
-                            if (e.target.checked) setFormSelectedStudentIds(p => [...p, sId])
-                            else setFormSelectedStudentIds(p => p.filter(id => id !== sId))
-                          }}
-                          className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 accent-[#0f766e] cursor-pointer"
-                        />
-                        <span className="font-bold text-slate-800 dark:text-slate-200 text-xs truncate">
-                          {st.name}
-                        </span>
-                        <span className="text-[11px] text-slate-400 ml-auto shrink-0">
-                          Roll No: {st.rollNo}
-                        </span>
-                      </label>
-                    )
-                  })}
+                  <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                    {currentClassStudents.map((st: any) => {
+                      const sId = getStudentKey(st)
+                      const isChecked = formSelectedStudentIds.includes(sId)
+                      const attStatus = getStudentAttendanceStatus(st)
+
+                      return (
+                        <label
+                          key={sId}
+                          className={`flex items-center justify-between p-2 rounded-xl border cursor-pointer select-none transition ${
+                            isChecked
+                              ? 'bg-teal-50/50 dark:bg-teal-950/20 border-teal-300 dark:border-teal-700'
+                              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={e => {
+                                if (e.target.checked) setFormSelectedStudentIds(p => [...p, sId])
+                                else setFormSelectedStudentIds(p => p.filter(id => id !== sId))
+                              }}
+                              className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4 accent-[#0f766e] cursor-pointer"
+                            />
+                            <span className="font-bold text-slate-800 dark:text-slate-200 text-xs truncate">
+                              {st.name}
+                            </span>
+                            <span className="text-[11px] text-slate-400">
+                              (Roll: {st.rollNo})
+                            </span>
+                          </div>
+
+                          {/* Attendance Status Badge */}
+                          <div className="shrink-0 ml-2">
+                            {attStatus === 'Present' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                <Check className="w-2.5 h-2.5 stroke-[3]" /> Present
+                              </span>
+                            )}
+                            {attStatus === 'Absent' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-200">
+                                <X className="w-2.5 h-2.5 stroke-[3]" /> Absent
+                              </span>
+                            )}
+                            {attStatus === 'Leave' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200">
+                                Leave
+                              </span>
+                            )}
+                            {attStatus === 'Not Marked' && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">
+                                Not Marked
+                              </span>
+                            )}
+                          </div>
+                        </label>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
             </div>
