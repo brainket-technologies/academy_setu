@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const className = searchParams.get('className') || ''
     const section = searchParams.get('section') || ''
     const subject = searchParams.get('subject') || ''
+    const lessonFolder = searchParams.get('lessonFolder') || ''
     const contentType = searchParams.get('contentType') || ''
     const search = searchParams.get('search') || ''
 
@@ -39,6 +40,11 @@ export async function GET(request: NextRequest) {
       query += ` AND subject = $${params.length}`
     }
 
+    if (lessonFolder && lessonFolder !== 'All') {
+      params.push(lessonFolder)
+      query += ` AND (lesson_folder = $${params.length} OR chapter_topic = $${params.length})`
+    }
+
     if (contentType && contentType !== 'all') {
       params.push(contentType.toLowerCase())
       query += ` AND LOWER(content_type) = $${params.length}`
@@ -60,7 +66,8 @@ export async function GET(request: NextRequest) {
       subject: row.subject,
       title: row.title,
       contentType: row.content_type,
-      chapterTopic: row.chapter_topic || '',
+      chapterTopic: row.chapter_topic || row.lesson_folder || '',
+      lessonFolder: row.lesson_folder || row.chapter_topic || '',
       url: row.url || '',
       fileName: row.file_name || '',
       fileSize: row.file_size || '',
@@ -90,6 +97,7 @@ export async function POST(request: NextRequest) {
       title,
       contentType = 'pdf',
       chapterTopic = '',
+      lessonFolder = '',
       url = '',
       fileName = '',
       fileSize = '',
@@ -111,16 +119,18 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    const effectiveFolder = (lessonFolder || chapterTopic || '').trim()
+
     const insertRes = await pool.query(`
       INSERT INTO school_study_materials (
         institute_name, class_name, section, subject, title,
-        content_type, chapter_topic, url, file_name, file_size,
+        content_type, chapter_topic, lesson_folder, url, file_name, file_size,
         description, allow_download, created_at, updated_at
       )
       VALUES (
         $1, $2, $3, $4, $5,
-        $6, $7, $8, $9, $10,
-        $11, $12, NOW(), NOW()
+        $6, $7, $8, $9, $10, $11,
+        $12, $13, NOW(), NOW()
       )
       RETURNING *,
         TO_CHAR(created_at, 'DD/MM/YYYY hh:mi AM') as created_at_formatted
@@ -131,7 +141,8 @@ export async function POST(request: NextRequest) {
       subject.trim(),
       title.trim(),
       contentType.toLowerCase().trim(),
-      chapterTopic.trim(),
+      effectiveFolder,
+      effectiveFolder,
       url.trim(),
       fileName.trim(),
       fileSize.trim(),

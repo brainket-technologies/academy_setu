@@ -2,6 +2,52 @@ import pool from './db'
 
 declare global {
   var _studyMaterialDbPromise: Promise<void> | undefined
+  var _lessonsDbPromise: Promise<void> | undefined
+}
+
+export async function ensureLessonsDb(): Promise<void> {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS school_study_material_lessons (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        institute_name VARCHAR(255) NOT NULL DEFAULT 'Cosmopolitan Inter',
+        class_name VARCHAR(100) NOT NULL,
+        section VARCHAR(100) NOT NULL,
+        subject VARCHAR(100) NOT NULL,
+        lesson_name VARCHAR(255) NOT NULL,
+        lesson_number VARCHAR(50) DEFAULT '',
+        description TEXT DEFAULT '',
+        color VARCHAR(50) DEFAULT 'teal',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `)
+
+    await pool.query(`ALTER TABLE school_study_materials ADD COLUMN IF NOT EXISTS lesson_folder VARCHAR(255) DEFAULT ''`)
+
+    const lessonCountRes = await pool.query('SELECT COUNT(*)::int FROM school_study_material_lessons')
+    if (lessonCountRes.rows[0].count === 0) {
+      await pool.query(`
+        INSERT INTO school_study_material_lessons (
+          institute_name, class_name, section, subject, lesson_name, lesson_number, description, color
+        )
+        SELECT DISTINCT
+          institute_name, class_name, section, subject,
+          COALESCE(NULLIF(chapter_topic, ''), 'General Materials') as lesson_name,
+          CASE 
+            WHEN chapter_topic ILIKE 'Unit %' THEN SPLIT_PART(chapter_topic, ':', 1)
+            WHEN chapter_topic ILIKE 'Chapter %' THEN SPLIT_PART(chapter_topic, ':', 1)
+            ELSE ''
+          END as lesson_number,
+          'Study materials, notes, and learning resources' as description,
+          'teal' as color
+        FROM school_study_materials
+        WHERE (chapter_topic != '' AND chapter_topic IS NOT NULL);
+      `)
+    }
+  } catch (err) {
+    console.error('ensureLessonsDb error:', err)
+  }
 }
 
 export async function ensureStudyMaterialDb(): Promise<void> {
@@ -30,9 +76,49 @@ export async function ensureStudyMaterialDb(): Promise<void> {
 
         await pool.query(`ALTER TABLE school_study_materials ADD COLUMN IF NOT EXISTS content_type VARCHAR(50) DEFAULT 'pdf'`)
         await pool.query(`ALTER TABLE school_study_materials ADD COLUMN IF NOT EXISTS chapter_topic VARCHAR(255) DEFAULT ''`)
+        await pool.query(`ALTER TABLE school_study_materials ADD COLUMN IF NOT EXISTS lesson_folder VARCHAR(255) DEFAULT ''`)
         await pool.query(`ALTER TABLE school_study_materials ADD COLUMN IF NOT EXISTS file_name VARCHAR(255) DEFAULT ''`)
         await pool.query(`ALTER TABLE school_study_materials ADD COLUMN IF NOT EXISTS file_size VARCHAR(50) DEFAULT ''`)
         await pool.query(`ALTER TABLE school_study_materials ADD COLUMN IF NOT EXISTS allow_download BOOLEAN DEFAULT true`)
+
+        // Create Lessons / Chapter Folders Table
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS school_study_material_lessons (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            institute_name VARCHAR(255) NOT NULL DEFAULT 'Cosmopolitan Inter',
+            class_name VARCHAR(100) NOT NULL,
+            section VARCHAR(100) NOT NULL,
+            subject VARCHAR(100) NOT NULL,
+            lesson_name VARCHAR(255) NOT NULL,
+            lesson_number VARCHAR(50) DEFAULT '',
+            description TEXT DEFAULT '',
+            color VARCHAR(50) DEFAULT 'teal',
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+          );
+        `)
+
+        // Seed initial lesson folders from existing study materials if table is empty
+        const lessonCountRes = await pool.query('SELECT COUNT(*)::int FROM school_study_material_lessons')
+        if (lessonCountRes.rows[0].count === 0) {
+          await pool.query(`
+            INSERT INTO school_study_material_lessons (
+              institute_name, class_name, section, subject, lesson_name, lesson_number, description, color
+            )
+            SELECT DISTINCT
+              institute_name, class_name, section, subject,
+              COALESCE(NULLIF(chapter_topic, ''), 'General Materials') as lesson_name,
+              CASE 
+                WHEN chapter_topic ILIKE 'Unit %' THEN SPLIT_PART(chapter_topic, ':', 1)
+                WHEN chapter_topic ILIKE 'Chapter %' THEN SPLIT_PART(chapter_topic, ':', 1)
+                ELSE ''
+              END as lesson_number,
+              'Study materials, notes, and learning resources' as description,
+              'teal' as color
+            FROM school_study_materials
+            WHERE (chapter_topic != '' AND chapter_topic IS NOT NULL);
+          `)
+        }
 
         // Check if sample data exists
         const countRes = await pool.query('SELECT COUNT(*)::int FROM school_study_materials')

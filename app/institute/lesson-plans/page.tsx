@@ -38,12 +38,14 @@ import { getInstituteAddedClasses } from '@/lib/institute-classes'
 export interface Milestone {
   id: number
   unit?: string // e.g. "Unit 1", "Lesson 1", "Topic 1"
+  lesson?: string // Lesson / Chapter title
   topic: string
   methodology?: string
+  description?: string
   startDate: string
   endDate: string
+  progress?: number
   completed?: boolean
-  description?: string
 }
 
 export interface LessonPlanRecord {
@@ -236,23 +238,15 @@ export default function LessonPlansPage() {
   const [formMilestones, setFormMilestones] = useState<Milestone[]>([
     {
       id: 1,
-      unit: 'Unit 1',
+      unit: 'Lesson 1',
+      lesson: '',
       topic: '',
       methodology: '',
+      description: '',
       startDate: '',
       endDate: '',
-      completed: false,
-      description: ''
-    },
-    {
-      id: 2,
-      unit: 'Unit 2',
-      topic: '',
-      methodology: '',
-      startDate: '',
-      endDate: '',
-      completed: false,
-      description: ''
+      progress: 0,
+      completed: false
     }
   ])
   const [formAttachmentName, setFormAttachmentName] = useState('')
@@ -440,26 +434,18 @@ export default function LessonPlansPage() {
     setFormSubject('')
     setFormTitle('')
     setFormMethodology('Interactive Problem Solving & Lab Work')
-    setFormDescription('Comprehensive teaching curriculum and step-by-step topic breakdown.')
+    setFormDescription('')
     setFormProgress(0)
     setFormMilestones([
       {
         id: 1,
-        unit: 'Unit 1',
-        topic: 'Chapter Introduction & Fundamentals',
-        methodology: 'Interactive Lecture & Discussion',
+        unit: 'Lesson 1',
+        lesson: '',
+        topic: '',
+        methodology: 'Interactive Problem Solving & Lab Work',
         startDate: '',
         endDate: '',
-        completed: false,
-        description: ''
-      },
-      {
-        id: 2,
-        unit: 'Unit 2',
-        topic: 'Core Concept Analysis & Exercise Solving',
-        methodology: 'Guided Practice & Lab Session',
-        startDate: '',
-        endDate: '',
+        progress: 0,
         completed: false,
         description: ''
       }
@@ -483,28 +469,35 @@ export default function LessonPlansPage() {
 
     if (plan.milestones && plan.milestones.length > 0) {
       setFormMilestones(
-        plan.milestones.map((m, i) => ({
-          id: m.id || i + 1,
-          unit: m.unit || `Unit ${i + 1}`,
-          topic: m.topic || '',
-          methodology: m.methodology || plan.methodology || '',
-          startDate: m.startDate || '',
-          endDate: m.endDate || '',
-          completed: !!m.completed,
-          description: m.description || ''
-        }))
+        plan.milestones.map((m, i) => {
+          const cardProg = m.progress !== undefined ? m.progress : (m.completed ? 100 : 0)
+          return {
+            id: m.id || i + 1,
+            unit: m.unit || `Lesson ${i + 1}`,
+            lesson: m.lesson || m.topic || '',
+            topic: m.topic || m.lesson || '',
+            methodology: m.methodology || plan.methodology || '',
+            startDate: m.startDate || '',
+            endDate: m.endDate || '',
+            progress: cardProg,
+            completed: cardProg === 100,
+            description: m.description || ''
+          }
+        })
       )
     } else {
       setFormMilestones([
         {
           id: 1,
-          unit: 'Unit 1',
+          unit: 'Lesson 1',
+          lesson: plan.title,
           topic: plan.title,
           methodology: plan.methodology,
           startDate: '',
           endDate: '',
-          completed: false,
-          description: ''
+          progress: plan.progress || 0,
+          completed: (plan.progress || 0) === 100,
+          description: plan.description || ''
         }
       ])
     }
@@ -578,49 +571,86 @@ export default function LessonPlansPage() {
     }
   }
 
-  // ── Milestone / Lesson / Topic / Unit Helpers ─────────────────────────────
+  // ── Milestone / Lesson Card Helpers ─────────────────────────────
   const addFormMilestone = () => {
     const nextNum = formMilestones.length + 1
-    setFormMilestones([
-      ...formMilestones,
-      {
-        id: Date.now(),
-        unit: `Unit ${nextNum}`,
-        topic: '',
-        methodology: '',
-        startDate: '',
-        endDate: '',
-        completed: false,
-        description: ''
-      }
-    ])
+    const newCard: Milestone = {
+      id: Date.now(),
+      unit: `Lesson ${nextNum}`,
+      lesson: '',
+      topic: '',
+      methodology: '',
+      startDate: '',
+      endDate: '',
+      progress: 0,
+      completed: false,
+      description: ''
+    }
+    const updated = [...formMilestones, newCard]
+    setFormMilestones(updated)
+    const avg = Math.round(updated.reduce((acc, m) => acc + (m.progress || 0), 0) / updated.length)
+    setFormProgress(avg)
   }
 
   const removeFormMilestone = (id: number) => {
     if (formMilestones.length <= 1) return
     const remaining = formMilestones.filter(m => m.id !== id)
     setFormMilestones(remaining)
-    // Recalculate progress if needed
-    const valid = remaining.filter(m => m.topic.trim())
-    if (valid.length > 0) {
-      const done = valid.filter(m => m.completed).length
-      setFormProgress(Math.round((done / valid.length) * 100))
-    }
+    const avg = Math.round(remaining.reduce((acc, m) => acc + (m.progress || 0), 0) / remaining.length)
+    setFormProgress(avg)
   }
 
   const updateFormMilestoneField = (id: number, field: keyof Milestone, val: any) => {
-    setFormMilestones(formMilestones.map(m => (m.id === id ? { ...m, [field]: val } : m)))
+    setFormMilestones(prev =>
+      prev.map(m => {
+        if (m.id === id) {
+          const updated = { ...m, [field]: val }
+          if (field === 'topic') updated.lesson = val
+          if (field === 'lesson') updated.topic = val
+          return updated
+        }
+        return m
+      })
+    )
   }
 
-  // Auto calculate progress in form when milestone completed toggle changes
+  // Card Progress Bar Update + Auto-sync Overall Progress
+  const updateFormMilestoneProgress = (id: number, progressVal: number) => {
+    const valid = Math.min(100, Math.max(0, progressVal))
+    setFormMilestones(prev => {
+      const updated = prev.map(m =>
+        m.id === id
+          ? {
+              ...m,
+              progress: valid,
+              completed: valid === 100
+            }
+          : m
+      )
+      const avg = Math.round(updated.reduce((acc, m) => acc + (m.progress || 0), 0) / updated.length)
+      setFormProgress(avg)
+      return updated
+    })
+  }
+
+  // Toggle milestone completed
   const toggleFormMilestoneComplete = (id: number) => {
-    const updated = formMilestones.map(m => (m.id === id ? { ...m, completed: !m.completed } : m))
-    setFormMilestones(updated)
-    const valid = updated.filter(m => m.topic.trim())
-    if (valid.length > 0) {
-      const done = valid.filter(m => m.completed).length
-      setFormProgress(Math.round((done / valid.length) * 100))
-    }
+    setFormMilestones(prev => {
+      const updated = prev.map(m => {
+        if (m.id === id) {
+          const isDone = !m.completed
+          return {
+            ...m,
+            completed: isDone,
+            progress: isDone ? 100 : 0
+          }
+        }
+        return m
+      })
+      const avg = Math.round(updated.reduce((acc, m) => acc + (m.progress || 0), 0) / updated.length)
+      setFormProgress(avg)
+      return updated
+    })
   }
 
   // Add more lesson / topic / unit in Quick Progress Modal
@@ -667,29 +697,34 @@ export default function LessonPlansPage() {
       return
     }
 
-    if (!formTitle.trim()) {
-      alert('Please enter a Lesson Title.')
+    // Filter valid milestones / cards
+    const validMilestones = formMilestones.filter(m => (m.lesson || m.topic || '').trim())
+    if (validMilestones.length === 0) {
+      alert('Please add at least one Lesson Card with a title.')
       return
     }
 
-    // Filter valid milestones
-    const validMilestones = formMilestones.filter(m => m.topic.trim())
-    if (validMilestones.length === 0) {
-      alert('Please add at least one Lesson / Topic / Unit with a title.')
-      return
-    }
+    const firstCardTitle = (validMilestones[0].lesson || validMilestones[0].topic || '').trim()
+    const derivedTitle = formTitle.trim() || firstCardTitle || `${finalSubject} Lesson Plan`
+    const derivedMethodology = formMethodology.trim() || validMilestones[0].methodology || 'Interactive Problem Solving & Lab Work'
+    const derivedDescription = formDescription.trim() || validMilestones[0].description || ''
 
     setSubmittingForm(true)
     try {
       const payload = {
         className: formClass,
         section: formSection,
-        title: formTitle.trim(),
+        title: derivedTitle,
         subject: finalSubject,
-        methodology: formMethodology.trim() || 'Interactive Problem Solving & Lab Work',
-        description: formDescription.trim(),
+        methodology: derivedMethodology,
+        description: derivedDescription,
         progress: formProgress,
-        milestones: validMilestones,
+        milestones: validMilestones.map(m => ({
+          ...m,
+          topic: m.topic || m.lesson || '',
+          lesson: m.lesson || m.topic || '',
+          completed: m.progress === 100
+        })),
         attachmentName: formAttachmentName
       }
 
@@ -1256,22 +1291,22 @@ export default function LessonPlansPage() {
 
             {/* Modal Form */}
             <form onSubmit={handleSavePlanSubmit} className="space-y-6">
-              {/* SECTION 1: Class, Section, Subject (Fetched from Master) */}
-              <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-4">
-                <div className="flex items-center justify-between">
+              {/* SECTION 1: Class, Section, Subject & Overall Progress */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-teal-50/70 via-slate-50 to-white border border-teal-100 shadow-xs space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                     <GraduationCap className="w-4 h-4 text-teal-600" />
-                    <span>Class, Section & Subject Details (From Master)</span>
+                    <span>Class, Section, Subject & Overall Progress</span>
                   </h3>
-                  <span className="text-[10px] text-slate-400 font-semibold">
-                    Sections and subjects filter automatically by Class
+                  <span className="text-[10px] text-teal-700 font-bold bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
+                    Synced with Lesson Cards
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                   {/* Class Dropdown */}
                   <div>
-                    <label className="text-slate-700 font-bold block mb-1">
+                    <label className="text-slate-700 font-bold block mb-1 text-xs">
                       Class <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -1297,7 +1332,7 @@ export default function LessonPlansPage() {
 
                   {/* Section Dropdown (Filtered by Class) */}
                   <div>
-                    <label className="text-slate-700 font-bold block mb-1">
+                    <label className="text-slate-700 font-bold block mb-1 text-xs">
                       Section <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -1324,7 +1359,7 @@ export default function LessonPlansPage() {
 
                   {/* Subject Dropdown (Filtered by Class from Master) */}
                   <div>
-                    <label className="text-slate-700 font-bold block mb-1">
+                    <label className="text-slate-700 font-bold block mb-1 text-xs">
                       Subject <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -1352,118 +1387,68 @@ export default function LessonPlansPage() {
                     </select>
                   </div>
                 </div>
-              </div>
 
-              {/* SECTION 2: Overall Lesson Title & Methodology */}
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-slate-700 font-bold text-xs">
-                      Lesson / Chapter Title <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Quadratic Equations & Formula Analysis"
-                      value={formTitle}
-                      onChange={e => setFormTitle(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-800 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-2xs"
-                    />
+                {/* OVERALL PROGRESS */}
+                <div className="pt-3 border-t border-teal-100/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-black text-teal-900 uppercase tracking-wider flex items-center gap-1.5">
+                        <Percent className="w-3.5 h-3.5 text-teal-600" />
+                        <span>Overall Progress:</span>
+                      </label>
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        (Average of {formMilestones.length} Lesson {formMilestones.length === 1 ? 'Card' : 'Cards'})
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-black text-teal-800 bg-white px-2 py-0.5 rounded-md border border-teal-200">
+                        {formProgress}%
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-slate-700 font-bold text-xs">
-                      Teaching Methodology <span className="text-red-500">*</span>
-                    </label>
+                  {/* Single Minimal Progress Slider */}
+                  <div className="flex items-center gap-3">
                     <input
-                      type="text"
-                      required
-                      placeholder="e.g. Interactive Problem Solving & Lab Work"
-                      value={formMethodology}
-                      onChange={e => setFormMethodology(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-800 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-2xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-slate-700 font-bold text-xs">
-                    Chapter Overview & Teaching Description
-                  </label>
-                  <textarea
-                    placeholder="Write details, key objectives, and learning outcomes..."
-                    value={formDescription}
-                    onChange={e => setFormDescription(e.target.value)}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none font-medium text-xs text-slate-800 h-20 resize-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-2xs leading-relaxed"
-                  />
-                </div>
-              </div>
-
-              {/* SECTION 3: PROGRESS IN PERCENTAGE (Prominent Slider + Presets) */}
-              <div className="p-4 rounded-2xl bg-teal-50/60 border border-teal-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-black text-teal-900 uppercase tracking-wider flex items-center gap-1.5">
-                    <Percent className="w-3.5 h-3.5 text-teal-600" />
-                    <span>Lesson Progress in Percentage</span>
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
+                      type="range"
                       min="0"
                       max="100"
+                      step="1"
                       value={formProgress}
-                      onChange={e =>
-                        setFormProgress(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))
-                      }
-                      className="w-16 px-2 py-1 text-center font-black text-sm rounded-lg border border-teal-300 bg-white text-teal-800 outline-none"
+                      onChange={e => setFormProgress(parseInt(e.target.value) || 0)}
+                      className="w-full accent-teal-600 cursor-pointer h-2 bg-slate-200 rounded-lg"
                     />
-                    <span className="font-black text-teal-800 text-sm">%</span>
-                  </div>
-                </div>
-
-                {/* Range Slider */}
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={formProgress}
-                  onChange={e => setFormProgress(parseInt(e.target.value))}
-                  className="w-full accent-teal-600 cursor-pointer"
-                />
-
-                {/* Quick Percentage Presets */}
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-[10px] text-teal-700 font-bold">Quick Presets:</span>
-                  <div className="flex items-center gap-1.5">
-                    {[0, 25, 50, 75, 100].map(val => (
-                      <button
-                        key={val}
-                        type="button"
-                        onClick={() => setFormProgress(val)}
-                        className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black border transition-all cursor-pointer ${
-                          formProgress === val
-                            ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
-                            : 'bg-white text-teal-800 border-teal-200 hover:bg-teal-50'
-                        }`}
-                      >
-                        {val === 100 ? '100% (Done)' : `${val}%`}
-                      </button>
-                    ))}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {[0, 25, 50, 75, 100].map(val => (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => setFormProgress(val)}
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-black border transition cursor-pointer ${
+                            formProgress === val
+                              ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                              : 'bg-white text-teal-800 border-teal-200 hover:bg-teal-50'
+                          }`}
+                        >
+                          {val}%
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* SECTION 4: LESSONS, TOPICS & UNITS BREAKDOWN (ADD MORE OPTION) */}
-              <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-3.5">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
+              {/* SECTION 2: CARD TYPE ADD MORE (LESSON, METHODOLOGY, DESCRIPTION, START DATE, END DATE, PROGRESS BAR) */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
                   <div>
                     <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                       <Layers className="w-4 h-4 text-teal-600" />
-                      <span>Lessons, Topics & Units Breakdown ({formMilestones.length})</span>
+                      <span>Lesson Cards ({formMilestones.length})</span>
                     </label>
                     <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                      Add multiple lessons, units, or topics with timelines, teaching methodologies, and progress tracking.
+                      Add and manage each lesson with its methodology, description, dates, and individual progress bar.
                     </p>
                   </div>
 
@@ -1471,72 +1456,46 @@ export default function LessonPlansPage() {
                   <button
                     type="button"
                     onClick={addFormMilestone}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-black shadow-xs shadow-teal-600/20 transition-all cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-black shadow-xs shadow-teal-600/20 transition-all cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Add More Lesson / Topic / Unit</span>
+                    <span>+ Add More Card</span>
                   </button>
                 </div>
 
-                {/* List of lessons / topics / units */}
-                <div className="space-y-3 pt-1">
+                {/* List of Lesson Cards */}
+                <div className="space-y-4">
                   {formMilestones.map((m, idx) => {
-                    const isDone = !!m.completed
+                    const cardProgress = m.progress || 0
                     return (
                       <div
                         key={m.id}
-                        className={`p-3.5 rounded-2xl border transition-all space-y-2.5 relative ${
-                          isDone
-                            ? 'bg-emerald-50/50 border-emerald-300 shadow-xs'
-                            : 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
-                        }`}
+                        className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 hover:border-teal-300 shadow-xs hover:shadow-md transition-all space-y-3.5 relative"
                       >
-                        {/* Card Header: Unit Tag + Complete Checkbox + Remove Button */}
-                        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                        {/* Card Header: Card # + Progress Badge + Delete */}
+                        <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
                           <div className="flex items-center gap-2">
-                            <span
-                              className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
-                                isDone ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'
-                              }`}
-                            >
+                            <span className="w-6 h-6 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center font-black text-xs border border-teal-200">
                               #{idx + 1}
                             </span>
-
-                            {/* Editable Unit/Lesson type/number */}
-                            <input
-                              type="text"
-                              placeholder="e.g. Unit 1 / Lesson 1"
-                              value={m.unit || ''}
-                              onChange={e => updateFormMilestoneField(m.id, 'unit', e.target.value)}
-                              className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 outline-none w-36 focus:border-teal-500 focus:bg-white"
-                            />
+                            <span className="text-xs font-black text-slate-800">
+                              Lesson Card {idx + 1}
+                            </span>
                           </div>
 
-                          <div className="flex items-center gap-3">
-                            {/* Mark Completed Toggle */}
-                            <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                              <input
-                                type="checkbox"
-                                checked={isDone}
-                                onChange={() => toggleFormMilestoneComplete(m.id)}
-                                className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
-                              />
-                              <span
-                                className={`text-[11px] font-black ${
-                                  isDone ? 'text-emerald-700' : 'text-slate-600'
-                                }`}
-                              >
-                                {isDone ? '✓ Completed' : 'Mark Completed'}
-                              </span>
-                            </label>
+                          <div className="flex items-center gap-2.5">
+                            {/* Card Progress Badge */}
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-black border ${getProgressBadgeStyle(cardProgress)}`}>
+                              {cardProgress}% Complete
+                            </span>
 
-                            {/* Remove button */}
+                            {/* Remove Card Button */}
                             {formMilestones.length > 1 && (
                               <button
                                 type="button"
                                 onClick={() => removeFormMilestone(m.id)}
-                                className="p-1 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
-                                title="Remove this lesson/topic/unit"
+                                className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                                title="Remove this lesson card"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -1544,75 +1503,126 @@ export default function LessonPlansPage() {
                           </div>
                         </div>
 
-                        {/* Fields */}
-                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-                          {/* Title / Topic Name */}
-                          <div className="sm:col-span-8">
-                            <label className="text-[10px] text-slate-500 font-bold block mb-0.5">
-                              Lesson / Topic / Unit Title <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                              type="text"
-                              required
-                              placeholder="e.g. Introduction to Quadratic Equations & Graphing"
-                              value={m.topic}
-                              onChange={e => updateFormMilestoneField(m.id, 'topic', e.target.value)}
-                              className="w-full px-3 py-1.5 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-800 focus:border-teal-500 bg-white"
-                            />
+                        {/* Card Fields */}
+                        <div className="space-y-3">
+                          {/* 1. Lesson Title & Teaching Methodology */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            <div>
+                              <label className="text-[11px] text-slate-700 font-bold block mb-1">
+                                Lesson / Chapter Title <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                placeholder="e.g. Chapter 1: Introduction & Formulae"
+                                value={m.lesson || m.topic || ''}
+                                onChange={e => {
+                                  updateFormMilestoneField(m.id, 'lesson', e.target.value)
+                                  updateFormMilestoneField(m.id, 'topic', e.target.value)
+                                }}
+                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-800 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-[11px] text-slate-700 font-bold block mb-1">
+                                Teaching Methodology
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Interactive Problem Solving, Lab Work, Lecture"
+                                value={m.methodology || ''}
+                                onChange={e => updateFormMilestoneField(m.id, 'methodology', e.target.value)}
+                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-800 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition"
+                              />
+                            </div>
                           </div>
 
-                          {/* Methodology / Periods */}
-                          <div className="sm:col-span-4">
-                            <label className="text-[10px] text-slate-500 font-bold block mb-0.5">
-                              Methodology / Periods
+                          {/* 2. Description */}
+                          <div>
+                            <label className="text-[11px] text-slate-700 font-bold block mb-1">
+                              Description & Key Objectives
                             </label>
-                            <input
-                              type="text"
-                              placeholder="e.g. Lab Experiment, 3 Periods"
-                              value={m.methodology || ''}
-                              onChange={e => updateFormMilestoneField(m.id, 'methodology', e.target.value)}
-                              className="w-full px-3 py-1.5 border border-slate-200 rounded-xl outline-none font-semibold text-xs text-slate-700 focus:border-teal-500 bg-white"
-                            />
-                          </div>
-
-                          {/* Start Date */}
-                          <div className="sm:col-span-4">
-                            <label className="text-[10px] text-slate-400 font-bold block mb-0.5">
-                              Start Date
-                            </label>
-                            <input
-                              type="date"
-                              value={m.startDate}
-                              onChange={e => updateFormMilestoneField(m.id, 'startDate', e.target.value)}
-                              className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl outline-none font-bold text-[11px] bg-slate-50 text-slate-700 focus:bg-white"
-                            />
-                          </div>
-
-                          {/* End Date */}
-                          <div className="sm:col-span-4">
-                            <label className="text-[10px] text-slate-400 font-bold block mb-0.5">
-                              Target Completion Date
-                            </label>
-                            <input
-                              type="date"
-                              value={m.endDate}
-                              onChange={e => updateFormMilestoneField(m.id, 'endDate', e.target.value)}
-                              className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl outline-none font-bold text-[11px] bg-slate-50 text-slate-700 focus:bg-white"
-                            />
-                          </div>
-
-                          {/* Description / Objectives */}
-                          <div className="sm:col-span-4">
-                            <label className="text-[10px] text-slate-400 font-bold block mb-0.5">
-                              Key Concept / Objectives
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="Optional learning notes..."
+                            <textarea
+                              rows={2}
+                              placeholder="Write lesson curriculum breakdown, notes, and key learning concepts..."
                               value={m.description || ''}
                               onChange={e => updateFormMilestoneField(m.id, 'description', e.target.value)}
-                              className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl outline-none font-medium text-[11px] text-slate-700 bg-slate-50 focus:bg-white"
+                              className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium text-xs text-slate-800 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 resize-none transition leading-relaxed"
                             />
+                          </div>
+
+                          {/* 3. Start Date, End Date & Progress Bar */}
+                          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                            {/* Start Date */}
+                            <div className="sm:col-span-3">
+                              <label className="text-[10.5px] text-slate-500 font-bold block mb-1 flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                <span>Start Date</span>
+                              </label>
+                              <input
+                                type="date"
+                                value={m.startDate || ''}
+                                onChange={e => updateFormMilestoneField(m.id, 'startDate', e.target.value)}
+                                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl outline-none font-bold text-xs bg-slate-50 text-slate-700 focus:bg-white focus:border-teal-500"
+                              />
+                            </div>
+
+                            {/* End Date */}
+                            <div className="sm:col-span-3">
+                              <label className="text-[10.5px] text-slate-500 font-bold block mb-1 flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                <span>End Date</span>
+                              </label>
+                              <input
+                                type="date"
+                                value={m.endDate || ''}
+                                onChange={e => updateFormMilestoneField(m.id, 'endDate', e.target.value)}
+                                className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl outline-none font-bold text-xs bg-slate-50 text-slate-700 focus:bg-white focus:border-teal-500"
+                              />
+                            </div>
+
+                            {/* Progress Bar inside Card */}
+                            <div className="sm:col-span-6 p-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                              <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                                <span className="flex items-center gap-1 text-[11px]">
+                                  <Percent className="w-3 h-3 text-teal-600" />
+                                  <span>Progress:</span>
+                                </span>
+                                <span className="font-black text-teal-700 text-xs">
+                                  {cardProgress}%
+                                </span>
+                              </div>
+
+                              {/* Single Minimal Slider */}
+                              <div className="flex items-center gap-2 pt-0.5">
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="100"
+                                  step="5"
+                                  value={cardProgress}
+                                  onChange={e => updateFormMilestoneProgress(m.id, parseInt(e.target.value) || 0)}
+                                  className="w-full accent-teal-600 cursor-pointer h-2 bg-slate-200 rounded-lg"
+                                />
+                                <div className="flex gap-1 shrink-0">
+                                  {[0, 50, 100].map(v => (
+                                    <button
+                                      key={v}
+                                      type="button"
+                                      onClick={() => updateFormMilestoneProgress(m.id, v)}
+                                      className={`px-1.5 py-0.5 text-[9px] font-black rounded border transition cursor-pointer ${
+                                        cardProgress === v
+                                          ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                                      }`}
+                                    >
+                                      {v}%
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1620,14 +1630,14 @@ export default function LessonPlansPage() {
                   })}
                 </div>
 
-                {/* Big Add More Button at Bottom */}
+                {/* Big Bottom Add More Card Button */}
                 <button
                   type="button"
                   onClick={addFormMilestone}
-                  className="w-full py-2.5 border-2 border-dashed border-teal-300 hover:border-teal-500 bg-teal-50/40 hover:bg-teal-50 text-teal-700 font-black text-xs rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="w-full py-3 border-2 border-dashed border-teal-300 hover:border-teal-500 bg-teal-50/40 hover:bg-teal-50 text-teal-700 font-black text-xs rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs active:scale-[0.99]"
                 >
                   <Plus className="w-4 h-4 text-teal-600" />
-                  <span>+ Add More Lesson / Topic / Unit</span>
+                  <span>+ Add More Lesson Card</span>
                 </button>
               </div>
 

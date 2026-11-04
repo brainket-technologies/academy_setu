@@ -24,6 +24,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Folder,
+  FolderPlus,
+  FolderOpen,
   Sliders,
   Filter,
   Sparkles,
@@ -38,6 +40,24 @@ import { getInstituteAddedClasses, MasterClassWithSections } from '@/lib/institu
 // TYPES
 // ============================================================================
 export type ContentType = 'pdf' | 'excel' | 'youtube' | 'ppt' | 'url'
+
+export interface LessonFolder {
+  id: string
+  className: string
+  section: string
+  subject: string
+  lessonName: string
+  lessonNumber?: string
+  description?: string
+  color?: string
+  materialCount?: number
+  pdfCount?: number
+  videoCount?: number
+  excelCount?: number
+  pptCount?: number
+  urlCount?: number
+  createdAt?: string
+}
 
 export interface StudyMaterial {
   id: string
@@ -179,6 +199,22 @@ export default function StudyMaterialPage() {
   const [selectedClass, setSelectedClass] = useState<string | null>(null)
   const [selectedSection, setSelectedSection] = useState<string | null>(null)
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null)
+  const [selectedLesson, setSelectedLesson] = useState<string | null>(null)
+
+  // Lesson Folders state
+  const [lessons, setLessons] = useState<LessonFolder[]>([])
+  const [loadingLessons, setLoadingLessons] = useState(false)
+  const [lessonSearch, setLessonSearch] = useState('')
+
+  // Create / Edit Lesson Modal State
+  const [lessonModalOpen, setLessonModalOpen] = useState(false)
+  const [editingLesson, setEditingLesson] = useState<LessonFolder | null>(null)
+  const [lessonFormName, setLessonFormName] = useState('')
+  const [lessonFormNumber, setLessonFormNumber] = useState('')
+  const [lessonFormDesc, setLessonFormDesc] = useState('')
+  const [lessonFormColor, setLessonFormColor] = useState('teal')
+  const [submittingLesson, setSubmittingLesson] = useState(false)
+  const [deleteLessonId, setDeleteLessonId] = useState<string | null>(null)
 
   // Data states
   const [materials, setMaterials] = useState<StudyMaterial[]>([])
@@ -302,6 +338,141 @@ export default function StudyMaterialPage() {
     } catch (e) {}
   }, [])
 
+  // ── 1.5 Load Lesson Folders for selected Subject ──────────────────────────
+  const fetchLessons = useCallback(async () => {
+    if (!selectedClass || !selectedSection || !selectedSubject) {
+      setLessons([])
+      return
+    }
+    try {
+      setLoadingLessons(true)
+      const params = new URLSearchParams({
+        className: selectedClass,
+        section: selectedSection,
+        subject: selectedSubject
+      })
+      const res = await fetch(`/api/institute/study-materials/lessons?${params.toString()}`)
+      const json = await res.json()
+      if (json.success && Array.isArray(json.data)) {
+        setLessons(json.data)
+      }
+    } catch (e) {
+      console.error('Error fetching lessons:', e)
+    } finally {
+      setLoadingLessons(false)
+    }
+  }, [selectedClass, selectedSection, selectedSubject])
+
+  useEffect(() => {
+    fetchLessons()
+  }, [fetchLessons])
+
+  // Open Create Lesson Modal
+  const openCreateLessonModal = () => {
+    setEditingLesson(null)
+    setLessonFormName('')
+    setLessonFormNumber('')
+    setLessonFormDesc('')
+    setLessonFormColor('teal')
+    setLessonModalOpen(true)
+  }
+
+  // Open Edit Lesson Modal
+  const openEditLessonModal = (les: LessonFolder) => {
+    setEditingLesson(les)
+    setLessonFormName(les.lessonName)
+    setLessonFormNumber(les.lessonNumber || '')
+    setLessonFormDesc(les.description || '')
+    setLessonFormColor(les.color || 'teal')
+    setLessonModalOpen(true)
+  }
+
+  // Handle Save / Update Lesson Folder
+  const handleSaveLessonFolder = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!lessonFormName.trim() || !selectedClass || !selectedSection || !selectedSubject) {
+      showToast('Please enter a chapter name', 'error')
+      return
+    }
+
+    setSubmittingLesson(true)
+    try {
+      if (editingLesson && !editingLesson.id.startsWith('auto_')) {
+        const res = await fetch(`/api/institute/study-materials/lessons/${editingLesson.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lessonName: lessonFormName.trim(),
+            lessonNumber: '',
+            description: '',
+            color: lessonFormColor
+          })
+        })
+        const json = await res.json()
+        if (json.success) {
+          showToast('Chapter folder updated successfully!')
+          setLessonModalOpen(false)
+          setEditingLesson(null)
+          fetchLessons()
+          fetchMaterials()
+        } else {
+          showToast(json.error || 'Failed to update folder', 'error')
+        }
+      } else {
+        const res = await fetch('/api/institute/study-materials/lessons', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            className: selectedClass,
+            section: selectedSection,
+            subject: selectedSubject,
+            lessonName: lessonFormName.trim(),
+            lessonNumber: '',
+            description: '',
+            color: lessonFormColor
+          })
+        })
+        const json = await res.json()
+        if (json.success) {
+          showToast('Chapter folder created successfully!')
+          setLessonModalOpen(false)
+          setLessonFormName('')
+          setLessonFormNumber('')
+          setLessonFormDesc('')
+          fetchLessons()
+        } else {
+          showToast(json.error || 'Failed to create folder', 'error')
+        }
+      }
+    } catch (err: any) {
+      console.error(err)
+      showToast(err.message || 'An error occurred', 'error')
+    } finally {
+      setSubmittingLesson(false)
+    }
+  }
+
+  // Handle Delete Lesson Folder
+  const handleDeleteLessonConfirm = async () => {
+    if (!deleteLessonId) return
+    try {
+      const res = await fetch(`/api/institute/study-materials/lessons/${deleteLessonId}`, {
+        method: 'DELETE'
+      })
+      const json = await res.json()
+      if (json.success) {
+        showToast('Lesson folder deleted successfully!')
+        setDeleteLessonId(null)
+        fetchLessons()
+      } else {
+        showToast(json.error || 'Failed to delete folder', 'error')
+      }
+    } catch (err: any) {
+      console.error(err)
+      showToast('Error deleting folder', 'error')
+    }
+  }
+
   // ── 2. Load Study Materials ───────────────────────────────────────────────
   const fetchMaterials = useCallback(async () => {
     try {
@@ -344,16 +515,84 @@ export default function StudyMaterialPage() {
     return availableSubjects.filter(s => s.toLowerCase().includes(subjectSearch.toLowerCase().trim()))
   }, [availableSubjects, subjectSearch])
 
-  // Materials for current Class + Section + Subject
+  // Total materials for the chosen Subject (regardless of lesson filter)
+  const allSubjectMaterials = useMemo(() => {
+    if (!selectedClass || !selectedSection || !selectedSubject) return []
+    return materials.filter(m =>
+      checkClassMatch(m.className, selectedClass) &&
+      m.section.toLowerCase() === selectedSection.toLowerCase() &&
+      m.subject.toLowerCase() === selectedSubject.toLowerCase()
+    )
+  }, [materials, selectedClass, selectedSection, selectedSubject])
+
+  // Lessons list merged from DB and auto-discovered chapter topics in materials
+  const currentSubjectLessons = useMemo(() => {
+    if (!selectedClass || !selectedSection || !selectedSubject) return []
+
+    const map = new Map<string, LessonFolder>()
+
+    // 1. Lessons from DB
+    lessons.forEach(l => {
+      if (
+        checkClassMatch(l.className, selectedClass) &&
+        l.section.toLowerCase() === selectedSection.toLowerCase() &&
+        l.subject.toLowerCase() === selectedSubject.toLowerCase()
+      ) {
+        map.set(l.lessonName.toLowerCase().trim(), l)
+      }
+    })
+
+    // 2. Auto-discover from materials chapterTopic if not already in DB
+    allSubjectMaterials.forEach(m => {
+      const folderName = (m.chapterTopic || (m as any).lessonFolder || '').trim()
+      if (folderName && !map.has(folderName.toLowerCase())) {
+        map.set(folderName.toLowerCase(), {
+          id: `auto_${folderName}`,
+          className: selectedClass,
+          section: selectedSection,
+          subject: selectedSubject,
+          lessonName: folderName,
+          lessonNumber: folderName.toLowerCase().startsWith('chapter') || folderName.toLowerCase().startsWith('unit') || folderName.toLowerCase().startsWith('lesson')
+            ? folderName.split(':')[0].trim()
+            : '',
+          description: 'Study materials, notes, and resources',
+          color: 'teal'
+        })
+      }
+    })
+
+    return Array.from(map.values())
+  }, [lessons, allSubjectMaterials, selectedClass, selectedSection, selectedSubject])
+
+  // Filtered lessons by search
+  const filteredLessons = useMemo(() => {
+    if (!lessonSearch.trim()) return currentSubjectLessons
+    const q = lessonSearch.toLowerCase().trim()
+    return currentSubjectLessons.filter(
+      l =>
+        l.lessonName.toLowerCase().includes(q) ||
+        (l.lessonNumber && l.lessonNumber.toLowerCase().includes(q)) ||
+        (l.description && l.description.toLowerCase().includes(q))
+    )
+  }, [currentSubjectLessons, lessonSearch])
+
+  // Helper: get materials belonging to a specific lesson folder
+  const getMaterialsForLesson = (lessonName: string) => {
+    return allSubjectMaterials.filter(m => {
+      const folder = (m.chapterTopic || (m as any).lessonFolder || '').toLowerCase().trim()
+      return folder === lessonName.toLowerCase().trim()
+    })
+  }
+
+  // Materials inside currently selected lesson folder (Content level)
   const currentSubjectMaterials = useMemo(() => {
     if (!selectedClass || !selectedSection || !selectedSubject) return []
 
-    return materials.filter(m => {
-      const matchesClass = checkClassMatch(m.className, selectedClass)
-      const matchesSection = m.section.toLowerCase() === selectedSection.toLowerCase()
-      const matchesSubject = m.subject.toLowerCase() === selectedSubject.toLowerCase()
-
-      if (!matchesClass || !matchesSection || !matchesSubject) return false
+    return allSubjectMaterials.filter(m => {
+      if (selectedLesson) {
+        const folder = (m.chapterTopic || (m as any).lessonFolder || '').toLowerCase().trim()
+        if (folder !== selectedLesson.toLowerCase().trim()) return false
+      }
 
       if (selectedTypeFilter !== 'all' && m.contentType.toLowerCase() !== selectedTypeFilter.toLowerCase()) {
         return false
@@ -371,7 +610,7 @@ export default function StudyMaterialPage() {
 
       return true
     })
-  }, [materials, selectedClass, selectedSection, selectedSubject, selectedTypeFilter, searchQuery])
+  }, [allSubjectMaterials, selectedClass, selectedSection, selectedSubject, selectedLesson, selectedTypeFilter, searchQuery])
 
   // Helper counts
   const getClassMaterialCount = (className: string) => {
@@ -396,7 +635,7 @@ export default function StudyMaterialPage() {
     setEditingItem(null)
     setFormType(presetType || 'pdf')
     setFormTitle('')
-    setFormChapterTopic('')
+    setFormChapterTopic(selectedLesson || '')
     setFormUrl('')
     setFormFileName('')
     setFormFileSize('')
@@ -467,13 +706,15 @@ export default function StudyMaterialPage() {
         else defaultFileSize = 'Web Resource'
       }
 
+      const resolvedLessonFolder = formChapterTopic.trim() || selectedLesson || ''
       const payload = {
         className: selectedClass,
         section: selectedSection,
         subject: selectedSubject,
         title: formTitle.trim(),
         contentType: formType,
-        chapterTopic: formChapterTopic.trim(),
+        chapterTopic: resolvedLessonFolder,
+        lessonFolder: resolvedLessonFolder,
         url: formUrl.trim(),
         fileName: defaultFileName,
         fileSize: defaultFileSize,
@@ -509,6 +750,7 @@ export default function StudyMaterialPage() {
 
       setAddEditModalOpen(false)
       fetchMaterials()
+      fetchLessons()
     } catch (err: any) {
       setFormError(err.message || 'An error occurred while saving.')
     } finally {
@@ -527,6 +769,7 @@ export default function StudyMaterialPage() {
       if (res.ok && data.success) {
         showToast('Study material deleted successfully.')
         setMaterials(prev => prev.filter(m => m.id !== deletingId))
+        fetchLessons()
       } else {
         showToast(data.error || 'Failed to delete material', 'error')
       }
@@ -596,8 +839,9 @@ export default function StudyMaterialPage() {
     if (!selectedClass) return 'classes'
     if (!selectedSection) return 'sections'
     if (!selectedSubject) return 'subjects'
+    if (!selectedLesson) return 'lessons'
     return 'content'
-  }, [selectedClass, selectedSection, selectedSubject])
+  }, [selectedClass, selectedSection, selectedSubject, selectedLesson])
 
   // ============================================================================
   // RENDER
@@ -641,6 +885,7 @@ export default function StudyMaterialPage() {
                 setSelectedClass(null)
                 setSelectedSection(null)
                 setSelectedSubject(null)
+                setSelectedLesson(null)
               }}
               className={`flex items-center gap-1.5 font-medium transition-colors ${
                 currentLevel === 'classes'
@@ -659,6 +904,7 @@ export default function StudyMaterialPage() {
                   onClick={() => {
                     setSelectedSection(null)
                     setSelectedSubject(null)
+                    setSelectedLesson(null)
                   }}
                   className={`flex items-center gap-1 font-medium transition-colors ${
                     currentLevel === 'sections'
@@ -678,6 +924,7 @@ export default function StudyMaterialPage() {
                 <button
                   onClick={() => {
                     setSelectedSubject(null)
+                    setSelectedLesson(null)
                   }}
                   className={`flex items-center gap-1 font-medium transition-colors ${
                     currentLevel === 'subjects'
@@ -694,9 +941,28 @@ export default function StudyMaterialPage() {
             {selectedSubject && (
               <>
                 <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
-                <span className="flex items-center gap-1 font-semibold text-[#007A78] bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-100">
-                  <BookOpen className="w-4 h-4 text-[#007A78]" />
+                <button
+                  onClick={() => {
+                    setSelectedLesson(null)
+                  }}
+                  className={`flex items-center gap-1 font-medium transition-colors ${
+                    currentLevel === 'lessons'
+                      ? 'text-[#007A78] font-bold bg-teal-50 px-2 py-0.5 rounded-lg border border-teal-100'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <BookOpen className="w-4 h-4" />
                   <span>{selectedSubject}</span>
+                </button>
+              </>
+            )}
+
+            {selectedLesson && (
+              <>
+                <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                <span className="flex items-center gap-1 font-bold text-[#007A78] bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-100">
+                  <Folder className="w-4 h-4 text-[#007A78]" />
+                  <span>{selectedLesson}</span>
                 </span>
               </>
             )}
@@ -706,15 +972,18 @@ export default function StudyMaterialPage() {
           {currentLevel !== 'classes' && (
             <button
               onClick={() => {
-                if (currentLevel === 'content') setSelectedSubject(null)
+                if (currentLevel === 'content') setSelectedLesson(null)
+                else if (currentLevel === 'lessons') setSelectedSubject(null)
                 else if (currentLevel === 'subjects') setSelectedSection(null)
                 else if (currentLevel === 'sections') setSelectedClass(null)
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>
                 {currentLevel === 'content'
+                  ? 'Back to Lessons'
+                  : currentLevel === 'lessons'
                   ? 'Back to Subjects'
                   : currentLevel === 'subjects'
                   ? 'Back to Sections'
@@ -963,6 +1232,7 @@ export default function StudyMaterialPage() {
                     key={sub}
                     onClick={() => {
                       setSelectedSubject(sub)
+                      setSelectedLesson(null)
                     }}
                     className="group bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md hover:border-[#007A78] transition-all cursor-pointer flex flex-col justify-between"
                   >
@@ -1009,7 +1279,202 @@ export default function StudyMaterialPage() {
           </div>
         )}
 
-        {/* ── LEVEL 4: STUDY MATERIAL CONTENT MANAGER ───────────────────────── */}
+        {/* ── LEVEL 4: LESSON / CHAPTER FOLDERS VIEW ────────────────────────── */}
+        {currentLevel === 'lessons' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {/* Header Banner */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-teal-50 text-[#007A78] text-xs font-semibold mb-2">
+                  <Layers className="w-3.5 h-3.5" /> {selectedClass} • {selectedSection} • {selectedSubject}
+                </div>
+                <h1 className="text-2xl font-bold text-slate-900">
+                  {selectedSubject} Chapters & Folders
+                </h1>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                  Create chapter folders to organize your study materials, then click inside to upload content.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  onClick={() => openCreateLessonModal()}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#007A78] hover:bg-teal-700 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-sm transition active:scale-95 cursor-pointer"
+                >
+                  <FolderPlus className="w-4 h-4" />
+                  <span>+ Create Chapter Folder</span>
+                </button>
+                <button
+                  onClick={() => setSelectedSubject(null)}
+                  className="px-3.5 py-2.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Change Subject
+                </button>
+              </div>
+            </div>
+
+            {/* Lesson Search & Folder Count */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-800">
+                  Chapter Folders ({filteredLessons.length})
+                </h2>
+                <span className="text-xs font-medium text-slate-400">
+                  • {allSubjectMaterials.length} total resources in {selectedSubject}
+                </span>
+              </div>
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search chapter folder..."
+                  value={lessonSearch}
+                  onChange={e => setLessonSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:border-transparent transition"
+                />
+              </div>
+            </div>
+
+            {/* Lesson Folders Grid */}
+            {filteredLessons.length === 0 ? (
+              <div className="bg-white rounded-2xl p-10 border border-slate-200/80 text-center flex flex-col items-center justify-center max-w-lg mx-auto shadow-sm">
+                <div className="w-16 h-16 rounded-2xl bg-teal-50 text-[#007A78] flex items-center justify-center mb-4 shadow-sm">
+                  <FolderPlus className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-1">
+                  No Chapter Folders Yet
+                </h3>
+                <p className="text-xs text-slate-500 mb-5 max-w-sm">
+                  Create your first chapter folder to organize and upload study materials inside.
+                </p>
+                <button
+                  onClick={() => openCreateLessonModal()}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#007A78] hover:bg-teal-700 text-white font-semibold text-xs rounded-xl shadow-sm transition cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Create First Chapter Folder</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {filteredLessons.map(lesson => {
+                  const lessonMaterials = getMaterialsForLesson(lesson.lessonName)
+                  const count = lessonMaterials.length
+                  const pdfCount = lessonMaterials.filter(m => m.contentType === 'pdf').length
+                  const videoCount = lessonMaterials.filter(m => m.contentType === 'youtube').length
+                  const otherCount = count - pdfCount - videoCount
+
+                  const colorMap: Record<string, { iconBg: string; borderHover: string; text: string }> = {
+                    blue: { iconBg: 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white', borderHover: 'hover:border-blue-500', text: 'text-blue-600' },
+                    indigo: { iconBg: 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white', borderHover: 'hover:border-indigo-500', text: 'text-indigo-600' },
+                    violet: { iconBg: 'bg-violet-50 text-violet-600 group-hover:bg-violet-600 group-hover:text-white', borderHover: 'hover:border-violet-500', text: 'text-violet-600' },
+                    emerald: { iconBg: 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white', borderHover: 'hover:border-emerald-500', text: 'text-emerald-600' },
+                    amber: { iconBg: 'bg-amber-50 text-amber-600 group-hover:bg-amber-500 group-hover:text-white', borderHover: 'hover:border-amber-500', text: 'text-amber-600' },
+                    rose: { iconBg: 'bg-rose-50 text-rose-600 group-hover:bg-rose-500 group-hover:text-white', borderHover: 'hover:border-rose-500', text: 'text-rose-600' },
+                    teal: { iconBg: 'bg-teal-50 text-[#007A78] group-hover:bg-[#007A78] group-hover:text-white', borderHover: 'hover:border-[#007A78]', text: 'text-[#007A78]' }
+                  }
+                  const theme = colorMap[lesson.color || 'teal'] || colorMap.teal
+
+                  return (
+                    <div
+                      key={lesson.id || lesson.lessonName}
+                      className={`group bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md ${theme.borderHover} transition-all flex flex-col justify-between`}
+                    >
+                      <div>
+                        {/* Folder Header */}
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div
+                            onClick={() => setSelectedLesson(lesson.lessonName)}
+                            className={`w-12 h-12 rounded-xl ${theme.iconBg} flex items-center justify-center transition-all shadow-sm cursor-pointer`}
+                          >
+                            <Folder className="w-6 h-6" />
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700">
+                              {count} {count === 1 ? 'Resource' : 'Resources'}
+                            </span>
+                            {!lesson.id.startsWith('auto_') && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    openEditLessonModal(lesson)
+                                  }}
+                                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                                  title="Edit Folder"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    setDeleteLessonId(lesson.id)
+                                  }}
+                                  className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                                  title="Delete Folder"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Title */}
+                        <div
+                          onClick={() => setSelectedLesson(lesson.lessonName)}
+                          className="cursor-pointer"
+                        >
+                          <h3 className="text-base font-bold text-slate-900 group-hover:text-[#007A78] transition-colors line-clamp-2">
+                            {lesson.lessonName}
+                          </h3>
+                        </div>
+
+                        {/* Breakdown Badges */}
+                        <div className="flex flex-wrap gap-1.5 mt-3">
+                          {pdfCount > 0 && (
+                            <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-rose-600 bg-rose-50 px-2 py-0.5 rounded">
+                              <FileText className="w-3 h-3" /> {pdfCount} PDF
+                            </span>
+                          )}
+                          {videoCount > 0 && (
+                            <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded">
+                              <Play className="w-2.5 h-2.5 fill-red-600" /> {videoCount} Video
+                            </span>
+                          )}
+                          {otherCount > 0 && (
+                            <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                              +{otherCount} Other
+                            </span>
+                          )}
+                          {count === 0 && (
+                            <span className="text-[10.5px] text-slate-400">Empty folder</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Card Footer */}
+                      <div
+                        onClick={() => setSelectedLesson(lesson.lessonName)}
+                        className={`mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold ${theme.text} cursor-pointer`}
+                      >
+                        <span>Open Folder Content</span>
+                        <span className="inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                          Open <ChevronRight className="w-4 h-4" />
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── LEVEL 5: STUDY MATERIAL CONTENT MANAGER (INSIDE LESSON FOLDER) ── */}
         {currentLevel === 'content' && (
           <div className="space-y-6 animate-in fade-in duration-200">
             {/* Header with Quick Subject Switcher & Add Button */}
@@ -1027,11 +1492,15 @@ export default function StudyMaterialPage() {
                       {selectedSubject}
                     </span>
                   </div>
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-md mb-1 w-fit border border-teal-200/60">
+                    <Folder className="w-3.5 h-3.5 text-[#007A78]" />
+                    <span>Folder: {selectedLesson}</span>
+                  </div>
                   <h1 className="text-2xl font-bold text-slate-900">
-                    {selectedSubject} Study Materials
+                    {selectedLesson} — Study Materials
                   </h1>
                   <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                    Upload and organize PDFs, Excel workbooks, YouTube video lectures, PPT slides, and web links.
+                    Upload and manage notes, PDFs, YouTube video lectures, spreadsheets, and links inside this lesson folder.
                   </p>
                 </div>
 
@@ -1039,16 +1508,16 @@ export default function StudyMaterialPage() {
                 <div className="flex items-center gap-3 flex-wrap w-full lg:w-auto">
                   <button
                     onClick={() => openAddModal()}
-                    className="flex-1 lg:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#007A78] hover:bg-teal-700 text-white font-semibold text-sm rounded-xl shadow-sm transition active:scale-95"
+                    className="flex-1 lg:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#007A78] hover:bg-teal-700 text-white font-semibold text-sm rounded-xl shadow-sm transition active:scale-95 cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>+ Add Study Material</span>
+                    <span>+ Upload to this Lesson</span>
                   </button>
                   <button
-                    onClick={() => setSelectedSubject(null)}
-                    className="px-3.5 py-2.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                    onClick={() => setSelectedLesson(null)}
+                    className="px-3.5 py-2.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer flex items-center gap-1.5"
                   >
-                    Change Subject
+                    <ArrowLeft className="w-3.5 h-3.5" /> Back to Lessons
                   </button>
                 </div>
               </div>
@@ -1059,7 +1528,10 @@ export default function StudyMaterialPage() {
                 {availableSubjects.map(sub => (
                   <button
                     key={sub}
-                    onClick={() => setSelectedSubject(sub)}
+                    onClick={() => {
+                      setSelectedSubject(sub)
+                      setSelectedLesson(null)
+                    }}
                     className={`shrink-0 px-3 py-1 rounded-lg text-xs font-medium transition ${
                       sub === selectedSubject
                         ? 'bg-[#007A78] text-white shadow-sm'
@@ -1355,7 +1827,7 @@ export default function StudyMaterialPage() {
                 </div>
               </div>
 
-              {/* Title */}
+              {/* 1. Material Title */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   Material Title *
@@ -1365,7 +1837,7 @@ export default function StudyMaterialPage() {
                   required
                   placeholder={
                     formType === 'youtube'
-                      ? 'e.g. Chapter 4 Factorization & Parabolic Roots Lecture'
+                      ? 'e.g. Factorization & Parabolic Roots Video Lecture'
                       : 'e.g. Complete Revision Formula Notes & Solved Papers'
                   }
                   value={formTitle}
@@ -1374,67 +1846,43 @@ export default function StudyMaterialPage() {
                 />
               </div>
 
-              {/* Chapter / Topic */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Chapter / Unit / Topic
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Chapter 4: Quadratic Equations"
-                  value={formChapterTopic}
-                  onChange={e => setFormChapterTopic(e.target.value)}
-                  className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:bg-white transition"
-                />
-              </div>
-
-              {/* URL or Resource Link */}
+              {/* 2. File Link & Choose File Option */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   {formType === 'youtube'
                     ? 'YouTube Video Link *'
                     : formType === 'url'
-                    ? 'Website or Online Resource URL *'
-                    : 'File URL / Cloud Storage Link *'}
+                    ? 'Website or Resource Link *'
+                    : 'File Link *'}
                 </label>
-                <div className="relative">
-                  <input
-                    type="url"
-                    required
-                    placeholder={
-                      formType === 'youtube'
-                        ? 'https://www.youtube.com/watch?v=... or https://youtu.be/...'
-                        : formType === 'pdf'
-                        ? 'https://example.com/notes.pdf'
-                        : formType === 'excel'
-                        ? 'https://example.com/spreadsheet.xlsx'
-                        : formType === 'ppt'
-                        ? 'https://example.com/presentation.pptx'
-                        : 'https://www.khanacademy.org/...'
-                    }
-                    value={formUrl}
-                    onChange={e => setFormUrl(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:bg-white transition"
-                  />
-                  <Link2 className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                </div>
-                {formType === 'youtube' && (
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Paste any standard YouTube video URL. Students can watch it embedded directly within the app.
-                  </p>
-                )}
-              </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="url"
+                      required
+                      placeholder={
+                        formType === 'youtube'
+                          ? 'https://www.youtube.com/watch?v=... or https://youtu.be/...'
+                          : formType === 'pdf'
+                          ? 'https://example.com/notes.pdf'
+                          : formType === 'excel'
+                          ? 'https://example.com/sheet.xlsx'
+                          : formType === 'ppt'
+                          ? 'https://example.com/presentation.pptx'
+                          : 'https://example.com/resource'
+                      }
+                      value={formUrl}
+                      onChange={e => setFormUrl(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:bg-white transition"
+                    />
+                    <Link2 className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  </div>
 
-              {/* Optional Local File Selector simulation for PDF/Excel/PPT */}
-              {formType !== 'youtube' && formType !== 'url' && (
-                <div className="p-3 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-                  <div className="flex items-center justify-between gap-3 text-xs text-slate-600">
-                    <div className="flex items-center gap-2">
+                  {/* Choose Option (Choose File from Device) */}
+                  {formType !== 'youtube' && formType !== 'url' && (
+                    <label className="shrink-0 cursor-pointer px-4 py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl font-medium text-xs sm:text-sm text-slate-700 transition flex items-center justify-center gap-1.5 active:scale-95 shadow-sm">
                       <Upload className="w-4 h-4 text-[#007A78]" />
-                      <span>Or pick a file from device (populates name & size):</span>
-                    </div>
-                    <label className="cursor-pointer px-3 py-1 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg font-medium text-[#007A78] transition">
-                      Choose File
+                      <span>Choose File</span>
                       <input
                         type="file"
                         className="hidden"
@@ -1451,79 +1899,43 @@ export default function StudyMaterialPage() {
                             setFormFileName(file.name)
                             const sizeInMb = (file.size / (1024 * 1024)).toFixed(1)
                             setFormFileSize(`${sizeInMb} MB`)
-                            if (!formTitle) {
+                            if (!formTitle.trim()) {
                               setFormTitle(file.name.replace(/\.[^/.]+$/, ''))
                             }
-                            if (!formUrl) {
-                              setFormUrl(`https://storage.institute.edu/materials/${file.name}`)
-                            }
+                            setFormUrl(`https://storage.institute.edu/materials/${file.name}`)
                           }
                         }}
                       />
                     </label>
-                  </div>
+                  )}
                 </div>
-              )}
 
-              {/* File Name & Size Inputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Display File Name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Quadratic_Formulas.pdf"
-                    value={formFileName}
-                    onChange={e => setFormFileName(e.target.value)}
-                    className="w-full px-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:bg-white transition"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    File Size / Duration
-                  </label>
-                  <input
-                    type="text"
-                    placeholder={formType === 'youtube' ? 'e.g. 24 mins' : 'e.g. 2.4 MB'}
-                    value={formFileSize}
-                    onChange={e => setFormFileSize(e.target.value)}
-                    className="w-full px-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:bg-white transition"
-                  />
-                </div>
+                {formFileName && (
+                  <div className="text-[11px] text-teal-700 font-medium mt-1.5 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
+                    <span>Selected: {formFileName} {formFileSize ? `(${formFileSize})` : ''}</span>
+                  </div>
+                )}
+                {formType === 'youtube' && (
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Paste any standard YouTube link to embed it for students.
+                  </p>
+                )}
               </div>
 
-              {/* Description */}
+              {/* 3. Description Only */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Detailed Notes & Instructions
+                  Description
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="Provide study instructions, key theorems covered, or revision highlights..."
+                  placeholder="Enter brief description or instructions for students..."
                   value={formDescription}
                   onChange={e => setFormDescription(e.target.value)}
                   className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:bg-white transition resize-none"
                 />
               </div>
-
-              {/* Allow Download Switch (For files) */}
-              {formType !== 'youtube' && (
-                <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-                  <div>
-                    <div className="text-xs font-bold text-slate-800">Allow Student Download</div>
-                    <div className="text-[11px] text-slate-500">
-                      When enabled, students can download this file directly to their devices.
-                    </div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={formAllowDownload}
-                    onChange={e => setFormAllowDownload(e.target.checked)}
-                    className="w-5 h-5 accent-[#007A78] rounded cursor-pointer"
-                  />
-                </div>
-              )}
 
               {/* Modal Buttons */}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
@@ -1653,6 +2065,149 @@ export default function StudyMaterialPage() {
                 type="button"
                 onClick={handleDeleteConfirm}
                 className="px-5 py-2.5 text-sm font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-md transition"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 4: CREATE / EDIT LESSON FOLDER ────────────────────────── */}
+      {lessonModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-200">
+            {/* Modal Header */}
+            <div className="p-6 bg-gradient-to-r from-teal-50 to-white border-b border-teal-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#007A78] text-white flex items-center justify-center shadow-md">
+                  <FolderPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                    {editingLesson ? 'Edit Chapter Folder' : 'Create Chapter Folder'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {selectedClass} • {selectedSection} • {selectedSubject}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setLessonModalOpen(false)
+                  setEditingLesson(null)
+                }}
+                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSaveLessonFolder} className="p-6 space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                  Chapter Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Chapter 1: Introduction or Chemical Reactions"
+                  value={lessonFormName}
+                  onChange={e => setLessonFormName(e.target.value)}
+                  className="w-full px-4 py-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:bg-white transition"
+                  autoFocus
+                />
+              </div>
+
+              {/* Color Scheme Picker */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                  Folder Color
+                </label>
+                <div className="flex items-center gap-2.5 pt-1">
+                  {[
+                    { id: 'teal', bg: 'bg-[#007A78]', name: 'Teal' },
+                    { id: 'blue', bg: 'bg-blue-600', name: 'Blue' },
+                    { id: 'indigo', bg: 'bg-indigo-600', name: 'Indigo' },
+                    { id: 'violet', bg: 'bg-violet-600', name: 'Violet' },
+                    { id: 'emerald', bg: 'bg-emerald-600', name: 'Emerald' },
+                    { id: 'amber', bg: 'bg-amber-500', name: 'Amber' },
+                    { id: 'rose', bg: 'bg-rose-500', name: 'Rose' }
+                  ].map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      title={c.name}
+                      onClick={() => setLessonFormColor(c.id)}
+                      className={`w-9 h-9 rounded-full ${c.bg} transition-all flex items-center justify-center cursor-pointer ${
+                        lessonFormColor === c.id ? 'ring-2 ring-offset-2 ring-[#007A78] scale-110 shadow-md' : 'opacity-70 hover:opacity-100'
+                      }`}
+                    >
+                      {lessonFormColor === c.id && <Check className="w-4 h-4 text-white" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex items-center justify-end gap-3 pt-5 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLessonModalOpen(false)
+                    setEditingLesson(null)
+                  }}
+                  className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingLesson}
+                  className="px-6 py-2.5 text-sm font-semibold bg-[#007A78] hover:bg-teal-700 text-white rounded-xl shadow-md transition disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+                >
+                  {submittingLesson ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" /> {editingLesson ? 'Update Chapter' : 'Create Chapter'}
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 5: DELETE LESSON FOLDER CONFIRMATION ───────────────────── */}
+      {deleteLessonId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl border border-slate-200 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-7 h-7" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">Delete Lesson Folder</h3>
+            <p className="text-xs sm:text-sm text-slate-500 mt-2 mb-6">
+              Are you sure you want to delete this folder? Any study materials inside will remain in the subject catalog.
+            </p>
+
+            <div className="flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteLessonId(null)}
+                className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteLessonConfirm}
+                className="px-5 py-2.5 text-sm font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-md transition cursor-pointer"
               >
                 Confirm Delete
               </button>

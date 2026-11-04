@@ -411,3 +411,46 @@ export async function deleteHomeworkTask(taskId: string) {
     return { success: false, error: err.message }
   }
 }
+
+// 8. Reschedule homework task (update assign_date, submission_date, and optionally remark)
+export async function rescheduleHomeworkTask(
+  taskId: string,
+  newAssignDate: string,
+  newSubmissionDate: string,
+  rescheduleReason?: string
+) {
+  const session = await getSession('institute_session')
+  if (!session?.userId) return { success: false, error: 'Unauthorized' }
+
+  try {
+    await ensureHomeworkTables()
+
+    await pool.query(`
+      UPDATE institute_homework_tasks
+      SET assign_date = $1,
+          submission_date = $2,
+          description = CASE
+            WHEN $3::text IS NOT NULL AND $3::text != '' THEN description || ' (Rescheduled: ' || $3 || ')'
+            ELSE description
+          END,
+          updated_at = NOW()
+      WHERE institution_id = $4 AND id = $5
+    `, [newAssignDate, newSubmissionDate, rescheduleReason || null, session.userId, taskId])
+
+    await pool.query(`
+      UPDATE institute_homework_submissions
+      SET rescheduled_date = $1,
+          status = 'Rescheduled',
+          remark = CASE
+            WHEN $2::text IS NOT NULL AND $2::text != '' THEN COALESCE(remark, '') || ' [Rescheduled: ' || $2 || ']'
+            ELSE remark
+          END,
+          updated_at = NOW()
+      WHERE institution_id = $3 AND task_id = $4
+    `, [newSubmissionDate, rescheduleReason || null, session.userId, taskId])
+
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}

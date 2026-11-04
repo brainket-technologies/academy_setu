@@ -1509,9 +1509,9 @@ export const CertificateDesign4: React.FC<CertificateCustomProps> = ({
   const isHidden = (field: string) => hiddenFields.includes(field)
   const primary = themeColor || '#1e293b'
   const borderTint = hexToRgba(primary, 0.35)
-  const effectivePrincipalName = principalName || 'Dean.Academics'
+  const effectivePrincipalName = principalName || ''
   const effectivePrincipalLabel = principalLabel || awarder || 'Principal & Academic Dean'
-  const effectiveSecondaryName = secondarySignName || customLabels['secondarySignName'] || 'Authorized Signatory'
+  const effectiveSecondaryName = secondarySignName || customLabels['secondarySignName'] || ''
   const effectiveSecondaryLabel = secondarySignLabel || customLabels['secondarySignLabel'] || 'Authority Signature'
 
   return (

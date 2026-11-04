@@ -1303,14 +1303,14 @@ function AddSetupWizardContent() {
   // Signatures & Authority State
   const [certPrincipalSignLabel, setCertPrincipalSignLabel] = useState('Principal & Director')
   const [certPrincipalName, setCertPrincipalName] = useState('')
-  const [certTeacherSignLabel, setCertTeacherSignLabel] = useState("Class Teacher's Sign")
-  const [certTeacherSignName, setCertTeacherSignName] = useState('Mrs. Kavita Verma')
+  const [certTeacherSignLabel, setCertTeacherSignLabel] = useState('Class Teacher')
+  const [certTeacherSignName, setCertTeacherSignName] = useState('')
   const [certControllerSignLabel, setCertControllerSignLabel] = useState('Exam Controller')
-  const [certControllerSignName, setCertControllerSignName] = useState('Mr. R. K. Saxena')
+  const [certControllerSignName, setCertControllerSignName] = useState('')
   const [certSecondarySignLabel, setCertSecondarySignLabel] = useState('Authority Signature')
-  const [certSecondarySignName, setCertSecondarySignName] = useState('Authorized Signatory')
-  const [certParentSignLabel, setCertParentSignLabel] = useState("Parent's Signature")
-  const [certParentSignName, setCertParentSignName] = useState('Parent / Guardian')
+  const [certSecondarySignName, setCertSecondarySignName] = useState('')
+  const [certParentSignLabel, setCertParentSignLabel] = useState('Parent / Guardian')
+  const [certParentSignName, setCertParentSignName] = useState('')
   const [certStudentSignLabel, setCertStudentSignLabel] = useState("Student's Signature")
   const [certSealLabel, setCertSealLabel] = useState('ACADEMIC EXCELLENCE')
   const [certDateLabel, setCertDateLabel] = useState('Date of Issue')
@@ -1406,14 +1406,14 @@ function AddSetupWizardContent() {
       seal_label: certSealLabel || 'ACADEMIC EXCELLENCE',
       date_label: certDateLabel || 'Date of Issue',
       principalSignLabel: certPrincipalSignLabel || 'Principal & Director',
-      teacherSignLabel: certTeacherSignLabel || "Class Teacher's Sign",
-      teacherSignName: certTeacherSignName || 'Mrs. Kavita Verma',
+      teacherSignLabel: certTeacherSignLabel || 'Class Teacher',
+      teacherSignName: certTeacherSignName || '',
       controllerSignLabel: certControllerSignLabel || 'Exam Controller',
-      controllerSignName: certControllerSignName || 'Mr. R. K. Saxena',
-      secondarySignName: certSecondarySignName || 'Authorized Signatory',
+      controllerSignName: certControllerSignName || '',
+      secondarySignName: certSecondarySignName || '',
       secondarySignLabel: certSecondarySignLabel || 'Authority Signature',
-      parentSignLabel: certParentSignLabel || "Parent's Signature",
-      parentSignName: certParentSignName || 'Parent / Guardian',
+      parentSignLabel: certParentSignLabel || 'Parent / Guardian',
+      parentSignName: certParentSignName || '',
       studentSignLabel: certStudentSignLabel || "Student's Signature",
     }
   }, [
@@ -3990,7 +3990,7 @@ function AddSetupWizardContent() {
                               <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                                 {idx + 1}
                               </span>
-                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">Principal Sign</span>
+                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">{admitPrincipalSignLabel || 'Principal Sign'}</span>
                               <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                 admitDisplayFields.principalSign 
                                   ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
@@ -4086,7 +4086,7 @@ function AddSetupWizardContent() {
                               <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                                 {idx + 1}
                               </span>
-                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">Teacher Sign</span>
+                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">{admitTeacherSignLabel || 'Teacher Sign'}</span>
                               <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                 admitDisplayFields.teacherSign 
                                   ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
@@ -4161,7 +4161,7 @@ function AddSetupWizardContent() {
                               <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                                 {idx + 1}
                               </span>
-                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">Student Sign</span>
+                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">{admitStudentSignLabel || 'Student Sign'}</span>
                               <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                 admitDisplayFields.studentSign 
                                   ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
@@ -4236,7 +4236,7 @@ function AddSetupWizardContent() {
                               <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                                 {idx + 1}
                               </span>
-                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">Parent Sign</span>
+                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">{admitParentSignLabel || 'Parent Sign'}</span>
                               <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                 admitDisplayFields.parentSign 
                                   ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
@@ -5494,7 +5494,7 @@ function AddSetupWizardContent() {
                               <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                                 {idx + 1}
                               </span>
-                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">Principal Sign</span>
+                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">{marksheetPrincipalSignLabel || 'Principal Sign'}</span>
                               <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                 columnsList.principalSign 
                                   ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
@@ -5596,7 +5596,7 @@ function AddSetupWizardContent() {
                               <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                                 {idx + 1}
                               </span>
-                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">Class Teacher Sign</span>
+                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">{marksheetTeacherSignLabel || 'Class Teacher Sign'}</span>
                               <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                 columnsList.teacherSign 
                                   ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
@@ -5674,7 +5674,7 @@ function AddSetupWizardContent() {
                               <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                                 {idx + 1}
                               </span>
-                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">Exam Controller Sign</span>
+                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">{marksheetControllerSignLabel || 'Exam Controller Sign'}</span>
                               <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                 columnsList.controllerSign 
                                   ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
@@ -5752,7 +5752,7 @@ function AddSetupWizardContent() {
                               <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                                 {idx + 1}
                               </span>
-                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">Parent Sign</span>
+                              <span className="text-xs font-black text-slate-800 dark:text-slate-100">{marksheetParentSignLabel || 'Parent Sign'}</span>
                               <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                 columnsList.parentSign 
                                   ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
@@ -6695,13 +6695,13 @@ function AddSetupWizardContent() {
                         session={session || '2025-2026'}
                         date={certDateOfIssue || dateOfExam || '15 October 2026'}
                         awarder={certPrincipalSignLabel || "Principal & Director"}
-                        principalName={certPrincipalName || principalName || 'Dr. S. K. Sharma'}
+                        principalName={certPrincipalName || principalName || ''}
                         principalLabel={certPrincipalSignLabel || "Principal & Director"}
                         teacherSignName={certTeacherSignName}
                         teacherSignLabel={certTeacherSignLabel}
                         controllerSignName={certControllerSignName}
                         controllerSignLabel={certControllerSignLabel}
-                        secondarySignName={certSecondarySignName || 'Authorized Signatory'}
+                        secondarySignName={certSecondarySignName || ''}
                         secondarySignLabel={certSecondarySignLabel || 'Authority Signature'}
                         parentSignName={certParentSignName}
                         parentSignLabel={certParentSignLabel}
@@ -7332,7 +7332,9 @@ function AddSetupWizardContent() {
                                   <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                                     {idx + 1}
                                   </span>
-                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">Principal Sign</span>
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">
+                                    {certPrincipalSignLabel || 'Principal Sign'}
+                                  </span>
                                   <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                     certDisplayFields.principalSign 
                                       ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
@@ -7358,29 +7360,27 @@ function AddSetupWizardContent() {
                                 </div>
                               </div>
 
-                              <div className="space-y-2">
-                                <div className="space-y-1">
-                                  <div className="flex items-center justify-between">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signatory Name</label>
-                                    {principalName && (
-                                      <button
-                                        type="button"
-                                        onClick={() => setCertPrincipalName(principalName)}
-                                        className="text-[9px] font-bold text-blue-600 hover:text-blue-700 underline"
-                                      >
-                                        + Use Institute
-                                      </button>
-                                    )}
-                                  </div>
-                                  <input
-                                    type="text"
-                                    value={certPrincipalName}
-                                    onChange={e => setCertPrincipalName(e.target.value)}
-                                    disabled={!certDisplayFields.principalSign}
-                                    placeholder={principalName || 'Dr. S. K. Sharma'}
-                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
-                                  />
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                                  {principalName && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setCertPrincipalSignLabel(`Principal (${principalName})`)}
+                                      className="text-[9px] font-bold text-blue-600 hover:text-blue-700 underline cursor-pointer"
+                                    >
+                                      + Add Name
+                                    </button>
+                                  )}
                                 </div>
+                                <input
+                                  type="text"
+                                  value={certPrincipalSignLabel}
+                                  onChange={e => setCertPrincipalSignLabel(e.target.value)}
+                                  disabled={!certDisplayFields.principalSign}
+                                  placeholder="Principal & Director"
+                                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                                />
                               </div>
                             </div>
 
@@ -7428,7 +7428,9 @@ function AddSetupWizardContent() {
                                   <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                                     {idx + 1}
                                   </span>
-                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">Class Teacher</span>
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">
+                                    {certTeacherSignLabel || 'Class Teacher'}
+                                  </span>
                                   <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                     certDisplayFields.teacherSign 
                                       ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
@@ -7446,18 +7448,16 @@ function AddSetupWizardContent() {
                                 </button>
                               </div>
 
-                              <div className="space-y-2">
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Teacher's Name</label>
-                                  <input
-                                    type="text"
-                                    value={certTeacherSignName}
-                                    onChange={e => setCertTeacherSignName(e.target.value)}
-                                    disabled={!certDisplayFields.teacherSign}
-                                    placeholder="Mrs. Kavita Verma"
-                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
-                                  />
-                                </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                                <input
+                                  type="text"
+                                  value={certTeacherSignLabel}
+                                  onChange={e => setCertTeacherSignLabel(e.target.value)}
+                                  disabled={!certDisplayFields.teacherSign}
+                                  placeholder="Class Teacher"
+                                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                                />
                               </div>
                             </div>
 
@@ -7505,7 +7505,9 @@ function AddSetupWizardContent() {
                                   <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                                     {idx + 1}
                                   </span>
-                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">Exam Controller</span>
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">
+                                    {certControllerSignLabel || 'Exam Controller'}
+                                  </span>
                                   <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                     certDisplayFields.controllerSign 
                                       ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
@@ -7523,18 +7525,16 @@ function AddSetupWizardContent() {
                                 </button>
                               </div>
 
-                              <div className="space-y-2">
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Controller Name</label>
-                                  <input
-                                    type="text"
-                                    value={certControllerSignName}
-                                    onChange={e => setCertControllerSignName(e.target.value)}
-                                    disabled={!certDisplayFields.controllerSign}
-                                    placeholder="Mr. R. K. Saxena"
-                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
-                                  />
-                                </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                                <input
+                                  type="text"
+                                  value={certControllerSignLabel}
+                                  onChange={e => setCertControllerSignLabel(e.target.value)}
+                                  disabled={!certDisplayFields.controllerSign}
+                                  placeholder="Exam Controller"
+                                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                                />
                               </div>
                             </div>
 
@@ -7582,7 +7582,9 @@ function AddSetupWizardContent() {
                                   <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                                     {idx + 1}
                                   </span>
-                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">Authority Signature</span>
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">
+                                    {certSecondarySignLabel || 'Authority Signature'}
+                                  </span>
                                   <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                     certDisplayFields.secondarySign 
                                       ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
@@ -7600,18 +7602,16 @@ function AddSetupWizardContent() {
                                 </button>
                               </div>
 
-                              <div className="space-y-2">
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signatory Name</label>
-                                  <input
-                                    type="text"
-                                    value={certSecondarySignName}
-                                    onChange={e => setCertSecondarySignName(e.target.value)}
-                                    disabled={!certDisplayFields.secondarySign}
-                                    placeholder="Authorized Signatory"
-                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
-                                  />
-                                </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                                <input
+                                  type="text"
+                                  value={certSecondarySignLabel}
+                                  onChange={e => setCertSecondarySignLabel(e.target.value)}
+                                  disabled={!certDisplayFields.secondarySign}
+                                  placeholder="Authority Signature"
+                                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                                />
                               </div>
                             </div>
 
@@ -7659,7 +7659,9 @@ function AddSetupWizardContent() {
                                   <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                                     {idx + 1}
                                   </span>
-                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">Parent / Guardian</span>
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">
+                                    {certParentSignLabel || 'Parent / Guardian'}
+                                  </span>
                                   <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                     certDisplayFields.parentSign 
                                       ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
@@ -7677,18 +7679,16 @@ function AddSetupWizardContent() {
                                 </button>
                               </div>
 
-                              <div className="space-y-2">
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Parent / Guardian Name</label>
-                                  <input
-                                    type="text"
-                                    value={certParentSignName}
-                                    onChange={e => setCertParentSignName(e.target.value)}
-                                    disabled={!certDisplayFields.parentSign}
-                                    placeholder="Parent / Guardian"
-                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
-                                  />
-                                </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                                <input
+                                  type="text"
+                                  value={certParentSignLabel}
+                                  onChange={e => setCertParentSignLabel(e.target.value)}
+                                  disabled={!certDisplayFields.parentSign}
+                                  placeholder="Parent / Guardian"
+                                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                                />
                               </div>
                             </div>
 
@@ -7736,7 +7736,9 @@ function AddSetupWizardContent() {
                                   <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                                     {idx + 1}
                                   </span>
-                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">Student Sign Line</span>
+                                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">
+                                    {certStudentSignLabel || 'Student Sign Line'}
+                                  </span>
                                   <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                                     certDisplayFields.studentSign 
                                       ? 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300' 
@@ -7754,10 +7756,18 @@ function AddSetupWizardContent() {
                                 </button>
                               </div>
 
-                              <div className="space-y-2 py-1">
-                                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                                  Student Verification Line
-                                </p>
+                              <div className="space-y-2.5">
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Signature Label</label>
+                                  <input
+                                    type="text"
+                                    value={certStudentSignLabel}
+                                    onChange={e => setCertStudentSignLabel(e.target.value)}
+                                    disabled={!certDisplayFields.studentSign}
+                                    placeholder="Student's Signature"
+                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 font-semibold text-slate-700 dark:text-slate-200 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:text-slate-400 focus:border-blue-500 transition-all shadow-2xs"
+                                  />
+                                </div>
                                 <p className="text-[10px] text-slate-500 dark:text-slate-400">
                                   Provides candidate signature verification line on the certificate footer.
                                 </p>
@@ -8260,13 +8270,13 @@ function AddSetupWizardContent() {
                   session={session || '2025-2026'}
                   date={certDateOfIssue || dateOfExam || '15 October 2026'}
                   awarder={certPrincipalSignLabel || "Principal & Director"}
-                  principalName={certPrincipalName || principalName || 'Dr. S. K. Sharma'}
+                  principalName={certPrincipalName || principalName || ''}
                   principalLabel={certPrincipalSignLabel || "Principal & Director"}
                   teacherSignName={certTeacherSignName}
                   teacherSignLabel={certTeacherSignLabel}
                   controllerSignName={certControllerSignName}
                   controllerSignLabel={certControllerSignLabel}
-                  secondarySignName={certSecondarySignName || 'Authorized Signatory'}
+                  secondarySignName={certSecondarySignName || ''}
                   secondarySignLabel={certSecondarySignLabel || 'Authority Signature'}
                   parentSignName={certParentSignName}
                   parentSignLabel={certParentSignLabel}

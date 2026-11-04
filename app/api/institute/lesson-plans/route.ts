@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     const instituteName = session?.name || 'Cosmopolitan Inter'
 
     const body = await request.json()
-    const {
+    let {
       className,
       section,
       title,
@@ -98,14 +98,25 @@ export async function POST(request: NextRequest) {
       attachmentName = ''
     } = body
 
-    if (!className || !section || !title || !subject || !methodology) {
-      return NextResponse.json({
-        success: false,
-        error: 'Class, Section, Subject, Lesson Title, and Methodology are required.'
-      }, { status: 400 })
+    const milestoneList = Array.isArray(milestones) ? milestones : []
+
+    // Fallback if title/methodology not passed explicitly at plan level
+    if (!title && milestoneList.length > 0) {
+      title = milestoneList[0].lesson || milestoneList[0].topic || `${subject} Lesson Plan`
+    }
+    if (!methodology && milestoneList.length > 0) {
+      methodology = milestoneList[0].methodology || 'Structured Teaching'
+    }
+    if (!description && milestoneList.length > 0) {
+      description = milestoneList[0].description || ''
     }
 
-    const milestoneList = Array.isArray(milestones) ? milestones : []
+    if (!className || !section || !title || !subject) {
+      return NextResponse.json({
+        success: false,
+        error: 'Class, Section, Subject, and at least one Lesson are required.'
+      }, { status: 400 })
+    }
     const totalMilestones = milestoneList.filter((m: any) => m.topic && m.topic.trim()).length || Math.max(1, milestoneList.length)
     const validProgress = Math.min(100, Math.max(0, parseInt(String(progress || 0))))
 

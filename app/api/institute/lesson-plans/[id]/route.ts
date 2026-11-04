@@ -70,10 +70,19 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const updatedMilestones = milestones !== undefined ? milestones : current.milestones
     const milestoneList = Array.isArray(updatedMilestones) ? updatedMilestones : []
-    const totalMilestones = milestoneList.filter((m: any) => m.topic && m.topic.trim()).length || Math.max(1, milestoneList.length)
+    const totalMilestones = milestoneList.filter((m: any) => (m.topic || m.lesson) && (m.topic || m.lesson).trim()).length || Math.max(1, milestoneList.length)
     
     let validProgress = progress !== undefined ? parseInt(String(progress)) : parseInt(String(current.progress || 0))
     validProgress = Math.min(100, Math.max(0, isNaN(validProgress) ? 0 : validProgress))
+
+    let finalTitle = title || current.title
+    if (!finalTitle && milestoneList.length > 0) {
+      finalTitle = milestoneList[0].lesson || milestoneList[0].topic || current.title
+    }
+    let finalMethodology = methodology || current.methodology
+    if (!finalMethodology && milestoneList.length > 0) {
+      finalMethodology = milestoneList[0].methodology || current.methodology
+    }
 
     const updateRes = await pool.query(`
       UPDATE school_lesson_plans
@@ -94,9 +103,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     `, [
       className.trim(),
       section.trim(),
-      title.trim(),
+      finalTitle.trim(),
       subject.trim(),
-      methodology.trim(),
+      finalMethodology.trim(),
       description.trim(),
       JSON.stringify(milestoneList),
       totalMilestones,

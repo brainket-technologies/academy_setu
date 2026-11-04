@@ -294,26 +294,26 @@ export const MarksheetPreview: React.FC<MarksheetPreviewProps> = ({
       key: 'teacherSign',
       labelKey: 'teacherSignLabel',
       title: labels.teacherSignLabel || 'Class Teacher',
-      name: 'Preeti Saxena',
+      name: '',
       cursiveFont: true
     },
     controllerSign: {
       key: 'controllerSign',
       labelKey: 'examInChargeSignLabel',
       title: labels.examInChargeSignLabel || 'Exam In-Charge',
-      name: 'Exam Controller'
+      name: ''
     },
     parentSign: {
       key: 'parentSign',
       labelKey: 'parentSignLabel',
       title: labels.parentSignLabel || 'Parent / Guardian',
-      name: 'Parent Signature'
+      name: ''
     },
     principalSign: {
       key: 'principalSign',
       labelKey: 'principalSignLabel',
       title: labels.principalSignLabel || 'Principal',
-      name: principalName || 'Principal',
+      name: principalName || '',
       isPrincipal: true
     }
   }

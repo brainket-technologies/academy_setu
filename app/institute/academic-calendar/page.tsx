@@ -16,6 +16,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   CheckCircle2,
   Sparkles,
   AlertCircle,
@@ -146,6 +147,7 @@ export default function AcademicCalendarPage() {
   const [filterType, setFilterType] = useState('All')
   const [filterHolidayOnly, setFilterHolidayOnly] = useState<'all' | 'holidays' | 'events'>('all')
   const [filterModalOpen, setFilterModalOpen] = useState(false)
+  const [sidebarScope, setSidebarScope] = useState<'thisMonth' | 'all'>('thisMonth')
 
   // Add & Edit Modal State
   const [formModalOpen, setFormModalOpen] = useState(false)
@@ -162,6 +164,8 @@ export default function AcademicCalendarPage() {
   const [formEndTime, setFormEndTime] = useState('01:00 PM')
   const [formLocation, setFormLocation] = useState('')
   const [formTargetClasses, setFormTargetClasses] = useState<string[]>(['All Classes'])
+  const [classPickerOpen, setClassPickerOpen] = useState(false)
+  const [classFilterQuery, setClassFilterQuery] = useState('')
   const [formColor, setFormColor] = useState('#0d9488')
   const [formDescription, setFormDescription] = useState('')
   const [submittingForm, setSubmittingForm] = useState(false)
@@ -174,6 +178,29 @@ export default function AcademicCalendarPage() {
 
   // Master Classes
   const [masterClassesList, setMasterClassesList] = useState<string[]>([])
+
+  // Toggle & remove handlers for multi-select classes
+  const handleToggleClass = (cls: string) => {
+    if (formTargetClasses.includes('All Classes')) {
+      setFormTargetClasses([cls])
+    } else if (formTargetClasses.includes(cls)) {
+      const updated = formTargetClasses.filter(c => c !== cls)
+      setFormTargetClasses(updated.length > 0 ? updated : ['All Classes'])
+    } else {
+      const updated = [...formTargetClasses, cls]
+      const onlyClasses = masterClassesList.filter(c => c !== 'All Classes')
+      if (onlyClasses.length > 0 && updated.length === onlyClasses.length) {
+        setFormTargetClasses(['All Classes'])
+      } else {
+        setFormTargetClasses(updated)
+      }
+    }
+  }
+
+  const handleRemoveClass = (cls: string) => {
+    const updated = formTargetClasses.filter(c => c !== cls)
+    setFormTargetClasses(updated.length > 0 ? updated : ['All Classes'])
+  }
 
   // Toast
   const [toastMsg, setToastMsg] = useState('')
@@ -189,9 +216,37 @@ export default function AcademicCalendarPage() {
   useEffect(() => {
     try {
       const cls = getInstituteAddedClasses()
-      setMasterClassesList(['All Classes', ...cls.map(c => c.className)])
+      if (cls && cls.length > 0) {
+        setMasterClassesList(['All Classes', ...cls.map(c => c.className)])
+      } else {
+        setMasterClassesList([
+          'All Classes',
+          'Class 1',
+          'Class 2',
+          'Class 3',
+          'Class 4',
+          'Class 5',
+          'Class 6',
+          'Class 7',
+          'Class 8',
+          'Class 9',
+          'Class 10'
+        ])
+      }
     } catch {
-      setMasterClassesList(['All Classes', 'Class 8', 'Class 9', 'Class 10'])
+      setMasterClassesList([
+        'All Classes',
+        'Class 1',
+        'Class 2',
+        'Class 3',
+        'Class 4',
+        'Class 5',
+        'Class 6',
+        'Class 7',
+        'Class 8',
+        'Class 9',
+        'Class 10'
+      ])
     }
   }, [])
 
@@ -295,6 +350,8 @@ export default function AcademicCalendarPage() {
     setFormEndTime('01:00 PM')
     setFormLocation('')
     setFormTargetClasses(['All Classes'])
+    setClassPickerOpen(false)
+    setClassFilterQuery('')
     setFormColor('#0d9488')
     setFormDescription('')
     setFormModalOpen(true)
@@ -316,7 +373,9 @@ export default function AcademicCalendarPage() {
     setFormStartTime(item.startTime || '08:00 AM')
     setFormEndTime(item.endTime || '01:00 PM')
     setFormLocation(item.location || '')
-    setFormTargetClasses(item.targetClasses || ['All Classes'])
+    setFormTargetClasses(item.targetClasses && item.targetClasses.length > 0 ? item.targetClasses : ['All Classes'])
+    setClassPickerOpen(false)
+    setClassFilterQuery('')
     setFormColor(item.color || (item.isHoliday ? '#10b981' : '#0d9488'))
     setFormDescription(item.description || '')
     setFormModalOpen(true)
@@ -438,9 +497,9 @@ export default function AcademicCalendarPage() {
     }
   }
 
-  // ── Filtered Events ───────────────────────────────────────────────────────
+  // ── Filtered Events (Chronologically Sorted by Start Date) ───────────────
   const filteredEvents = useMemo(() => {
-    return events.filter(e => {
+    const list = events.filter(e => {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim()
         const matchTitle = e.title.toLowerCase().includes(q)
@@ -456,7 +515,21 @@ export default function AcademicCalendarPage() {
       if (filterHolidayOnly === 'events' && e.isHoliday) return false
       return true
     })
+
+    return [...list].sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''))
   }, [events, searchQuery, filterType, filterHolidayOnly])
+
+  // Events filtered for the right sidebar (prioritizing current view month or all)
+  const sidebarEvents = useMemo(() => {
+    const curMonthStr = `${year}-${String(month + 1).padStart(2, '0')}`
+    if (sidebarScope === 'thisMonth') {
+      const monthList = filteredEvents.filter(
+        e => (e.startDate && e.startDate.startsWith(curMonthStr)) || (e.endDate && e.endDate.startsWith(curMonthStr))
+      )
+      return monthList.length > 0 ? monthList : filteredEvents
+    }
+    return filteredEvents
+  }, [filteredEvents, sidebarScope, year, month])
 
   // Get events falling on a specific date string (YYYY-MM-DD)
   const getEventsForDate = (dateStr: string) => {
@@ -580,46 +653,54 @@ export default function AcademicCalendarPage() {
       </div>
 
       {/* 2. KPI Summary Metric Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Total Entries</span>
-            <CalendarIcon className="w-4 h-4 text-teal-600" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Entries</span>
+            <div className="text-xl font-black text-slate-900 mt-0.5">{totalEntries}</div>
+            <p className="text-[10px] text-slate-400 font-medium">Scheduled on calendar</p>
           </div>
-          <div className="text-xl font-black text-slate-850">{totalEntries}</div>
-          <p className="text-[10px] text-slate-400 font-semibold">Scheduled on calendar</p>
+          <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+            <CalendarIcon className="w-4 h-4" />
+          </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">School Holidays</span>
-            <Sun className="w-4 h-4 text-emerald-600" />
+        <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">School Holidays</span>
+            <div className="text-xl font-black text-emerald-600 mt-0.5">{totalHolidays}</div>
+            <p className="text-[10px] text-slate-400 font-medium">Campus closed days</p>
           </div>
-          <div className="text-xl font-black text-emerald-600">{totalHolidays}</div>
-          <p className="text-[10px] text-slate-400 font-semibold">Campus closed days</p>
+          <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <Sun className="w-4 h-4" />
+          </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Events & Exams</span>
-            <Trophy className="w-4 h-4 text-amber-500" />
+        <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Events & Exams</span>
+            <div className="text-xl font-black text-amber-600 mt-0.5">{totalAcademicEvents}</div>
+            <p className="text-[10px] text-slate-400 font-medium">Active school programs</p>
           </div>
-          <div className="text-xl font-black text-amber-600">{totalAcademicEvents}</div>
-          <p className="text-[10px] text-slate-400 font-semibold">Active school programs</p>
+          <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+            <Trophy className="w-4 h-4" />
+          </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-1">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">This Month</span>
-            <Clock className="w-4 h-4 text-indigo-600" />
+        <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">This Month</span>
+            <div className="text-xl font-black text-indigo-600 mt-0.5">{thisMonthEvents}</div>
+            <p className="text-[10px] text-slate-400 font-medium">{MONTH_NAMES[month]} {year}</p>
           </div>
-          <div className="text-xl font-black text-indigo-600">{thisMonthEvents}</div>
-          <p className="text-[10px] text-slate-400 font-semibold">{MONTH_NAMES[month]} {year}</p>
+          <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+            <Clock className="w-4 h-4" />
+          </div>
         </div>
       </div>
 
       {/* 3. Main Calendar Container */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-5">
+      <div className="bg-white rounded-3xl border border-slate-200/90 p-5 md:p-6 shadow-xs space-y-5">
         {/* Top Control Bar: View Switcher, Date Title & Legend */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           {/* View Mode Buttons */}
@@ -628,7 +709,7 @@ export default function AcademicCalendarPage() {
               <button
                 key={v}
                 onClick={() => setView(v)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   view === v
                     ? 'bg-teal-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -640,7 +721,7 @@ export default function AcademicCalendarPage() {
           </div>
 
           {/* Month / Year Navigator */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => navigateDate(-1)}
               className="w-8 h-8 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors cursor-pointer text-slate-600"
@@ -649,7 +730,7 @@ export default function AcademicCalendarPage() {
               <ChevronLeft className="w-4 h-4" />
             </button>
 
-            <h2 className="text-base font-black text-slate-850 min-w-[150px] text-center">
+            <h2 className="text-base font-black text-slate-900 min-w-[160px] text-center">
               {headerLabel}
             </h2>
 
@@ -663,28 +744,28 @@ export default function AcademicCalendarPage() {
 
             <button
               onClick={goToToday}
-              className="px-2.5 py-1 text-[11px] font-bold border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 cursor-pointer"
+              className="px-2.5 py-1 text-[11px] font-bold border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700 cursor-pointer ml-1"
             >
               Today
             </button>
           </div>
 
           {/* Color Legend */}
-          <div className="flex items-center gap-3.5 text-[11px] font-bold flex-wrap">
-            <span className="flex items-center gap-1.5 text-slate-700">
-              <span className="w-3 h-3 rounded-md bg-emerald-500 inline-block shadow-2xs" />
+          <div className="flex items-center gap-3.5 text-[11px] font-semibold text-slate-600 flex-wrap">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
               <span>Holiday</span>
             </span>
-            <span className="flex items-center gap-1.5 text-slate-700">
-              <span className="w-3 h-3 rounded-md bg-teal-600 inline-block shadow-2xs" />
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-teal-600 inline-block" />
               <span>Academic Event</span>
             </span>
-            <span className="flex items-center gap-1.5 text-slate-700">
-              <span className="w-3 h-3 rounded-md bg-amber-400 inline-block shadow-2xs" />
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
               <span>Celebration / PTM</span>
             </span>
-            <span className="flex items-center gap-1.5 text-slate-700">
-              <span className="w-3 h-3 rounded-md bg-indigo-600 inline-block shadow-2xs" />
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-indigo-600 inline-block" />
               <span>Weekoff</span>
             </span>
           </div>
@@ -738,22 +819,29 @@ export default function AcademicCalendarPage() {
                             {hour}
                           </div>
                           <div className="col-span-3 p-2 flex flex-wrap gap-2 items-center" onClick={e => e.stopPropagation()}>
-                            {hourEvents.map(ev => (
-                              <div
-                                key={ev.id}
-                                onClick={() => setViewEvent(ev)}
-                                className="px-3 py-1.5 rounded-xl text-xs font-black text-white shadow-xs flex items-center gap-2 cursor-pointer transition-transform hover:scale-[1.02]"
-                                style={{ backgroundColor: ev.color || (ev.isHoliday ? '#10b981' : '#0d9488') }}
-                              >
-                                {ev.isHoliday ? <span>🎉</span> : <span>📅</span>}
-                                <span>{ev.title}</span>
-                                {ev.isHoliday && (
-                                  <span className="text-[9px] bg-white/20 px-1.5 py-0.2 rounded font-bold">
-                                    {ev.holidayType || 'Holiday'}
-                                  </span>
-                                )}
-                              </div>
-                            ))}
+                            {hourEvents.map(ev => {
+                              const color = ev.color || (ev.isHoliday ? '#10b981' : '#0d9488')
+                              return (
+                                <div
+                                  key={ev.id}
+                                  onClick={() => setViewEvent(ev)}
+                                  className="px-3 py-1.5 rounded-xl text-xs font-bold shadow-2xs flex items-center gap-2 cursor-pointer transition-transform hover:scale-[1.01] border"
+                                  style={{
+                                    backgroundColor: `${color}14`,
+                                    borderColor: `${color}35`,
+                                    color: '#1e293b'
+                                  }}
+                                >
+                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                                  <span className="font-semibold text-slate-900">{ev.title}</span>
+                                  {ev.isHoliday && (
+                                    <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-bold">
+                                      {ev.holidayType || 'Holiday'}
+                                    </span>
+                                  )}
+                                </div>
+                              )
+                            })}
                           </div>
                         </div>
                       )
@@ -834,23 +922,27 @@ export default function AcademicCalendarPage() {
                                 className="border-r border-slate-100 last:border-r-0 p-1 hover:bg-slate-50/60 transition-colors cursor-pointer relative group/slot"
                                 onClick={() => handleOpenCreateModal(dateISO)}
                               >
-                                {slotEvents.map(ev => (
-                                  <div
-                                    key={ev.id}
-                                    onClick={e => {
-                                      e.stopPropagation()
-                                      setViewEvent(ev)
-                                    }}
-                                    className="px-2 py-1 rounded-lg text-[10px] font-black text-white truncate shadow-2xs mb-1 cursor-pointer transition-transform hover:scale-[1.02]"
-                                    style={{
-                                      backgroundColor:
-                                        ev.color || (ev.isHoliday ? '#10b981' : '#0d9488')
-                                    }}
-                                  >
-                                    <span className="mr-1">{ev.isHoliday ? '🎉' : '📅'}</span>
-                                    <span>{ev.title}</span>
-                                  </div>
-                                ))}
+                                {slotEvents.map(ev => {
+                                  const color = ev.color || (ev.isHoliday ? '#10b981' : '#0d9488')
+                                  return (
+                                    <div
+                                      key={ev.id}
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        setViewEvent(ev)
+                                      }}
+                                      className="px-2 py-1 rounded-md text-[10px] font-bold truncate shadow-2xs mb-1 cursor-pointer transition-transform hover:scale-[1.01] border flex items-center gap-1"
+                                      style={{
+                                        backgroundColor: `${color}14`,
+                                        borderColor: `${color}35`,
+                                        color: '#1e293b'
+                                      }}
+                                    >
+                                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                                      <span className="truncate flex-1 font-semibold text-slate-800">{ev.title}</span>
+                                    </div>
+                                  )
+                                })}
                               </div>
                             )
                           })}
@@ -884,22 +976,22 @@ export default function AcademicCalendarPage() {
                   }
 
                   return (
-                    <div className="border border-slate-200 rounded-3xl overflow-hidden shadow-xs bg-white">
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs bg-white">
                       {/* Days Header */}
-                      <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-200 text-center">
+                      <div className="grid grid-cols-7 bg-slate-50/90 border-b border-slate-200 text-center divide-x divide-slate-200">
                         {DAYS.map((d, colIdx) => (
                           <div
                             key={d}
-                            className={`px-2 py-3 text-[11px] font-black uppercase tracking-wider ${
-                              colIdx === 0 ? 'text-rose-500 bg-rose-50/30' : 'text-slate-500'
-                            } ${colIdx < 6 ? 'border-r border-slate-200' : ''}`}
+                            className={`py-2.5 text-[11px] font-black uppercase tracking-wider ${
+                              colIdx === 0 ? 'text-rose-500 bg-rose-50/20' : 'text-slate-600'
+                            }`}
                           >
                             {d}
                           </div>
                         ))}
                       </div>
 
-                      {/* Month Grid Cells with Crisp Borders & Rich Styling */}
+                      {/* Month Grid Cells with Crisp Borders & Modern Styling */}
                       <div className="grid grid-cols-7">
                         {cells.map((cell, i) => {
                           const dateISO = formatDateToISO(cell.date)
@@ -914,7 +1006,7 @@ export default function AcademicCalendarPage() {
                           return (
                             <div
                               key={i}
-                              className={`group/cell relative flex flex-col justify-between p-2.5 transition-all cursor-pointer min-h-[115px] md:min-h-[125px] ${
+                              className={`group/cell relative flex flex-col justify-between p-2 md:p-2.5 transition-all cursor-pointer min-h-[110px] md:min-h-[120px] ${
                                 !isLastCol ? 'border-r border-slate-200' : ''
                               } ${
                                 !isLastRow ? 'border-b border-slate-200' : ''
@@ -922,30 +1014,29 @@ export default function AcademicCalendarPage() {
                                 !cell.isCurrentMonth
                                   ? 'bg-slate-50/40 text-slate-300'
                                   : isToday
-                                  ? 'bg-teal-50/50 ring-2 ring-inset ring-teal-500/90'
+                                  ? 'bg-teal-50/30 ring-1 ring-inset ring-teal-500/50'
                                   : isHolidayDay
-                                  ? 'bg-emerald-50/40 hover:bg-emerald-50/70'
+                                  ? 'bg-emerald-50/30 hover:bg-emerald-50/60'
                                   : isSunday
-                                  ? 'bg-slate-50/30 hover:bg-slate-50/80'
-                                  : 'bg-white hover:bg-slate-50/80'
+                                  ? 'bg-rose-50/10 hover:bg-rose-50/30'
+                                  : 'bg-white hover:bg-slate-50/70'
                               }`}
                               onClick={() => handleOpenCreateModal(dateISO)}
                               title={`Click to add event or holiday on ${dateISO}`}
                             >
-                              {/* Top Bar of Cell: Day Number & Badges & Quick Add on Hover */}
+                              {/* Top Bar of Cell: Day Number & Holiday Tag & Clean Quick Add on Hover */}
                               <div>
                                 <div className="flex items-center justify-between mb-1.5">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                  <div className="flex items-center gap-1.5">
                                     {isToday ? (
-                                      <div className="flex items-center gap-1 bg-teal-600 text-white font-black text-xs px-2 py-0.5 rounded-lg shadow-xs">
-                                        <span>{cell.day}</span>
-                                        <span className="text-[9px] uppercase tracking-wider font-bold">Today</span>
+                                      <div className="w-6 h-6 rounded-full bg-teal-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
+                                        {cell.day}
                                       </div>
                                     ) : (
                                       <span
-                                        className={`text-xs font-black px-1.5 py-0.5 rounded-md ${
+                                        className={`text-xs font-bold px-1 rounded ${
                                           cell.isCurrentMonth
-                                            ? isSunday ? 'text-rose-600' : 'text-slate-800'
+                                            ? isSunday ? 'text-rose-500' : 'text-slate-700'
                                             : 'text-slate-300'
                                         }`}
                                       >
@@ -954,9 +1045,8 @@ export default function AcademicCalendarPage() {
                                     )}
 
                                     {isHolidayDay && cell.isCurrentMonth && (
-                                      <span className="text-[9px] font-black text-emerald-800 bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-2xs">
-                                        <span>🎉</span>
-                                        <span>{holidayEvent?.holidayType === 'Half Day' ? 'Half Day' : 'Holiday'}</span>
+                                      <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.2 rounded leading-tight">
+                                        {holidayEvent?.holidayType === 'Half Day' ? 'Half Day' : 'Holiday'}
                                       </span>
                                     )}
                                   </div>
@@ -969,41 +1059,48 @@ export default function AcademicCalendarPage() {
                                         e.stopPropagation()
                                         handleOpenCreateModal(dateISO)
                                       }}
-                                      className="opacity-0 group-hover/cell:opacity-100 transition-opacity p-1 bg-teal-600 hover:bg-teal-700 text-white rounded-md shadow-xs cursor-pointer"
+                                      className="opacity-0 group-hover/cell:opacity-100 transition-opacity w-5 h-5 flex items-center justify-center text-slate-400 hover:text-teal-700 hover:bg-teal-100/70 rounded-md cursor-pointer"
                                       title="Add event/holiday on this day"
                                     >
-                                      <Plus className="w-2.5 h-2.5" />
+                                      <Plus className="w-3 h-3" />
                                     </button>
                                   )}
                                 </div>
 
                                 {/* Event & Holiday Pills inside Cell */}
                                 <div className="space-y-1">
-                                  {evts.slice(0, 3).map(ev => (
-                                    <div
-                                      key={ev.id}
-                                      onClick={e => {
-                                        e.stopPropagation()
-                                        setViewEvent(ev)
-                                      }}
-                                      className="px-2 py-1 rounded-lg text-[10px] font-bold text-white shadow-2xs cursor-pointer transition-transform hover:scale-[1.02] flex items-center justify-between gap-1"
-                                      style={{
-                                        backgroundColor:
-                                          ev.color || (ev.isHoliday ? '#10b981' : '#0d9488')
-                                      }}
-                                      title={`${ev.title} (${ev.eventType})`}
-                                    >
-                                      <div className="flex items-center gap-1 truncate">
-                                        <span className="text-[9px] shrink-0">{ev.isHoliday ? '🎉' : '📅'}</span>
-                                        <span className="truncate">{ev.title}</span>
-                                      </div>
-                                      {ev.startTime && !ev.allDay && (
-                                        <span className="text-[8px] opacity-80 shrink-0 font-medium">
-                                          {ev.startTime}
+                                  {evts.slice(0, 3).map(ev => {
+                                    const color = ev.color || (ev.isHoliday ? '#10b981' : '#0d9488')
+                                    return (
+                                      <div
+                                        key={ev.id}
+                                        onClick={e => {
+                                          e.stopPropagation()
+                                          setViewEvent(ev)
+                                        }}
+                                        className="px-2 py-1 rounded-md text-[11px] font-semibold transition-all hover:brightness-95 cursor-pointer flex items-center gap-1.5 truncate border shadow-2xs group/item"
+                                        style={{
+                                          backgroundColor: `${color}14`,
+                                          borderColor: `${color}35`,
+                                          color: '#1e293b'
+                                        }}
+                                        title={`${ev.title}${ev.startTime ? ` (${ev.startTime})` : ''} - ${ev.eventType}`}
+                                      >
+                                        <span
+                                          className="w-1.5 h-1.5 rounded-full shrink-0"
+                                          style={{ backgroundColor: color }}
+                                        />
+                                        <span className="truncate flex-1 font-semibold text-slate-800 group-hover/item:text-slate-950">
+                                          {ev.title}
                                         </span>
-                                      )}
-                                    </div>
-                                  ))}
+                                        {ev.startTime && !ev.allDay && (
+                                          <span className="text-[9px] text-slate-400 font-normal shrink-0">
+                                            {ev.startTime.replace(':00', '')}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )
+                                  })}
 
                                   {evts.length > 3 && (
                                     <div
@@ -1012,9 +1109,9 @@ export default function AcademicCalendarPage() {
                                         setCurrentDate(cell.date)
                                         setView('Day')
                                       }}
-                                      className="text-[9px] font-black text-teal-700 hover:underline pt-0.5 cursor-pointer"
+                                      className="text-[10px] font-bold text-teal-700 hover:text-teal-800 hover:underline px-1 py-0.5 cursor-pointer"
                                     >
-                                      +{evts.length - 3} more entries
+                                      +{evts.length - 3} more
                                     </div>
                                   )}
                                 </div>
@@ -1117,15 +1214,15 @@ export default function AcademicCalendarPage() {
             )}
           </div>
 
-          {/* 5. Right Events Sidebar Panel (As shown in screenshot) */}
-          <div className="w-full lg:w-72 shrink-0 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h3 className="text-sm font-black text-slate-850 flex items-center gap-1.5">
-                <span>Upcoming Events</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                  {filteredEvents.length}
-                </span>
-              </h3>
+          {/* 5. Right Events Sidebar Panel */}
+          <div className="w-full lg:w-80 shrink-0 space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div>
+                <h3 className="text-sm font-black text-slate-900">Events Schedule</h3>
+                <p className="text-[10px] text-slate-400 font-medium">
+                  {sidebarScope === 'thisMonth' ? `${MONTH_NAMES[month]} ${year}` : 'Full Academic Year'}
+                </p>
+              </div>
 
               {/* Category Quick Filter */}
               <select
@@ -1142,40 +1239,71 @@ export default function AcademicCalendarPage() {
               </select>
             </div>
 
-            {/* Quick Holiday / Event Toggle Filter */}
-            <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl text-[11px] font-bold">
-              <button
-                onClick={() => setFilterHolidayOnly('all')}
-                className={`py-1 rounded-lg transition-all ${
-                  filterHolidayOnly === 'all' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500'
-                }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setFilterHolidayOnly('holidays')}
-                className={`py-1 rounded-lg transition-all ${
-                  filterHolidayOnly === 'holidays' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-500'
-                }`}
-              >
-                Holidays
-              </button>
-              <button
-                onClick={() => setFilterHolidayOnly('events')}
-                className={`py-1 rounded-lg transition-all ${
-                  filterHolidayOnly === 'events' ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-500'
-                }`}
-              >
-                Events
-              </button>
+            {/* Scope & Nature Tabs */}
+            <div className="space-y-1.5">
+              {/* Tab 1: Scope Selector */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setSidebarScope('thisMonth')}
+                  className={`flex-1 py-1.5 px-2 rounded-lg transition-all text-center cursor-pointer ${
+                    sidebarScope === 'thisMonth'
+                      ? 'bg-white text-slate-900 shadow-xs font-black'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  This Month ({thisMonthEvents})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSidebarScope('all')}
+                  className={`flex-1 py-1.5 px-2 rounded-lg transition-all text-center cursor-pointer ${
+                    sidebarScope === 'all'
+                      ? 'bg-white text-slate-900 shadow-xs font-black'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  All ({filteredEvents.length})
+                </button>
+              </div>
+
+              {/* Tab 2: Quick Nature Filter */}
+              <div className="grid grid-cols-3 gap-1 bg-slate-100/70 p-1 rounded-xl text-[11px] font-bold">
+                <button
+                  onClick={() => setFilterHolidayOnly('all')}
+                  className={`py-1 rounded-lg transition-all cursor-pointer ${
+                    filterHolidayOnly === 'all' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setFilterHolidayOnly('holidays')}
+                  className={`py-1 rounded-lg transition-all cursor-pointer ${
+                    filterHolidayOnly === 'holidays' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-500'
+                  }`}
+                >
+                  Holidays
+                </button>
+                <button
+                  onClick={() => setFilterHolidayOnly('events')}
+                  className={`py-1 rounded-lg transition-all cursor-pointer ${
+                    filterHolidayOnly === 'events' ? 'bg-teal-600 text-white shadow-xs' : 'text-slate-500'
+                  }`}
+                >
+                  Events
+                </button>
+              </div>
             </div>
 
             {/* Events Sidebar Cards List */}
-            <div className="space-y-2.5 max-h-[620px] overflow-y-auto pr-1">
-              {filteredEvents.length === 0 ? (
+            <div className="space-y-2 max-h-[620px] overflow-y-auto pr-1">
+              {sidebarEvents.length === 0 ? (
                 <div className="p-6 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                   <p className="text-xs font-bold text-slate-600">No events scheduled</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Click below to add one.</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    {sidebarScope === 'thisMonth' ? `No entries in ${MONTH_NAMES[month]} ${year}` : 'Click below to add one.'}
+                  </p>
                   <button
                     onClick={() => handleOpenCreateModal()}
                     className="mt-2 text-xs font-black text-teal-600 hover:underline"
@@ -1184,74 +1312,102 @@ export default function AcademicCalendarPage() {
                   </button>
                 </div>
               ) : (
-                filteredEvents.map(ev => (
-                  <div
-                    key={ev.id}
-                    onClick={() => setViewEvent(ev)}
-                    className="flex gap-3 p-3 border border-slate-200 rounded-2xl hover:shadow-md transition-all bg-white cursor-pointer group"
-                  >
-                    {/* Left Color Indicator Bar */}
+                sidebarEvents.map(ev => {
+                  const evDate = new Date(ev.startDate + 'T00:00:00')
+                  const color = ev.color || (ev.isHoliday ? '#10b981' : '#0d9488')
+                  const monthShort = evDate.toLocaleDateString('en-US', { month: 'short' })
+                  const dayNum = evDate.getDate()
+                  const weekdayShort = evDate.toLocaleDateString('en-US', { weekday: 'short' })
+
+                  return (
                     <div
-                      className="w-1.5 rounded-full shrink-0"
-                      style={{ backgroundColor: ev.color || (ev.isHoliday ? '#10b981' : '#0d9488') }}
-                    />
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-black text-slate-850 truncate group-hover:text-teal-700">
-                          {ev.title}
-                        </p>
-                        {ev.isHoliday && (
-                          <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 shrink-0">
-                            Holiday
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="text-[10px] text-slate-400 font-semibold mt-1 space-y-0.5">
-                        <p className="flex items-center gap-1">
-                          <CalendarIcon className="w-3 h-3 text-slate-400" />
-                          <span>{ev.startDate} {ev.endDate && ev.endDate !== ev.startDate ? `to ${ev.endDate}` : ''}</span>
-                        </p>
-                        {ev.startTime && (
-                          <p className="flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-slate-400" />
-                            <span>{ev.startTime}</span>
-                          </p>
-                        )}
-                        {ev.location && (
-                          <p className="flex items-center gap-1 truncate">
-                            <MapPin className="w-3 h-3 text-slate-400" />
-                            <span className="truncate">{ev.location}</span>
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Card Action Buttons */}
+                      key={ev.id}
+                      onClick={() => setViewEvent(ev)}
+                      className="group flex items-start gap-3 p-2.5 bg-white border border-slate-200/90 hover:border-teal-300 rounded-2xl transition-all hover:shadow-xs cursor-pointer relative"
+                    >
+                      {/* Left Date Tile */}
                       <div
-                        className="flex items-center justify-end gap-1 pt-2 border-t border-slate-100 mt-2"
-                        onClick={e => e.stopPropagation()}
+                        className="w-11 h-11 rounded-xl flex flex-col items-center justify-center text-center shrink-0 border shadow-2xs"
+                        style={{
+                          backgroundColor: `${color}12`,
+                          borderColor: `${color}30`,
+                          color: color
+                        }}
                       >
-                        <button
-                          onClick={() => handleOpenEditModal(ev)}
-                          className="p-1 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
-                          title="Edit Event"
+                        <span className="text-[8px] font-black uppercase tracking-wider leading-none">
+                          {monthShort}
+                        </span>
+                        <span className="text-sm font-black leading-none mt-0.5">
+                          {String(dayNum).padStart(2, '0')}
+                        </span>
+                      </div>
+
+                      {/* Main Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1">
+                          <p className="text-xs font-bold text-slate-900 group-hover:text-teal-700 truncate">
+                            {ev.title}
+                          </p>
+                          {ev.isHoliday ? (
+                            <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 shrink-0">
+                              Holiday
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 shrink-0 truncate max-w-[80px]">
+                              {ev.eventType}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Meta: Timing, Day, Venue */}
+                        <div className="text-[10px] text-slate-400 font-medium mt-1 space-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-slate-600 font-semibold">{weekdayShort}</span>
+                            {ev.startTime && (
+                              <>
+                                <span>•</span>
+                                <span className="flex items-center gap-0.5">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  <span>{ev.startTime}</span>
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          {ev.location && (
+                            <p className="flex items-center gap-1 truncate text-slate-500">
+                              <MapPin className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                              <span className="truncate">{ev.location}</span>
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Card Hover Action Buttons */}
+                        <div
+                          className="flex items-center justify-end gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={e => e.stopPropagation()}
                         >
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteEventId(ev.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title="Delete Event"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditModal(ev)}
+                            className="p-1 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-md transition-colors cursor-pointer"
+                            title="Edit Event"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteEventId(ev.id)}
+                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
+                            title="Delete Event"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
+                  );
+                })
+              )}</div>
           </div>
         </div>
       </div>
@@ -1571,21 +1727,217 @@ export default function AcademicCalendarPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="text-slate-700 font-bold text-xs block mb-1">
-                    Applicable Classes
-                  </label>
-                  <select
-                    value={formTargetClasses[0] || 'All Classes'}
-                    onChange={e => setFormTargetClasses([e.target.value])}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-800 focus:border-teal-500 shadow-2xs cursor-pointer"
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-700 font-bold text-xs">
+                      Applicable Classes
+                    </label>
+                    <span className="text-[10px] font-bold text-teal-600">
+                      {formTargetClasses.includes('All Classes') || formTargetClasses.length === 0
+                        ? 'All Classes'
+                        : `${formTargetClasses.length} Selected`}
+                    </span>
+                  </div>
+
+                  {/* Minimal Trigger Box */}
+                  <button
+                    type="button"
+                    onClick={() => setClassPickerOpen(prev => !prev)}
+                    className={`w-full min-h-[42px] px-3 py-1.5 bg-white border rounded-xl outline-none text-xs transition-all flex items-center justify-between gap-2 shadow-2xs text-left cursor-pointer ${
+                      classPickerOpen ? 'border-teal-500 ring-2 ring-teal-500/10' : 'border-slate-200 hover:border-slate-300'
+                    }`}
                   >
-                    {masterClassesList.map(c => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
+                    <div className="flex-1 flex items-center gap-1.5 flex-wrap overflow-hidden py-0.5">
+                      {formTargetClasses.includes('All Classes') || formTargetClasses.length === 0 ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-800 bg-teal-50/80 px-2.5 py-0.5 rounded-lg border border-teal-200/60">
+                          <Users className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                          <span>All Classes</span>
+                        </span>
+                      ) : (
+                        formTargetClasses.map(cls => (
+                          <span
+                            key={cls}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200/70 px-2 py-0.5 rounded-lg border border-slate-200 transition-colors"
+                          >
+                            <span>{cls}</span>
+                            <span
+                              role="button"
+                              title={`Remove ${cls}`}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleRemoveClass(cls)
+                              }}
+                              className="p-0.5 text-slate-400 hover:text-rose-600 rounded cursor-pointer transition-colors"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </span>
+                          </span>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0 text-slate-400">
+                      {!formTargetClasses.includes('All Classes') && formTargetClasses.length > 0 && (
+                        <span
+                          role="button"
+                          title="Reset to All Classes"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setFormTargetClasses(['All Classes'])
+                          }}
+                          className="text-[10px] font-bold text-slate-400 hover:text-rose-500 px-1 cursor-pointer hover:underline"
+                        >
+                          Reset
+                        </span>
+                      )}
+                      <ChevronDown
+                        className={`w-4 h-4 transition-transform duration-200 text-slate-400 ${
+                          classPickerOpen ? 'rotate-180 text-teal-600' : ''
+                        }`}
+                      />
+                    </div>
+                  </button>
+
+                  {/* Minimal Popover Dropdown */}
+                  {classPickerOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-30"
+                        onClick={() => setClassPickerOpen(false)}
+                      />
+                      <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-40 p-2.5 space-y-2 text-xs animate-in fade-in zoom-in-95 duration-150">
+                        {/* Quick Actions Header */}
+                        <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-[11px]">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setFormTargetClasses(['All Classes'])}
+                              className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                                formTargetClasses.includes('All Classes')
+                                  ? 'bg-teal-600 text-white shadow-xs'
+                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                              }`}
+                            >
+                              All Classes
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const onlyClasses = masterClassesList.filter(c => c !== 'All Classes')
+                                setFormTargetClasses(onlyClasses)
+                              }}
+                              className="px-2 py-1 rounded-lg font-bold text-teal-700 hover:bg-teal-50 transition-colors"
+                            >
+                              Select All ({masterClassesList.filter(c => c !== 'All Classes').length})
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setFormTargetClasses(['All Classes'])}
+                            className="text-slate-400 hover:text-rose-500 font-bold hover:underline"
+                          >
+                            Reset
+                          </button>
+                        </div>
+
+                        {/* Search Input if > 4 classes */}
+                        {masterClassesList.filter(c => c !== 'All Classes').length > 4 && (
+                          <div className="relative">
+                            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                              type="text"
+                              placeholder="Search class..."
+                              value={classFilterQuery}
+                              onChange={e => setClassFilterQuery(e.target.value)}
+                              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-teal-500 font-medium"
+                            />
+                          </div>
+                        )}
+
+                        {/* Classes List */}
+                        <div className="max-h-48 overflow-y-auto space-y-1 pr-0.5">
+                          {/* "All Classes" option */}
+                          <div
+                            onClick={() => setFormTargetClasses(['All Classes'])}
+                            className={`flex items-center justify-between px-2.5 py-1.5 rounded-xl cursor-pointer select-none transition-colors ${
+                              formTargetClasses.includes('All Classes')
+                                ? 'bg-teal-50 text-teal-900 font-bold border border-teal-200/80'
+                                : 'hover:bg-slate-50 text-slate-700 font-medium'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${
+                                  formTargetClasses.includes('All Classes')
+                                    ? 'bg-teal-600 border-teal-600 text-white'
+                                    : 'border-slate-300 bg-white'
+                                }`}
+                              >
+                                {formTargetClasses.includes('All Classes') && <Check className="w-3 h-3 stroke-[3]" />}
+                              </div>
+                              <span>All Classes (Entire School)</span>
+                            </div>
+                            <span className="text-[10px] text-teal-700 font-bold bg-teal-100/70 px-1.5 py-0.5 rounded">
+                              Universal
+                            </span>
+                          </div>
+
+                          {/* Individual Classes */}
+                          {masterClassesList
+                            .filter(c => c !== 'All Classes')
+                            .filter(c => !classFilterQuery || c.toLowerCase().includes(classFilterQuery.toLowerCase()))
+                            .map(cls => {
+                              const isChecked = !formTargetClasses.includes('All Classes') && formTargetClasses.includes(cls)
+                              return (
+                                <div
+                                  key={cls}
+                                  onClick={() => handleToggleClass(cls)}
+                                  className={`flex items-center justify-between px-2.5 py-1.5 rounded-xl cursor-pointer select-none transition-colors ${
+                                    isChecked
+                                      ? 'bg-teal-50/80 text-teal-900 font-bold border border-teal-200/60'
+                                      : 'hover:bg-slate-50 text-slate-700 font-medium'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className={`w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${
+                                        isChecked
+                                          ? 'bg-teal-600 border-teal-600 text-white'
+                                          : 'border-slate-300 bg-white'
+                                      }`}
+                                    >
+                                      {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                                    </div>
+                                    <span>{cls}</span>
+                                  </div>
+                                  {isChecked && (
+                                    <span className="text-[10px] text-teal-600 font-black">
+                                      Selected
+                                    </span>
+                                  )}
+                                </div>
+                              )
+                            })}
+                        </div>
+
+                        {/* Footer Action */}
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            {formTargetClasses.includes('All Classes')
+                              ? 'Applies to all grades'
+                              : `${formTargetClasses.length} class(es) selected`}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setClassPickerOpen(false)}
+                            className="px-3 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-[11px] font-black transition-colors cursor-pointer"
+                          >
+                            Done
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1681,9 +2033,10 @@ export default function AcademicCalendarPage() {
                     📅 {viewEvent.eventType}
                   </span>
                 )}
-                {viewEvent.targetClasses && (
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
-                    {viewEvent.targetClasses.join(', ')}
+                {viewEvent.targetClasses && viewEvent.targetClasses.length > 0 && (
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1">
+                    <Users className="w-3 h-3 text-slate-500" />
+                    <span>{viewEvent.targetClasses.join(', ')}</span>
                   </span>
                 )}
               </div>

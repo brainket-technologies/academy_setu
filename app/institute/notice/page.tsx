@@ -20,6 +20,8 @@ import {
   Eye,
   AlertCircle,
   Sparkles,
+  Languages,
+  RefreshCw,
   ChevronRight,
   Radio,
   Check,
@@ -55,73 +57,123 @@ interface NoticeRecord {
 const PRESET_SUBJECTS = [
   {
     category: 'Holiday Announcement',
+    categoryHi: 'अवकाश सूचना',
     label: '📅 Holiday Announcement (Festival / Break)',
+    labelHi: '📅 अवकाश सूचना (त्योहार / छुट्टियां)',
     subject: 'Holiday Announcement - School Closed',
+    subjectHi: 'अवकाश सूचना - विद्यालय बंद',
     defaultMessage:
-      'Dear Parents and Students, The school will remain closed on [Date] on account of [Occasion/Festival]. Regular classes will resume as per normal schedule on the next working day.'
+      'Dear Parents and Students, The school will remain closed on [Date] on account of [Occasion/Festival]. Regular classes will resume as per normal schedule on the next working day.',
+    defaultMessageHi:
+      'आदरणीय अभिभावक एवं प्रिय छात्र, [त्योहार/अवसर] के उपलक्ष्य में विद्यालय [दिनांक] को बंद रहेगा। अगले कार्यदिवस से नियमित कक्षाएं निर्धारित समयानुसार संचालित होंगी।'
   },
   {
     category: 'Exam Schedule',
+    categoryHi: 'परीक्षा समय सारणी',
     label: '📝 Examination Schedule & Admit Cards Notice',
+    labelHi: '📝 परीक्षा कार्यक्रम एवं प्रवेश पत्र सूचना',
     subject: 'Upcoming Examination Schedule & Date Sheet',
+    subjectHi: 'आगामी परीक्षा समय सारणी एवं डेटशीट',
     defaultMessage:
-      'Dear Students and Parents, The date sheet for the upcoming term examinations has been released on the school portal. All students must bring their Admit Cards and school ID.'
+      'Dear Students and Parents, The date sheet for the upcoming term examinations has been released on the school portal. All students must bring their Admit Cards and school ID.',
+    defaultMessageHi:
+      'प्रिय छात्र एवं अभिभावक, आगामी सत्रांत परीक्षाओं की डेटशीट विद्यालय पोर्टल पर जारी कर दी गई है। सभी छात्र अपना प्रवेश पत्र (Admit Card) व पहचान पत्र अवश्य साथ लाएं।'
   },
   {
     category: 'Fee Reminder',
+    categoryHi: 'शुल्क अनुस्मारक',
     label: '💰 Tuition & Transport Fee Due Reminder',
+    labelHi: '💰 शिक्षण एवं वाहन शुल्क भुगतान अनुस्मारक',
     subject: 'Quarterly School Fee Clearance Reminder',
+    subjectHi: 'त्रैमासिक विद्यालय शुल्क भुगतान अनुस्मारक',
     defaultMessage:
-      'Dear Parents, Kindly ensure all pending tuition and transport dues for the current quarter are cleared by [Due Date] to avoid late fine charges. Disregard if already paid.'
+      'Dear Parents, Kindly ensure all pending tuition and transport dues for the current quarter are cleared by [Due Date] to avoid late fine charges. Disregard if already paid.',
+    defaultMessageHi:
+      'आदरणीय अभिभावक, कृपया वर्तमान तिमाही के सभी लंबित शिक्षण एवं परिवहन शुल्क का भुगतान [अंतिम तिथि] तक सुनिश्चित करें ताकि विलंब शुल्क से बचा जा सके। यदि भुगतान हो चुका है तो कृपया इस संदेश की अनदेखी करें।'
   },
   {
     category: 'PTM Meeting',
+    categoryHi: 'अभिभावक-शिक्षक बैठक',
     label: '👨‍👩‍👧 Parent-Teacher Meeting (PTM) Invitation',
+    labelHi: '👨‍👩‍👧 अभिभावक-शिक्षक बैठक (PTM) आमंत्रण',
     subject: 'Parent-Teacher Meeting (PTM) Invitation',
+    subjectHi: 'अभिभावक-शिक्षक बैठक (PTM) आमंत्रण',
     defaultMessage:
-      'Dear Parents, You are cordially invited to attend the Parent-Teacher Meeting on Saturday between 8:30 AM to 12:30 PM to discuss your child\'s academic growth and term performance.'
+      'Dear Parents, You are cordially invited to attend the Parent-Teacher Meeting on Saturday between 8:30 AM to 12:30 PM to discuss your child\'s academic growth and term performance.',
+    defaultMessageHi:
+      'आदरणीय अभिभावक, आप शनिवार को प्रातः 8:30 बजे से दोपहर 12:30 बजे के बीच अपने बच्चे की शैक्षणिक प्रगति पर चर्चा हेतु अभिभावक-शिक्षक बैठक में सादर आमंत्रित हैं।'
   },
   {
     category: 'Weather & Timing',
+    categoryHi: 'मौसम एवं समय परिवर्तन',
     label: '⏰ School Timing Change / Weather Advisory',
+    labelHi: '⏰ विद्यालय समय में परिवर्तन / मौसम परामर्श',
     subject: 'Revision in School Timings & Winter Schedule',
+    subjectHi: 'विद्यालय समय में परिवर्तन एवं शीतकालीन सारणी',
     defaultMessage:
-      'Dear Parents, Due to changing weather conditions, the school morning reporting time is revised to 8:30 AM effective from [Date]. Please plan your drop-off accordingly.'
+      'Dear Parents, Due to changing weather conditions, the school morning reporting time is revised to 8:30 AM effective from [Date]. Please plan your drop-off accordingly.',
+    defaultMessageHi:
+      'आदरणीय अभिभावक, मौसम में बदलाव के कारण [दिनांक] से विद्यालय का प्रातःकालीन समय बदलकर 8:30 बजे कर दिया गया है। कृपया इसी अनुसार आगमन की व्यवस्था करें।'
   },
   {
     category: 'Transport',
+    categoryHi: 'परिवहन सूचना',
     label: '🚌 Transport / Bus Route Schedule Update',
+    labelHi: '🚌 विद्यालय बस मार्ग समय एवं स्टॉपेज अपडेट',
     subject: 'School Bus Route Timing & Stoppage Update',
+    subjectHi: 'विद्यालय बस मार्ग समय एवं स्टॉपेज अपडेट',
     defaultMessage:
-      'Dear Parents, Please note that Bus Route No. [Number] timings have been adjusted by 10 minutes due to city road maintenance. Please check your stoppage time.'
+      'Dear Parents, Please note that Bus Route No. [Number] timings have been adjusted by 10 minutes due to city road maintenance. Please check your stoppage time.',
+    defaultMessageHi:
+      'आदरणीय अभिभावक, सड़क निर्माण कार्य के कारण बस रूट नं. [संख्या] के समय में 10 मिनट का संशोधन किया गया है। कृपया अपने स्टॉपेज का समय जांच लें।'
   },
   {
     category: 'Sports & Events',
+    categoryHi: 'खेलकूद एवं प्रतियोगिता',
     label: '🏆 Annual Sports Day & Cultural Fest Announcement',
+    labelHi: '🏆 वार्षिक खेलकूद दिवस एवं ट्रायल चयन',
     subject: 'Annual Sports Day & Sports Trials Selection',
+    subjectHi: 'वार्षिक खेलकूद दिवस एवं ट्रायल चयन',
     defaultMessage:
-      'Dear Students, Selection trials for the upcoming Annual Inter-House Sports Championship will be held during sports periods this week. Interested participants should register with their PE teacher.'
+      'Dear Students, Selection trials for the upcoming Annual Inter-House Sports Championship will be held during sports periods this week. Interested participants should register with their PE teacher.',
+    defaultMessageHi:
+      'प्रिय छात्र, आगामी वार्षिक इंटर-हाउस खेलकूद प्रतियोगिता के लिए चयन ट्रायल इस सप्ताह खेल पीरियड में आयोजित किए जाएंगे। इच्छुक प्रतिभागी अपने पी.ई. शिक्षक के पास पंजीकरण कराएं।'
   },
   {
     category: 'Emergency Alert',
+    categoryHi: 'आपातकालीन सूचना',
     label: '🚨 Emergency / Weather & Rain Holiday Alert',
+    labelHi: '🚨 आपातकालीन सूचना / भारी वर्षा अवकाश',
     subject: 'Emergency School Closure Notice',
+    subjectHi: 'आपातकालीन विद्यालय अवकाश सूचना',
     defaultMessage:
-      'Urgent Notice: Due to heavy rainfall and administrative government orders, school will remain closed today. Online classes will be conducted as per the regular timetable.'
+      'Urgent Notice: Due to heavy rainfall and administrative government orders, school will remain closed today. Online classes will be conducted as per the regular timetable.',
+    defaultMessageHi:
+      'अति आवश्यक सूचना: भारी बारिश एवं प्रशासनिक आदेशानुसार विद्यालय आज बंद रहेगा। नियमित समय सारणी के अनुसार ऑनलाइन कक्षाएं संचालित की जाएंगी।'
   },
   {
     category: 'Uniform & Discipline',
+    categoryHi: 'गणवेश एवं अनुशासन',
     label: '👕 Uniform & Dress Code Guidelines',
+    labelHi: '👕 विद्यालय गणवेश एवं ड्रेस कोड नियम',
     subject: 'Strict Adherence to Winter School Uniform',
+    subjectHi: 'शीतकालीन विद्यालय गणवेश (यूनिफॉर्म) अनिवार्यता',
     defaultMessage:
-      'Dear Parents, All students are required to wear proper school winter uniforms, including blazers and ties, starting from [Date]. Casual winter jackets are strictly not permitted.'
+      'Dear Parents, All students are required to wear proper school winter uniforms, including blazers and ties, starting from [Date]. Casual winter jackets are strictly not permitted.',
+    defaultMessageHi:
+      'आदरणीय अभिभावक, [दिनांक] से सभी विद्यार्थियों के लिए ब्लेज़र व टाई सहित पूर्ण शीतकालीन गणवेश पहनना अनिवार्य है। साधारण जैकेट पहनने की अनुमति नहीं होगी।'
   },
   {
     category: 'Library',
+    categoryHi: 'पुस्तकालय सूचना',
     label: '📚 Library Book Return & Clearance Notice',
+    labelHi: '📚 पुस्तकालय पुस्तकें जमा करने हेतु सूचना',
     subject: 'Annual Library Books Return Reminder',
+    subjectHi: 'पुस्तकालय पुस्तकें जमा करने हेतु सूचना',
     defaultMessage:
-      'Dear Students, All library books borrowed for the term must be returned to the school central library before the end of this week for inventory verification.'
+      'Dear Students, All library books borrowed for the term must be returned to the school central library before the end of this week for inventory verification.',
+    defaultMessageHi:
+      'प्रिय छात्र, सत्र के लिए जारी की गई सभी पुस्तकालय पुस्तकें स्टॉक सत्यापन हेतु इस सप्ताह के अंत से पहले केंद्रीय पुस्तकालय में अनिवार्य रूप से जमा कराएं।'
   }
 ]
 
@@ -147,6 +199,12 @@ export default function NoticeOnAppPage() {
   const [subjectCategory, setSubjectCategory] = useState('General')
   const [message, setMessage] = useState('')
   const [priority, setPriority] = useState<'Normal' | 'Important' | 'Urgent'>('Normal')
+
+  // Translation States (Hindi & English)
+  const [noticeLanguage, setNoticeLanguage] = useState<'en' | 'hi'>('en')
+  const [translatingField, setTranslatingField] = useState<'all' | 'title' | 'body' | null>(null)
+  const [translatingView, setTranslatingView] = useState(false)
+  const [isViewInHindi, setIsViewInHindi] = useState(false)
 
   // Schedule settings
   const [isScheduled, setIsScheduled] = useState(false)
@@ -247,6 +305,83 @@ export default function NoticeOnAppPage() {
     fetchNotices()
   }, [fetchNotices])
 
+  // Handle Translation (Hindi <-> English)
+  const handleTranslate = async (targetLang: 'hi' | 'en', field: 'all' | 'title' | 'body' = 'all') => {
+    // If on preset template and switching whole notice, switch to bilingual preset
+    if (subjectMode === 'preset' && selectedPresetIndex !== '' && field === 'all') {
+      const p = PRESET_SUBJECTS[Number(selectedPresetIndex)]
+      if (p) {
+        setNoticeLanguage(targetLang)
+        setSubjectTitle(targetLang === 'hi' ? p.subjectHi : p.subject)
+        setSubjectCategory(targetLang === 'hi' ? p.categoryHi : p.category)
+        setMessage(targetLang === 'hi' ? p.defaultMessageHi : p.defaultMessage)
+        triggerToast(`Switched notice to ${targetLang === 'hi' ? 'Hindi (हिन्दी)' : 'English'} template!`)
+        return
+      }
+    }
+
+    setTranslatingField(field)
+    try {
+      if (field === 'all') {
+        const titleToTranslate = subjectTitle.trim()
+        const bodyToTranslate = message.trim()
+
+        if (!titleToTranslate && !bodyToTranslate) {
+          triggerToast('Please type a title or message first to translate.')
+          setTranslatingField(null)
+          return
+        }
+
+        const res = await fetch('/api/institute/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            texts: [titleToTranslate, bodyToTranslate],
+            targetLang
+          })
+        })
+        const data = await res.json()
+        if (data.success && Array.isArray(data.translatedTexts)) {
+          if (data.translatedTexts[0]) setSubjectTitle(data.translatedTexts[0])
+          if (data.translatedTexts[1]) setMessage(data.translatedTexts[1])
+          setNoticeLanguage(targetLang)
+          triggerToast(`Notice translated to ${targetLang === 'hi' ? 'Hindi (हिन्दी)' : 'English'} successfully!`)
+        } else {
+          triggerToast('Translation service unavailable. Please try again.')
+        }
+      } else if (field === 'title') {
+        if (!subjectTitle.trim()) return
+        const res = await fetch('/api/institute/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: subjectTitle, targetLang })
+        })
+        const data = await res.json()
+        if (data.success && data.translatedText) {
+          setSubjectTitle(data.translatedText)
+          triggerToast(`Title translated to ${targetLang === 'hi' ? 'Hindi' : 'English'}!`)
+        }
+      } else if (field === 'body') {
+        if (!message.trim()) return
+        const res = await fetch('/api/institute/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: message, targetLang })
+        })
+        const data = await res.json()
+        if (data.success && data.translatedText) {
+          setMessage(data.translatedText)
+          triggerToast(`Message translated to ${targetLang === 'hi' ? 'Hindi' : 'English'}!`)
+        }
+      }
+    } catch (err) {
+      console.error(err)
+      triggerToast('Translation error. Please check your network.')
+    } finally {
+      setTranslatingField(null)
+    }
+  }
+
   // Handle Preset Subject Selection
   const handleSelectPreset = (idxVal: string) => {
     if (idxVal === 'manual' || idxVal === '') {
@@ -260,12 +395,12 @@ export default function NoticeOnAppPage() {
     if (preset) {
       setSelectedPresetIndex(idx)
       setSubjectMode('preset')
-      setSubjectTitle(preset.subject)
-      setSubjectCategory(preset.category)
+      setSubjectTitle(noticeLanguage === 'hi' ? preset.subjectHi : preset.subject)
+      setSubjectCategory(noticeLanguage === 'hi' ? preset.categoryHi : preset.category)
 
       // Auto-suggest message if currently empty or short
       if (!message.trim() || message.length < 20) {
-        setMessage(preset.defaultMessage)
+        setMessage(noticeLanguage === 'hi' ? preset.defaultMessageHi : preset.defaultMessage)
       }
     }
   }
@@ -274,10 +409,10 @@ export default function NoticeOnAppPage() {
   const handleQuickChipSelect = (preset: typeof PRESET_SUBJECTS[0], idx: number) => {
     setSelectedPresetIndex(idx)
     setSubjectMode('preset')
-    setSubjectTitle(preset.subject)
-    setSubjectCategory(preset.category)
+    setSubjectTitle(noticeLanguage === 'hi' ? preset.subjectHi : preset.subject)
+    setSubjectCategory(noticeLanguage === 'hi' ? preset.categoryHi : preset.category)
     if (!message.trim() || message.length < 20) {
-      setMessage(preset.defaultMessage)
+      setMessage(noticeLanguage === 'hi' ? preset.defaultMessageHi : preset.defaultMessage)
     }
   }
 
@@ -397,6 +532,8 @@ export default function NoticeOnAppPage() {
   const resetForm = () => {
     setSelectedPresetIndex('')
     setSubjectMode('preset')
+    setNoticeLanguage('en')
+    setTranslatingField(null)
     setSubjectTitle('')
     setSubjectCategory('General')
     setMessage('')
@@ -810,7 +947,75 @@ export default function NoticeOnAppPage() {
               </div>
             </div>
 
-            <form onSubmit={handleCreateNoticeSubmit} className="space-y-6">
+            <form onSubmit={handleCreateNoticeSubmit} className="space-y-5">
+
+              {/* Notice Language & 1-Click Translation Bar */}
+              <div className="p-3 bg-gradient-to-r from-teal-50/90 via-blue-50/70 to-indigo-50/60 border border-teal-200/80 rounded-2xl flex flex-wrap items-center justify-between gap-2.5 shadow-2xs">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-xs">
+                    <Languages className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-black text-slate-850 block leading-tight flex items-center gap-1.5">
+                      <span>Notice Language / अनुवाद</span>
+                      <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-teal-100 text-teal-800">
+                        {noticeLanguage === 'hi' ? 'हिन्दी (Hindi)' : 'English'}
+                      </span>
+                    </span>
+                    <span className="text-[10.5px] text-slate-500 font-medium">
+                      Select language or translate with 1 click
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Language Mode Toggle */}
+                  <div className="flex items-center p-0.5 bg-white border border-slate-200 rounded-xl shadow-2xs text-[11px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => handleTranslate('en', 'all')}
+                      disabled={translatingField !== null}
+                      className={`px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                        noticeLanguage === 'en'
+                          ? 'bg-teal-600 text-white font-black shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>🇬🇧 English</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleTranslate('hi', 'all')}
+                      disabled={translatingField !== null}
+                      className={`px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                        noticeLanguage === 'hi'
+                          ? 'bg-teal-600 text-white font-black shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>🇮🇳 हिन्दी</span>
+                    </button>
+                  </div>
+
+                  {/* 1-Click Translation Action Button */}
+                  <button
+                    type="button"
+                    onClick={() => handleTranslate(noticeLanguage === 'hi' ? 'en' : 'hi', 'all')}
+                    disabled={translatingField !== null || (!subjectTitle.trim() && !message.trim())}
+                    className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:text-teal-700 font-bold text-xs transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Translate entire notice to opposite language"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-teal-600 ${translatingField === 'all' ? 'animate-spin' : ''}`} />
+                    <span>
+                      {translatingField === 'all'
+                        ? 'Translating...'
+                        : noticeLanguage === 'hi'
+                        ? 'Translate to English'
+                        : 'Translate to हिन्दी'}
+                    </span>
+                  </button>
+                </div>
+              </div>
 
               {/* SECTION 1: Subject Selection (Select or Type Manually) */}
               <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-3.5">
@@ -819,7 +1024,9 @@ export default function NoticeOnAppPage() {
                     <Sparkles className="w-3.5 h-3.5 text-teal-600" />
                     <span>Subject / Notice Title <span className="text-red-500">*</span></span>
                   </label>
-                  <div className="flex items-center gap-1 text-[11px]">
+
+                  {/* Mode Tabs: Preset Templates vs Type Manually */}
+                  <div className="flex items-center p-0.5 bg-white border border-slate-200 rounded-xl shadow-2xs text-[11px]">
                     <button
                       type="button"
                       onClick={() => {
@@ -827,18 +1034,19 @@ export default function NoticeOnAppPage() {
                         if (selectedPresetIndex !== '') {
                           const p = PRESET_SUBJECTS[Number(selectedPresetIndex)]
                           if (p) {
-                            setSubjectTitle(p.subject)
-                            setSubjectCategory(p.category)
+                            setSubjectTitle(noticeLanguage === 'hi' ? p.subjectHi : p.subject)
+                            setSubjectCategory(noticeLanguage === 'hi' ? p.categoryHi : p.category)
                           }
                         }
                       }}
-                      className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                      className={`px-3 py-1 rounded-lg font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                         subjectMode === 'preset'
-                          ? 'bg-teal-600 text-white shadow-2xs'
-                          : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                          ? 'bg-teal-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                       }`}
                     >
-                      Preset Templates
+                      <Sparkles className="w-3 h-3" />
+                      <span>Preset Templates</span>
                     </button>
                     <button
                       type="button"
@@ -846,89 +1054,157 @@ export default function NoticeOnAppPage() {
                         setSubjectMode('manual')
                         setSelectedPresetIndex('')
                       }}
-                      className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                      className={`px-3 py-1 rounded-lg font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                         subjectMode === 'manual'
-                          ? 'bg-teal-600 text-white shadow-2xs'
-                          : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                          ? 'bg-teal-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                       }`}
                     >
-                      Type Manually
+                      <span>✍️ Type Manually</span>
                     </button>
                   </div>
                 </div>
 
-                {/* Dropdown for Preset Subjects */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-500">
-                    Option A: Choose Pre-defined Subject (Fills Title & Suggested Message)
-                  </label>
-                  <select
-                    value={selectedPresetIndex}
-                    onChange={e => handleSelectPreset(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none font-bold text-slate-700 text-xs focus:border-teal-500 cursor-pointer shadow-2xs"
-                  >
-                    <option value="">-- Click to Pick Pre-defined School Notice Subject --</option>
-                    {PRESET_SUBJECTS.map((item, i) => (
-                      <option key={i} value={i}>
-                        {item.label}
-                      </option>
-                    ))}
-                    <option value="manual">✍️ Custom Subject (Type Manually Below)</option>
-                  </select>
-                </div>
-
-                {/* Quick Subject Chips */}
-                <div className="space-y-1 pt-1">
-                  <span className="text-[10px] font-bold text-slate-400 block">Quick Chips (1-Click Fill):</span>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {PRESET_SUBJECTS.slice(0, 5).map((preset, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => handleQuickChipSelect(preset, idx)}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
-                          selectedPresetIndex === idx
-                            ? 'bg-teal-50 text-teal-700 border-teal-300 font-black'
-                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-                        }`}
+                {/* TAB 1: PRESET TEMPLATES MODE */}
+                {subjectMode === 'preset' ? (
+                  <div className="space-y-3 animate-in fade-in duration-150">
+                    {/* Dropdown for Preset Subjects */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-500">
+                        {noticeLanguage === 'hi'
+                          ? 'पूर्व-परिभाषित विषय चुनें (शीर्षक व सुझाव संदेश स्वतः भर जाएगा)'
+                          : 'Choose Pre-defined Subject (Fills Title & Suggested Message)'}
+                      </label>
+                      <select
+                        value={selectedPresetIndex}
+                        onChange={e => handleSelectPreset(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none font-bold text-slate-700 text-xs focus:border-teal-500 cursor-pointer shadow-2xs"
                       >
-                        {preset.category}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                        <option value="">
+                          {noticeLanguage === 'hi'
+                            ? '-- पूर्व-परिभाषित विद्यालय सूचना विषय चुनें --'
+                            : '-- Click to Pick Pre-defined School Notice Subject --'}
+                        </option>
+                        {PRESET_SUBJECTS.map((item, i) => (
+                          <option key={i} value={i}>
+                            {noticeLanguage === 'hi' ? item.labelHi : item.label}
+                          </option>
+                        ))}
+                        <option value="manual">✍️ Custom Subject (Type Manually)</option>
+                      </select>
+                    </div>
 
-                {/* Option B: Editable / Manual Subject Title Field */}
-                <div className="space-y-1 pt-2 border-t border-slate-200">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-bold text-slate-600">
-                      Option B: Notice Subject / Title (Editable or Type Manually) <span className="text-red-500">*</span>
-                    </label>
-                    {subjectTitle && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSubjectTitle('')
-                          setSelectedPresetIndex('')
-                        }}
-                        className="text-[10px] text-slate-400 hover:text-slate-600 font-bold"
-                      >
-                        Clear text
-                      </button>
-                    )}
+                    {/* Quick Subject Chips */}
+                    <div className="space-y-1 pt-1">
+                      <span className="text-[10px] font-bold text-slate-400 block">Quick Chips (1-Click Fill):</span>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {PRESET_SUBJECTS.slice(0, 5).map((preset, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => handleQuickChipSelect(preset, idx)}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                              selectedPresetIndex === idx
+                                ? 'bg-teal-50 text-teal-700 border-teal-300 font-black ring-1 ring-teal-400'
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {noticeLanguage === 'hi' ? preset.categoryHi : preset.category}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Selected / Customizable Title field */}
+                    <div className="space-y-1 pt-2 border-t border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold text-slate-600">
+                          Notice Subject / Title <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex items-center gap-2">
+                          {subjectTitle.trim() && (
+                            <button
+                              type="button"
+                              onClick={() => handleTranslate(noticeLanguage === 'hi' ? 'en' : 'hi', 'title')}
+                              disabled={translatingField !== null}
+                              className="text-[10px] text-teal-600 hover:text-teal-700 font-bold hover:underline cursor-pointer disabled:opacity-40"
+                            >
+                              ⇄ {noticeLanguage === 'hi' ? 'Translate Title to EN' : 'Translate Title to हिन्दी'}
+                            </button>
+                          )}
+                          {subjectTitle && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSubjectTitle('')
+                                setSelectedPresetIndex('')
+                              }}
+                              className="text-[10px] text-slate-400 hover:text-rose-500 font-bold"
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        placeholder={noticeLanguage === 'hi' ? 'सूचना का विषय / शीर्षक दर्ज करें...' : 'Enter or customize Subject Title...'}
+                        value={subjectTitle}
+                        onChange={e => setSubjectTitle(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none font-black text-slate-800 text-xs focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-2xs"
+                      />
+                    </div>
                   </div>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter or customize Subject Title..."
-                    value={subjectTitle}
-                    onChange={e => {
-                      setSubjectTitle(e.target.value)
-                      if (subjectMode !== 'manual') setSubjectMode('manual')
-                    }}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl outline-none font-black text-slate-800 text-xs focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 shadow-2xs"
-                  />
-                </div>
+                ) : (
+                  /* TAB 2: TYPE MANUALLY MODE (Option A & Chips hidden completely) */
+                  <div className="space-y-2 py-1 animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-[11px] font-black text-slate-850 block">
+                          Type Custom Subject / Notice Title <span className="text-red-500">*</span>
+                        </span>
+                        <p className="text-[10px] text-slate-400 font-medium">
+                          Compose your own custom notice title freely without using presets
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {subjectTitle.trim() && (
+                          <button
+                            type="button"
+                            onClick={() => handleTranslate(noticeLanguage === 'hi' ? 'en' : 'hi', 'title')}
+                            disabled={translatingField !== null}
+                            className="text-[10px] text-teal-600 hover:text-teal-700 font-bold hover:underline cursor-pointer disabled:opacity-40"
+                          >
+                            ⇄ {noticeLanguage === 'hi' ? 'Translate to EN' : 'Translate to हिन्दी'}
+                          </button>
+                        )}
+                        {subjectTitle && (
+                          <button
+                            type="button"
+                            onClick={() => setSubjectTitle('')}
+                            className="text-[10px] text-slate-400 hover:text-rose-500 font-bold"
+                          >
+                            Clear text
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      autoFocus
+                      placeholder={
+                        noticeLanguage === 'hi'
+                          ? 'यहाँ अपना कस्टम सूचना विषय / शीर्षक टाइप करें...'
+                          : 'Type your custom Notice Subject / Title here...'
+                      }
+                      value={subjectTitle}
+                      onChange={e => setSubjectTitle(e.target.value)}
+                      className="w-full px-4 py-3 bg-white border-2 border-teal-500/60 rounded-xl outline-none font-black text-slate-900 text-xs focus:ring-2 focus:ring-teal-500/30 focus:border-teal-600 shadow-2xs placeholder:text-slate-400 placeholder:font-normal"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* SECTION 2: Priority & Category */}
@@ -975,14 +1251,40 @@ export default function NoticeOnAppPage() {
               {/* SECTION 3: Notice Message */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-slate-700 font-bold text-xs">
-                    Message Body <span className="text-red-500">*</span>
+                  <label className="text-slate-700 font-bold text-xs flex items-center gap-1.5">
+                    <span>Message Body <span className="text-red-500">*</span></span>
+                    <span className="text-[10px] font-normal text-slate-400">
+                      ({noticeLanguage === 'hi' ? 'हिन्दी में' : 'in English'})
+                    </span>
                   </label>
-                  <span className="text-[10px] text-slate-400 font-bold">{message.length} characters</span>
+                  <div className="flex items-center gap-2.5">
+                    {message.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => handleTranslate(noticeLanguage === 'hi' ? 'en' : 'hi', 'body')}
+                        disabled={translatingField !== null}
+                        className="text-[10.5px] text-teal-600 hover:text-teal-700 font-bold flex items-center gap-1 hover:underline cursor-pointer disabled:opacity-40"
+                      >
+                        <Languages className="w-3 h-3" />
+                        <span>
+                          {translatingField === 'body'
+                            ? 'Translating body...'
+                            : noticeLanguage === 'hi'
+                            ? 'Translate Body to English'
+                            : 'Translate Body to हिन्दी'}
+                        </span>
+                      </button>
+                    )}
+                    <span className="text-[10px] text-slate-400 font-bold">{message.length} characters</span>
+                  </div>
                 </div>
                 <textarea
                   required
-                  placeholder="Enter detailed notice message for the mobile app..."
+                  placeholder={
+                    noticeLanguage === 'hi'
+                      ? 'मोबाइल ऐप के लिए विस्तृत सूचना संदेश यहाँ दर्ज करें...'
+                      : 'Enter detailed notice message for the mobile app...'
+                  }
                   value={message}
                   onChange={e => setMessage(e.target.value)}
                   className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none font-medium text-xs text-slate-850 h-28 resize-none bg-white focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 leading-relaxed shadow-2xs"
@@ -1233,6 +1535,58 @@ export default function NoticeOnAppPage() {
                 <span>•</span>
                 <span>Created: {viewNotice.createdAt}</span>
               </div>
+            </div>
+
+            {/* Translation in View Details */}
+            <div className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+              <span className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                <Languages className="w-3.5 h-3.5 text-teal-600" />
+                <span>Notice Translation:</span>
+              </span>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!viewNotice) return
+                  setTranslatingView(true)
+                  try {
+                    const targetLang = isViewInHindi ? 'en' : 'hi'
+                    const res = await fetch('/api/institute/translate', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        texts: [viewNotice.subjectTitle, viewNotice.message],
+                        targetLang
+                      })
+                    })
+                    const data = await res.json()
+                    if (data.success && data.translatedTexts) {
+                      setViewNotice({
+                        ...viewNotice,
+                        subjectTitle: data.translatedTexts[0] || viewNotice.subjectTitle,
+                        message: data.translatedTexts[1] || viewNotice.message
+                      })
+                      setIsViewInHindi(!isViewInHindi)
+                      triggerToast(`Notice translated to ${targetLang === 'hi' ? 'Hindi (हिन्दी)' : 'English'}!`)
+                    }
+                  } catch (e) {
+                    console.error(e)
+                    triggerToast('Translation error')
+                  } finally {
+                    setTranslatingView(false)
+                  }
+                }}
+                disabled={translatingView}
+                className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold text-teal-700 flex items-center gap-1 shadow-2xs cursor-pointer disabled:opacity-40"
+              >
+                <RefreshCw className={`w-3 h-3 ${translatingView ? 'animate-spin' : ''}`} />
+                <span>
+                  {translatingView
+                    ? 'Translating...'
+                    : isViewInHindi
+                    ? 'Translate to English'
+                    : 'Translate to हिन्दी'}
+                </span>
+              </button>
             </div>
 
             {/* Notice Message Content */}

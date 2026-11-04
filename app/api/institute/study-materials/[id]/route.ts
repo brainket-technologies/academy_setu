@@ -31,7 +31,8 @@ export async function GET(
         subject: row.subject,
         title: row.title,
         contentType: row.content_type,
-        chapterTopic: row.chapter_topic || '',
+        chapterTopic: row.chapter_topic || row.lesson_folder || '',
+        lessonFolder: row.lesson_folder || row.chapter_topic || '',
         url: row.url || '',
         fileName: row.file_name || '',
         fileSize: row.file_size || '',
@@ -59,6 +60,7 @@ export async function PUT(
       title,
       contentType,
       chapterTopic,
+      lessonFolder,
       url,
       fileName,
       fileSize,
@@ -70,25 +72,29 @@ export async function PUT(
       return NextResponse.json({ success: false, error: 'Title is required' }, { status: 400 })
     }
 
+    const effectiveFolder = lessonFolder !== undefined ? lessonFolder.trim() : (chapterTopic !== undefined ? chapterTopic.trim() : null)
+
     const updateRes = await pool.query(`
       UPDATE school_study_materials
       SET
         title = COALESCE($1, title),
         content_type = COALESCE($2, content_type),
         chapter_topic = COALESCE($3, chapter_topic),
-        url = COALESCE($4, url),
-        file_name = COALESCE($5, file_name),
-        file_size = COALESCE($6, file_size),
-        description = COALESCE($7, description),
-        allow_download = COALESCE($8, allow_download),
+        lesson_folder = COALESCE($4, lesson_folder),
+        url = COALESCE($5, url),
+        file_name = COALESCE($6, file_name),
+        file_size = COALESCE($7, file_size),
+        description = COALESCE($8, description),
+        allow_download = COALESCE($9, allow_download),
         updated_at = NOW()
-      WHERE id = $9
+      WHERE id = $10
       RETURNING *,
         TO_CHAR(created_at, 'DD/MM/YYYY hh:mi AM') as created_at_formatted
     `, [
       title ? title.trim() : null,
       contentType ? contentType.toLowerCase().trim() : null,
-      chapterTopic !== undefined ? chapterTopic.trim() : null,
+      effectiveFolder,
+      effectiveFolder,
       url !== undefined ? url.trim() : null,
       fileName !== undefined ? fileName.trim() : null,
       fileSize !== undefined ? fileSize.trim() : null,
@@ -112,7 +118,8 @@ export async function PUT(
         subject: row.subject,
         title: row.title,
         contentType: row.content_type,
-        chapterTopic: row.chapter_topic || '',
+        chapterTopic: row.chapter_topic || row.lesson_folder || '',
+        lessonFolder: row.lesson_folder || row.chapter_topic || '',
         url: row.url || '',
         fileName: row.file_name || '',
         fileSize: row.file_size || '',

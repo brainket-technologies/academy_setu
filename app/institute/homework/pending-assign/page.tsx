@@ -18,6 +18,7 @@ import {
   fetchHomeworkTasks,
   createHomeworkTask,
   deleteHomeworkTask,
+  rescheduleHomeworkTask,
   updateStudentTaskSubmission
 } from '@/app/institute/homework/assign/actions'
 
@@ -931,7 +932,12 @@ export default function PendingAssignHomeworkPage() {
         })
       }
 
-      if (isMissed) {
+      const hasTasksOnDate = tasks.some(t => {
+        const normT = normalizeDateStr(t.assignDate)
+        return normT === isoStr || (t.assignDate && t.assignDate.includes(dd) && t.assignDate.toLowerCase().includes(monthShort.toLowerCase()))
+      })
+
+      if (isMissed || hasTasksOnDate) {
         list.push({
           id: `missed-${isoStr}`,
           dayNumber: dd,
@@ -965,21 +971,29 @@ export default function PendingAssignHomeworkPage() {
   const classesForSelectedDate = useMemo(() => {
     if (!selectedMissedDateItem) return []
 
-    return classCards.filter(cls => {
-      // Filter out classes that already completed all scheduled subjects on this date
-      const subs = getSubjectsForClass(cls.className, cls.section, activeDayName)
-      if (subs.length > 0) {
-        const hasUnassigned = subs.some(sub =>
+    return classCards
+      .filter(cls => {
+        if (filterClass !== 'All' && cls.className.toLowerCase() !== filterClass.toLowerCase()) return false
+        if (filterSection !== 'All' && cls.section.toLowerCase() !== filterSection.toLowerCase()) return false
+        return true
+      })
+      .map(cls => {
+        const subs = getSubjectsForClass(cls.className, cls.section, activeDayName)
+        const pendingSubs = subs.filter(sub =>
           !isSubjectAssignedOnDate(cls.className, cls.section, sub.subjectName, selectedMissedDateItem.fullDate)
         )
-        if (!hasUnassigned) return false
-      }
-
-      if (filterClass !== 'All' && cls.className.toLowerCase() !== filterClass.toLowerCase()) return false
-      if (filterSection !== 'All' && cls.section.toLowerCase() !== filterSection.toLowerCase()) return false
-      return true
-    })
-  }, [classCards, selectedMissedDateItem, activeDayName, filterClass, filterSection, tasks, timetables, allTeachers])
+        const assignedSubs = subs.filter(sub =>
+          isSubjectAssignedOnDate(cls.className, cls.section, sub.subjectName, selectedMissedDateItem.fullDate)
+        )
+        return {
+          ...cls,
+          pendingCount: pendingSubs.length,
+          assignedCount: assignedSubs.length,
+          totalScheduled: subs.length,
+          allCompleted: subs.length > 0 && pendingSubs.length === 0
+        }
+      })
+  }, [classCards, selectedMissedDateItem, activeDayName, filterClass, filterSection, tasks, timetables, allTeachers, isSubjectAssignedOnDate])
 
   const uniqueClassNames = useMemo(() => {
     const s = new Set<string>()
@@ -1018,6 +1032,47 @@ export default function PendingAssignHomeworkPage() {
       }
     })
   }, [selectedClass, selectedSection, activeDayName, selectedMissedDateItem, timetables, allTeachers, resolvedClassTeacher, tasks, isSubjectAssignedOnDate])
+
+  // ── ASSIGNED HOMEWORK TASKS FOR SELECTED CLASS & DATE (Screen 3) ──
+  const assignedTasksForDate = useMemo(() => {
+    if (!selectedMissedDateItem || !selectedClass) return []
+    const normC = normalizeClassKey(selectedClass)
+    const normS = String(selectedSection || '').toLowerCase().replace(/[-_\s]/g, '').replace(/^section/i, '')
+    const targetDateNorm = normalizeDateStr(selectedMissedDateItem.fullDate) || selectedMissedDateItem.fullDate
+
+    return tasks.filter(t => {
+      // 1. Date Check
+      const tRawDate = String(t.assignDate || (t as any).createdAt || '').trim()
+      const tDateNorm = normalizeDateStr(tRawDate)
+      let dateMatches = false
+      if (tDateNorm && targetDateNorm && tDateNorm === targetDateNorm) {
+        dateMatches = true
+      } else if (targetDateNorm && tRawDate.includes(targetDateNorm)) {
+        dateMatches = true
+      } else if (
+        tRawDate.toLowerCase() === selectedMissedDateItem.assignFormat.toLowerCase() ||
+        (tRawDate.includes(selectedMissedDateItem.dayNumber) &&
+         tRawDate.toLowerCase().includes(selectedMissedDateItem.monthShort.toLowerCase()) &&
+         tRawDate.includes(selectedMissedDateItem.year))
+      ) {
+        dateMatches = true
+      }
+      if (!dateMatches) return false
+
+      // 2. Class Check
+      const tClassNorm = normalizeClassKey(t.classes)
+      const classMatches =
+        tClassNorm === normC ||
+        (t.classes || '').toLowerCase().trim() === selectedClass.toLowerCase().trim()
+      if (!classMatches) return false
+
+      // 3. Section Check
+      const tSecNorm = String(t.section || '').toLowerCase().replace(/[-_\s]/g, '').replace(/^section/i, '')
+      const secMatches =
+        !tSecNorm || !normS || normS === 'all' || tSecNorm === 'all' || tSecNorm === normS
+      return secMatches
+    })
+  }, [tasks, selectedMissedDateItem, selectedClass, selectedSection])
 
   // ── STUDENTS ENROLLED IN SELECTED CLASS (Screen 4) ──
   const currentClassStudents = useMemo(() => {
@@ -1203,7 +1258,14 @@ export default function PendingAssignHomeworkPage() {
 
     const newId = `task-${Date.now()}`
     const assignDateFormatted = selectedMissedDateItem.assignFormat
-    const dueFormatted = new Date(formDueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    let dueFormatted = ''
+    if (formDueDate) {
+      const [fdy, fdm, fdd] = formDueDate.split('-').map(Number)
+      const dObj = new Date(fdy, fdm - 1, fdd)
+      dueFormatted = dObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    } else {
+      dueFormatted = new Date(Date.now() + 3 * 86400000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    }
 
     const newTask: HomeworkTaskItem = {
       id: newId,
@@ -1279,6 +1341,136 @@ export default function PendingAssignHomeworkPage() {
     }
   }
 
+  // ── DELETE HOMEWORK TASK (Available in Pending Assign to undo/remove assignments) ──
+  const handleDeleteTask = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    if (!confirm('Are you sure you want to delete this assigned homework task? This will remove the assignment and the subject will become pending again.')) {
+      return
+    }
+
+    try {
+      const res = await deleteHomeworkTask(id)
+      if (res && res.success === false) {
+        showToast(res.error || 'Failed to delete task', 'error')
+        return
+      }
+      const updated = tasks.filter(t => t.id !== id)
+      setTasks(updated)
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('school_homework_tasks', JSON.stringify(updated))
+        } catch (err) {}
+      }
+      showToast('Homework task deleted successfully. Subject is now pending again.', 'success')
+    } catch (err: any) {
+      showToast(err.message || 'Failed to delete task', 'error')
+    }
+  }
+
+  // ── JUMP TO ANY CUSTOM PENDING DATE (Screen 1) ──
+  const handlePickCustomDate = (dateIsoStr: string) => {
+    if (!dateIsoStr) return
+    const [y, m, d] = dateIsoStr.split('-').map(Number)
+    const dt = new Date(y, m - 1, d)
+    const dd = String(d).padStart(2, '0')
+    const dayName = dt.toLocaleDateString('en-US', { weekday: 'short' })
+    const monthName = dt.toLocaleDateString('en-US', { month: 'long' })
+    const monthShort = dt.toLocaleDateString('en-US', { month: 'short' })
+
+    const card: MissedDateCard = {
+      id: `custom-${dateIsoStr}`,
+      dayNumber: dd,
+      dayName,
+      monthName,
+      monthShort,
+      year: String(y),
+      fullDate: dateIsoStr,
+      displayBanner: `${dd} ${monthName} ${y} (${dayName})`,
+      assignFormat: `${dd} ${monthShort} ${y}`
+    }
+    setSelectedMissedDateItem(card)
+    setCurrentScreen('classes')
+  }
+
+  // ── RESCHEDULE TASK STATE & HANDLERS (Screen 3) ──
+  const [rescheduleTaskModal, setRescheduleTaskModal] = useState<HomeworkTaskItem | null>(null)
+  const [newAssignDateInput, setNewAssignDateInput] = useState<string>('')
+  const [newDueDateInput, setNewDueDateInput] = useState<string>('')
+  const [rescheduleReason, setRescheduleReason] = useState<string>('')
+  const [isRescheduling, setIsRescheduling] = useState<boolean>(false)
+
+  const handleOpenRescheduleModal = (task: HomeworkTaskItem, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    setRescheduleTaskModal(task)
+    const taskIso = normalizeDateStr(task.assignDate) || new Date().toISOString().split('T')[0]
+    const dueIso = normalizeDateStr(task.submissionDate) || new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0]
+    setNewAssignDateInput(taskIso)
+    setNewDueDateInput(dueIso)
+    setRescheduleReason('')
+  }
+
+  const handleSaveReschedule = async () => {
+    if (!rescheduleTaskModal) return
+    if (!newAssignDateInput) {
+      showToast('Please select a new assign date.', 'error')
+      return
+    }
+    if (!newDueDateInput) {
+      showToast('Please select a new submission due date.', 'error')
+      return
+    }
+
+    setIsRescheduling(true)
+    try {
+      const [ay, am, ad] = newAssignDateInput.split('-').map(Number)
+      const assignDt = new Date(ay, am - 1, ad)
+      const formattedAssign = assignDt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+
+      const [dy, dm, dd] = newDueDateInput.split('-').map(Number)
+      const dueDt = new Date(dy, dm - 1, dd)
+      const formattedDue = dueDt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+
+      const res = await rescheduleHomeworkTask(
+        rescheduleTaskModal.id,
+        formattedAssign,
+        formattedDue,
+        rescheduleReason.trim()
+      )
+
+      if (res && res.success === false) {
+        showToast(res.error || 'Failed to reschedule task', 'error')
+        return
+      }
+
+      const updatedTasks = tasks.map(t => {
+        if (t.id === rescheduleTaskModal.id) {
+          return {
+            ...t,
+            assignDate: formattedAssign,
+            submissionDate: formattedDue,
+            description: rescheduleReason.trim()
+              ? `${t.description} (Rescheduled: ${rescheduleReason.trim()})`
+              : t.description
+          }
+        }
+        return t
+      })
+      setTasks(updatedTasks)
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('school_homework_tasks', JSON.stringify(updatedTasks))
+        } catch (e) {}
+      }
+
+      showToast(`Task rescheduled to ${formattedAssign}. Subject is now pending on ${selectedMissedDateItem?.assignFormat || 'this date'}.`, 'success')
+      setRescheduleTaskModal(null)
+    } catch (err: any) {
+      showToast(err.message || 'Failed to reschedule task', 'error')
+    } finally {
+      setIsRescheduling(false)
+    }
+  }
+
   return (
     <div className="w-full flex flex-col gap-5 pb-16 animate-in fade-in duration-200">
 
@@ -1324,23 +1516,41 @@ export default function PendingAssignHomeworkPage() {
               </p>
             </div>
 
-            {/* Month Filter Dropdown (like 'Jul 2026' in Screenshot 1) */}
-            <div className="relative">
-              <select
-                value={monthFilter}
-                onChange={e => setMonthFilter(e.target.value)}
-                className="appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl pl-9 pr-8 py-2.5 text-xs md:text-sm font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-teal-500 shadow-2xs cursor-pointer"
-              >
-                <option value="All">All Missed ({missedDates.length})</option>
-                {availableMonthYears.map(my => {
-                  const count = missedDates.filter(d => `${d.monthShort} ${d.year}` === my).length
-                  return (
-                    <option key={my} value={my}>{my} ({count})</option>
-                  )
-                })}
-              </select>
-              <Calendar className="w-4 h-4 text-[#0f766e] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <div className="flex items-center gap-2.5 flex-wrap justify-end">
+              {/* Direct Jump to Any Date Input */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xs">
+                <Calendar className="w-4 h-4 text-[#0f766e]" />
+                <label htmlFor="pending-direct-date" className="text-xs font-bold text-slate-500 hidden sm:inline">
+                  Jump to Date:
+                </label>
+                <input
+                  id="pending-direct-date"
+                  type="date"
+                  onChange={e => {
+                    if (e.target.value) handlePickCustomDate(e.target.value)
+                  }}
+                  className="bg-transparent text-xs font-black text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
+                />
+              </div>
+
+              {/* Month Filter Dropdown (like 'Jul 2026' in Screenshot 1) */}
+              <div className="relative">
+                <select
+                  value={monthFilter}
+                  onChange={e => setMonthFilter(e.target.value)}
+                  className="appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl pl-9 pr-8 py-2.5 text-xs md:text-sm font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-teal-500 shadow-2xs cursor-pointer"
+                >
+                  <option value="All">All Missed ({missedDates.length})</option>
+                  {availableMonthYears.map(my => {
+                    const count = missedDates.filter(d => `${d.monthShort} ${d.year}` === my).length
+                    return (
+                      <option key={my} value={my}>{my} ({count})</option>
+                    )
+                  })}
+                </select>
+                <Calendar className="w-4 h-4 text-[#0f766e] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
             </div>
           </div>
 
@@ -1504,10 +1714,23 @@ export default function PendingAssignHomeworkPage() {
                       </div>
                     </div>
 
-                    <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-900/60 flex items-center gap-1.5 shrink-0">
-                      <Users className="w-3.5 h-3.5" />
-                      {cls.studentsCount} Students
-                    </span>
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                      {cls.allCompleted ? (
+                        <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 flex items-center gap-1.5 shrink-0">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          All {cls.assignedCount} Assigned
+                        </span>
+                      ) : cls.pendingCount > 0 ? (
+                        <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 flex items-center gap-1.5 shrink-0">
+                          <Clock className="w-3.5 h-3.5 text-amber-600" />
+                          {cls.pendingCount} Pending
+                        </span>
+                      ) : null}
+                      <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-900/60 flex items-center gap-1.5 shrink-0">
+                        <Users className="w-3.5 h-3.5" />
+                        {cls.studentsCount} Students
+                      </span>
+                    </div>
                   </div>
 
                   {/* Assign Homework Action Button matching Screenshot 2 */}
@@ -1522,10 +1745,12 @@ export default function PendingAssignHomeworkPage() {
                         setCustomActiveDay(null)
                         setCurrentScreen('subjects')
                       }}
-                      className="px-5 py-2.5 rounded-2xl bg-[#0f766e] hover:bg-[#0d655f] text-white text-xs md:text-sm font-black shadow-xs flex items-center gap-2 active:scale-95 transition-all cursor-pointer"
+                      className={`px-5 py-2.5 rounded-2xl text-white text-xs md:text-sm font-black shadow-xs flex items-center gap-2 active:scale-95 transition-all cursor-pointer ${
+                        cls.allCompleted ? 'bg-emerald-700 hover:bg-emerald-800' : 'bg-[#0f766e] hover:bg-[#0d655f]'
+                      }`}
                     >
                       <FileText className="w-4 h-4" />
-                      <span>Assign Homework</span>
+                      <span>{cls.allCompleted ? 'View & Manage Tasks' : 'Assign Homework'}</span>
                     </button>
                   </div>
                 </div>
@@ -1612,7 +1837,7 @@ export default function PendingAssignHomeworkPage() {
 
           {/* Pastel Subject Cards List matching Screenshot 3 */}
           {subjectCards.length === 0 ? (
-            <div className="py-16 px-4 text-center bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-700 space-y-3 w-full">
+            <div className="py-12 px-4 text-center bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-700 space-y-3 w-full">
               {getSubjectsForClass(selectedClass, selectedSection, activeDayName).length > 0 ? (
                 <>
                   <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
@@ -1620,7 +1845,7 @@ export default function PendingAssignHomeworkPage() {
                     All scheduled homework assigned!
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                    All {selectedClass} - Section {selectedSection} subjects scheduled for {activeDayName} ({selectedMissedDateItem?.assignFormat}) already have homework assigned.
+                    All {selectedClass} - Section {selectedSection} subjects scheduled for {activeDayName} ({selectedMissedDateItem?.assignFormat}) already have homework assigned. You can review or delete assigned tasks below.
                   </p>
                   <div className="flex items-center justify-center gap-2 pt-2">
                     <button
@@ -1660,7 +1885,7 @@ export default function PendingAssignHomeworkPage() {
               )}
             </div>
           ) : (
-            <div className="space-y-4 w-full pb-6">
+            <div className="space-y-4 w-full">
               {subjectCards.map(sub => (
                 <div
                   key={sub.id}
@@ -1699,6 +1924,119 @@ export default function PendingAssignHomeworkPage() {
             </div>
           )}
 
+          {/* ── ASSIGNED TASKS FOR THIS DATE (With Delete Task Option) ── */}
+          {assignedTasksForDate.length > 0 && (
+            <div className="space-y-4 w-full pt-4 pb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <h3 className="text-base md:text-lg font-black text-slate-900 dark:text-white">
+                    Assigned Tasks for this Date ({assignedTasksForDate.length})
+                  </h3>
+                </div>
+                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+                  {assignedTasksForDate.length} Active
+                </span>
+              </div>
+
+              <div className="space-y-3.5 w-full">
+                {assignedTasksForDate.map(task => (
+                  <div
+                    key={task.id}
+                    className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-xs border border-slate-200/90 dark:border-slate-700/90 space-y-3.5 w-full hover:border-slate-300 dark:hover:border-slate-600 transition-all"
+                  >
+                    {/* Top row: Subject badge, Status, Attachment & Delete Task */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="px-3.5 py-1.5 rounded-xl text-xs font-black bg-[#0f766e] text-white shadow-2xs">
+                          {task.subject}
+                        </span>
+                        <span className="px-2.5 py-1 rounded-full text-[11px] font-black inline-flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                          {task.status}
+                        </span>
+                        {task.hasAttachment && (
+                          <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 flex items-center gap-1">
+                            <Paperclip className="w-3.5 h-3.5" />
+                            Attachment
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {/* Reschedule Task Button */}
+                        <button
+                          type="button"
+                          onClick={e => handleOpenRescheduleModal(task, e)}
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/60 border border-amber-200 dark:border-amber-800 transition-all cursor-pointer shadow-2xs active:scale-95"
+                          title="Reschedule task to another date"
+                        >
+                          <CalendarClock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                          <span>Reschedule</span>
+                        </button>
+
+                        {/* Delete Task Button */}
+                        <button
+                          type="button"
+                          onClick={e => handleDeleteTask(task.id, e)}
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800 transition-all cursor-pointer shadow-2xs active:scale-95"
+                          title="Delete task to make this subject pending again"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                          <span>Delete Task</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Title & Description */}
+                    <div>
+                      <h4 className="text-base font-extrabold text-slate-900 dark:text-white leading-snug">
+                        {task.title}
+                      </h4>
+                      {task.description && (
+                        <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+                          {task.description}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Teacher & Attachment */}
+                    <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
+                      <p className="text-slate-500 dark:text-slate-400 font-semibold flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Assigned by:</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">{task.assignedBy}</span>
+                      </p>
+
+                      {task.attachmentName && (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-200 font-medium">
+                          <FileText className="w-3.5 h-3.5 text-teal-600" />
+                          <span className="truncate max-w-[200px]">{task.attachmentName}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Dates & Students Count */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-700/60 text-xs">
+                      <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Assign: <strong className="text-slate-700 dark:text-slate-300">{task.assignDate}</strong></span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400">
+                        <Clock className="w-3.5 h-3.5 text-orange-500" />
+                        <span>Due: <strong className="text-orange-700 dark:text-orange-300">{task.submissionDate}</strong></span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 sm:justify-end">
+                        <Users className="w-3.5 h-3.5 text-slate-400" />
+                        <span><strong>{task.studentsCount ?? currentClassStudents.length}</strong> Students Assigned</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
       )}
 
@@ -1721,27 +2059,6 @@ export default function PendingAssignHomeworkPage() {
             <h1 className="text-xl md:text-2xl font-black tracking-tight text-white flex-1 text-center pr-11">
               Assign Homework
             </h1>
-          </div>
-
-          {/* Selected Class & Subject Banner matching Screenshot 4 */}
-          <div className="bg-[#0f766e] text-white rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-sm flex items-center justify-between w-full">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-white/15 text-white flex items-center justify-center shadow-xs shrink-0">
-                <GraduationCap className="w-7 h-7" />
-              </div>
-              <div>
-                <h2 className="text-lg md:text-xl font-black text-white leading-tight">
-                  {selectedClass} - Section {selectedSection}
-                </h2>
-                <p className="text-xs text-teal-100 font-semibold mt-0.5">
-                  Subject: {selectedSubject} • Assigned Teacher: {selectedTeacherName || resolvedClassTeacher || 'Faculty'}
-                </p>
-              </div>
-            </div>
-
-            <span className="px-3.5 py-1.5 rounded-full bg-white/20 text-white text-xs font-bold border border-white/30 shadow-2xs">
-              Selected
-            </span>
           </div>
 
           <form onSubmit={handleSubmitHomework} className="space-y-5 w-full pb-8 text-xs">
@@ -2133,6 +2450,129 @@ export default function PendingAssignHomeworkPage() {
 
           </form>
 
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          RESCHEDULE TASK MODAL (PENDING ASSIGN)
+      ═══════════════════════════════════════════════════════════════════ */}
+      {rescheduleTaskModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-5 animate-in zoom-in-95 duration-200">
+            
+            {/* Header */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+                  <CalendarClock className="w-6 h-6 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                    Reschedule Homework Task
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
+                    Move this task to a new date (current subject will become pending again)
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRescheduleTaskModal(null)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Task Summary Card */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="px-2.5 py-0.5 rounded-lg text-xs font-black bg-[#0f766e] text-white">
+                  {rescheduleTaskModal.subject}
+                </span>
+                <span className="text-xs font-bold text-slate-500">
+                  {rescheduleTaskModal.classes} - Sec {rescheduleTaskModal.section}
+                </span>
+              </div>
+              <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                {rescheduleTaskModal.title}
+              </h4>
+              <div className="flex items-center gap-4 text-[11px] text-slate-500 pt-1">
+                <span>Current Assign: <strong className="text-slate-700 dark:text-slate-300">{rescheduleTaskModal.assignDate}</strong></span>
+                <span>Current Due: <strong className="text-orange-600 dark:text-orange-400">{rescheduleTaskModal.submissionDate}</strong></span>
+              </div>
+            </div>
+
+            {/* Inputs */}
+            <div className="space-y-4 text-xs font-bold text-slate-700 dark:text-slate-300">
+              <div>
+                <label className="block mb-1.5">
+                  New Assign Date <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={newAssignDateInput}
+                  onChange={e => setNewAssignDateInput(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-teal-500 shadow-2xs cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <label className="block mb-1.5">
+                  New Submission Due Date <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={newDueDateInput}
+                  onChange={e => setNewDueDateInput(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-teal-500 shadow-2xs cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <label className="block mb-1.5">
+                  Reason / Reschedule Note <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={rescheduleReason}
+                  onChange={e => setRescheduleReason(e.target.value)}
+                  placeholder="e.g. Moved due to school sports day, syllabus adjustment..."
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none focus:border-teal-500 shadow-2xs"
+                />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setRescheduleTaskModal(null)}
+                className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isRescheduling}
+                onClick={handleSaveReschedule}
+                className="px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black shadow-md shadow-amber-600/30 flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
+              >
+                {isRescheduling ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Rescheduling...</span>
+                  </>
+                ) : (
+                  <>
+                    <CalendarClock className="w-4 h-4" />
+                    <span>Save &amp; Reschedule</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+          </div>
         </div>
       )}
 

@@ -19,7 +19,9 @@ import {
   fetchTaskSubmissions,
   updateStudentRemark,
   updateStudentTaskSubmission,
-  bulkUpdateStudentTaskSubmissions
+  bulkUpdateStudentTaskSubmissions,
+  rescheduleHomeworkTask,
+  deleteHomeworkTask
 } from '@/app/institute/homework/assign/actions'
 
 // ── 4 PAGES STEP SCREEN TYPES ──
@@ -268,6 +270,60 @@ function formatDisplayDate(d: Date): string {
     month: 'short',
     year: 'numeric'
   })
+}
+
+// ── ROBUST TASK DUE DATE MATCHING ──
+function isTaskDueOnDate(task: any, targetDate: Date | string): boolean {
+  if (!task) return false
+  const targetIso = typeof targetDate === 'string' ? (normalizeDateStr(targetDate) || targetDate) : toDateIso(targetDate)
+  if (!targetIso) return false
+
+  // 1. Task submission date
+  const subIso = normalizeDateStr(task.submissionDate)
+  if (subIso && subIso === targetIso) return true
+
+  // 2. Task-level rescheduled date
+  if (task.rescheduledDate) {
+    const rIso = normalizeDateStr(task.rescheduledDate)
+    if (rIso && rIso === targetIso) return true
+  }
+
+  // 3. Submissions cache in localStorage
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(`school_task_subs_${task.id}`) : null
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed) && parsed.some((s: any) => s.status === 'Rescheduled' && normalizeDateStr(s.rescheduledDate) === targetIso)) {
+        return true
+      }
+    }
+  } catch (e) {}
+
+  try {
+    const rawResched = typeof window !== 'undefined' ? localStorage.getItem('school_rescheduled_remarks') : null
+    if (rawResched) {
+      const parsed = JSON.parse(rawResched)
+      if (Array.isArray(parsed) && parsed.some((s: any) => s.taskId === task.id && s.status === 'Rescheduled' && normalizeDateStr(s.rescheduledDate) === targetIso)) {
+        return true
+      }
+    }
+  } catch (e) {}
+
+  // 4. Text comparison fallback (DD Mon YYYY)
+  const targetParts = targetIso.split('-')
+  if (targetParts.length === 3) {
+    const yyyy = targetParts[0]
+    const mm = targetParts[1]
+    const dd = targetParts[2]
+    const monthShorts = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+    const monStr = monthShorts[parseInt(mm, 10) - 1]
+    const sLow = String(task.submissionDate || '').toLowerCase()
+    if (sLow.includes(dd) && monStr && sLow.includes(monStr) && sLow.includes(yyyy)) {
+      return true
+    }
+  }
+
+  return false
 }
 
 // Default timetable seed for Class 1 Section A
@@ -588,6 +644,100 @@ function RemarkHomeworkContent() {
   const [subjectDateFilter, setSubjectDateFilter] = useState<'selected' | 'all'>('selected')
   const [taskDateFilter, setTaskDateFilter] = useState<'selected' | 'all'>('selected')
 
+  // Task Reschedule Modal State (Allows rescheduling whole task)
+  const [rescheduleTaskModal, setRescheduleTaskModal] = useState<HomeworkTaskItem | null>(null)
+  const [newTaskAssignDate, setNewTaskAssignDate] = useState<string>('')
+  const [newTaskDueDate, setNewTaskDueDate] = useState<string>('')
+  const [taskRescheduleReason, setTaskRescheduleReason] = useState<string>('')
+  const [isReschedulingTask, setIsReschedulingTask] = useState<boolean>(false)
+
+  const handleOpenRescheduleTaskModal = (task: HomeworkTaskItem, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    setRescheduleTaskModal(task)
+    const taskIso = normalizeDateStr(task.assignDate) || new Date().toISOString().split('T')[0]
+    const dueIso = normalizeDateStr(task.submissionDate) || new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0]
+    setNewTaskAssignDate(taskIso)
+    setNewTaskDueDate(dueIso)
+    setTaskRescheduleReason('')
+  }
+
+  const handleSaveRescheduleTask = async () => {
+    if (!rescheduleTaskModal) return
+    if (!newTaskAssignDate || !newTaskDueDate) {
+      showToast('Please select valid assign and due dates', 'error')
+      return
+    }
+
+    setIsReschedulingTask(true)
+    try {
+      const [ay, am, ad] = newTaskAssignDate.split('-').map(Number)
+      const assignDt = new Date(ay, am - 1, ad)
+      const formattedAssign = assignDt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+
+      const [dy, dm, dd] = newTaskDueDate.split('-').map(Number)
+      const dueDt = new Date(dy, dm - 1, dd)
+      const formattedDue = dueDt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+
+      const res = await rescheduleHomeworkTask(
+        rescheduleTaskModal.id,
+        formattedAssign,
+        formattedDue,
+        taskRescheduleReason.trim()
+      )
+      if (res && res.success === false) {
+        showToast(res.error || 'Failed to reschedule task', 'error')
+        return
+      }
+
+      const updated = tasks.map(t => {
+        if (t.id === rescheduleTaskModal.id) {
+          return {
+            ...t,
+            assignDate: formattedAssign,
+            submissionDate: formattedDue,
+            description: taskRescheduleReason.trim()
+              ? `${t.description} (Rescheduled: ${taskRescheduleReason.trim()})`
+              : t.description
+          }
+        }
+        return t
+      })
+      setTasks(updated)
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('school_homework_tasks', JSON.stringify(updated))
+        } catch (e) {}
+      }
+
+      showToast(`Task rescheduled to ${formattedDue} successfully!`, 'success')
+      setRescheduleTaskModal(null)
+    } catch (err: any) {
+      showToast(err.message || 'Failed to reschedule task', 'error')
+    } finally {
+      setIsReschedulingTask(false)
+    }
+  }
+
+  const handleDeleteTask = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    if (!confirm('Are you sure you want to delete this homework task?')) return
+
+    try {
+      await deleteHomeworkTask(id)
+      const updated = tasks.filter(t => t.id !== id)
+      setTasks(updated)
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('school_homework_tasks', JSON.stringify(updated))
+        } catch (e) {}
+      }
+      showToast('Homework task deleted successfully', 'success')
+      if (activeTask?.id === id) setActiveTask(null)
+    } catch (err: any) {
+      showToast(err.message || 'Failed to delete task', 'error')
+    }
+  }
+
   // Early client mount sync from localStorage: immediately set remark date to created task submission date
   useEffect(() => {
     if (typeof window !== 'undefined' && !hasUserManuallySelectedDate.current && !hasAutoSelectedDate.current) {
@@ -627,20 +777,7 @@ function RemarkHomeworkContent() {
         d.getFullYear() === selectedCalendarDate.getFullYear()
 
       const dayIso = toDateIso(d)
-      const dayTasks = tasks.filter(t => {
-        if (normalizeDateStr(t.submissionDate) === dayIso) return true
-        // Also include tasks that have students rescheduled to this date
-        try {
-          const raw = localStorage.getItem(`school_task_subs_${t.id}`)
-          if (raw) {
-            const parsed = JSON.parse(raw)
-            if (Array.isArray(parsed) && parsed.some((s: any) => s.status === 'Rescheduled' && normalizeDateStr(s.rescheduledDate) === dayIso)) {
-              return true
-            }
-          }
-        } catch (e) {}
-        return false
-      })
+      const dayTasks = tasks.filter(t => isTaskDueOnDate(t, d))
       const hasTasks = dayTasks.length > 0
       const taskCount = dayTasks.length
 
@@ -930,6 +1067,14 @@ function RemarkHomeworkContent() {
     return () => { isMounted = false }
   }, [activeTask])
 
+  const selectedDateIso = useMemo(() => {
+    return toDateIso(selectedCalendarDate)
+  }, [selectedCalendarDate])
+
+  const totalTasksDueOnSelectedDate = useMemo(() => {
+    return tasks.filter(t => isTaskDueOnDate(t, selectedCalendarDate)).length
+  }, [tasks, selectedCalendarDate])
+
   // ── Class Cards for Page 1 (Matching Screenshot 1 with Total / Completed / Pending pills) ──
   const classCards = useMemo(() => {
     const list: any[] = []
@@ -965,20 +1110,8 @@ function RemarkHomeworkContent() {
           // All tasks for this class & section
           const allClassTasks = tasks.filter(t => matchesClassAndSection({ class: t.classes, section: t.section }, cName, sec))
 
-          // Filter tasks due on selected submission date (or tasks with student rescheduled to this date)
-          const classTasksOnDate = allClassTasks.filter(t => {
-            if (normalizeDateStr(t.submissionDate) === selectedIso) return true
-            try {
-              const raw = localStorage.getItem(`school_task_subs_${t.id}`)
-              if (raw) {
-                const parsed = JSON.parse(raw)
-                if (Array.isArray(parsed) && parsed.some((s: any) => s.status === 'Rescheduled' && normalizeDateStr(s.rescheduledDate) === selectedIso)) {
-                  return true
-                }
-              }
-            } catch (e) {}
-            return false
-          })
+          // Filter tasks due on selected submission date (strictly matching selected calendar date)
+          const classTasksOnDate = allClassTasks.filter(t => isTaskDueOnDate(t, selectedCalendarDate))
           
           // Calculate completed submissions vs pending for tasks due on this date
           let completed = 0
@@ -1062,19 +1195,7 @@ function RemarkHomeworkContent() {
 
       classSecMap.forEach(item => {
         const allClassTasks = tasks.filter(t => matchesClassAndSection({ class: t.classes, section: t.section }, item.className, item.section))
-        const classTasksOnDate = allClassTasks.filter(t => {
-          if (normalizeDateStr(t.submissionDate) === selectedIso) return true
-          try {
-            const raw = localStorage.getItem(`school_task_subs_${t.id}`)
-            if (raw) {
-              const parsed = JSON.parse(raw)
-              if (Array.isArray(parsed) && parsed.some((s: any) => s.status === 'Rescheduled' && normalizeDateStr(s.rescheduledDate) === selectedIso)) {
-                return true
-              }
-            }
-          } catch (e) {}
-          return false
-        })
+        const classTasksOnDate = allClassTasks.filter(t => isTaskDueOnDate(t, selectedCalendarDate))
 
         let completed = 0
         if (classTasksOnDate.length > 0) {
@@ -1249,23 +1370,12 @@ function RemarkHomeworkContent() {
 
   // Filtered Subject Cards for Page 2 (Only subjects that have tasks due on selectedCalendarDate for this class)
   const displayedSubjectCards = useMemo(() => {
-    const selectedIso = toDateIso(selectedCalendarDate)
     const subjectsDueOnDate = subjectCards.filter(sub => {
       return tasks.some(t => {
         const classMatch = matchesClassAndSection({ class: t.classes, section: t.section }, selectedClass, selectedSection)
         const subMatch = t.subject.toLowerCase().trim() === sub.subjectName.toLowerCase().trim()
         if (!classMatch || !subMatch) return false
-        if (normalizeDateStr(t.submissionDate) === selectedIso) return true
-        try {
-          const raw = localStorage.getItem(`school_task_subs_${t.id}`)
-          if (raw) {
-            const parsed = JSON.parse(raw)
-            if (Array.isArray(parsed) && parsed.some((s: any) => s.status === 'Rescheduled' && normalizeDateStr(s.rescheduledDate) === selectedIso)) {
-              return true
-            }
-          }
-        } catch (e) {}
-        return false
+        return isTaskDueOnDate(t, selectedCalendarDate)
       })
     })
 
@@ -1286,20 +1396,7 @@ function RemarkHomeworkContent() {
   }, [tasks, selectedClass, selectedSection, selectedSubject])
 
   const tasksDueOnSelectedDate = useMemo(() => {
-    const selectedIso = toDateIso(selectedCalendarDate)
-    return activeSubjectTasks.filter(t => {
-      if (normalizeDateStr(t.submissionDate) === selectedIso) return true
-      try {
-        const raw = localStorage.getItem(`school_task_subs_${t.id}`)
-        if (raw) {
-          const parsed = JSON.parse(raw)
-          if (Array.isArray(parsed) && parsed.some((s: any) => s.status === 'Rescheduled' && normalizeDateStr(s.rescheduledDate) === selectedIso)) {
-            return true
-          }
-        }
-      } catch (e) {}
-      return false
-    })
+    return activeSubjectTasks.filter(t => isTaskDueOnDate(t, selectedCalendarDate))
   }, [activeSubjectTasks, selectedCalendarDate])
 
   // Only tasks due on the selected date are shown (All Dates tab selection removed as requested)
@@ -2048,7 +2145,54 @@ function RemarkHomeworkContent() {
           </div>
 
           {/* 7-Day Date Slider Strip matching Screenshot 1 */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-3 md:p-4 shadow-xs border border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-2.5 w-full">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-4 md:p-5 shadow-xs border border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-3 w-full">
+            {/* Header bar above calendar strip: active date, due tasks count, Jump to Date input */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-700/80">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#0f766e] animate-pulse"></span>
+                <span className="text-xs md:text-sm font-black text-slate-900 dark:text-white">
+                  Due Date: {formatDisplayDate(selectedCalendarDate)}
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                  {totalTasksDueOnSelectedDate} Task{totalTasksDueOnSelectedDate !== 1 ? 's' : ''} Due
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                <label htmlFor="remark-date-picker" className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 cursor-pointer">
+                  <Calendar className="w-4 h-4 text-[#0f766e]" />
+                  <span>Jump to Date:</span>
+                </label>
+                <input
+                  id="remark-date-picker"
+                  type="date"
+                  value={selectedDateIso}
+                  onChange={e => {
+                    if (e.target.value) {
+                      hasUserManuallySelectedDate.current = true
+                      const [y, m, d] = e.target.value.split('-').map(Number)
+                      const dt = new Date(y, m - 1, d)
+                      setSelectedCalendarDate(dt)
+                      setCalendarAnchorDate(dt)
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-slate-800 dark:text-slate-200 outline-none focus:border-teal-500 shadow-2xs cursor-pointer"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    hasUserManuallySelectedDate.current = true
+                    const today = new Date()
+                    setSelectedCalendarDate(today)
+                    setCalendarAnchorDate(today)
+                  }}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                >
+                  Today
+                </button>
+              </div>
+            </div>
+
             <div className="flex items-center justify-between gap-2 w-full">
               <button
                 type="button"
@@ -2529,25 +2673,47 @@ function RemarkHomeworkContent() {
                     </div>
                   </div>
 
-                  {/* Bottom Row Action Button: "Remark Students >" matching Screenshot 3 */}
-                  <div className="flex items-center justify-between pt-2">
+                  {/* Bottom Row Action Buttons: Reschedule, Delete, and Remark Students */}
+                  <div className="flex items-center justify-between pt-2 flex-wrap gap-2">
                     <span className="text-xs md:text-sm font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
                       <Users className="w-4 h-4 text-slate-400" />
                       {task.studentsCount ?? 1} Students
                     </span>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveTask(task)
-                        setStudentSearch('')
-                        setCurrentScreen('evaluation')
-                      }}
-                      className="px-5 py-2.5 rounded-2xl bg-[#0f766e] hover:bg-[#0d655f] text-white text-xs md:text-sm font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
-                    >
-                      <Users className="w-4 h-4" />
-                      <span>Remark Students &gt;</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={e => handleOpenRescheduleTaskModal(task, e)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/60 border border-amber-200 dark:border-amber-800 transition-all cursor-pointer shadow-2xs active:scale-95"
+                        title="Reschedule this task"
+                      >
+                        <CalendarClock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                        <span>Reschedule</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={e => handleDeleteTask(task.id, e)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800 transition-all cursor-pointer shadow-2xs active:scale-95"
+                        title="Delete Task"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                        <span>Delete</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTask(task)
+                          setStudentSearch('')
+                          setCurrentScreen('evaluation')
+                        }}
+                        className="px-5 py-2.5 rounded-2xl bg-[#0f766e] hover:bg-[#0d655f] text-white text-xs md:text-sm font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                      >
+                        <Users className="w-4 h-4" />
+                        <span>Remark Students &gt;</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -3397,6 +3563,116 @@ function RemarkHomeworkContent() {
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>Yes, Modify Remark</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── RESCHEDULE TASK MODAL ── */}
+      {rescheduleTaskModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border border-slate-100 dark:border-slate-700 space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center">
+                  <CalendarClock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white leading-tight">
+                    Reschedule Homework Task
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {rescheduleTaskModal.subject} • {rescheduleTaskModal.classes} - Sec {rescheduleTaskModal.section}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRescheduleTaskModal(null)}
+                className="w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Task Title
+                </label>
+                <input
+                  type="text"
+                  disabled
+                  value={rescheduleTaskModal.title}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-700 dark:text-slate-300 opacity-80 cursor-not-allowed"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    New Assign Date <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={newTaskAssignDate}
+                    onChange={e => setNewTaskAssignDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    New Due Date <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={newTaskDueDate}
+                    onChange={e => setNewTaskDueDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Reschedule Reason / Instruction (Optional)
+                </label>
+                <textarea
+                  rows={3}
+                  value={taskRescheduleReason}
+                  onChange={e => setTaskRescheduleReason(e.target.value)}
+                  placeholder="e.g. Extended submission due to sports day or holiday..."
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setRescheduleTaskModal(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isReschedulingTask}
+                onClick={handleSaveRescheduleTask}
+                className="px-5 py-2 rounded-xl text-xs font-black bg-amber-600 hover:bg-amber-700 text-white shadow-xs flex items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50"
+              >
+                {isReschedulingTask ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Rescheduling...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>Save &amp; Reschedule Task</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
