@@ -2886,21 +2886,21 @@ function RemarkHomeworkContent() {
               </button>
               <button
                 type="button"
-                onClick={() => setStatusFilter('Not Completed')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 ${
-                  statusFilter === 'Not Completed' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
-                }`}
-              >
-                Not Completed ({notCompletedStudents.length})
-              </button>
-              <button
-                type="button"
                 onClick={() => setStatusFilter('Completed')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 ${
                   statusFilter === 'Completed' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
                 }`}
               >
                 Completed ({completedStudents.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('Not Completed')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+                  statusFilter === 'Not Completed' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
+                }`}
+              >
+                Not Completed ({notCompletedStudents.length})
               </button>
               <button
                 type="button"
@@ -2959,36 +2959,10 @@ function RemarkHomeworkContent() {
             </div>
           ) : (
             <div className="space-y-6 w-full pb-8">
-              {/* Category 1: Not Completed */}
-              {(statusFilter === 'All' || statusFilter === 'Not Completed') && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 pt-1 pb-1">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
-                    <h4 className="text-xs md:text-sm font-black text-amber-800 dark:text-amber-300 uppercase tracking-wider flex items-center gap-2">
-                      <span>Not Completed</span>
-                      <span className="px-2 py-0.5 rounded-full text-[11px] bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-bold">
-                        {notCompletedStudents.length}
-                      </span>
-                    </h4>
-                    <div className="h-px bg-amber-200/60 dark:bg-amber-800/40 flex-1"></div>
-                  </div>
-
-                  {notCompletedStudents.length === 0 ? (
-                    <div className="p-4 rounded-2xl bg-amber-50/40 dark:bg-amber-950/20 border border-dashed border-amber-200/80 dark:border-amber-800/40 text-center text-xs text-amber-700/80 dark:text-amber-300/80 font-medium">
-                      No students pending evaluation in Not Completed.
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {notCompletedStudents.map(st => renderStudentCard(st))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Category 2: Completed */}
+              {/* Category 1: Completed (Comes First) */}
               {(statusFilter === 'All' || statusFilter === 'Completed') && (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 pt-2 pb-1">
+                  <div className="flex items-center gap-2 pt-1 pb-1">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
                     <h4 className="text-xs md:text-sm font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-2">
                       <span>Completed</span>
@@ -3011,7 +2985,33 @@ function RemarkHomeworkContent() {
                 </div>
               )}
 
-              {/* Category 3: Rescheduled */}
+              {/* Category 2: Not Completed (Comes Second) */}
+              {(statusFilter === 'All' || statusFilter === 'Not Completed') && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 pt-2 pb-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
+                    <h4 className="text-xs md:text-sm font-black text-amber-800 dark:text-amber-300 uppercase tracking-wider flex items-center gap-2">
+                      <span>Not Completed</span>
+                      <span className="px-2 py-0.5 rounded-full text-[11px] bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-bold">
+                        {notCompletedStudents.length}
+                      </span>
+                    </h4>
+                    <div className="h-px bg-amber-200/60 dark:bg-amber-800/40 flex-1"></div>
+                  </div>
+
+                  {notCompletedStudents.length === 0 ? (
+                    <div className="p-4 rounded-2xl bg-amber-50/40 dark:bg-amber-950/20 border border-dashed border-amber-200/80 dark:border-amber-800/40 text-center text-xs text-amber-700/80 dark:text-amber-300/80 font-medium">
+                      No students pending evaluation in Not Completed.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {notCompletedStudents.map(st => renderStudentCard(st))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Category 3: Rescheduled (Comes Third) */}
               {(statusFilter === 'All' || statusFilter === 'Rescheduled') && (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 pt-2 pb-1">
