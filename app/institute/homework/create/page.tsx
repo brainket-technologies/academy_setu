@@ -160,10 +160,12 @@ export default function MobileAssignHomeworkPage() {
     const targetClass = selectedClass.trim().toLowerCase()
     const targetSec = selectedSection.trim().toLowerCase()
 
+    const normTarget = targetClass.replace(/^class\s+/i, '').replace(/^grade\s+/i, '').replace(/^i$/i, '1').replace(/^ii$/i, '2').replace(/^iii$/i, '3').replace(/^iv$/i, '4').replace(/^v$/i, '5').trim()
     return studentsList.filter((s: any) => {
       const sc = String(s.className || s.class_name || s.class || '').trim().toLowerCase()
       const ss = String(s.sectionName || s.section_name || s.section || '').trim().toLowerCase()
-      return sc === targetClass && ss === targetSec
+      const normC = sc.replace(/^class\s+/i, '').replace(/^grade\s+/i, '').replace(/^i$/i, '1').replace(/^ii$/i, '2').replace(/^iii$/i, '3').replace(/^iv$/i, '4').replace(/^v$/i, '5').trim()
+      return (normC === normTarget || sc === targetClass) && ss === targetSec
     })
   }, [studentsList, selectedClass, selectedSection])
 

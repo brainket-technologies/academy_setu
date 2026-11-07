@@ -271,13 +271,8 @@ export default function HomeworkReportPage() {
         const localCombined = [...l1, ...l2, ...l3]
 
         const studentsRes = await fetchStudents()
-        if (studentsRes?.success && Array.isArray(studentsRes.data)) {
-          const dbStudents = studentsRes.data
-          const dbIds = new Set(dbStudents.map((s: any) => String(s.id || s.admission_no || s.admissionNo)))
-          const uniqueLocal = localCombined.filter(
-            (s: any) => !dbIds.has(String(s.id || s.admission_no || s.admissionNo))
-          )
-          combinedStudents = [...dbStudents, ...uniqueLocal]
+        if (studentsRes?.success && Array.isArray(studentsRes.data) && studentsRes.data.length > 0) {
+          combinedStudents = studentsRes.data
         } else {
           combinedStudents = localCombined
         }

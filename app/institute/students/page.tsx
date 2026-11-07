@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { fetchStudents, moveStudent, fetchStudentFees } from './actions'
+import { fetchStudents, moveStudent, fetchStudentFees, deleteStudent } from './actions'
 import { 
   Download, Upload, Filter, Plus, Search, MoreVertical, X, CheckCircle2, Ticket,
   Eye, Edit, Receipt, Banknote, CalendarCheck, FileCheck, FileBadge, RefreshCw, Trash2,
@@ -77,9 +77,14 @@ export default function StudentsPage() {
           class_name: s.class_name || s.class || '',
           avatar: (s.avatar && s.avatar.trim() !== '') ? s.avatar : `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(s.first_name || 'Student')}`
         }))
-        const dbIds = new Set(dbList.map(s => String(s.id)))
-        const uniqueLocal = localList.filter(s => !dbIds.has(String(s.id)))
-        setStudents([...dbList, ...uniqueLocal])
+        if (dbList.length > 0) {
+          setStudents(dbList)
+          localStorage.setItem('school_students', JSON.stringify(dbList))
+        } else if (localList.length > 0) {
+          setStudents(localList)
+        } else {
+          setStudents([])
+        }
       }
     } catch (e) {}
   }
@@ -112,12 +117,19 @@ export default function StudentsPage() {
     router.push(`/institute/students/${student.id || '123'}`)
   }
 
-  const handleDeleteClick = (student: any) => {
+  const handleDeleteClick = async (student: any) => {
     setShowActionMenu(null)
     if (confirm(`Are you sure you want to delete student "${student.first_name || ''} ${student.last_name || ''}"?`)) {
       const updated = students.filter(s => String(s.id) !== String(student.id))
       setStudents(updated)
       localStorage.setItem('school_students', JSON.stringify(updated))
+      if (student.id || student.admission_no) {
+        try {
+          await deleteStudent(student.id || student.admission_no)
+        } catch (e) {
+          console.error('Error deleting student from DB:', e)
+        }
+      }
       toast.success('Student record deleted successfully')
     }
   }

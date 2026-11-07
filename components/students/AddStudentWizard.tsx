@@ -1983,7 +1983,15 @@ function Step6({ formData, onBack, onCancel, onEditStep }: any) {
     setSubmitting(true)
     
     // 1. Try DB creation/update
-    await createStudent(formData)
+    let dbId: string | null = null
+    try {
+      const res = await createStudent(formData)
+      if (res?.success && res.id) {
+        dbId = String(res.id)
+      }
+    } catch (e) {
+      console.error('Error creating student in DB:', e)
+    }
     
     // 2. Save to localStorage for instant local reflection
     const saved = localStorage.getItem('school_students')
@@ -1995,7 +2003,7 @@ function Step6({ formData, onBack, onCancel, onEditStep }: any) {
     const existingIdx = formData.id ? currentList.findIndex((s: any) => String(s.id) === String(formData.id)) : -1
 
     const studentRecord = {
-      id: formData.id || Date.now(),
+      id: dbId || formData.id || Date.now(),
       admission_no: formData.admissionNo || `ADM-${Math.floor(1000 + Math.random() * 9000)}`,
       roll_no: formData.rollNo || `${currentList.length + 1}`,
       first_name: formData.firstName,

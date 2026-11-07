@@ -9,9 +9,29 @@ export async function fetchStudents(filters?: any) {
   
   try {
     const res = await pool.query(`
-      SELECT * FROM institute_students 
+      SELECT 
+        id,
+        institution_id,
+        COALESCE(NULLIF(name, ''), TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')))) as name,
+        COALESCE(first_name, SPLIT_PART(name, ' ', 1)) as first_name,
+        COALESCE(last_name, SUBSTRING(name FROM POSITION(' ' IN name) + 1)) as last_name,
+        admission_no,
+        roll_no,
+        class_name,
+        section_name,
+        contact,
+        email,
+        status,
+        fees_status,
+        avatar,
+        gender,
+        fee,
+        remark,
+        created_at,
+        updated_at
+      FROM institute_students 
       WHERE institution_id = $1 
-      ORDER BY created_at ASC
+      ORDER BY roll_no ASC, created_at ASC
     `, [session.userId])
     return { success: true, data: res.rows }
   } catch (err: any) {
@@ -47,25 +67,47 @@ export async function createStudent(data: any) {
   if (!session?.userId) return { success: false, error: 'Unauthorized' }
 
   try {
+    const firstName = data.firstName || data.first_name || 'Unknown'
+    const lastName = data.lastName || data.last_name || ''
+    const fullName = `${firstName} ${lastName}`.trim() || data.name || 'Unknown'
+
     const res = await pool.query(`
       INSERT INTO institute_students (
-        institution_id, first_name, last_name, admission_no, roll_no, class_name, section_name, contact, email, status, fees_status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        institution_id, name, first_name, last_name, admission_no, roll_no, class_name, section_name, contact, email, status, fees_status, gender, avatar
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING id
     `, [
       session.userId,
-      data.firstName || 'Unknown',
-      data.lastName || '',
-      data.admissionNo || `ADM-${Date.now()}`,
-      data.rollNo || '',
-      data.class || '',
-      data.section || '',
-      data.mobileNo || '',
-      data.emailId || '',
-      'Active',
-      'Unpaid'
+      fullName,
+      firstName,
+      lastName,
+      data.admissionNo || data.admission_no || `ADM-${Date.now()}`,
+      data.rollNo || data.roll_no || '',
+      data.class || data.className || data.class_name || '',
+      data.section || data.sectionName || data.section_name || '',
+      data.mobileNo || data.contact || '',
+      data.emailId || data.email || '',
+      data.status || 'Active',
+      data.fees_status || 'Unpaid',
+      data.gender || 'Male',
+      data.avatar || ''
     ])
     return { success: true, id: res.rows[0].id }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+export async function deleteStudent(id: string | number) {
+  const session = await getSession('institute_session')
+  if (!session?.userId) return { success: false, error: 'Unauthorized' }
+
+  try {
+    await pool.query(`
+      DELETE FROM institute_students 
+      WHERE (id::text = $1::text OR admission_no = $1::text) AND institution_id = $2
+    `, [String(id), session.userId])
+    return { success: true }
   } catch (err: any) {
     return { success: false, error: err.message }
   }

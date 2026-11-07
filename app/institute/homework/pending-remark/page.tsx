@@ -602,23 +602,11 @@ export default function PendingRemarkHomeworkPage() {
           return normalizeStudent({
             ...loc,
             ...s,
-            class_name: loc.class_name || loc.className || loc.class || s.class_name || '',
-            section_name: loc.section_name || loc.section || s.section_name || ''
+            class_name: s.class_name || loc.class_name || loc.className || loc.class || '',
+            section_name: s.section_name || loc.section_name || loc.section || ''
           }, idx)
         })
-        const dbIds = new Set(dbStuds.map(s => String(s.id)))
-        const dbAdm = new Set(dbStuds.map(s => String(s.admissionNo)))
-        const remainingLocal = deduplicatedLocal
-          .filter((s: any) =>
-            !dbIds.has(String(s.id)) &&
-            !dbAdm.has(String(s.admission_no || s.admissionNo)) &&
-            s.status !== 'draft' &&
-            !String(s.id || '').toUpperCase().startsWith('DRAFT') &&
-            !String(s.admission_no || s.admissionNo || '').toUpperCase().startsWith('DRAFT') &&
-            !s.feeReceiptNo
-          )
-          .map((s: any, idx: number) => normalizeStudent(s, dbStuds.length + idx))
-        combinedStuds = [...dbStuds, ...remainingLocal]
+        combinedStuds = dbStuds
       } else if (deduplicatedLocal.length > 0) {
         combinedStuds = deduplicatedLocal.map((s: any, idx: number) => normalizeStudent(s, idx))
       }
@@ -801,7 +789,7 @@ export default function PendingRemarkHomeworkPage() {
           const matchedStudents = allStudents.filter(s => matchesClassAndSection(s, cName, sec))
           const matchedCount = matchedStudents.length
           const masterCount = Number(c.totalStudents ?? c.studentsCount ?? c.total_students ?? 0)
-          const studentCount = matchedCount > 0 ? matchedCount : masterCount
+          const studentCount = allStudents.length > 0 ? matchedCount : (matchedCount > 0 ? matchedCount : masterCount)
 
           const teacher = c.classTeacher || c.class_teacher || allTeachers.find((t: any) => {
             const tClass = String(t.class_teacher || t.className || t.class || '').toLowerCase()
