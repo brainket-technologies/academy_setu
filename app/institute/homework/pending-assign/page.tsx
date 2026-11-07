@@ -946,12 +946,14 @@ export default function PendingAssignHomeworkPage() {
     return []
   }
 
-  // ── GENERATE MISSED/PENDING DATES (ONLY DATES WITH UNPROVIDED HOMEWORK) ──
+  // ── GENERATE MISSED/PENDING DATES (ONLY PAST DATES WITH UNPROVIDED HOMEWORK - TODAY EXCLUDED) ──
   const missedDates = useMemo<MissedDateCard[]>(() => {
     const list: MissedDateCard[] = []
     const today = new Date()
+    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
-    for (let i = 0; i <= 60; i++) {
+    // Exclude today: Start strictly from yesterday (i = 1) because today is active/ongoing, not missed/pending
+    for (let i = 1; i <= 60; i++) {
       const d = new Date(today.getTime() - i * 86400000)
       // Skip Sundays
       if (d.getDay() === 0) continue
@@ -960,6 +962,9 @@ export default function PendingAssignHomeworkPage() {
       const mm = String(d.getMonth() + 1).padStart(2, '0')
       const dd = String(d.getDate()).padStart(2, '0')
       const isoStr = `${yyyy}-${mm}-${dd}`
+
+      // Exclude today and any future dates
+      if (isoStr >= todayIso) continue
 
       const dayName = d.toLocaleDateString('en-US', { weekday: 'short' })
       const dayLong = d.toLocaleDateString('en-US', { weekday: 'long' })
@@ -1416,6 +1421,12 @@ export default function PendingAssignHomeworkPage() {
   // ── JUMP TO ANY CUSTOM PENDING DATE (Screen 1) ──
   const handlePickCustomDate = (dateIsoStr: string) => {
     if (!dateIsoStr) return
+    const today = new Date()
+    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    if (dateIsoStr >= todayIso) {
+      showToast('Today and future dates cannot be selected in Pending Assign. Please select a past date.', 'error')
+      return
+    }
     const [y, m, d] = dateIsoStr.split('-').map(Number)
     const dt = new Date(y, m - 1, d)
     const dd = String(d).padStart(2, '0')
@@ -1572,6 +1583,7 @@ export default function PendingAssignHomeworkPage() {
                 <input
                   id="pending-direct-date"
                   type="date"
+                  max={new Date(Date.now() - 86400000).toISOString().split('T')[0]}
                   onChange={e => {
                     if (e.target.value) handlePickCustomDate(e.target.value)
                   }}

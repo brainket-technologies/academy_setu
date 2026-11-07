@@ -380,6 +380,13 @@ export default function PendingRemarkHomeworkPage() {
     const monthName = dt.toLocaleDateString('en-US', { month: 'long' })
     const monthShort = dt.toLocaleDateString('en-US', { month: 'short' })
 
+    const now = new Date()
+    const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    if (isoStr >= todayIso) {
+      showToast('Today and future dates cannot be selected in Pending Remark. Please select a past pending date.', 'error')
+      return
+    }
+
     const existingCard = pendingRemarkDates.find(d => d.fullDate === isoStr)
     const newCard: PendingRemarkDateCard = existingCard || {
       id: `pending-remark-${isoStr}`,
@@ -414,6 +421,12 @@ export default function PendingRemarkHomeworkPage() {
 
   const handlePickCustomDate = (dateIsoStr: string) => {
     if (!dateIsoStr) return
+    const now = new Date()
+    const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    if (dateIsoStr >= todayIso) {
+      showToast('Today and future dates cannot be selected in Pending Remark. Please select a past pending date.', 'error')
+      return
+    }
     handleSwitchDate(dateIsoStr)
     setCurrentScreen('classes')
   }
@@ -833,15 +846,17 @@ export default function PendingRemarkHomeworkPage() {
     return list
   }, [classesData, allStudents, allTeachers])
 
-  // ── GENERATE PENDING REMARK DATES (ORANGE NUMBERS AS IN SCREENSHOT 1) ──
+  // ── GENERATE PENDING REMARK DATES (ORANGE NUMBERS AS IN SCREENSHOT 1 - TODAY STRICTLY EXCLUDED) ──
   // Scan dates with assigned homework tasks where remarks/evaluations are pending
   const pendingRemarkDates = useMemo<PendingRemarkDateCard[]>(() => {
     const dateMap = new Map<string, PendingRemarkDateCard>()
+    const today = new Date()
+    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
-    // 1. Gather all dates from actual assigned homework tasks
+    // 1. Gather all dates from actual assigned homework tasks (STRICTLY EXCLUDE TODAY AND FUTURE DATES)
     tasks.forEach(task => {
       const norm = normalizeDateStr(task.submissionDate) || normalizeDateStr(task.assignDate)
-      if (!norm) return
+      if (!norm || norm >= todayIso) return
 
       if (!dateMap.has(norm)) {
         const parts = norm.split('-')
@@ -866,12 +881,12 @@ export default function PendingRemarkHomeworkPage() {
       }
     })
 
-    // 2. Gather all rescheduled dates from sanitized rescheduledSubmissions
+    // 2. Gather all rescheduled dates from sanitized rescheduledSubmissions (STRICTLY EXCLUDE TODAY AND FUTURE DATES)
     rescheduledSubmissions.forEach(sub => {
       if (sub.status === 'Completed' || sub.status === 'Submitted') return
       const rawDate = sub.rescheduledDate || sub.rescheduled_date
       const norm = normalizeDateStr(rawDate)
-      if (!norm) return
+      if (!norm || norm >= todayIso) return
 
       if (!dateMap.has(norm)) {
         const parts = norm.split('-')
@@ -896,9 +911,8 @@ export default function PendingRemarkHomeworkPage() {
       }
     })
 
-    // 3. Populate past working academic dates (skipping Sundays)
-    const today = new Date()
-    for (let i = 0; i <= 60; i++) {
+    // 3. Populate past working academic dates (skipping Sundays and strictly starting from yesterday i = 1)
+    for (let i = 1; i <= 60; i++) {
       const d = new Date(today.getTime() - i * 86400000)
       if (d.getDay() === 0) continue
 
@@ -906,6 +920,7 @@ export default function PendingRemarkHomeworkPage() {
       const mm = String(d.getMonth() + 1).padStart(2, '0')
       const dd = String(d.getDate()).padStart(2, '0')
       const isoStr = `${yyyy}-${mm}-${dd}`
+      if (isoStr >= todayIso) continue
 
       if (!dateMap.has(isoStr)) {
         const dayName = d.toLocaleDateString('en-US', { weekday: 'short' })
@@ -1720,6 +1735,7 @@ export default function PendingRemarkHomeworkPage() {
                 <input
                   id="pending-remark-direct-date"
                   type="date"
+                  max={new Date(Date.now() - 86400000).toISOString().split('T')[0]}
                   onChange={e => {
                     if (e.target.value) handlePickCustomDate(e.target.value)
                   }}
@@ -1821,12 +1837,12 @@ export default function PendingRemarkHomeworkPage() {
               </div>
             </div>
 
-            {/* Interactive Date Switcher (Prev / Picker / Next / Today) */}
+            {/* Interactive Date Switcher (Prev / Picker / Next / Yesterday) */}
             <div className="flex items-center gap-1.5 bg-orange-50/70 dark:bg-orange-950/30 p-1.5 rounded-2xl border border-orange-200/70 dark:border-orange-900/60">
               <button
                 type="button"
                 onClick={() => {
-                  const cur = selectedDateItem?.fullDate || new Date().toISOString().split('T')[0]
+                  const cur = selectedDateItem?.fullDate || new Date(Date.now() - 86400000).toISOString().split('T')[0]
                   const parts = cur.split('-').map(Number)
                   const d = new Date(parts[0], parts[1] - 1, parts[2] - 1)
                   handleSwitchDate(d)
@@ -1844,6 +1860,7 @@ export default function PendingRemarkHomeworkPage() {
                 </span>
                 <input
                   type="date"
+                  max={new Date(Date.now() - 86400000).toISOString().split('T')[0]}
                   value={selectedDateItem?.fullDate || ''}
                   onChange={e => {
                     if (e.target.value) handleSwitchDate(e.target.value)
@@ -1856,7 +1873,7 @@ export default function PendingRemarkHomeworkPage() {
               <button
                 type="button"
                 onClick={() => {
-                  const cur = selectedDateItem?.fullDate || new Date().toISOString().split('T')[0]
+                  const cur = selectedDateItem?.fullDate || new Date(Date.now() - 86400000).toISOString().split('T')[0]
                   const parts = cur.split('-').map(Number)
                   const d = new Date(parts[0], parts[1] - 1, parts[2] + 1)
                   handleSwitchDate(d)
@@ -1869,10 +1886,10 @@ export default function PendingRemarkHomeworkPage() {
 
               <button
                 type="button"
-                onClick={() => handleSwitchDate(new Date())}
+                onClick={() => handleSwitchDate(new Date(Date.now() - 86400000))}
                 className="px-2.5 py-1 text-[11px] font-bold rounded-xl text-orange-700 dark:text-orange-300 hover:bg-white dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
-                Today
+                Yesterday
               </button>
             </div>
           </div>
@@ -2093,7 +2110,7 @@ export default function PendingRemarkHomeworkPage() {
               <button
                 type="button"
                 onClick={() => {
-                  const cur = selectedDateItem?.fullDate || new Date().toISOString().split('T')[0]
+                  const cur = selectedDateItem?.fullDate || new Date(Date.now() - 86400000).toISOString().split('T')[0]
                   const parts = cur.split('-').map(Number)
                   const d = new Date(parts[0], parts[1] - 1, parts[2] - 1)
                   handleSwitchDate(d)
@@ -2111,6 +2128,7 @@ export default function PendingRemarkHomeworkPage() {
                 </span>
                 <input
                   type="date"
+                  max={new Date(Date.now() - 86400000).toISOString().split('T')[0]}
                   value={selectedDateItem?.fullDate || ''}
                   onChange={e => {
                     if (e.target.value) handleSwitchDate(e.target.value)
@@ -2123,7 +2141,7 @@ export default function PendingRemarkHomeworkPage() {
               <button
                 type="button"
                 onClick={() => {
-                  const cur = selectedDateItem?.fullDate || new Date().toISOString().split('T')[0]
+                  const cur = selectedDateItem?.fullDate || new Date(Date.now() - 86400000).toISOString().split('T')[0]
                   const parts = cur.split('-').map(Number)
                   const d = new Date(parts[0], parts[1] - 1, parts[2] + 1)
                   handleSwitchDate(d)
@@ -2136,10 +2154,10 @@ export default function PendingRemarkHomeworkPage() {
 
               <button
                 type="button"
-                onClick={() => handleSwitchDate(new Date())}
+                onClick={() => handleSwitchDate(new Date(Date.now() - 86400000))}
                 className="px-2.5 py-1 text-[11px] font-bold rounded-xl text-teal-700 dark:text-teal-300 hover:bg-white dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
-                Today
+                Yesterday
               </button>
             </div>
           </div>
@@ -2344,6 +2362,7 @@ export default function PendingRemarkHomeworkPage() {
                   <span>Change Date</span>
                   <input
                     type="date"
+                    max={new Date(Date.now() - 86400000).toISOString().split('T')[0]}
                     value={selectedDateItem?.fullDate || ''}
                     onChange={e => {
                       if (e.target.value) handleSwitchDate(e.target.value)
