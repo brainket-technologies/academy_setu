@@ -220,7 +220,23 @@ function normalizeClassKey(raw: string): string {
 
 function matchesClassAndSection(student: any, cardClassName: string, cardSection: string): boolean {
   if (!student) return false
-  if (student.deleted || student.status === 'Deleted' || student.status === 'Dropped' || student.status === 'Passed') {
+  if (
+    student.deleted ||
+    student.status === 'Deleted' ||
+    student.status === 'Dropped' ||
+    student.status === 'Passed' ||
+    student.status === 'Suspended' ||
+    student.status === 'Draft' ||
+    student.status === 'draft' ||
+    student.isDraft
+  ) {
+    return false
+  }
+  if (
+    String(student.id || '').toUpperCase().startsWith('DRAFT') ||
+    String(student.admissionNo || student.admission_no || '').toUpperCase().startsWith('DRAFT') ||
+    student.feeReceiptNo
+  ) {
     return false
   }
 
@@ -472,18 +488,34 @@ export default function PendingAssignHomeworkPage() {
         } catch { return [] }
       }
 
-      // Read real students from all recognized localStorage registries
+      // Read real students from recognized localStorage registries (excluding drafts & fee records)
       const l1 = parseLocal('school_students')
       const l2 = parseLocal('school_institute_students')
       const l3 = parseLocal('students')
-      const l4 = parseLocal('school_all_fees')
-      const l5 = parseLocal('school_draft_students')
-      const localCombined = [...l1, ...l2, ...l3, ...l4, ...l5]
+      const localCombined = [...l1, ...l2, ...l3].filter((s: any) =>
+        s &&
+        s.status !== 'Draft' &&
+        s.status !== 'draft' &&
+        s.status !== 'Deleted' &&
+        s.status !== 'Dropped' &&
+        s.status !== 'Passed' &&
+        s.status !== 'Suspended' &&
+        !s.deleted &&
+        !s.isDraft &&
+        !String(s.id || '').toUpperCase().startsWith('DRAFT') &&
+        !String(s.admission_no || s.admissionNo || '').toUpperCase().startsWith('DRAFT') &&
+        !s.feeReceiptNo
+      )
 
+      // Deduplicate by student identity while retaining class & section fields
       const uniqueLocalMap = new Map<string, any>()
       localCombined.forEach((item: any, idx: number) => {
         if (!item) return
-        const key = String(item.id || item.admission_no || item.admissionNo || item.roll_no || `stu-local-${idx}`)
+        const adm = String(item.admission_no || item.admissionNo || '').trim().toLowerCase()
+        const id = String(item.id || '').trim().toLowerCase()
+        const fullName = String(item.name || `${item.first_name || ''} ${item.last_name || ''}`).trim().toLowerCase()
+        const cls = normalizeClassKey(item.class_name || item.className || item.class || '')
+        const key = adm || (id && !id.startsWith('stu-local-') ? id : `${fullName}_${cls}`) || `stu-local-${idx}`
         if (!uniqueLocalMap.has(key)) {
           uniqueLocalMap.set(key, item)
         } else {
@@ -537,7 +569,21 @@ export default function PendingAssignHomeworkPage() {
         const dbIds = new Set(dbStuds.map(s => String(s.id)))
         const dbAdm = new Set(dbStuds.map(s => String(s.admissionNo)))
         const remainingLocal = deduplicatedLocal
-          .filter((s: any) => !dbIds.has(String(s.id)) && !dbAdm.has(String(s.admission_no || s.admissionNo)))
+          .filter((s: any) =>
+            !dbIds.has(String(s.id)) &&
+            !dbAdm.has(String(s.admission_no || s.admissionNo)) &&
+            s.status !== 'Draft' &&
+            s.status !== 'draft' &&
+            s.status !== 'Deleted' &&
+            s.status !== 'Dropped' &&
+            s.status !== 'Passed' &&
+            s.status !== 'Suspended' &&
+            !s.deleted &&
+            !s.isDraft &&
+            !String(s.id || '').toUpperCase().startsWith('DRAFT') &&
+            !String(s.admission_no || s.admissionNo || '').toUpperCase().startsWith('DRAFT') &&
+            !s.feeReceiptNo
+          )
           .map((s: any, idx: number) => normalizeStudent(s, dbStuds.length + idx))
         combinedStuds = [...dbStuds, ...remainingLocal]
       } else if (deduplicatedLocal.length > 0) {
