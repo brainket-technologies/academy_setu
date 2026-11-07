@@ -88,7 +88,7 @@ interface StudentSubmissionItem {
   admissionNo: string
   avatar: string
   gender: 'Male' | 'Female'
-  status: 'Completed' | 'Pending' | 'Rescheduled'
+  status: 'Completed' | 'Submitted' | 'Pending' | 'Rescheduled'
   submittedAt?: string
   remark: string
   rating: number // 1 to 5
