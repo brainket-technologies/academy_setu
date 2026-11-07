@@ -800,9 +800,13 @@ function RemarkHomeworkContent() {
       const l1 = parseLocal('school_students')
       const l2 = parseLocal('school_institute_students')
       const l3 = parseLocal('students')
-      const l4 = parseLocal('school_all_fees')
-      const l5 = parseLocal('school_draft_students')
-      const localCombined = [...l1, ...l2, ...l3, ...l4, ...l5]
+      const localCombined = [...l1, ...l2, ...l3].filter((s: any) =>
+        s &&
+        s.status !== 'draft' &&
+        !String(s.id || '').toUpperCase().startsWith('DRAFT') &&
+        !String(s.admission_no || s.admissionNo || '').toUpperCase().startsWith('DRAFT') &&
+        !s.feeReceiptNo
+      )
 
       const uniqueLocalMap = new Map<string, any>()
       localCombined.forEach((item: any, idx: number) => {
@@ -864,7 +868,14 @@ function RemarkHomeworkContent() {
         const dbIds = new Set(dbStuds.map(s => String(s.id)))
         const dbAdm = new Set(dbStuds.map(s => String(s.admissionNo)))
         const remainingLocal = deduplicatedLocal
-          .filter((s: any) => !dbIds.has(String(s.id)) && !dbAdm.has(String(s.admission_no || s.admissionNo)))
+          .filter((s: any) =>
+            !dbIds.has(String(s.id)) &&
+            !dbAdm.has(String(s.admission_no || s.admissionNo)) &&
+            s.status !== 'draft' &&
+            !String(s.id || '').toUpperCase().startsWith('DRAFT') &&
+            !String(s.admission_no || s.admissionNo || '').toUpperCase().startsWith('DRAFT') &&
+            !s.feeReceiptNo
+          )
           .map((s: any, idx: number) => normalizeStudent(s, dbStuds.length + idx))
         combinedStuds = [...dbStuds, ...remainingLocal]
       } else if (deduplicatedLocal.length > 0) {
