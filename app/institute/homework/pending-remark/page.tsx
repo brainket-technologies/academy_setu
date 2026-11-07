@@ -1685,7 +1685,7 @@ export default function PendingRemarkHomeworkPage() {
         <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200">
 
           {/* Top Curved Teal Header matching Screenshot 1 */}
-          <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
+          <div className="bg-[#0f766e] text-white px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
             <button
               type="button"
               onClick={() => router.push('/institute/homework')}
@@ -1791,7 +1791,7 @@ export default function PendingRemarkHomeworkPage() {
         <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200">
 
           {/* Top Curved Teal Header matching Screenshot 2 */}
-          <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
+          <div className="bg-[#0f766e] text-white px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
             <button
               type="button"
               onClick={() => setCurrentScreen('dates')}
@@ -2011,7 +2011,7 @@ export default function PendingRemarkHomeworkPage() {
         <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200">
 
           {/* Top Curved Teal Header matching Screenshot 3 */}
-          <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
+          <div className="bg-[#0f766e] text-white px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
             <button
               type="button"
               onClick={() => setCurrentScreen('classes')}
@@ -2068,20 +2068,20 @@ export default function PendingRemarkHomeworkPage() {
           )}
 
           {/* Subject Banner Card with Date Switcher */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-xs border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between flex-wrap gap-4 w-full">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-[#0f766e] text-white flex items-center justify-center shadow-xs shrink-0">
-                <FileText className="w-7 h-7" />
+          <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-3.5 sm:p-5 md:p-6 shadow-xs border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between flex-wrap gap-3 sm:gap-4 w-full">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-[#0f766e] text-white flex items-center justify-center shadow-xs shrink-0">
+                <FileText className="w-5 h-5 sm:w-7 sm:h-7" />
               </div>
               <div>
-                <h2 className="text-lg md:text-xl font-black text-slate-900 dark:text-white leading-tight">
+                <h2 className="text-base sm:text-lg md:text-xl font-black text-slate-900 dark:text-white leading-tight">
                   {selectedSubject}
                 </h2>
-                <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-xl">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1">
+                  <span className="text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-lg sm:rounded-xl">
                     {selectedClass} - Sec {selectedSection}
                   </span>
-                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-xl">
+                  <span className="text-[11px] sm:text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-lg sm:rounded-xl">
                     Academic Year 2026
                   </span>
                 </div>
@@ -2247,7 +2247,7 @@ export default function PendingRemarkHomeworkPage() {
                       <button
                         type="button"
                         onClick={e => handleOpenRescheduleTaskModal(task, e)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/60 border border-amber-200 dark:border-amber-800 transition-all cursor-pointer shadow-2xs active:scale-95"
+                        className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold text-amber-700 dark:text-amber-300 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/60 border border-amber-200 dark:border-amber-800 transition-all cursor-pointer shadow-2xs active:scale-95 whitespace-nowrap"
                         title="Reschedule this task"
                       >
                         <CalendarClock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
@@ -2257,7 +2257,7 @@ export default function PendingRemarkHomeworkPage() {
                       <button
                         type="button"
                         onClick={e => handleDeleteTask(task.id, e)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800 transition-all cursor-pointer shadow-2xs active:scale-95"
+                        className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800 transition-all cursor-pointer shadow-2xs active:scale-95 whitespace-nowrap"
                         title="Delete Task"
                       >
                         <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
@@ -2271,9 +2271,9 @@ export default function PendingRemarkHomeworkPage() {
                           loadTaskSubmissions(task)
                           setCurrentScreen('evaluation')
                         }}
-                        className="px-5 py-2.5 rounded-2xl bg-[#0f766e] hover:bg-[#0d655f] text-white text-xs md:text-sm font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                        className="px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-[#0f766e] hover:bg-[#0d655f] text-white text-[11px] sm:text-xs md:text-sm font-bold shadow-xs flex items-center gap-1 sm:gap-1.5 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                       >
-                        <Users className="w-4 h-4" />
+                        <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         <span>Remark Students &gt;</span>
                       </button>
                     </div>
@@ -2293,7 +2293,7 @@ export default function PendingRemarkHomeworkPage() {
         <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200">
 
           {/* Top Curved Teal Header matching Screenshot 4 */}
-          <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
+          <div className="bg-[#0f766e] text-white px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
             <button
               type="button"
               onClick={() => setCurrentScreen('tasks')}
@@ -2371,11 +2371,11 @@ export default function PendingRemarkHomeworkPage() {
             </div>
 
             {/* Filter Pills: All / Completed / Not Completed / Rescheduled */}
-            <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs shrink-0 overflow-x-auto">
+            <div className="flex items-center gap-1 sm:gap-1.5 bg-white dark:bg-slate-800 p-1 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs shrink-0 overflow-x-auto no-scrollbar">
               <button
                 type="button"
                 onClick={() => setStudentStatusFilter('All')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                   studentStatusFilter === 'All' ? 'bg-[#0f766e] text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
                 }`}
               >
@@ -2384,7 +2384,7 @@ export default function PendingRemarkHomeworkPage() {
               <button
                 type="button"
                 onClick={() => setStudentStatusFilter('Completed')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                   studentStatusFilter === 'Completed' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
                 }`}
               >
@@ -2393,7 +2393,7 @@ export default function PendingRemarkHomeworkPage() {
               <button
                 type="button"
                 onClick={() => setStudentStatusFilter('Not Completed')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                   studentStatusFilter === 'Not Completed' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
                 }`}
               >
@@ -2402,7 +2402,7 @@ export default function PendingRemarkHomeworkPage() {
               <button
                 type="button"
                 onClick={() => setStudentStatusFilter('Rescheduled')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                   studentStatusFilter === 'Rescheduled' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
                 }`}
               >

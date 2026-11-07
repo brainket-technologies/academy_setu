@@ -1965,7 +1965,7 @@ function RemarkHomeworkContent() {
     return (
       <div
         key={st.studentId}
-        className={`bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-4 md:p-5 shadow-xs border transition-all hover:shadow-md space-y-3 w-full ${
+        className={`bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-3 sm:p-4 md:p-5 shadow-xs border transition-all hover:shadow-md space-y-2.5 sm:space-y-3 w-full ${
           isSelected ? 'border-teal-500 ring-1 ring-teal-500/30' : 'border-slate-200/80 dark:border-slate-700/80'
         }`}
       >
@@ -2111,7 +2111,7 @@ function RemarkHomeworkContent() {
   }
 
   return (
-    <div className="w-full min-h-screen bg-slate-50 dark:bg-slate-950 p-3 sm:p-5 md:p-8 space-y-6">
+    <div className="w-full min-h-screen bg-slate-50 dark:bg-slate-950 p-2 sm:p-4 md:p-6 lg:p-8 space-y-3.5 sm:space-y-5 md:space-y-6">
 
       {/* ═══════════════════════════════════════════════════════════════════
           PAGE 1: REMARK HOMEWORK - SELECT CLASS (MATCHING SCREENSHOT 1)
@@ -2120,7 +2120,7 @@ function RemarkHomeworkContent() {
         <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200">
           
           {/* Top Curved Teal Header matching Screenshot 1 */}
-          <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
+          <div className="bg-[#0f766e] text-white px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
             <Link
               href="/institute/dashboard"
               className="w-11 h-11 rounded-2xl bg-white text-slate-800 flex items-center justify-center shadow-xs active:scale-95 transition-transform"
@@ -2308,7 +2308,7 @@ function RemarkHomeworkContent() {
             {filteredClassCards.map(cls => (
               <div
                 key={cls.id}
-                className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-xs border border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-4 transition-all hover:shadow-md w-full"
+                className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-3.5 sm:p-5 md:p-6 shadow-xs border border-slate-200/80 dark:border-slate-700/80 flex flex-col gap-3 sm:gap-4 transition-all hover:shadow-md w-full"
               >
                 {/* Top Row: Class Name & Enrolled Student Count */}
                 <div className="flex items-start justify-between gap-3">
@@ -2347,22 +2347,22 @@ function RemarkHomeworkContent() {
                 </div>
 
                 {/* Middle Row: Total Subject / Total Task / Due Remarks Pills */}
-                <div className="grid grid-cols-3 gap-2.5 pt-1">
-                  <div className="px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-800/60 text-center flex items-center justify-center gap-1.5">
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-2.5 pt-1">
+                  <div className="px-1.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-800/60 text-center flex items-center justify-center gap-1 sm:gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-sky-500 shrink-0"></span>
-                    <span className="text-xs font-black text-sky-800 dark:text-sky-200 truncate">
+                    <span className="text-[10px] sm:text-xs font-black text-sky-800 dark:text-sky-200 truncate">
                       Total Subject: {cls.totalSubjects}
                     </span>
                   </div>
-                  <div className="px-3 py-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-800/60 text-center flex items-center justify-center gap-1.5">
+                  <div className="px-1.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-800/60 text-center flex items-center justify-center gap-1 sm:gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
-                    <span className="text-xs font-black text-purple-800 dark:text-purple-200 truncate">
+                    <span className="text-[10px] sm:text-xs font-black text-purple-800 dark:text-purple-200 truncate">
                       Total Task: {cls.tasksCount}
                     </span>
                   </div>
-                  <div className="px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-800/60 text-center flex items-center justify-center gap-1.5">
+                  <div className="px-1.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-800/60 text-center flex items-center justify-center gap-1 sm:gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
-                    <span className="text-xs font-black text-amber-800 dark:text-amber-200 truncate">
+                    <span className="text-[10px] sm:text-xs font-black text-amber-800 dark:text-amber-200 truncate">
                       Due Remarks: {cls.dueRemarks}
                     </span>
                   </div>
@@ -2398,7 +2398,7 @@ function RemarkHomeworkContent() {
         <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200">
           
           {/* Top Curved Teal Header matching Screenshot 2 */}
-          <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
+          <div className="bg-[#0f766e] text-white px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
             <button
               type="button"
               onClick={() => setCurrentScreen('classes')}
@@ -2413,7 +2413,7 @@ function RemarkHomeworkContent() {
           </div>
 
           {/* Class Banner Card matching Screenshot 2 */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-xs border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between w-full">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-3.5 sm:p-5 md:p-6 shadow-xs border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between flex-wrap gap-3 w-full">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-2xl bg-[#0f766e] text-white flex items-center justify-center shadow-sm shrink-0">
                 <GraduationCap className="w-7 h-7" />
@@ -2581,7 +2581,7 @@ function RemarkHomeworkContent() {
         <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200">
           
           {/* Top Curved Teal Header matching Screenshot 3 */}
-          <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
+          <div className="bg-[#0f766e] text-white px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
             <button
               type="button"
               onClick={() => setCurrentScreen('subjects')}
@@ -2596,20 +2596,20 @@ function RemarkHomeworkContent() {
           </div>
 
           {/* Subject Banner Card matching Screenshot 3 */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-xs border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between w-full">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-[#0f766e] text-white flex items-center justify-center shadow-sm shrink-0">
-                <FileText className="w-7 h-7" />
+          <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-3.5 sm:p-5 md:p-6 shadow-xs border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between w-full">
+            <div className="flex items-center gap-3 sm:gap-4 w-full">
+              <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-[#0f766e] text-white flex items-center justify-center shadow-sm shrink-0">
+                <FileText className="w-5 h-5 sm:w-7 sm:h-7" />
               </div>
-              <div>
-                <h2 className="text-lg md:text-xl font-black text-slate-900 dark:text-white leading-tight">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base sm:text-lg md:text-xl font-black text-slate-900 dark:text-white leading-tight truncate">
                   {selectedSubject}
                 </h2>
-                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <span className="text-xs md:text-sm text-slate-500 dark:text-slate-400 font-bold">
+                <div className="flex items-center gap-1.5 sm:gap-2 mt-1 flex-wrap">
+                  <span className="text-[11px] sm:text-xs md:text-sm text-slate-500 dark:text-slate-400 font-bold">
                     {selectedClass} - Sec {selectedSection}
                   </span>
-                  <div className="flex items-center gap-1 bg-white dark:bg-slate-700/80 px-2 py-0.5 rounded-xl border border-teal-200/80 dark:border-teal-800 shadow-2xs">
+                  <div className="flex items-center gap-0.5 sm:gap-1 bg-white dark:bg-slate-700/80 px-1.5 sm:px-2 py-0.5 rounded-lg sm:rounded-xl border border-teal-200/80 dark:border-teal-800 shadow-2xs">
                     <button
                       type="button"
                       onClick={() => setSelectedCalendarDate(prev => new Date(prev.getTime() - 86400000))}
@@ -2685,7 +2685,7 @@ function RemarkHomeworkContent() {
               {displayedSubjectTasks.map(task => (
                 <div
                   key={task.id}
-                  className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-xs border border-slate-200/80 dark:border-slate-700/80 space-y-4 w-full transition-all hover:shadow-md"
+                  className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-3.5 sm:p-5 md:p-6 shadow-xs border border-slate-200/80 dark:border-slate-700/80 space-y-3 sm:space-y-4 w-full transition-all hover:shadow-md"
                 >
                   {/* Top Badges Row */}
                   <div className="flex items-center justify-between">
@@ -2747,7 +2747,7 @@ function RemarkHomeworkContent() {
                       <button
                         type="button"
                         onClick={e => handleOpenRescheduleTaskModal(task, e)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/60 border border-amber-200 dark:border-amber-800 transition-all cursor-pointer shadow-2xs active:scale-95"
+                        className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold text-amber-700 dark:text-amber-300 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/60 border border-amber-200 dark:border-amber-800 transition-all cursor-pointer shadow-2xs active:scale-95 whitespace-nowrap"
                         title="Reschedule this task"
                       >
                         <CalendarClock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
@@ -2757,7 +2757,7 @@ function RemarkHomeworkContent() {
                       <button
                         type="button"
                         onClick={e => handleDeleteTask(task.id, e)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800 transition-all cursor-pointer shadow-2xs active:scale-95"
+                        className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-[11px] sm:text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800 transition-all cursor-pointer shadow-2xs active:scale-95 whitespace-nowrap"
                         title="Delete Task"
                       >
                         <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
@@ -2771,9 +2771,9 @@ function RemarkHomeworkContent() {
                           setStudentSearch('')
                           setCurrentScreen('evaluation')
                         }}
-                        className="px-5 py-2.5 rounded-2xl bg-[#0f766e] hover:bg-[#0d655f] text-white text-xs md:text-sm font-bold shadow-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                        className="px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-[#0f766e] hover:bg-[#0d655f] text-white text-[11px] sm:text-xs md:text-sm font-bold shadow-xs flex items-center gap-1 sm:gap-1.5 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                       >
-                        <Users className="w-4 h-4" />
+                        <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         <span>Remark Students &gt;</span>
                       </button>
                     </div>
@@ -2793,7 +2793,7 @@ function RemarkHomeworkContent() {
         <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200">
           
           {/* Top Curved Teal Header matching Screenshot 4 */}
-          <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
+          <div className="bg-[#0f766e] text-white px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
             <button
               type="button"
               onClick={() => setCurrentScreen('tasks')}
@@ -2808,7 +2808,7 @@ function RemarkHomeworkContent() {
           </div>
 
           {/* Task Summary Header Card matching Screenshot 4 */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-xs border border-slate-200/80 dark:border-slate-700/80 space-y-3 w-full">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-3.5 sm:p-5 md:p-6 shadow-xs border border-slate-200/80 dark:border-slate-700/80 space-y-2.5 sm:space-y-3 w-full">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3.5">
                 <div className="w-12 h-12 rounded-2xl bg-[#0f766e] text-white flex items-center justify-center shadow-sm shrink-0">
@@ -2861,24 +2861,24 @@ function RemarkHomeworkContent() {
           </div>
 
           {/* Search Bar & Filter Options matching Screenshot 4 */}
-          <div className="flex items-center gap-3 w-full">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full">
             <div className="relative flex-1">
-              <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Search By Name, Roll No..."
                 value={studentSearch}
                 onChange={e => setStudentSearch(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs md:text-sm font-semibold outline-none focus:border-teal-500 shadow-2xs"
+                className="w-full pl-10 sm:pl-12 pr-4 py-2.5 sm:py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl sm:rounded-2xl text-xs md:text-sm font-semibold outline-none focus:border-teal-500 shadow-2xs"
               />
             </div>
 
-            {/* Filter Pills: All / Not Completed / Completed / Rescheduled */}
-            <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs shrink-0 overflow-x-auto">
+            {/* Filter Pills: All / Completed / Not Completed / Rescheduled */}
+            <div className="flex items-center gap-1 sm:gap-1.5 bg-white dark:bg-slate-800 p-1 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs shrink-0 overflow-x-auto no-scrollbar">
               <button
                 type="button"
                 onClick={() => setStatusFilter('All')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                   statusFilter === 'All' ? 'bg-[#0f766e] text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
                 }`}
               >
@@ -2887,7 +2887,7 @@ function RemarkHomeworkContent() {
               <button
                 type="button"
                 onClick={() => setStatusFilter('Completed')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                   statusFilter === 'Completed' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
                 }`}
               >
@@ -2896,7 +2896,7 @@ function RemarkHomeworkContent() {
               <button
                 type="button"
                 onClick={() => setStatusFilter('Not Completed')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                   statusFilter === 'Not Completed' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
                 }`}
               >
@@ -2905,7 +2905,7 @@ function RemarkHomeworkContent() {
               <button
                 type="button"
                 onClick={() => setStatusFilter('Rescheduled')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 ${
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                   statusFilter === 'Rescheduled' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
                 }`}
               >

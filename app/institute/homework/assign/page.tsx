@@ -1463,7 +1463,7 @@ export default function HomeworkAssignPage() {
         <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200">
           
           {/* Top Curved Teal Header matching Screenshot 1 (Full Width) */}
-          <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
+          <div className="bg-[#0f766e] text-white px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
             <button
               type="button"
               onClick={() => router.push('/institute/homework')}
@@ -1604,7 +1604,7 @@ export default function HomeworkAssignPage() {
               {filteredClassCards.map(cls => (
                 <div
                   key={cls.id}
-                  className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 shadow-xs border border-slate-200/80 dark:border-slate-700/80 space-y-4 w-full hover:border-teal-500 transition-colors"
+                  className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-3.5 sm:p-5 shadow-xs border border-slate-200/80 dark:border-slate-700/80 space-y-3 sm:space-y-4 w-full hover:border-teal-500 transition-colors"
                 >
                   {/* Class Title & Real Student Count Badge */}
                   <div className="flex items-start justify-between gap-3">
@@ -1676,7 +1676,7 @@ export default function HomeworkAssignPage() {
         <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200">
           
           {/* Top Curved Teal Header matching Screenshot 2 */}
-          <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
+          <div className="bg-[#0f766e] text-white px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
             <button
               type="button"
               onClick={() => setCurrentScreen('classes')}
@@ -1691,7 +1691,7 @@ export default function HomeworkAssignPage() {
           </div>
 
           {/* Selected Class Header Card matching Screenshot 2 */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-xs border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between w-full">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-3.5 sm:p-5 md:p-6 shadow-xs border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between flex-wrap gap-3 w-full">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-2xl bg-[#0f766e] text-white flex items-center justify-center shadow-xs shrink-0">
                 <GraduationCap className="w-7 h-7" />
@@ -1839,7 +1839,7 @@ export default function HomeworkAssignPage() {
         <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200 relative pb-16">
           
           {/* Top Curved Teal Header matching Screenshot 3 */}
-          <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
+          <div className="bg-[#0f766e] text-white px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
             <button
               type="button"
               onClick={() => setCurrentScreen('subjects')}
@@ -1913,7 +1913,7 @@ export default function HomeworkAssignPage() {
               {activeSubjectTasks.map(task => (
                 <div
                   key={task.id}
-                  className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 md:p-6 shadow-xs border border-slate-200/80 dark:border-slate-700/80 space-y-3.5 w-full"
+                  className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-3.5 sm:p-5 md:p-6 shadow-xs border border-slate-200/80 dark:border-slate-700/80 space-y-3 sm:space-y-3.5 w-full"
                 >
                   {/* Status Pills Row matching Screenshot 3 */}
                   <div className="flex items-center justify-between">
@@ -1937,7 +1937,7 @@ export default function HomeworkAssignPage() {
                       <button
                         type="button"
                         onClick={e => handleOpenRescheduleModal(task, e)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/60 border border-amber-200 dark:border-amber-800 transition-all cursor-pointer shadow-2xs active:scale-95"
+                        className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold text-amber-700 dark:text-amber-300 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/60 border border-amber-200 dark:border-amber-800 transition-all cursor-pointer shadow-2xs active:scale-95 whitespace-nowrap"
                         title="Reschedule this task"
                       >
                         <CalendarClock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
@@ -1947,7 +1947,7 @@ export default function HomeworkAssignPage() {
                       <button
                         type="button"
                         onClick={e => handleDeleteTask(task.id, e)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800 transition-all cursor-pointer shadow-2xs active:scale-95"
+                        className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800 transition-all cursor-pointer shadow-2xs active:scale-95 whitespace-nowrap"
                         title="Delete Task"
                       >
                         <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
@@ -2042,7 +2042,7 @@ export default function HomeworkAssignPage() {
         <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200">
           
           {/* Top Curved Teal Header matching Screenshot 4 */}
-          <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
+          <div className="bg-[#0f766e] text-white px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
             <button
               type="button"
               onClick={() => setCurrentScreen('tasks')}
@@ -2233,7 +2233,7 @@ export default function HomeworkAssignPage() {
         <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200">
           
           {/* Top Curved Teal Header */}
-          <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
+          <div className="bg-[#0f766e] text-white px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
             <button
               type="button"
               onClick={() => setCurrentScreen('tasks')}

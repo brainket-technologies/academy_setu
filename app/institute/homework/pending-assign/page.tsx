@@ -1537,7 +1537,7 @@ export default function PendingAssignHomeworkPage() {
         <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200">
 
           {/* Top Curved Teal Header matching Screenshot 1 */}
-          <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
+          <div className="bg-[#0f766e] text-white px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
             <button
               type="button"
               onClick={() => router.push('/institute/homework')}
@@ -1648,7 +1648,7 @@ export default function PendingAssignHomeworkPage() {
         <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200">
 
           {/* Top Curved Teal Header matching Screenshot 2 */}
-          <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
+          <div className="bg-[#0f766e] text-white px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
             <button
               type="button"
               onClick={() => setCurrentScreen('dates')}
@@ -1740,7 +1740,7 @@ export default function PendingAssignHomeworkPage() {
               {classesForSelectedDate.map(cls => (
                 <div
                   key={cls.id}
-                  className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 shadow-xs border border-slate-200/80 dark:border-slate-700/80 space-y-4 w-full hover:border-teal-500 transition-colors"
+                  className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-3.5 sm:p-5 shadow-xs border border-slate-200/80 dark:border-slate-700/80 space-y-3 sm:space-y-4 w-full hover:border-teal-500 transition-colors"
                 >
                   {/* Class Title & Student Count Badge matching Screenshot 2 */}
                   <div className="flex items-start justify-between gap-3">
@@ -1814,7 +1814,7 @@ export default function PendingAssignHomeworkPage() {
         <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200">
 
           {/* Top Curved Teal Header matching Screenshot 3 */}
-          <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
+          <div className="bg-[#0f766e] text-white px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
             <button
               type="button"
               onClick={() => setCurrentScreen('classes')}
@@ -2093,7 +2093,7 @@ export default function PendingAssignHomeworkPage() {
         <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200">
 
           {/* Top Curved Teal Header matching Screenshot 4 */}
-          <div className="bg-[#0f766e] text-white px-6 md:px-8 py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
+          <div className="bg-[#0f766e] text-white px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 md:py-6 rounded-2xl md:rounded-3xl shadow-sm flex items-center justify-between w-full">
             <button
               type="button"
               onClick={() => setCurrentScreen('subjects')}
