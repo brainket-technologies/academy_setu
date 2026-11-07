@@ -1711,10 +1711,10 @@ export default function HomeworkAssignPage() {
             </span>
           </div>
 
-          {/* Time Table Day Schedule Bar with Day Switcher Pills */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-700/80 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+          {/* Time Table Day Schedule Bar (Strictly Locked to Selected Date) */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-3 shadow-2xs">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-[#0f766e] dark:text-teal-300 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-[#0f766e] dark:text-teal-300 flex items-center justify-center shrink-0">
                 <Calendar className="w-4 h-4" />
               </div>
               <div>
@@ -1726,27 +1726,6 @@ export default function HomeworkAssignPage() {
                   </span>
                 </div>
               </div>
-            </div>
-
-            {/* Day quick switcher pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => {
-                const isActive = selectedDayName.toLowerCase() === day.toLowerCase()
-                return (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() => handleSwitchDay(day)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                      isActive
-                        ? 'bg-[#0f766e] text-white shadow-xs scale-105'
-                        : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
-                    }`}
-                  >
-                    {day.slice(0, 3)}
-                  </button>
-                )
-              })}
             </div>
           </div>
 
@@ -1768,16 +1747,9 @@ export default function HomeworkAssignPage() {
                 No subjects scheduled in Time Table on {selectedDayName}
               </p>
               <p className="text-xs text-slate-400 max-w-md mx-auto">
-                Select another weekday above (such as Monday) or configure periods in <Link href="/institute/time-table" className="text-teal-600 underline font-bold">Time Table</Link>.
+                No periods scheduled for {selectedDayName} in <Link href="/institute/time-table" className="text-teal-600 underline font-bold">Time Table</Link>. You can create a task directly for this day below.
               </p>
               <div className="flex items-center justify-center gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => handleSwitchDay('Monday')}
-                  className="px-4 py-2 rounded-xl bg-[#0f766e] text-white text-xs font-bold hover:bg-[#0d655f] cursor-pointer shadow-xs"
-                >
-                  View Monday's Schedule
-                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -1785,7 +1757,7 @@ export default function HomeworkAssignPage() {
                     setSelectedTeacherName(resolvedClassTeacher || 'Faculty')
                     setCurrentScreen('create_task')
                   }}
-                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-200 cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-[#0f766e] text-white text-xs font-bold hover:bg-[#0d655f] cursor-pointer shadow-xs"
                 >
                   + Create Task Directly
                 </button>
