@@ -282,34 +282,13 @@ function isTaskDueOnDate(task: any, targetDate: Date | string): boolean {
   const subIso = normalizeDateStr(task.submissionDate)
   if (subIso && subIso === targetIso) return true
 
-  // 2. Task-level rescheduled date
+  // 2. Task-level rescheduled date (if task itself was rescheduled)
   if (task.rescheduledDate) {
     const rIso = normalizeDateStr(task.rescheduledDate)
     if (rIso && rIso === targetIso) return true
   }
 
-  // 3. Submissions cache in localStorage
-  try {
-    const raw = typeof window !== 'undefined' ? localStorage.getItem(`school_task_subs_${task.id}`) : null
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed) && parsed.some((s: any) => s.status === 'Rescheduled' && normalizeDateStr(s.rescheduledDate) === targetIso)) {
-        return true
-      }
-    }
-  } catch (e) {}
-
-  try {
-    const rawResched = typeof window !== 'undefined' ? localStorage.getItem('school_rescheduled_remarks') : null
-    if (rawResched) {
-      const parsed = JSON.parse(rawResched)
-      if (Array.isArray(parsed) && parsed.some((s: any) => s.taskId === task.id && s.status === 'Rescheduled' && normalizeDateStr(s.rescheduledDate) === targetIso)) {
-        return true
-      }
-    }
-  } catch (e) {}
-
-  // 4. Text comparison fallback (DD Mon YYYY)
+  // 3. Fallback: text comparison (e.g. "06 Nov 2026")
   const targetParts = targetIso.split('-')
   if (targetParts.length === 3) {
     const yyyy = targetParts[0]
@@ -1388,10 +1367,9 @@ function RemarkHomeworkContent() {
   // ── Subject Tasks for Page 3 (Matching Screenshot 3) ──
   const activeSubjectTasks = useMemo(() => {
     return tasks.filter(t => {
-      const cMatch = t.classes.toLowerCase().trim() === selectedClass.toLowerCase().trim()
-      const sMatch = t.section.toLowerCase().trim() === selectedSection.toLowerCase().trim()
+      const classMatch = matchesClassAndSection({ class: t.classes, section: t.section }, selectedClass, selectedSection)
       const subMatch = t.subject.toLowerCase().trim() === selectedSubject.toLowerCase().trim()
-      return cMatch && sMatch && subMatch
+      return classMatch && subMatch
     })
   }, [tasks, selectedClass, selectedSection, selectedSubject])
 
@@ -2437,10 +2415,47 @@ function RemarkHomeworkContent() {
                   <span className="text-xs md:text-sm text-slate-400 font-semibold">
                     {subjectCards.length} Subjects Assigned
                   </span>
-                  <span className="text-xs font-bold text-[#0f766e] dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 px-2.5 py-0.5 rounded-lg border border-teal-200/60 flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    Due: {formatDisplayDate(selectedCalendarDate)}
-                  </span>
+                  <div className="flex items-center gap-1 bg-white dark:bg-slate-700/80 px-2 py-0.5 rounded-xl border border-teal-200/80 dark:border-teal-800 shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCalendarDate(prev => new Date(prev.getTime() - 86400000))}
+                      className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-500 cursor-pointer"
+                      title="Previous Day"
+                    >
+                      <ChevronLeft className="w-3 h-3" />
+                    </button>
+                    <div className="flex items-center gap-1 cursor-pointer relative px-1">
+                      <Calendar className="w-3 h-3 text-teal-600" />
+                      <span className="text-xs font-black text-teal-800 dark:text-teal-200">
+                        Due: {formatDisplayDate(selectedCalendarDate)}
+                      </span>
+                      <input
+                        type="date"
+                        value={toDateIso(selectedCalendarDate)}
+                        onChange={e => {
+                          if (e.target.value) setSelectedCalendarDate(parseIsoToLocalDate(e.target.value))
+                        }}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        title="Click to pick date"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCalendarDate(prev => new Date(prev.getTime() + 86400000))}
+                      className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-500 cursor-pointer"
+                      title="Next Day"
+                    >
+                      <ChevronRight className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCalendarDate(new Date())}
+                      className="px-1.5 py-0.5 rounded text-[10px] font-black bg-teal-100 hover:bg-teal-200 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200 cursor-pointer"
+                      title="Jump to Today"
+                    >
+                      Today
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2506,8 +2521,8 @@ function RemarkHomeworkContent() {
                 const selectedIso = toDateIso(selectedCalendarDate)
                 const tasksDueCount = tasks.filter(t => 
                   matchesClassAndSection({ class: t.classes, section: t.section }, selectedClass, selectedSection) &&
-                  t.subject.toLowerCase() === sub.subjectName.toLowerCase() &&
-                  normalizeDateStr(t.submissionDate) === selectedIso
+                  t.subject.toLowerCase().trim() === sub.subjectName.toLowerCase().trim() &&
+                  isTaskDueOnDate(t, selectedCalendarDate)
                 ).length
 
                 return (
@@ -2583,10 +2598,47 @@ function RemarkHomeworkContent() {
                   <span className="text-xs md:text-sm text-slate-500 dark:text-slate-400 font-bold">
                     {selectedClass} - Sec {selectedSection}
                   </span>
-                  <span className="px-2.5 py-0.5 rounded-lg bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 text-[11px] font-bold border border-teal-200/60 flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    Due Date: {formatDisplayDate(selectedCalendarDate)}
-                  </span>
+                  <div className="flex items-center gap-1 bg-white dark:bg-slate-700/80 px-2 py-0.5 rounded-xl border border-teal-200/80 dark:border-teal-800 shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCalendarDate(prev => new Date(prev.getTime() - 86400000))}
+                      className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-500 cursor-pointer"
+                      title="Previous Day"
+                    >
+                      <ChevronLeft className="w-3 h-3" />
+                    </button>
+                    <div className="flex items-center gap-1 cursor-pointer relative px-1">
+                      <Calendar className="w-3 h-3 text-teal-600" />
+                      <span className="text-[11px] font-black text-teal-800 dark:text-teal-200">
+                        Due Date: {formatDisplayDate(selectedCalendarDate)}
+                      </span>
+                      <input
+                        type="date"
+                        value={toDateIso(selectedCalendarDate)}
+                        onChange={e => {
+                          if (e.target.value) setSelectedCalendarDate(parseIsoToLocalDate(e.target.value))
+                        }}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        title="Click to pick date"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCalendarDate(prev => new Date(prev.getTime() + 86400000))}
+                      className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-500 cursor-pointer"
+                      title="Next Day"
+                    >
+                      <ChevronRight className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCalendarDate(new Date())}
+                      className="px-1.5 py-0.5 rounded text-[10px] font-black bg-teal-100 hover:bg-teal-200 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200 cursor-pointer"
+                      title="Jump to Today"
+                    >
+                      Today
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2772,9 +2824,28 @@ function RemarkHomeworkContent() {
                 <FileText className="w-4 h-4 shrink-0" />
                 <span className="truncate">{activeTask.title}</span>
               </span>
-              <span className="text-orange-600 dark:text-orange-400 font-bold shrink-0">
-                Due: {activeTask.submissionDate}
-              </span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-orange-600 dark:text-orange-400 font-bold">
+                  Due: {activeTask.submissionDate}
+                </span>
+                <div className="flex items-center gap-1 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs">
+                  <div className="flex items-center gap-1 cursor-pointer relative">
+                    <Calendar className="w-3 h-3 text-teal-600" />
+                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                      View Date: {formatDisplayDate(selectedCalendarDate)}
+                    </span>
+                    <input
+                      type="date"
+                      value={toDateIso(selectedCalendarDate)}
+                      onChange={e => {
+                        if (e.target.value) setSelectedCalendarDate(parseIsoToLocalDate(e.target.value))
+                      }}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      title="Change filter date"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 

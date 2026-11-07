@@ -961,11 +961,10 @@ export default function HomeworkAssignPage() {
   // ── Subject Tasks for Page 3 (Matching Real Subject, Class & Selected Date) ──
   const activeSubjectTasks = useMemo(() => {
     return tasks.filter(t => {
-      const cMatch = t.classes.toLowerCase().trim() === selectedClass.toLowerCase().trim()
-      const sMatch = t.section.toLowerCase().trim() === selectedSection.toLowerCase().trim()
+      const classMatch = matchesClassAndSection({ class: t.classes, section: t.section }, selectedClass, selectedSection)
       const subMatch = t.subject.toLowerCase().trim() === selectedSubject.toLowerCase().trim()
       const dateMatch = isTaskOnDate(t, selectedCalendarDate)
-      return cMatch && sMatch && subMatch && dateMatch
+      return classMatch && subMatch && dateMatch
     })
   }, [tasks, selectedClass, selectedSection, selectedSubject, selectedCalendarDate])
 
