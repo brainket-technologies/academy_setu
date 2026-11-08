@@ -1,10 +1,11 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { X, Plus, Trash2, Upload, Calendar, ChevronDown, ChevronLeft, ChevronRight, Check } from 'lucide-react'
 import Link from 'next/link'
 import { fetchStatesDistricts } from '../../../actions'
+import { fetchTeacherById, updateTeacher } from '../../actions'
 import { useClasses, useDepartments, useSubjects } from '@/lib/mastersData'
 
 // ─── Step Config ──────────────────────────────────────────────────────────────
@@ -646,6 +647,8 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function EditTeacherPage() {
   const router = useRouter()
+  const params = useParams()
+  const teacherId = params?.id as string
   const [step, setStep] = useState(0)
   const [formData, setFormData] = useState<Record<string, any>>({})
   const [statesData, setStatesData] = useState<any[]>([])
@@ -653,6 +656,37 @@ export default function EditTeacherPage() {
   const departments = useDepartments()
   const classesData = useClasses()
   const subjectsData = useSubjects()
+
+  useEffect(() => {
+    if (!teacherId) return
+    fetchTeacherById(teacherId).then(res => {
+      if (res.success && res.data) {
+        const t = res.data
+        const details = t.details || {}
+        const nameParts = (t.name || '').trim().split(' ')
+        const firstName = details.personal?.firstName || nameParts[0] || ''
+        const lastName = details.personal?.lastName || nameParts.slice(1).join(' ') || ''
+        setFormData({
+          ...details,
+          personal: {
+            firstName,
+            lastName,
+            username: t.username || details.personal?.username || '',
+            contact: t.contact || details.personal?.contact || '',
+            email: t.email || details.personal?.email || '',
+            status: t.status || details.personal?.status || 'Active',
+            joiningDate: t.joiningDate || details.personal?.joiningDate || '',
+            ...(details.personal || {})
+          },
+          qualification: details.qualification || {},
+          address: details.address || {},
+          classes: details.classes || { assignedClasses: [] },
+          payroll: details.payroll || {},
+          payment: details.payment || {}
+        })
+      }
+    })
+  }, [teacherId])
 
   useEffect(() => {
     fetch('/api/admin/settings/state-city')
@@ -690,9 +724,19 @@ export default function EditTeacherPage() {
 
   const handleNext = () => { if (step < STEPS.length - 1) setStep(s => s + 1) }
   const handleBack = () => { if (step > 0) setStep(s => s - 1) }
-  const handleSubmit = () => {
-    alert('Teacher updated successfully!')
-    router.push('/institute/teachers')
+  const handleSubmit = async () => {
+    if (!teacherId) return
+    try {
+      const res = await updateTeacher(teacherId, formData)
+      if (res.success) {
+        alert('Teacher updated successfully!')
+        router.push('/institute/teachers')
+      } else {
+        alert(res.error || 'Failed to update teacher')
+      }
+    } catch (e: any) {
+      alert(e.message || 'Failed to update teacher')
+    }
   }
 
   return (

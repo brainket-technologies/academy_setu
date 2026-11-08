@@ -108,3 +108,84 @@ export async function createTeacher(data: any) {
   }
 }
 
+export async function fetchTeacherById(id: string) {
+  const session = await getSession('institute_session')
+  if (!session?.userId) return { success: false, error: 'Unauthorized' }
+
+  try {
+    await ensureTeachersTable()
+    const res = await pool.query(`
+      SELECT id, username, name, contact, email, assigned_classes as "assignedClasses", status, 
+             TO_CHAR(joining_date, 'YYYY-MM-DD') as "joiningDate",
+             avatar, details
+      FROM institute_teachers
+      WHERE id = $1 AND institution_id = $2
+    `, [id, session.userId])
+
+    if (res.rows.length === 0) {
+      return { success: false, error: 'Teacher not found' }
+    }
+
+    return { success: true, data: res.rows[0] }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+export async function updateTeacher(id: string, data: any) {
+  const session = await getSession('institute_session')
+  if (!session?.userId) return { success: false, error: 'Unauthorized' }
+
+  try {
+    await ensureTeachersTable()
+    const fullName = `${data.personal?.firstName || ''} ${data.personal?.lastName || ''}`.trim() || data.name || 'Teacher'
+    const username = data.personal?.username || data.username || ''
+    const contact = data.personal?.contact || data.contact || ''
+    const email = data.personal?.email || data.email || ''
+    const avatar = data.personal?.photo || data.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}`
+    
+    // Process assigned classes
+    let assignedClasses: string[] = []
+    if (Array.isArray(data.classes?.assignedClasses)) {
+      assignedClasses = data.classes.assignedClasses
+        .filter((c: any) => c && c.class)
+        .map((c: any) => `${c.class}${c.section ? ` - Sec ${c.section}` : ''}${c.subject ? ` (${c.subject})` : ''}`)
+    } else if (Array.isArray(data.assignedClasses)) {
+      assignedClasses = data.assignedClasses
+    }
+    
+    if (assignedClasses.length === 0 && data.classes?.classTeacher?.class) {
+      const ct = data.classes.classTeacher
+      assignedClasses.push(`${ct.class}${ct.section ? ` - Sec ${ct.section}` : ''}${ct.subject ? ` (${ct.subject})` : ''}`)
+    }
+
+    const status = data.personal?.status || data.status || 'Active'
+    const joiningDate = data.personal?.joiningDate ? new Date(data.personal.joiningDate) : new Date()
+
+    const res = await pool.query(`
+      UPDATE institute_teachers 
+      SET username = $1, 
+          name = $2, 
+          contact = $3, 
+          email = $4, 
+          assigned_classes = $5, 
+          status = $6, 
+          joining_date = $7, 
+          avatar = $8, 
+          details = $9,
+          updated_at = NOW()
+      WHERE id = $10 AND institution_id = $11
+      RETURNING id, username, name, contact, email, assigned_classes as "assignedClasses", status, 
+                TO_CHAR(joining_date, 'DD/MM/YYYY') as "joiningDate", avatar
+    `, [username, fullName, contact, email, assignedClasses, status, joiningDate, avatar, JSON.stringify(data), id, session.userId])
+
+    if (res.rows.length === 0) {
+      return { success: false, error: 'Teacher not found or unauthorized' }
+    }
+
+    return { success: true, data: res.rows[0] }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+

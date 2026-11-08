@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 
 import { fetchTeachers, deleteTeacher } from './actions'
 import AddTeacherModal from './components/AddTeacherModal'
+import EditTeacherModal from './components/EditTeacherModal'
 
 // ─── Assigned Classes Popup ───────────────────────────────────────────────────
 function AssignedClassesPopup({ classes, onClose }: { classes: string[]; onClose: () => void }) {
@@ -19,7 +20,7 @@ function AssignedClassesPopup({ classes, onClose }: { classes: string[]; onClose
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-black text-slate-800 dark:text-slate-100">Assigned Class &amp; Section</h3>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer">
             <X className="w-4 h-4 text-slate-400" />
           </button>
         </div>
@@ -37,7 +38,7 @@ function AssignedClassesPopup({ classes, onClose }: { classes: string[]; onClose
 }
 
 // ─── Action Dropdown & Quick Buttons ──────────────────────────────────────────
-function ActionMenu({ teacherId, onDelete }: { teacherId: string; onDelete: (id: string) => void }) {
+function ActionMenu({ teacherId, onDelete, onEdit }: { teacherId: string; onDelete: (id: string) => void; onEdit: (id: string) => void }) {
   const [open, setOpen] = useState(false)
   return (
     <div className="flex items-center justify-center gap-1.5">
@@ -50,20 +51,21 @@ function ActionMenu({ teacherId, onDelete }: { teacherId: string; onDelete: (id:
         <Eye className="w-4 h-4" />
       </Link>
 
-      {/* Direct Edit Option */}
-      <Link
-        href={`/institute/teachers/${teacherId}/edit`}
+      {/* Direct Edit Option in Modal */}
+      <button
+        type="button"
+        onClick={() => onEdit(teacherId)}
         title="Edit Teacher"
-        className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800/60 flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-xs"
+        className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800/60 flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer"
       >
         <Pencil className="w-4 h-4" />
-      </Link>
+      </button>
 
       {/* More Actions Dropdown */}
       <div className="relative">
         <button
           onClick={() => setOpen(p => !p)}
-          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-400 hover:text-slate-600 border border-slate-200 dark:border-slate-700"
+          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-400 hover:text-slate-600 border border-slate-200 dark:border-slate-700 cursor-pointer"
           title="More Options"
         >
           <MoreVertical className="w-4 h-4" />
@@ -77,11 +79,12 @@ function ActionMenu({ teacherId, onDelete }: { teacherId: string; onDelete: (id:
                 onClick={() => setOpen(false)}>
                 <Eye className="w-3.5 h-3.5 text-teal-500" /> View Details
               </Link>
-              <Link href={`/institute/teachers/${teacherId}/edit`}
-                className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-blue-600 transition-colors"
-                onClick={() => setOpen(false)}>
+              <button
+                type="button"
+                onClick={() => { onEdit(teacherId); setOpen(false) }}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-blue-600 transition-colors cursor-pointer text-left">
                 <Pencil className="w-3.5 h-3.5 text-blue-500" /> Edit Teacher
-              </Link>
+              </button>
               <Link href={`/institute/teachers/${teacherId}/assign-permission`}
                 className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-purple-600 transition-colors"
                 onClick={() => setOpen(false)}>
@@ -90,7 +93,7 @@ function ActionMenu({ teacherId, onDelete }: { teacherId: string; onDelete: (id:
               <div className="h-px bg-slate-100 dark:bg-slate-700 my-1" />
               <button
                 onClick={() => { onDelete(teacherId); setOpen(false) }}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors cursor-pointer text-left">
                 <Trash2 className="w-3.5 h-3.5" /> Delete
               </button>
             </div>
@@ -109,6 +112,7 @@ export default function AllTeachersPage() {
   const [loading, setLoading] = useState(true)
   const [classesPopup, setClassesPopup] = useState<string[] | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null)
 
   const loadTeachers = async () => {
     setLoading(true)
@@ -250,7 +254,7 @@ export default function AllTeachersPage() {
                   </td>
                   <td className="py-4 px-4">
                     <div className="flex items-center justify-center">
-                      <ActionMenu teacherId={teacher.id} onDelete={handleDelete} />
+                      <ActionMenu teacherId={teacher.id} onDelete={handleDelete} onEdit={id => setEditingTeacherId(id)} />
                     </div>
                   </td>
                 </tr>
@@ -289,6 +293,14 @@ export default function AllTeachersPage() {
       <AddTeacherModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
+        onSuccess={loadTeachers}
+      />
+
+      {/* Edit Teacher Modal Popup */}
+      <EditTeacherModal
+        isOpen={!!editingTeacherId}
+        teacherId={editingTeacherId}
+        onClose={() => setEditingTeacherId(null)}
         onSuccess={loadTeachers}
       />
     </div>
