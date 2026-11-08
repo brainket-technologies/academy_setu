@@ -586,25 +586,6 @@ function PayrollLeaveStep({ data, setData, leaveTypesList = [], errors }: { data
           <Field label="Applicable Start Date">
             <input type="date" className={inputCls(false)} value={data.applicableStartDate || ''} onChange={e => set('applicableStartDate', e.target.value)} />
           </Field>
-          <Field label="Salary Type">
-            <input 
-              type="text" 
-              className={inputCls(false)} 
-              placeholder="e.g. Monthly, Fixed, Contractual" 
-              value={data.salaryType || ''} 
-              onChange={e => set('salaryType', e.target.value)} 
-              list="add-salary-type-options" 
-            />
-            <datalist id="add-salary-type-options">
-              <option value="Monthly" />
-              <option value="Fixed" />
-              <option value="Contractual" />
-              <option value="Daily" />
-              <option value="Hourly" />
-              <option value="Consolidated" />
-              <option value="Other" />
-            </datalist>
-          </Field>
           <Field label="Basic Salary (₹)" required error={errors.basicSalary}>
             <input className={inputCls(!!errors.basicSalary)} placeholder="Enter Basic Salary" value={data.basicSalary || ''} onChange={e => set('basicSalary', e.target.value)} />
           </Field>
@@ -669,7 +650,35 @@ function PayrollLeaveStep({ data, setData, leaveTypesList = [], errors }: { data
       
       <div>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-          <SectionTitle>Paid Leave (Configured Institute Leave Types)</SectionTitle>
+          <div className="flex items-center gap-4 flex-wrap">
+            <SectionTitle>Paid Leave (Configured Institute Leave Types)</SectionTitle>
+            {/* Monthly / Annually Radio Buttons */}
+            <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+              <label className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="addLeaveQuotaFrequency" 
+                  value="Monthly" 
+                  checked={(data.leaveQuotaFrequency || 'Annually') === 'Monthly'} 
+                  onChange={() => set('leaveQuotaFrequency', 'Monthly')} 
+                  className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500 cursor-pointer accent-teal-600" 
+                />
+                <span>Monthly</span>
+              </label>
+              <label className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="addLeaveQuotaFrequency" 
+                  value="Annually" 
+                  checked={(data.leaveQuotaFrequency || 'Annually') === 'Annually'} 
+                  onChange={() => set('leaveQuotaFrequency', 'Annually')} 
+                  className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500 cursor-pointer accent-teal-600" 
+                />
+                <span>Annually</span>
+              </label>
+            </div>
+          </div>
+
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <label className="text-xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-wide whitespace-nowrap">
