@@ -336,37 +336,94 @@ function AssignClassStep({ data, setData, classesData, subjectsData }: { data: a
 
 // ─── Step 5: Payroll & Leave ──────────────────────────────────────────────────
 function PayrollLeaveStep({ data, setData, leaveTypesList = [], errors }: { data: any; setData: (d: any) => void; leaveTypesList?: any[]; errors: Record<string, string> }) {
+  const [customAllowances, setCustomAllowances] = useState<any[]>(() => {
+    if (Array.isArray(data.customAllowances) && data.customAllowances.length > 0) {
+      return data.customAllowances
+    }
+    return []
+  })
+
+  const calculateGross = (fields: any, allowances: any[]) => {
+    const basic = Number(fields.basicSalary) || 0
+    const hra = Number(fields.hra) || 0
+    const conv = Number(fields.conveyance) || 0
+    const spec = Number(fields.specialAllowance) || 0
+    const dynamicTotal = (allowances || []).reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
+    const gross = basic + hra + conv + spec + dynamicTotal
+    return gross > 0 ? String(gross) : ''
+  }
+
   const set = (k: string, v: any) => {
     const next = { ...data, [k]: v }
-    const basic = Number(k === 'basicSalary' ? v : data.basicSalary) || 0
-    const hra = Number(k === 'hra' ? v : data.hra) || 0
-    const conv = Number(k === 'conveyance' ? v : data.conveyance) || 0
-    const spec = Number(k === 'specialAllowance' ? v : data.specialAllowance) || 0
-    const gross = basic + hra + conv + spec
-    next.grossSalary = gross > 0 ? String(gross) : ''
+    next.grossSalary = calculateGross(next, customAllowances)
     setData(next)
   }
+
+  const addCustomAllowance = () => {
+    const newRow = { id: Date.now(), title: 'Other Allowance', amount: '' }
+    const updated = [...customAllowances, newRow]
+    setCustomAllowances(updated)
+    const next = { ...data, customAllowances: updated }
+    next.grossSalary = calculateGross(next, updated)
+    setData(next)
+  }
+
+  const updateCustomAllowance = (index: number, field: string, val: string) => {
+    const updated = [...customAllowances]
+    updated[index] = { ...updated[index], [field]: val }
+    setCustomAllowances(updated)
+    const next = { ...data, customAllowances: updated }
+    next.grossSalary = calculateGross(next, updated)
+    setData(next)
+  }
+
+  const removeCustomAllowance = (index: number) => {
+    const updated = customAllowances.filter((_, i) => i !== index)
+    setCustomAllowances(updated)
+    const next = { ...data, customAllowances: updated }
+    next.grossSalary = calculateGross(next, updated)
+    setData(next)
+  }
+
+  const [leaveEffectiveDate, setLeaveEffectiveDate] = useState<string>(() => {
+    return data.leaveEffectiveDate || data.casualLeaveFrom || data.applyFrom || ''
+  })
 
   const [allocatedLeaves, setAllocatedLeaves] = useState<any[]>(() => {
     if (Array.isArray(data.allocatedLeaves) && data.allocatedLeaves.length > 0) {
       return data.allocatedLeaves
     }
+    const defaultDate = data.leaveEffectiveDate || data.casualLeaveFrom || ''
     if (Array.isArray(leaveTypesList) && leaveTypesList.length > 0) {
       return leaveTypesList.map((lt: any) => ({
         id: lt.id || Date.now(),
         leaveType: lt.leaveType || lt.name || 'Leave',
         leaveAbbr: lt.leaveAbbr || lt.abbr || 'LV',
         allowedLeaves: lt.allowedLeaves || '12',
-        applyFrom: lt.applyFrom || ''
+        applyFrom: defaultDate
       }))
     }
     return [
-      { id: 1, leaveType: 'Casual Leave', leaveAbbr: 'CL', allowedLeaves: data.casualLeaveNo || '12', applyFrom: data.casualLeaveFrom || '' },
-      { id: 2, leaveType: 'Medical Leave', leaveAbbr: 'ML', allowedLeaves: data.medicalLeaveNo || '10', applyFrom: data.medicalLeaveFrom || '' },
-      { id: 3, leaveType: 'Half Day Leave', leaveAbbr: 'HDL', allowedLeaves: data.halfDayLeaveNo || '6', applyFrom: data.halfDayLeaveFrom || '' },
-      { id: 4, leaveType: 'Sick Leave', leaveAbbr: 'SL', allowedLeaves: '8', applyFrom: '' }
+      { id: 1, leaveType: 'Casual Leave', leaveAbbr: 'CL', allowedLeaves: data.casualLeaveNo || '12', applyFrom: defaultDate },
+      { id: 2, leaveType: 'Medical Leave', leaveAbbr: 'ML', allowedLeaves: data.medicalLeaveNo || '10', applyFrom: defaultDate },
+      { id: 3, leaveType: 'Half Day Leave', leaveAbbr: 'HDL', allowedLeaves: data.halfDayLeaveNo || '6', applyFrom: defaultDate },
+      { id: 4, leaveType: 'Sick Leave', leaveAbbr: 'SL', allowedLeaves: '8', applyFrom: defaultDate }
     ]
   })
+
+  const handleLeaveDateChange = (val: string) => {
+    setLeaveEffectiveDate(val)
+    const updatedLeaves = allocatedLeaves.map(l => ({ ...l, applyFrom: val }))
+    setAllocatedLeaves(updatedLeaves)
+    setData({
+      ...data,
+      leaveEffectiveDate: val,
+      casualLeaveFrom: val,
+      medicalLeaveFrom: val,
+      halfDayLeaveFrom: val,
+      allocatedLeaves: updatedLeaves
+    })
+  }
 
   const updateLeaveRow = (index: number, field: string, val: string) => {
     const updated = [...allocatedLeaves]
@@ -376,7 +433,7 @@ function PayrollLeaveStep({ data, setData, leaveTypesList = [], errors }: { data
   }
 
   const addCustomLeave = () => {
-    const newRow = { id: Date.now(), leaveType: 'Special Leave', leaveAbbr: 'SPL', allowedLeaves: '5', applyFrom: '' }
+    const newRow = { id: Date.now(), leaveType: 'Special Leave', leaveAbbr: 'SPL', allowedLeaves: '5', applyFrom: leaveEffectiveDate }
     const updated = [...allocatedLeaves, newRow]
     setAllocatedLeaves(updated)
     set('allocatedLeaves', updated)
@@ -391,25 +448,21 @@ function PayrollLeaveStep({ data, setData, leaveTypesList = [], errors }: { data
   return (
     <div className="space-y-8">
       <div>
-        <SectionTitle>Monthly Salary Structure</SectionTitle>
+        <div className="flex items-center justify-between mb-2">
+          <SectionTitle>Monthly Salary Structure</SectionTitle>
+          <button 
+            type="button" 
+            onClick={addCustomAllowance} 
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-800 text-xs font-bold hover:bg-teal-100 transition-colors cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Salary Title (Other)</span>
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-4">
           <Field label="Applicable Start Date">
             <input type="date" className={inputCls()} value={data.applicableStartDate || ''} onChange={e => set('applicableStartDate', e.target.value)} />
-          </Field>
-          <Field label="Basic Salary (₹)" error={errors.basicSalary}>
-            <input type="number" className={inputCls(!!errors.basicSalary)} placeholder="e.g. 35000" value={data.basicSalary || ''} onChange={e => set('basicSalary', e.target.value)} />
-          </Field>
-          <Field label="HRA (₹)">
-            <input type="number" className={inputCls()} placeholder="e.g. 5000" value={data.hra || ''} onChange={e => set('hra', e.target.value)} />
-          </Field>
-          <Field label="Conveyance Allowance (₹)">
-            <input type="number" className={inputCls()} placeholder="e.g. 2000" value={data.conveyance || ''} onChange={e => set('conveyance', e.target.value)} />
-          </Field>
-          <Field label="Special Allowance (₹)">
-            <input type="number" className={inputCls()} placeholder="e.g. 3000" value={data.specialAllowance || ''} onChange={e => set('specialAllowance', e.target.value)} />
-          </Field>
-          <Field label="Gross Monthly Salary (₹)">
-            <input type="number" readOnly className={`${inputCls()} bg-slate-100 dark:bg-slate-800 text-teal-600 font-black cursor-not-allowed`} placeholder="Auto-calculated" value={data.grossSalary || ''} />
           </Field>
           <Field label="Salary Type">
             <input 
@@ -427,33 +480,107 @@ function PayrollLeaveStep({ data, setData, leaveTypesList = [], errors }: { data
               <option value="Daily" />
               <option value="Hourly" />
               <option value="Consolidated" />
+              <option value="Other" />
             </datalist>
           </Field>
+          <Field label="Basic Salary (₹)" error={errors.basicSalary}>
+            <input type="number" className={inputCls(!!errors.basicSalary)} placeholder="e.g. 35000" value={data.basicSalary || ''} onChange={e => set('basicSalary', e.target.value)} />
+          </Field>
+          <Field label="HRA (₹)">
+            <input type="number" className={inputCls()} placeholder="e.g. 5000" value={data.hra || ''} onChange={e => set('hra', e.target.value)} />
+          </Field>
+          <Field label="Conveyance Allowance (₹)">
+            <input type="number" className={inputCls()} placeholder="e.g. 2000" value={data.conveyance || ''} onChange={e => set('conveyance', e.target.value)} />
+          </Field>
+          <Field label="Special Allowance (₹)">
+            <input type="number" className={inputCls()} placeholder="e.g. 3000" value={data.specialAllowance || ''} onChange={e => set('specialAllowance', e.target.value)} />
+          </Field>
+
+          {/* Dynamic Additional Salary Titles */}
+          {customAllowances.map((item, idx) => (
+            <div key={item.id || idx} className="sm:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-12 gap-3 p-3 bg-slate-50/70 dark:bg-slate-900/40 rounded-xl border border-slate-200/80 dark:border-slate-700/80 items-center">
+              <div className="sm:col-span-6">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Salary Title / Component</label>
+                <input 
+                  className={inputCls()} 
+                  placeholder="e.g. Other Allowance, Medical, Bonus" 
+                  value={item.title || ''} 
+                  onChange={e => updateCustomAllowance(idx, 'title', e.target.value)} 
+                  list="edit-salary-titles"
+                />
+              </div>
+              <div className="sm:col-span-5">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Amount (₹)</label>
+                <input 
+                  type="number" 
+                  className={inputCls()} 
+                  placeholder="e.g. 2000" 
+                  value={item.amount || ''} 
+                  onChange={e => updateCustomAllowance(idx, 'amount', e.target.value)} 
+                />
+              </div>
+              <div className="sm:col-span-1 flex justify-center pt-5 sm:pt-4">
+                <button type="button" onClick={() => removeCustomAllowance(idx)} className="w-8 h-8 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center justify-center transition-colors">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {/* Gross Monthly Salary ALWAYS IN LAST */}
+          <Field label="Gross Monthly Salary (₹)">
+            <input 
+              type="number" 
+              readOnly 
+              className={`${inputCls()} bg-slate-100 dark:bg-slate-800 text-teal-600 dark:text-teal-400 font-black cursor-not-allowed`} 
+              placeholder="Auto-calculated" 
+              value={data.grossSalary || ''} 
+            />
+          </Field>
         </div>
+
+        <datalist id="edit-salary-titles">
+          <option value="Other Allowance" />
+          <option value="Medical Allowance" />
+          <option value="Performance Allowance" />
+          <option value="Dearness Allowance (DA)" />
+          <option value="Bonus" />
+          <option value="Incentive" />
+        </datalist>
       </div>
 
       <div>
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
           <SectionTitle>Allocated Leave Quota</SectionTitle>
-          <button type="button" onClick={addCustomLeave} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-800 text-xs font-bold hover:bg-teal-100 transition-colors">
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Leave Type</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-wide whitespace-nowrap">
+                Effective Date:
+              </label>
+              <input 
+                type="date" 
+                className="px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-teal-500"
+                value={leaveEffectiveDate} 
+                onChange={e => handleLeaveDateChange(e.target.value)} 
+              />
+            </div>
+            <button type="button" onClick={addCustomLeave} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-800 text-xs font-bold hover:bg-teal-100 transition-colors">
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Leave Type</span>
+            </button>
+          </div>
         </div>
         <div className="space-y-3 mt-3">
           {allocatedLeaves.map((row, i) => (
             <div key={row.id || i} className="grid grid-cols-1 sm:grid-cols-12 gap-3 p-3 bg-slate-50/70 dark:bg-slate-900/40 rounded-xl border border-slate-200/80 dark:border-slate-700/80 items-center">
-              <div className="sm:col-span-4">
+              <div className="sm:col-span-6">
                 <input className={inputCls()} placeholder="Leave Name" value={row.leaveType || ''} onChange={e => updateLeaveRow(i, 'leaveType', e.target.value)} />
               </div>
               <div className="sm:col-span-2">
                 <input className={inputCls()} placeholder="Abbr" value={row.leaveAbbr || ''} onChange={e => updateLeaveRow(i, 'leaveAbbr', e.target.value)} />
               </div>
-              <div className="sm:col-span-2">
-                <input type="number" className={inputCls()} placeholder="Days" value={row.allowedLeaves || ''} onChange={e => updateLeaveRow(i, 'allowedLeaves', e.target.value)} />
-              </div>
               <div className="sm:col-span-3">
-                <input type="date" className={inputCls()} value={row.applyFrom || ''} onChange={e => updateLeaveRow(i, 'applyFrom', e.target.value)} />
+                <input type="number" className={inputCls()} placeholder="Days" value={row.allowedLeaves || ''} onChange={e => updateLeaveRow(i, 'allowedLeaves', e.target.value)} />
               </div>
               <div className="sm:col-span-1 flex justify-center">
                 <button type="button" onClick={() => removeCustomLeave(i)} className="w-8 h-8 rounded-lg text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors">
@@ -610,6 +737,8 @@ export default function EditTeacherModal({ isOpen, teacherId, onClose, onSuccess
           payroll: {
             applicableStartDate: details.payroll?.applicableStartDate || '',
             salaryType: details.payroll?.salaryType || 'Monthly',
+            customAllowances: details.payroll?.customAllowances || [],
+            leaveEffectiveDate: details.payroll?.leaveEffectiveDate || details.payroll?.casualLeaveFrom || '',
             ...(details.payroll || {})
           },
           payment: details.payment || {}
