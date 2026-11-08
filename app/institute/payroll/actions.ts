@@ -363,6 +363,41 @@ export async function generatePayrollForMonth(
       }
     })
 
+    // 2b. Fetch verified approved leave requests (paid and unpaid) for this month from institute_leave_requests
+    let leavesByStaffId: Record<string, { paid: number; unpaid: number }> = {}
+    let leavesByStaffName: Record<string, { paid: number; unpaid: number }> = {}
+    try {
+      const leaveRes = await pool.query(`
+        SELECT staff_id, LOWER(TRIM(staff_name)) as staff_name_clean,
+               COALESCE(SUM(paid_days), 0) as approved_paid,
+               COALESCE(SUM(unpaid_days), 0) as approved_unpaid
+        FROM institute_leave_requests
+        WHERE status = 'Approved'
+          AND (TO_CHAR(from_date, 'YYYY-MM') = $1 OR TO_CHAR(to_date, 'YYYY-MM') = $1)
+        GROUP BY staff_id, LOWER(TRIM(staff_name))
+      `, [ym])
+
+      leaveRes.rows.forEach((r: any) => {
+        const sId = String(r.staff_id || '').trim()
+        const sName = String(r.staff_name_clean || '').trim()
+        const p = parseFloat(r.approved_paid) || 0
+        const u = parseFloat(r.approved_unpaid) || 0
+
+        if (sId) {
+          if (!leavesByStaffId[sId]) leavesByStaffId[sId] = { paid: 0, unpaid: 0 }
+          leavesByStaffId[sId].paid += p
+          leavesByStaffId[sId].unpaid += u
+        }
+        if (sName) {
+          if (!leavesByStaffName[sName]) leavesByStaffName[sName] = { paid: 0, unpaid: 0 }
+          leavesByStaffName[sName].paid += p
+          leavesByStaffName[sName].unpaid += u
+        }
+      })
+    } catch (lErr) {
+      console.warn('Could not query institute_leave_requests for payroll sync (table might be fresh):', lErr)
+    }
+
     // 3. Check existing payroll records to preserve paid status, paid_amount and transaction info
     const existingRes = await pool.query(`
       SELECT staff_id, staff_name, status, paid_amount, pending_amount, payment_method, payment_date, transaction_id
@@ -393,32 +428,33 @@ export async function generatePayrollForMonth(
       const leaveDays = att.leave
       const halfDays = att.halfDay
 
-      // Paid vs Non-Paid Leaves based on allowed quota
-      const allowedQuota = staff.allowedMonthlyPaidLeaves || 2
-      const paidLeave = Math.min(leaveDays, allowedQuota)
-      const nonPaidLeave = Math.max(0, leaveDays - allowedQuota)
+      // Paid vs Non-Paid Leaves based on verified approved leave requests or quota
+      const reqLeave = leavesByStaffId[staff.id] || leavesByStaffName[sNameKey]
+      const paidLeave = reqLeave ? reqLeave.paid : Math.min(leaveDays, staff.allowedMonthlyPaidLeaves || 2)
+      const nonPaidLeave = reqLeave ? reqLeave.unpaid : Math.max(0, leaveDays - (staff.allowedMonthlyPaidLeaves || 2))
+      const totalAbsentAndUnpaid = Math.max(absentDays, nonPaidLeave)
       const dailyRate = staff.grossSalary / totalMonthDays
 
       let paidDays = 0
       let leaveDeduction = 0
       let netSalary = 0
-      let computedAbsent = absentDays
+      let computedAbsent = totalAbsentAndUnpaid
 
       if (calcBasis === 'attendance_days') {
-        // Attendance pro-rata: Paid for days present + paid leaves
+        // Attendance pro-rata: Paid for days present + approved paid leaves
         const effectivePresent = presentDays + (halfDays * 0.5)
         paidDays = Math.min(totalMonthDays, Number((effectivePresent + paidLeave).toFixed(1)))
         const unpaidDays = Math.max(0, Number((totalMonthDays - paidDays).toFixed(1)))
-        computedAbsent = Math.max(absentDays, unpaidDays)
+        computedAbsent = Math.max(totalAbsentAndUnpaid, unpaidDays)
         leaveDeduction = Math.round(unpaidDays * dailyRate)
         netSalary = Math.max(0, Math.round(staff.grossSalary - leaveDeduction))
       } else {
-        // Monthly fixed: Deducts marked absences and non-paid leaves only
-        const totalDeductionUnits = absentDays + nonPaidLeave + (halfDays * 0.5)
+        // Monthly fixed: Deducts marked absences and approved unpaid leaves only
+        const totalDeductionUnits = totalAbsentAndUnpaid + (halfDays * 0.5)
         leaveDeduction = Math.round(totalDeductionUnits * dailyRate)
         paidDays = Math.max(0, Number((totalMonthDays - totalDeductionUnits).toFixed(1)))
         netSalary = Math.max(0, Math.round(staff.grossSalary - leaveDeduction))
-        computedAbsent = absentDays
+        computedAbsent = totalAbsentAndUnpaid
       }
 
       // Check existing payment status
