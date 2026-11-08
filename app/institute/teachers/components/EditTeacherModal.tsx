@@ -393,6 +393,9 @@ function PayrollLeaveStep({ data, setData, leaveTypesList = [], errors }: { data
       <div>
         <SectionTitle>Monthly Salary Structure</SectionTitle>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-4">
+          <Field label="Applicable Start Date">
+            <input type="date" className={inputCls()} value={data.applicableStartDate || ''} onChange={e => set('applicableStartDate', e.target.value)} />
+          </Field>
           <Field label="Basic Salary (₹)" error={errors.basicSalary}>
             <input type="number" className={inputCls(!!errors.basicSalary)} placeholder="e.g. 35000" value={data.basicSalary || ''} onChange={e => set('basicSalary', e.target.value)} />
           </Field>
@@ -407,6 +410,24 @@ function PayrollLeaveStep({ data, setData, leaveTypesList = [], errors }: { data
           </Field>
           <Field label="Gross Monthly Salary (₹)">
             <input type="number" readOnly className={`${inputCls()} bg-slate-100 dark:bg-slate-800 text-teal-600 font-black cursor-not-allowed`} placeholder="Auto-calculated" value={data.grossSalary || ''} />
+          </Field>
+          <Field label="Salary Type">
+            <input 
+              type="text" 
+              className={inputCls()} 
+              placeholder="e.g. Monthly, Fixed, Contractual" 
+              value={data.salaryType || ''} 
+              onChange={e => set('salaryType', e.target.value)} 
+              list="edit-salary-type-options" 
+            />
+            <datalist id="edit-salary-type-options">
+              <option value="Monthly" />
+              <option value="Fixed" />
+              <option value="Contractual" />
+              <option value="Daily" />
+              <option value="Hourly" />
+              <option value="Consolidated" />
+            </datalist>
           </Field>
         </div>
       </div>
@@ -586,7 +607,11 @@ export default function EditTeacherModal({ isOpen, teacherId, onClose, onSuccess
             classTeacher: details.classes?.classTeacher || { class: '', section: '', subject: '' },
             ...(details.classes || {})
           },
-          payroll: details.payroll || {},
+          payroll: {
+            applicableStartDate: details.payroll?.applicableStartDate || '',
+            salaryType: details.payroll?.salaryType || 'Monthly',
+            ...(details.payroll || {})
+          },
           payment: details.payment || {}
         }
 
@@ -940,3 +965,4 @@ export default function EditTeacherModal({ isOpen, teacherId, onClose, onSuccess
     </div>
   )
 }
+

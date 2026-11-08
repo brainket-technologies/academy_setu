@@ -498,24 +498,45 @@ function PayrollLeaveStep({ data, setData }: { data: any; setData: (d: any) => v
   return (
     <div className="space-y-8">
       <div>
-        <SectionTitle>Payroll</SectionTitle>
+        <SectionTitle>Monthly Salary Structure</SectionTitle>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-4">
-          <Field label="Basic Salary" required>
+          <Field label="Applicable Start Date">
+            <input type="date" className={inputCls} value={data.applicableStartDate || ''} onChange={e => set('applicableStartDate', e.target.value)} />
+          </Field>
+          <Field label="Basic Salary (₹)" required>
             <input className={inputCls} placeholder="Enter Basic Salary" value={data.basicSalary || ''} onChange={e => set('basicSalary', e.target.value)} />
           </Field>
-          <Field label="HRA">
+          <Field label="HRA (₹)">
             <input className={inputCls} placeholder="Enter HRA" value={data.hra || ''} onChange={e => set('hra', e.target.value)} />
           </Field>
-          <Field label="Conveyance">
+          <Field label="Conveyance Allowance (₹)">
             <input className={inputCls} placeholder="Enter Conveyance" value={data.conveyance || ''} onChange={e => set('conveyance', e.target.value)} />
           </Field>
-          <Field label="Special Allowance">
+          <Field label="Special Allowance (₹)">
             <input className={inputCls} placeholder="Enter Special Allowance" value={data.specialAllowance || ''} onChange={e => set('specialAllowance', e.target.value)} />
           </Field>
-          <Field label="Gross Monthly Salary">
+          <Field label="Gross Monthly Salary (₹)">
             <div className="relative">
               <input readOnly className={`${inputCls} bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600 shadow-inner text-slate-700 dark:text-slate-300 font-bold`} value={data.grossSalary ? `₹ ${data.grossSalary}` : 'Total Amount'} />
             </div>
+          </Field>
+          <Field label="Salary Type">
+            <input 
+              type="text" 
+              className={inputCls} 
+              placeholder="e.g. Monthly, Fixed, Contractual" 
+              value={data.salaryType || ''} 
+              onChange={e => set('salaryType', e.target.value)} 
+              list="page-edit-salary-type-options" 
+            />
+            <datalist id="page-edit-salary-type-options">
+              <option value="Monthly" />
+              <option value="Fixed" />
+              <option value="Contractual" />
+              <option value="Daily" />
+              <option value="Hourly" />
+              <option value="Consolidated" />
+            </datalist>
           </Field>
         </div>
       </div>
