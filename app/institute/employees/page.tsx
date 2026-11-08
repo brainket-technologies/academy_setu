@@ -6,12 +6,15 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { fetchEmployees, fetchDeletedEmployees, deleteEmployee } from './actions'
 import AddEmployeeModal from './components/AddEmployeeModal'
+import EditEmployeeModal from './components/EditEmployeeModal'
 
 export default function AllEmployeesPage() {
   const [employees, setEmployees] = useState<any[]>([])
   const [deletedCount, setDeletedCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null)
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -183,14 +186,18 @@ export default function AllEmployeesPage() {
                             <Eye className="w-3.5 h-3.5" />
                           </Link>
 
-                          {/* Direct Edit */}
-                          <Link 
-                            href={`/institute/employees/${emp.id}/edit`}
-                            className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 flex items-center justify-center hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors"
+                          {/* Direct Edit (Modal) */}
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setEditingEmployeeId(emp.id)
+                              setShowEditModal(true)
+                            }}
+                            className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60 flex items-center justify-center hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors cursor-pointer"
                             title="Edit Employee"
                           >
                             <Pencil className="w-3.5 h-3.5" />
-                          </Link>
+                          </button>
 
                           {/* Delete */}
                           <button 
@@ -276,6 +283,17 @@ export default function AllEmployeesPage() {
       <AddEmployeeModal 
         isOpen={showAddModal} 
         onClose={() => setShowAddModal(false)} 
+        onSuccess={loadData} 
+      />
+
+      {/* Edit Employee Modal Popup */}
+      <EditEmployeeModal 
+        isOpen={showEditModal} 
+        employeeId={editingEmployeeId} 
+        onClose={() => {
+          setShowEditModal(false)
+          setEditingEmployeeId(null)
+        }} 
         onSuccess={loadData} 
       />
     </div>

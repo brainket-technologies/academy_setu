@@ -394,93 +394,266 @@ function AddressDetailsStep({ data, setData, statesData, errors }: { data: any; 
 
 // ─── Step 4: Payroll & Leave ──────────────────────────────────────────────────
 function PayrollLeaveStep({ data, setData }: { data: any; setData: (d: any) => void }) {
-  const [leaveTypes, setLeaveTypes] = useState<any[]>([])
-
-  useEffect(() => {
-    fetch('/api/admin/leaves')
-      .then(res => res.json())
-      .then(json => {
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          setLeaveTypes(json.data.filter((l: any) => l.status === 'Active'))
-        }
-      })
-      .catch(() => {})
-  }, [])
-
-  const set = (k: string, v: string) => {
-    const updated = { ...data, [k]: v }
-    if (['basicSalary', 'hra', 'conveyance', 'specialAllowance'].includes(k)) {
-      const basic = parseFloat(k === 'basicSalary' ? v : updated.basicSalary || '0') || 0
-      const hra = parseFloat(k === 'hra' ? v : updated.hra || '0') || 0
-      const conv = parseFloat(k === 'conveyance' ? v : updated.conveyance || '0') || 0
-      const spec = parseFloat(k === 'specialAllowance' ? v : updated.specialAllowance || '0') || 0
-      updated.grossSalary = (basic + hra + conv + spec).toString()
+  const [customAllowances, setCustomAllowances] = useState<any[]>(() => {
+    if (Array.isArray(data.customAllowances) && data.customAllowances.length > 0) {
+      return data.customAllowances
     }
-    setData(updated)
+    return []
+  })
+
+  const calculateGross = (fields: any, allowances: any[]) => {
+    const basic = Number(fields.basicSalary) || 0
+    const hra = Number(fields.hra) || 0
+    const conv = Number(fields.conveyance) || 0
+    const spec = Number(fields.specialAllowance) || 0
+    const dynamicTotal = (allowances || []).reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
+    const gross = basic + hra + conv + spec + dynamicTotal
+    return gross > 0 ? String(gross) : ''
   }
 
-  const defaultLeaves = [
-    { key: 'casualLeave', label: 'Casual Leave (CL)', default: '12' },
-    { key: 'medicalLeave', label: 'Medical Leave (ML)', default: '12' },
-    { key: 'halfDayLeave', label: 'Half Day Leave', default: '6' },
-    { key: 'maternityLeave', label: 'Maternity Leave', default: '0' },
-    { key: 'bereavementLeave', label: 'Bereavement Leave', default: '0' },
-    { key: 'compensatoryLeave', label: 'Compensatory Leave', default: '0' },
-  ]
+  const set = (k: string, v: any) => {
+    const next = { ...data, [k]: v }
+    next.grossSalary = calculateGross(next, customAllowances)
+    setData(next)
+  }
+
+  const addCustomAllowance = () => {
+    const newRow = { id: Date.now(), title: 'Other Allowance', amount: '' }
+    const updated = [...customAllowances, newRow]
+    setCustomAllowances(updated)
+    const next = { ...data, customAllowances: updated }
+    next.grossSalary = calculateGross(next, updated)
+    setData(next)
+  }
+
+  const updateCustomAllowance = (index: number, field: string, val: string) => {
+    const updated = [...customAllowances]
+    updated[index] = { ...updated[index], [field]: val }
+    setCustomAllowances(updated)
+    const next = { ...data, customAllowances: updated }
+    next.grossSalary = calculateGross(next, updated)
+    setData(next)
+  }
+
+  const removeCustomAllowance = (index: number) => {
+    const updated = customAllowances.filter((_, i) => i !== index)
+    setCustomAllowances(updated)
+    const next = { ...data, customAllowances: updated }
+    next.grossSalary = calculateGross(next, updated)
+    setData(next)
+  }
+
+  const [leaveEffectiveDate, setLeaveEffectiveDate] = useState<string>(() => {
+    return data.leaveEffectiveDate || data.casualLeaveFrom || data.applyFrom || ''
+  })
+
+  const [allocatedLeaves, setAllocatedLeaves] = useState<any[]>(() => {
+    if (Array.isArray(data.allocatedLeaves) && data.allocatedLeaves.length > 0) {
+      return data.allocatedLeaves
+    }
+    const defaultDate = data.leaveEffectiveDate || data.casualLeaveFrom || ''
+    return [
+      { id: 1, leaveType: 'Casual Leave', leaveAbbr: 'CL', allowedLeaves: data.casualLeaveNo || '12', applyFrom: defaultDate },
+      { id: 2, leaveType: 'Medical Leave', leaveAbbr: 'ML', allowedLeaves: data.medicalLeaveNo || '10', applyFrom: defaultDate },
+      { id: 3, leaveType: 'Half Day Leave', leaveAbbr: 'HDL', allowedLeaves: data.halfDayLeaveNo || '6', applyFrom: defaultDate },
+      { id: 4, leaveType: 'Sick Leave', leaveAbbr: 'SL', allowedLeaves: '8', applyFrom: defaultDate }
+    ]
+  })
+
+  const handleLeaveDateChange = (val: string) => {
+    setLeaveEffectiveDate(val)
+    const updatedLeaves = allocatedLeaves.map(l => ({ ...l, applyFrom: val }))
+    setAllocatedLeaves(updatedLeaves)
+    setData({
+      ...data,
+      leaveEffectiveDate: val,
+      casualLeaveFrom: val,
+      medicalLeaveFrom: val,
+      halfDayLeaveFrom: val,
+      allocatedLeaves: updatedLeaves
+    })
+  }
+
+  const updateLeaveRow = (index: number, field: string, val: string) => {
+    const updated = [...allocatedLeaves]
+    updated[index] = { ...updated[index], [field]: val }
+    setAllocatedLeaves(updated)
+    set('allocatedLeaves', updated)
+  }
+
+  const addCustomLeave = () => {
+    const newRow = { id: Date.now(), leaveType: 'Special Leave', leaveAbbr: 'SPL', allowedLeaves: '5', applyFrom: leaveEffectiveDate }
+    const updated = [...allocatedLeaves, newRow]
+    setAllocatedLeaves(updated)
+    set('allocatedLeaves', updated)
+  }
+
+  const removeCustomLeave = (index: number) => {
+    const updated = allocatedLeaves.filter((_, i) => i !== index)
+    setAllocatedLeaves(updated)
+    set('allocatedLeaves', updated)
+  }
 
   return (
-    <div className="space-y-6">
-      <SectionTitle>Annual Leave Quota</SectionTitle>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {leaveTypes.length > 0 ? (
-          leaveTypes.map((lt: any) => {
-            const key = `leave_${lt.id}`
-            return (
-              <Field key={lt.id} label={`${lt.name} (Days/Yr)`}>
+    <div className="space-y-8">
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <SectionTitle>Monthly Salary Structure</SectionTitle>
+          <button 
+            type="button" 
+            onClick={addCustomAllowance} 
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-800 text-xs font-bold hover:bg-teal-100 transition-colors cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Salary Title (Other)</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-4">
+          <Field label="Applicable Start Date">
+            <input type="date" className={inputCls(false)} value={data.applicableStartDate || ''} onChange={e => set('applicableStartDate', e.target.value)} />
+          </Field>
+          <Field label="Basic Salary (₹)">
+            <input type="number" className={inputCls(false)} placeholder="e.g. 25000" value={data.basicSalary || ''} onChange={e => set('basicSalary', e.target.value)} />
+          </Field>
+          <Field label="HRA (₹)">
+            <input type="number" className={inputCls(false)} placeholder="e.g. 5000" value={data.hra || ''} onChange={e => set('hra', e.target.value)} />
+          </Field>
+          <Field label="Conveyance Allowance (₹)">
+            <input type="number" className={inputCls(false)} placeholder="e.g. 2000" value={data.conveyance || ''} onChange={e => set('conveyance', e.target.value)} />
+          </Field>
+          <Field label="Special Allowance (₹)">
+            <input type="number" className={inputCls(false)} placeholder="e.g. 3000" value={data.specialAllowance || ''} onChange={e => set('specialAllowance', e.target.value)} />
+          </Field>
+
+          {/* Dynamic Additional Salary Titles */}
+          {customAllowances.map((item, idx) => (
+            <div key={item.id || idx} className="sm:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-12 gap-3 p-3 bg-slate-50/70 dark:bg-slate-900/40 rounded-xl border border-slate-200/80 dark:border-slate-700/80 items-center">
+              <div className="sm:col-span-6">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Salary Title / Component</label>
+                <input 
+                  className={inputCls(false)} 
+                  placeholder="e.g. Other Allowance, Medical, Bonus" 
+                  value={item.title || ''} 
+                  onChange={e => updateCustomAllowance(idx, 'title', e.target.value)} 
+                  list="add-emp-salary-titles"
+                />
+              </div>
+              <div className="sm:col-span-5">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Amount (₹)</label>
                 <input 
                   type="number" 
-                  min="0" 
                   className={inputCls(false)} 
-                  placeholder={String(lt.leavesCount || '0')} 
-                  value={data[key] !== undefined ? data[key] : (lt.leavesCount || '')} 
-                  onChange={e => set(key, e.target.value)} 
+                  placeholder="e.g. 2000" 
+                  value={item.amount || ''} 
+                  onChange={e => updateCustomAllowance(idx, 'amount', e.target.value)} 
                 />
-              </Field>
-            )
-          })
-        ) : (
-          defaultLeaves.map(l => (
-            <Field key={l.key} label={l.label}>
-              <input 
-                type="number" 
-                min="0" 
-                className={inputCls(false)} 
-                placeholder={l.default} 
-                value={data[l.key] || ''} 
-                onChange={e => set(l.key, e.target.value)} 
-              />
-            </Field>
-          ))
-        )}
+              </div>
+              <div className="sm:col-span-1 flex justify-center pt-5 sm:pt-4">
+                <button type="button" onClick={() => removeCustomAllowance(idx)} className="w-8 h-8 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center justify-center transition-colors">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {/* Gross Monthly Salary ALWAYS IN LAST */}
+          <Field label="Gross Monthly Salary (₹)">
+            <input 
+              type="number" 
+              readOnly 
+              className={`${inputCls(false)} bg-slate-100 dark:bg-slate-800 text-teal-600 dark:text-teal-400 font-black cursor-not-allowed`} 
+              placeholder="Auto-calculated" 
+              value={data.grossSalary || ''} 
+            />
+          </Field>
+        </div>
+
+        <datalist id="add-emp-salary-titles">
+          <option value="Other Allowance" />
+          <option value="Medical Allowance" />
+          <option value="Performance Allowance" />
+          <option value="Dearness Allowance (DA)" />
+          <option value="Bonus" />
+          <option value="Incentive" />
+        </datalist>
       </div>
 
-      <SectionTitle>Salary Structure (Monthly)</SectionTitle>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        <Field label="Basic Salary">
-          <input type="number" className={inputCls(false)} placeholder="e.g. 15000" value={data.basicSalary || ''} onChange={e => set('basicSalary', e.target.value)} />
-        </Field>
-        <Field label="HRA (House Rent Allowance)">
-          <input type="number" className={inputCls(false)} placeholder="e.g. 3000" value={data.hra || ''} onChange={e => set('hra', e.target.value)} />
-        </Field>
-        <Field label="Conveyance Allowance">
-          <input type="number" className={inputCls(false)} placeholder="e.g. 1500" value={data.conveyance || ''} onChange={e => set('conveyance', e.target.value)} />
-        </Field>
-        <Field label="Special Allowance">
-          <input type="number" className={inputCls(false)} placeholder="e.g. 2000" value={data.specialAllowance || ''} onChange={e => set('specialAllowance', e.target.value)} />
-        </Field>
-        <Field label="Gross Salary (Auto-Calculated)">
-          <input className={`${inputCls(false)} bg-slate-100 dark:bg-slate-800 text-teal-600 dark:text-teal-400 font-bold`} placeholder="Gross Total" value={data.grossSalary || ''} readOnly />
-        </Field>
+      <div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+          <div className="flex items-center gap-4 flex-wrap">
+            <SectionTitle>Allocated Leave Quota</SectionTitle>
+            {/* Monthly / Annually Radio Buttons */}
+            <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+              <label className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="addEmpLeaveQuotaFrequency" 
+                  value="Monthly" 
+                  checked={(data.leaveQuotaFrequency || 'Annually') === 'Monthly'} 
+                  onChange={() => set('leaveQuotaFrequency', 'Monthly')} 
+                  className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500 cursor-pointer accent-teal-600" 
+                />
+                <span>Monthly</span>
+              </label>
+              <label className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="addEmpLeaveQuotaFrequency" 
+                  value="Annually" 
+                  checked={(data.leaveQuotaFrequency || 'Annually') === 'Annually'} 
+                  onChange={() => set('leaveQuotaFrequency', 'Annually')} 
+                  className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500 cursor-pointer accent-teal-600" 
+                />
+                <span>Annually</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-wide whitespace-nowrap">
+                Effective Date:
+              </label>
+              <input 
+                type="date" 
+                className="px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-teal-500"
+                value={leaveEffectiveDate} 
+                onChange={e => handleLeaveDateChange(e.target.value)} 
+              />
+            </div>
+            <button type="button" onClick={addCustomLeave} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-800 text-xs font-bold hover:bg-teal-100 transition-colors cursor-pointer">
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Leave Type</span>
+            </button>
+          </div>
+        </div>
+        <div className="space-y-3 mt-3">
+          {allocatedLeaves.map((row, i) => (
+            <div key={row.id || i} className="grid grid-cols-1 sm:grid-cols-12 gap-3 p-3 bg-slate-50/70 dark:bg-slate-900/40 rounded-xl border border-slate-200/80 dark:border-slate-700/80 items-center">
+              <div className="sm:col-span-6">
+                <input className={inputCls(false)} placeholder="Leave Name" value={row.leaveType || ''} onChange={e => updateLeaveRow(i, 'leaveType', e.target.value)} />
+              </div>
+              <div className="sm:col-span-2">
+                <input className={inputCls(false)} placeholder="Abbr" value={row.leaveAbbr || ''} onChange={e => updateLeaveRow(i, 'leaveAbbr', e.target.value)} />
+              </div>
+              <div className="sm:col-span-3">
+                <input 
+                  type="number" 
+                  className={inputCls(false)} 
+                  placeholder={(data.leaveQuotaFrequency || 'Annually') === 'Monthly' ? 'Days / Month' : 'Days / Year'} 
+                  value={row.allowedLeaves || ''} 
+                  onChange={e => updateLeaveRow(i, 'allowedLeaves', e.target.value)} 
+                />
+              </div>
+              <div className="sm:col-span-1 flex justify-center">
+                <button type="button" onClick={() => removeCustomLeave(i)} className="w-8 h-8 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center justify-center transition-colors">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
