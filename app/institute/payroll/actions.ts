@@ -18,6 +18,7 @@ export async function ensurePayrollTable() {
       month_year VARCHAR(20) NOT NULL,
       total_month_days INT NOT NULL DEFAULT 30,
       present_days NUMERIC(5,1) DEFAULT 0,
+      paid_days NUMERIC(5,1) DEFAULT 0,
       absent_days NUMERIC(5,1) DEFAULT 0,
       half_days NUMERIC(5,1) DEFAULT 0,
       paid_leaves NUMERIC(5,1) DEFAULT 0,
@@ -44,6 +45,7 @@ export async function ensurePayrollTable() {
     ALTER TABLE institute_payroll ADD COLUMN IF NOT EXISTS employee_id VARCHAR(100);
     ALTER TABLE institute_payroll ADD COLUMN IF NOT EXISTS total_month_days INT DEFAULT 30;
     ALTER TABLE institute_payroll ADD COLUMN IF NOT EXISTS present_days NUMERIC(5,1) DEFAULT 0;
+    ALTER TABLE institute_payroll ADD COLUMN IF NOT EXISTS paid_days NUMERIC(5,1) DEFAULT 0;
     ALTER TABLE institute_payroll ADD COLUMN IF NOT EXISTS absent_days NUMERIC(5,1) DEFAULT 0;
     ALTER TABLE institute_payroll ADD COLUMN IF NOT EXISTS half_days NUMERIC(5,1) DEFAULT 0;
     ALTER TABLE institute_payroll ADD COLUMN IF NOT EXISTS paid_leaves NUMERIC(5,1) DEFAULT 0;
@@ -51,6 +53,8 @@ export async function ensurePayrollTable() {
     ALTER TABLE institute_payroll ADD COLUMN IF NOT EXISTS basic_salary NUMERIC(12,2) DEFAULT 0;
     ALTER TABLE institute_payroll ADD COLUMN IF NOT EXISTS gross_salary NUMERIC(12,2) DEFAULT 0;
     ALTER TABLE institute_payroll ADD COLUMN IF NOT EXISTS leave_deduction NUMERIC(12,2) DEFAULT 0;
+    ALTER TABLE institute_payroll ADD COLUMN IF NOT EXISTS paid_amount NUMERIC(12,2) DEFAULT 0;
+    ALTER TABLE institute_payroll ADD COLUMN IF NOT EXISTS pending_amount NUMERIC(12,2);
     ALTER TABLE institute_payroll ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50);
     ALTER TABLE institute_payroll ADD COLUMN IF NOT EXISTS payment_date DATE;
     ALTER TABLE institute_payroll ADD COLUMN IF NOT EXISTS transaction_id VARCHAR(100);
@@ -64,6 +68,27 @@ export async function ensurePayrollTable() {
 
     CREATE INDEX IF NOT EXISTS idx_inst_payroll_lookup 
       ON institute_payroll (institution_id, month_year, user_type);
+
+    -- Ensure institute_payroll_transactions exists
+    CREATE TABLE IF NOT EXISTS institute_payroll_transactions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      institution_id VARCHAR(255) NOT NULL,
+      payroll_id UUID REFERENCES institute_payroll(id) ON DELETE CASCADE,
+      staff_id VARCHAR(255),
+      staff_name VARCHAR(255) NOT NULL,
+      month_year VARCHAR(20) NOT NULL,
+      amount NUMERIC(12,2) NOT NULL,
+      payment_method VARCHAR(50) DEFAULT 'Bank Transfer',
+      transaction_id VARCHAR(100),
+      payment_date DATE DEFAULT CURRENT_DATE,
+      account_details JSONB DEFAULT '{}',
+      screenshot_url TEXT,
+      notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_inst_payroll_tx_lookup
+      ON institute_payroll_transactions (payroll_id, staff_id);
   `)
 }
 
@@ -78,6 +103,7 @@ export interface PayrollItem {
   monthYear: string
   totalDays: number
   presentDays: number
+  paidDays: number
   absentDays: number
   halfDays: number
   paidLeave: number
@@ -86,12 +112,34 @@ export interface PayrollItem {
   grossSalary: number
   leaveDeduction: number
   netSalary: number
+  paidAmount: number
+  pendingAmount: number
+  formattedGrossSalary: string
   formattedLeaveDeduction: string
   formattedNetSalary: string
-  status: 'Paid' | 'Unpaid'
+  formattedPaidAmount: string
+  formattedPendingAmount: string
+  status: 'Paid' | 'Unpaid' | 'Partial'
   paymentMethod?: string
   paymentDate?: string
   transactionId?: string
+}
+
+export interface PayrollTransactionItem {
+  id: string
+  payrollId: string
+  staffId: string
+  staffName: string
+  monthYear: string
+  amount: number
+  formattedAmount: string
+  paymentMethod: string
+  transactionId: string
+  paymentDate: string
+  accountDetails?: any
+  screenshotUrl?: string
+  notes?: string
+  createdAt: string
 }
 
 // Fetch all staff members across Teachers, Staff Members, and Drivers
@@ -242,7 +290,10 @@ async function loadAllStaff(instId?: string) {
 }
 
 // Generate or recalculate payroll records for a given month (e.g. '2026-11') on the basis of salary and attendance
-export async function generatePayrollForMonth(targetMonthYear?: string): Promise<{
+export async function generatePayrollForMonth(
+  targetMonthYear?: string,
+  calcBasis: 'attendance_days' | 'monthly_fixed' = 'attendance_days'
+): Promise<{
   success: boolean
   count?: number
   monthYear?: string
@@ -312,9 +363,9 @@ export async function generatePayrollForMonth(targetMonthYear?: string): Promise
       }
     })
 
-    // 3. Check existing payroll records to preserve paid status and transaction info
+    // 3. Check existing payroll records to preserve paid status, paid_amount and transaction info
     const existingRes = await pool.query(`
-      SELECT staff_id, staff_name, status, payment_method, payment_date, transaction_id
+      SELECT staff_id, staff_name, status, paid_amount, pending_amount, payment_method, payment_date, transaction_id
       FROM institute_payroll
       WHERE month_year = $1
     `, [ym])
@@ -346,19 +397,36 @@ export async function generatePayrollForMonth(targetMonthYear?: string): Promise
       const allowedQuota = staff.allowedMonthlyPaidLeaves || 2
       const paidLeave = Math.min(leaveDays, allowedQuota)
       const nonPaidLeave = Math.max(0, leaveDays - allowedQuota)
-
-      // Total deduction units: each absent = 1 day, each non-paid leave = 1 day, each half-day = 0.5 day
-      const totalDeductionUnits = absentDays + nonPaidLeave + (halfDays * 0.5)
-
-      // Daily Salary Rate = Gross Salary / total days in month
       const dailyRate = staff.grossSalary / totalMonthDays
-      const leaveDeduction = Math.round(totalDeductionUnits * dailyRate)
-      const netSalary = Math.max(0, Math.round(staff.grossSalary - leaveDeduction))
 
-      // Check if previously marked paid
+      let paidDays = 0
+      let leaveDeduction = 0
+      let netSalary = 0
+      let computedAbsent = absentDays
+
+      if (calcBasis === 'attendance_days') {
+        // Attendance pro-rata: Paid for days present + paid leaves
+        const effectivePresent = presentDays + (halfDays * 0.5)
+        paidDays = Math.min(totalMonthDays, Number((effectivePresent + paidLeave).toFixed(1)))
+        const unpaidDays = Math.max(0, Number((totalMonthDays - paidDays).toFixed(1)))
+        computedAbsent = Math.max(absentDays, unpaidDays)
+        leaveDeduction = Math.round(unpaidDays * dailyRate)
+        netSalary = Math.max(0, Math.round(staff.grossSalary - leaveDeduction))
+      } else {
+        // Monthly fixed: Deducts marked absences and non-paid leaves only
+        const totalDeductionUnits = absentDays + nonPaidLeave + (halfDays * 0.5)
+        leaveDeduction = Math.round(totalDeductionUnits * dailyRate)
+        paidDays = Math.max(0, Number((totalMonthDays - totalDeductionUnits).toFixed(1)))
+        netSalary = Math.max(0, Math.round(staff.grossSalary - leaveDeduction))
+        computedAbsent = absentDays
+      }
+
+      // Check existing payment status
       const existKey = `${staff.id}_${sNameKey}`
       const existing = existingMap[existKey]
-      const status = existing?.status === 'Paid' ? 'Paid' : 'Unpaid'
+      const prevPaid = existing ? (parseFloat(existing.paid_amount) || (existing.status === 'Paid' ? netSalary : 0)) : 0
+      const pendingAmount = Math.max(0, netSalary - prevPaid)
+      const status = pendingAmount <= 0 && prevPaid > 0 ? 'Paid' : (prevPaid > 0 ? 'Partial' : (existing?.status === 'Paid' ? 'Paid' : 'Unpaid'))
       const paymentMethod = existing?.payment_method || null
       const paymentDate = existing?.payment_date || null
       const transactionId = existing?.transaction_id || null
@@ -367,11 +435,11 @@ export async function generatePayrollForMonth(targetMonthYear?: string): Promise
       await pool.query(`
         INSERT INTO institute_payroll (
           institution_id, employee_name, staff_id, staff_name, user_type, role, department, employee_id,
-          month_year, total_month_days, present_days, absent_days, half_days,
+          month_year, total_month_days, present_days, paid_days, absent_days, half_days,
           paid_leaves, non_paid_leaves, basic_salary, gross_salary, leave_deduction,
-          net_salary, status, payment_method, payment_date, transaction_id, updated_at
+          net_salary, paid_amount, pending_amount, status, payment_method, payment_date, transaction_id, updated_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, NOW()
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, NOW()
         )
         ON CONFLICT (institution_id, staff_id, month_year) DO UPDATE SET
           employee_name = EXCLUDED.employee_name,
@@ -382,6 +450,7 @@ export async function generatePayrollForMonth(targetMonthYear?: string): Promise
           employee_id = EXCLUDED.employee_id,
           total_month_days = EXCLUDED.total_month_days,
           present_days = EXCLUDED.present_days,
+          paid_days = EXCLUDED.paid_days,
           absent_days = EXCLUDED.absent_days,
           half_days = EXCLUDED.half_days,
           paid_leaves = EXCLUDED.paid_leaves,
@@ -390,7 +459,17 @@ export async function generatePayrollForMonth(targetMonthYear?: string): Promise
           gross_salary = EXCLUDED.gross_salary,
           leave_deduction = EXCLUDED.leave_deduction,
           net_salary = EXCLUDED.net_salary,
-          status = CASE WHEN institute_payroll.status = 'Paid' THEN 'Paid' ELSE EXCLUDED.status END,
+          paid_amount = CASE WHEN institute_payroll.status = 'Paid' THEN EXCLUDED.net_salary ELSE institute_payroll.paid_amount END,
+          pending_amount = CASE 
+            WHEN institute_payroll.status = 'Paid' THEN 0 
+            ELSE GREATEST(0, EXCLUDED.net_salary - COALESCE(institute_payroll.paid_amount, 0)) 
+          END,
+          status = CASE 
+            WHEN institute_payroll.status = 'Paid' THEN 'Paid' 
+            WHEN COALESCE(institute_payroll.paid_amount, 0) > 0 AND GREATEST(0, EXCLUDED.net_salary - COALESCE(institute_payroll.paid_amount, 0)) > 0 THEN 'Partial'
+            WHEN COALESCE(institute_payroll.paid_amount, 0) >= EXCLUDED.net_salary AND EXCLUDED.net_salary > 0 THEN 'Paid'
+            ELSE EXCLUDED.status 
+          END,
           updated_at = NOW()
       `, [
         instId,
@@ -404,7 +483,8 @@ export async function generatePayrollForMonth(targetMonthYear?: string): Promise
         ym,
         totalMonthDays,
         presentDays,
-        absentDays,
+        paidDays,
+        computedAbsent,
         halfDays,
         paidLeave,
         nonPaidLeave,
@@ -412,6 +492,8 @@ export async function generatePayrollForMonth(targetMonthYear?: string): Promise
         staff.grossSalary,
         leaveDeduction,
         netSalary,
+        prevPaid,
+        pendingAmount,
         status,
         paymentMethod,
         paymentDate,
@@ -440,10 +522,10 @@ export async function fetchPayrollRecords(params?: {
 
     let query = `
       SELECT id, staff_id, staff_name, user_type, role, department, employee_id,
-             month_year, total_month_days, present_days, absent_days, half_days,
+             month_year, total_month_days, present_days, paid_days, absent_days, half_days,
              paid_leaves, non_paid_leaves, basic_salary, gross_salary, leave_deduction,
-             net_salary, status, payment_method, TO_CHAR(payment_date, 'YYYY-MM-DD') as payment_date,
-             transaction_id
+             net_salary, paid_amount, pending_amount, status, payment_method,
+             TO_CHAR(payment_date, 'YYYY-MM-DD') as payment_date, transaction_id
       FROM institute_payroll
       WHERE 1=1
     `
@@ -481,6 +563,23 @@ export async function fetchPayrollRecords(params?: {
     const items: PayrollItem[] = res.rows.map((r: any) => {
       const deductionNum = parseFloat(r.leave_deduction) || 0
       const netNum = parseFloat(r.net_salary) || 0
+      const grossNum = parseFloat(r.gross_salary) || 0
+      const paidNum = parseFloat(r.paid_amount) || (r.status === 'Paid' ? netNum : 0)
+      const pendingNum = r.pending_amount !== null && r.pending_amount !== undefined
+        ? parseFloat(r.pending_amount)
+        : (r.status === 'Paid' ? 0 : Math.max(0, netNum - paidNum))
+
+      let statusVal: 'Paid' | 'Unpaid' | 'Partial' = 'Unpaid'
+      if (pendingNum <= 0 && paidNum > 0) statusVal = 'Paid'
+      else if (paidNum > 0 && pendingNum > 0) statusVal = 'Partial'
+      else statusVal = (r.status as any) || 'Unpaid'
+
+      const totalDays = parseInt(r.total_month_days, 10) || 30
+      const presentDays = parseFloat(r.present_days) || 0
+      const paidLeave = parseFloat(r.paid_leaves) || 0
+      const paidDays = r.paid_days !== null && r.paid_days !== undefined
+        ? parseFloat(r.paid_days)
+        : Math.min(totalDays, Number((presentDays + paidLeave).toFixed(1)))
 
       return {
         id: String(r.id),
@@ -491,19 +590,25 @@ export async function fetchPayrollRecords(params?: {
         department: r.department || 'Academics',
         employeeId: r.employee_id || '',
         monthYear: r.month_year,
-        totalDays: parseInt(r.total_month_days, 10) || 30,
-        presentDays: parseFloat(r.present_days) || 0,
+        totalDays,
+        presentDays,
+        paidDays,
         absentDays: parseFloat(r.absent_days) || 0,
         halfDays: parseFloat(r.half_days) || 0,
-        paidLeave: parseFloat(r.paid_leaves) || 0,
+        paidLeave,
         nonPaidLeave: parseFloat(r.non_paid_leaves) || 0,
         basicSalary: parseFloat(r.basic_salary) || 0,
-        grossSalary: parseFloat(r.gross_salary) || 0,
+        grossSalary: grossNum,
         leaveDeduction: deductionNum,
         netSalary: netNum,
+        paidAmount: paidNum,
+        pendingAmount: pendingNum,
+        formattedGrossSalary: `₹${grossNum.toLocaleString('en-IN')}/-`,
         formattedLeaveDeduction: deductionNum > 0 ? `₹${deductionNum.toLocaleString('en-IN')}/-` : '₹0',
         formattedNetSalary: `₹${netNum.toLocaleString('en-IN')}/-`,
-        status: (r.status as any) || 'Unpaid',
+        formattedPaidAmount: `₹${paidNum.toLocaleString('en-IN')}/-`,
+        formattedPendingAmount: `₹${pendingNum.toLocaleString('en-IN')}/-`,
+        status: statusVal,
         paymentMethod: r.payment_method || undefined,
         paymentDate: r.payment_date || undefined,
         transactionId: r.transaction_id || undefined
@@ -514,6 +619,272 @@ export async function fetchPayrollRecords(params?: {
   } catch (err: any) {
     console.error('fetchPayrollRecords error:', err)
     return { success: false, data: [], error: err.message || 'Failed to fetch payroll records' }
+  }
+}
+
+// Fetch single payroll record with full transaction history
+export async function fetchPayrollRecordById(payrollId: string): Promise<{
+  success: boolean
+  payroll?: PayrollItem
+  transactions?: PayrollTransactionItem[]
+  error?: string
+}> {
+  try {
+    await ensurePayrollTable()
+    const payRes = await pool.query(
+      `SELECT * FROM institute_payroll WHERE id = $1`,
+      [payrollId]
+    )
+
+    if (payRes.rows.length === 0) {
+      return { success: false, error: 'Payroll record not found' }
+    }
+
+    const r = payRes.rows[0]
+    const deductionNum = parseFloat(r.leave_deduction) || 0
+    const netNum = parseFloat(r.net_salary) || 0
+
+    // Fetch transactions
+    const txRes = await pool.query(
+      `SELECT * FROM institute_payroll_transactions WHERE payroll_id = $1 ORDER BY created_at DESC`,
+      [payrollId]
+    )
+
+    const transactions: PayrollTransactionItem[] = txRes.rows.map((tx: any) => ({
+      id: String(tx.id),
+      payrollId: String(tx.payroll_id),
+      staffId: String(tx.staff_id || ''),
+      staffName: tx.staff_name,
+      monthYear: tx.month_year,
+      amount: parseFloat(tx.amount),
+      formattedAmount: `₹${parseFloat(tx.amount).toLocaleString('en-IN')}/-`,
+      paymentMethod: tx.payment_method || 'Bank Transfer',
+      transactionId: tx.transaction_id,
+      paymentDate: tx.payment_date ? String(tx.payment_date).split('T')[0] : '',
+      accountDetails: tx.account_details,
+      screenshotUrl: tx.screenshot_url,
+      notes: tx.notes,
+      createdAt: tx.created_at ? tx.created_at.toISOString() : ''
+    }))
+
+    const txSum = transactions.reduce((sum, t) => sum + t.amount, 0)
+    const paidNum = txSum > 0 ? txSum : (r.status === 'Paid' ? netNum : (parseFloat(r.paid_amount) || 0))
+    const pendingNum = Math.max(0, netNum - paidNum)
+    const statusVal: 'Paid' | 'Unpaid' | 'Partial' = pendingNum <= 0 && paidNum > 0 ? 'Paid' : (paidNum > 0 ? 'Partial' : (r.status as any || 'Unpaid'))
+
+    const totalDays = parseInt(r.total_month_days, 10) || 30
+    const presentDays = parseFloat(r.present_days) || 0
+    const paidLeave = parseFloat(r.paid_leaves) || 0
+    const grossNum = parseFloat(r.gross_salary) || 0
+    const paidDays = r.paid_days !== null && r.paid_days !== undefined
+      ? parseFloat(r.paid_days)
+      : Math.min(totalDays, Number((presentDays + paidLeave).toFixed(1)))
+
+    const payroll: PayrollItem = {
+      id: String(r.id),
+      staffId: String(r.staff_id || ''),
+      userType: (r.user_type as any) || 'Teacher',
+      name: r.staff_name,
+      role: r.role || 'Teacher',
+      department: r.department || 'Academics',
+      employeeId: r.employee_id || '',
+      monthYear: r.month_year,
+      totalDays,
+      presentDays,
+      paidDays,
+      absentDays: parseFloat(r.absent_days) || 0,
+      halfDays: parseFloat(r.half_days) || 0,
+      paidLeave,
+      nonPaidLeave: parseFloat(r.non_paid_leaves) || 0,
+      basicSalary: parseFloat(r.basic_salary) || 0,
+      grossSalary: grossNum,
+      leaveDeduction: deductionNum,
+      netSalary: netNum,
+      paidAmount: paidNum,
+      pendingAmount: pendingNum,
+      formattedGrossSalary: `₹${grossNum.toLocaleString('en-IN')}/-`,
+      formattedLeaveDeduction: deductionNum > 0 ? `₹${deductionNum.toLocaleString('en-IN')}/-` : '₹0',
+      formattedNetSalary: `₹${netNum.toLocaleString('en-IN')}/-`,
+      formattedPaidAmount: `₹${paidNum.toLocaleString('en-IN')}/-`,
+      formattedPendingAmount: `₹${pendingNum.toLocaleString('en-IN')}/-`,
+      status: statusVal,
+      paymentMethod: r.payment_method || undefined,
+      paymentDate: r.payment_date ? String(r.payment_date).split('T')[0] : undefined,
+      transactionId: r.transaction_id || undefined
+    }
+
+    return { success: true, payroll, transactions }
+  } catch (err: any) {
+    console.error('fetchPayrollRecordById error:', err)
+    return { success: false, error: err.message || 'Failed to fetch payroll record' }
+  }
+}
+
+// Update payroll item days, deductions, and salary directly
+export async function updatePayrollItemDetails(params: {
+  payrollId: string
+  presentDays: number
+  paidDays: number
+  paidLeaves: number
+  nonPaidLeaves: number
+  absentDays: number
+  leaveDeduction: number
+  netSalary: number
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    await ensurePayrollTable()
+    const { payrollId, presentDays, paidDays, paidLeaves, nonPaidLeaves, absentDays, leaveDeduction, netSalary } = params
+
+    const current = await pool.query(`SELECT paid_amount, status FROM institute_payroll WHERE id = $1`, [payrollId])
+    if (current.rows.length === 0) return { success: false, error: 'Payroll record not found' }
+
+    const paidAmount = parseFloat(current.rows[0].paid_amount) || 0
+    const pendingAmount = Math.max(0, netSalary - paidAmount)
+    const newStatus = pendingAmount <= 0 && paidAmount > 0 ? 'Paid' : (paidAmount > 0 ? 'Partial' : 'Unpaid')
+
+    await pool.query(`
+      UPDATE institute_payroll
+      SET present_days = $1,
+          paid_days = $2,
+          paid_leaves = $3,
+          non_paid_leaves = $4,
+          absent_days = $5,
+          leave_deduction = $6,
+          net_salary = $7,
+          pending_amount = $8,
+          status = $9,
+          updated_at = NOW()
+      WHERE id = $10
+    `, [presentDays, paidDays, paidLeaves, nonPaidLeaves, absentDays, leaveDeduction, netSalary, pendingAmount, newStatus, payrollId])
+
+    return { success: true }
+  } catch (err: any) {
+    console.error('updatePayrollItemDetails error:', err)
+    return { success: false, error: err.message || 'Failed to update payroll details' }
+  }
+}
+
+export interface RecordTransactionParams {
+  payrollId: string
+  amount: number
+  paymentMethod: string
+  transactionId?: string
+  accountDetails?: {
+    accountNo?: string
+    ifscCode?: string
+    bankName?: string
+    holderName?: string
+    upiId?: string
+    chequeNo?: string
+  }
+  screenshotUrl?: string
+  notes?: string
+}
+
+// Record a single payment transaction (supports full one-time or multiple partial payments)
+export async function recordPayrollTransaction(params: RecordTransactionParams): Promise<{
+  success: boolean
+  transaction?: PayrollTransactionItem
+  newStatus?: 'Paid' | 'Unpaid' | 'Partial'
+  paidAmount?: number
+  pendingAmount?: number
+  error?: string
+}> {
+  try {
+    await ensurePayrollTable()
+    const { payrollId, amount, paymentMethod, transactionId, accountDetails, screenshotUrl, notes } = params
+
+    if (!payrollId || !amount || amount <= 0) {
+      return { success: false, error: 'A valid payroll ID and amount greater than 0 are required' }
+    }
+
+    // 1. Fetch current payroll record
+    const payRes = await pool.query(
+      `SELECT * FROM institute_payroll WHERE id = $1`,
+      [payrollId]
+    )
+
+    if (payRes.rows.length === 0) {
+      return { success: false, error: 'Payroll record not found' }
+    }
+
+    const r = payRes.rows[0]
+    const instId = r.institution_id
+    const netSalary = parseFloat(r.net_salary) || 0
+
+    // Compute previous paid amount from existing transactions
+    const txSumRes = await pool.query(
+      `SELECT COALESCE(SUM(amount), 0) as total_paid FROM institute_payroll_transactions WHERE payroll_id = $1`,
+      [payrollId]
+    )
+    const prevPaid = parseFloat(txSumRes.rows[0].total_paid) || 0
+    const newPaid = prevPaid + amount
+    const newPending = Math.max(0, netSalary - newPaid)
+    const newStatus: 'Paid' | 'Partial' = newPending <= 0 ? 'Paid' : 'Partial'
+
+    const txnId = transactionId || `TXN-${Date.now().toString().slice(-6)}`
+
+    // 2. Insert transaction into institute_payroll_transactions
+    const insTx = await pool.query(`
+      INSERT INTO institute_payroll_transactions (
+        institution_id, payroll_id, staff_id, staff_name, month_year, amount,
+        payment_method, transaction_id, payment_date, account_details, screenshot_url, notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_DATE, $9, $10, $11)
+      RETURNING *
+    `, [
+      instId,
+      payrollId,
+      r.staff_id,
+      r.staff_name,
+      r.month_year,
+      amount,
+      paymentMethod || 'Bank Transfer',
+      txnId,
+      JSON.stringify(accountDetails || {}),
+      screenshotUrl || '',
+      notes || ''
+    ])
+
+    // 3. Update institute_payroll with new paid_amount, pending_amount and status
+    await pool.query(`
+      UPDATE institute_payroll
+      SET paid_amount = $1,
+          pending_amount = $2,
+          status = $3,
+          payment_method = $4,
+          transaction_id = $5,
+          payment_date = CURRENT_DATE,
+          updated_at = NOW()
+      WHERE id = $6
+    `, [newPaid, newPending, newStatus, paymentMethod, txnId, payrollId])
+
+    const createdTx = insTx.rows[0]
+
+    return {
+      success: true,
+      newStatus,
+      paidAmount: newPaid,
+      pendingAmount: newPending,
+      transaction: {
+        id: String(createdTx.id),
+        payrollId: String(createdTx.payroll_id),
+        staffId: String(createdTx.staff_id || ''),
+        staffName: createdTx.staff_name,
+        monthYear: createdTx.month_year,
+        amount: parseFloat(createdTx.amount),
+        formattedAmount: `₹${parseFloat(createdTx.amount).toLocaleString('en-IN')}/-`,
+        paymentMethod: createdTx.payment_method,
+        transactionId: createdTx.transaction_id,
+        paymentDate: createdTx.payment_date ? String(createdTx.payment_date).split('T')[0] : '',
+        accountDetails: createdTx.account_details,
+        screenshotUrl: createdTx.screenshot_url,
+        notes: createdTx.notes,
+        createdAt: createdTx.created_at ? createdTx.created_at.toISOString() : ''
+      }
+    }
+  } catch (err: any) {
+    console.error('recordPayrollTransaction error:', err)
+    return { success: false, error: err.message || 'Failed to record transaction' }
   }
 }
 
