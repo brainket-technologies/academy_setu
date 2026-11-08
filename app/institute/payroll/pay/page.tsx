@@ -1,12 +1,13 @@
 'use client'
 
-import React, { useState, Suspense } from 'react'
+import React, { useState, Suspense, useEffect } from 'react'
 import { CheckCircle2, ArrowLeft, Upload, Eye, X, Paperclip, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { updatePayrollStatus } from '../actions'
 
 interface SalaryRow {
-  id: number
+  id: number | string
   month: string
   net: string
   gross: string
@@ -28,9 +29,10 @@ function PayContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
-  const staffName = searchParams.get('name') || 'Ashok Kumar'
+  const payrollId = searchParams.get('id') || ''
+  const staffName = searchParams.get('name') || 'Staff Member'
   const staffType = searchParams.get('type') || 'Teacher'
-  const initialSalary = searchParams.get('salary') || '20,000/-'
+  const initialSalary = searchParams.get('salary') || '45,000/-'
 
   // Tab State
   const [paymentMode, setPaymentMode] = useState<'Bank' | 'UPI'>('Bank')
@@ -42,24 +44,31 @@ function PayContent() {
   const [holderName, setHolderName] = useState(staffName)
 
   // UPI Info States
-  const [upiId, setUpiId] = useState('abcd@oksbi')
+  const [upiId, setUpiId] = useState('staff@oksbi')
 
-  // Unpaid Invoices List State (Screenshot 1 & 4)
-  const [unpaidInvoices, setUnpaidInvoices] = useState<SalaryRow[]>([
-    { id: 1, month: 'Jan 2025', net: '20,000', gross: '2,000', deduction: '1,000', final: '19,000' },
-    { id: 2, month: 'Feb 2025', net: '20,000', gross: '2,000', deduction: '1,000', final: '19,000' },
-    { id: 3, month: 'Mar 2025', net: '20,000', gross: '2,000', deduction: '1,000', final: '19,000' },
-  ])
+  // Unpaid Invoices List State
+  const [unpaidInvoices, setUnpaidInvoices] = useState<SalaryRow[]>(() => {
+    const cleanNum = parseInt(initialSalary.replace(/[^0-9]/g, ''), 10) || 45000
+    return [
+      {
+        id: payrollId || 1,
+        month: 'Nov 2026',
+        net: `₹${cleanNum.toLocaleString('en-IN')}`,
+        gross: `₹${cleanNum.toLocaleString('en-IN')}`,
+        deduction: '₹0',
+        final: cleanNum.toLocaleString('en-IN')
+      }
+    ]
+  })
 
   // Paid Invoices (Transaction History)
   const [history, setHistory] = useState<HistoryRow[]>([
-    { id: 1, invoiceId: 'ABC1234', month: 'Jan 2025', date: '05/01/2025', net: '20,000', method: 'Bank', status: 'Paid' },
-    { id: 2, invoiceId: 'ABC1234', month: 'Feb 2025', date: '03/02/2025', net: '20,000', method: 'Bank', status: 'Paid' },
-    { id: 3, invoiceId: 'ABC1234', month: 'Mar 2025', date: '03/03/2025', net: '20,000', method: 'Online', status: 'Paid' },
+    { id: 1, invoiceId: 'INV-10291', month: 'Sep 2026', date: '05/10/2026', net: '45,000', method: 'Bank', status: 'Paid' },
+    { id: 2, invoiceId: 'INV-10145', month: 'Aug 2026', date: '03/09/2026', net: '45,000', method: 'Bank', status: 'Paid' }
   ])
 
   // Payment calculator
-  const totalAmount = unpaidInvoices.reduce((sum, item) => sum + parseInt(item.final.replace(/,/g, '')), 0)
+  const totalAmount = unpaidInvoices.reduce((sum, item) => sum + parseInt(item.final.replace(/,/g, ''), 10), 0)
   const [payAmount, setPayAmount] = useState(totalAmount.toString())
 
   // Modal Steppers
@@ -67,11 +76,11 @@ function PayContent() {
   const [successModalOpen, setSuccessModalOpen] = useState(false)
 
   // Attach screenshot fields state
-  const [screenshotAmount, setScreenshotAmount] = useState('50,000')
+  const [screenshotAmount, setScreenshotAmount] = useState('45,000')
   const [attachedFiles, setAttachedFiles] = useState<string[]>([])
   const [customAmount, setCustomAmount] = useState('')
 
-  const handleRemoveInvoice = (id: number) => {
+  const handleRemoveInvoice = (id: number | string) => {
     setUnpaidInvoices(unpaidInvoices.filter(i => i.id !== id))
   }
 
@@ -81,8 +90,21 @@ function PayContent() {
     setAttachModalOpen(true)
   }
 
-  const handleSubmitScreenshot = (e: React.FormEvent) => {
+  const handleSubmitScreenshot = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (payrollId) {
+      try {
+        await updatePayrollStatus({
+          payrollId,
+          status: 'Paid',
+          paymentMethod: paymentMode === 'Bank' ? 'Bank Transfer' : 'UPI',
+          transactionId: `TXN-${Date.now().toString().slice(-6)}`,
+          remarks: `Salary disbursed via ${paymentMode}`
+        })
+      } catch (err) {
+        console.error('Failed to update payroll status:', err)
+      }
+    }
     setAttachModalOpen(false)
     setSuccessModalOpen(true)
   }
