@@ -15,6 +15,7 @@ import {
   saveStaffAttendanceBatch,
   fetchStaffAttendanceSettings,
   saveStaffAttendanceSettings,
+  bulkMarkStaffAttendanceRange,
   StaffMemberItem
 } from './actions'
 import { fetchTeachers } from '@/app/institute/teachers/actions'
@@ -77,6 +78,25 @@ export default function StaffAttendancePage() {
   const [confirmModalOpen, setConfirmModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+
+  // Bulk Attendance State (Date Range)
+  const [bulkModalOpen, setBulkModalOpen] = useState(false)
+  const [bulkFromDate, setBulkFromDate] = useState<string>(() => {
+    const d = new Date()
+    d.setDate(1) // 1st of current month
+    return formatDateToISO(d)
+  })
+  const [bulkToDate, setBulkToDate] = useState<string>(() => formatDateToISO(new Date()))
+  const [bulkStatus, setBulkStatus] = useState<'Present' | 'Absent' | 'Leave' | 'Half Day'>('Present')
+  const [bulkStaffTarget, setBulkStaffTarget] = useState<'filtered' | 'all' | 'custom'>('filtered')
+  const [bulkSelectedStaffIds, setBulkSelectedStaffIds] = useState<Set<string>>(new Set())
+  const [bulkExcludeSundays, setBulkExcludeSundays] = useState(true)
+  const [bulkExcludeSaturdays, setBulkExcludeSaturdays] = useState(false)
+  const [bulkInTime, setBulkInTime] = useState('09:00 AM')
+  const [bulkOutTime, setBulkOutTime] = useState('04:30 PM')
+  const [bulkNotes, setBulkNotes] = useState('')
+  const [isBulkSubmitting, setIsBulkSubmitting] = useState(false)
+  const [bulkStaffSearch, setBulkStaffSearch] = useState('')
 
   // Settings State
   const [leaveApprovalPerson, setLeaveApprovalPerson] = useState('Principal')
@@ -477,6 +497,147 @@ export default function StaffAttendancePage() {
     }
   }
 
+  // ── BULK ATTENDANCE HELPERS & HANDLERS ──
+  const targetStaffForBulk = useMemo(() => {
+    if (bulkStaffTarget === 'all') return staffList
+    if (bulkStaffTarget === 'custom') {
+      return staffList.filter(s => bulkSelectedStaffIds.has(s.id))
+    }
+    return filteredStaff
+  }, [bulkStaffTarget, staffList, filteredStaff, bulkSelectedStaffIds])
+
+  const bulkPreviewDays = useMemo(() => {
+    if (!bulkFromDate || !bulkToDate) return 0
+    const start = new Date(bulkFromDate + 'T00:00:00')
+    const end = new Date(bulkToDate + 'T00:00:00')
+    if (start > end) return 0
+    let count = 0
+    const cur = new Date(start)
+    while (cur <= end) {
+      const day = cur.getDay()
+      const isSun = day === 0
+      const isSat = day === 6
+      if ((!bulkExcludeSundays || !isSun) && (!bulkExcludeSaturdays || !isSat)) {
+        count++
+      }
+      cur.setDate(cur.getDate() + 1)
+    }
+    return count
+  }, [bulkFromDate, bulkToDate, bulkExcludeSundays, bulkExcludeSaturdays])
+
+  const toggleSelectAllCustomStaff = () => {
+    if (bulkSelectedStaffIds.size === staffList.length) {
+      setBulkSelectedStaffIds(new Set())
+    } else {
+      setBulkSelectedStaffIds(new Set(staffList.map(s => s.id)))
+    }
+  }
+
+  const toggleStaffSelection = (id: string) => {
+    setBulkSelectedStaffIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const applyDatePreset = (preset: 'today' | 'thisWeek' | 'thisMonth' | 'past7' | 'past30') => {
+    const today = new Date()
+    if (preset === 'today') {
+      const iso = formatDateToISO(today)
+      setBulkFromDate(iso)
+      setBulkToDate(iso)
+    } else if (preset === 'thisWeek') {
+      const day = today.getDay()
+      const diff = today.getDate() - day + (day === 0 ? -6 : 1)
+      const monday = new Date(today)
+      monday.setDate(diff)
+      const saturday = new Date(monday)
+      saturday.setDate(monday.getDate() + 5)
+      setBulkFromDate(formatDateToISO(monday))
+      setBulkToDate(formatDateToISO(saturday))
+    } else if (preset === 'thisMonth') {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
+      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+      setBulkFromDate(formatDateToISO(firstDay))
+      setBulkToDate(formatDateToISO(lastDay))
+    } else if (preset === 'past7') {
+      const past = new Date(today)
+      past.setDate(today.getDate() - 6)
+      setBulkFromDate(formatDateToISO(past))
+      setBulkToDate(formatDateToISO(today))
+    } else if (preset === 'past30') {
+      const past = new Date(today)
+      past.setDate(today.getDate() - 29)
+      setBulkFromDate(formatDateToISO(past))
+      setBulkToDate(formatDateToISO(today))
+    }
+  }
+
+  const handleBulkSubmit = async () => {
+    if (!bulkFromDate || !bulkToDate) {
+      showToast('Please select both From Date and To Date', 'error')
+      return
+    }
+    if (new Date(bulkFromDate) > new Date(bulkToDate)) {
+      showToast('From Date cannot be later than To Date', 'error')
+      return
+    }
+    if (targetStaffForBulk.length === 0) {
+      showToast('No staff members selected to mark', 'error')
+      return
+    }
+    if (bulkPreviewDays === 0) {
+      showToast('No valid dates in range with current exclusions', 'error')
+      return
+    }
+
+    setIsBulkSubmitting(true)
+    try {
+      const res = await bulkMarkStaffAttendanceRange({
+        fromDate: bulkFromDate,
+        toDate: bulkToDate,
+        status: bulkStatus,
+        staff: targetStaffForBulk.map(s => ({
+          id: s.id,
+          name: s.name,
+          employeeId: s.employeeId,
+          role: s.role,
+          department: s.department,
+          contact: s.contact
+        })),
+        excludeSundays: bulkExcludeSundays,
+        excludeSaturdays: bulkExcludeSaturdays,
+        inTime: (bulkStatus === 'Present' || bulkStatus === 'Half Day') ? bulkInTime : '',
+        outTime: bulkStatus === 'Present' ? bulkOutTime : (bulkStatus === 'Half Day' ? '01:30 PM' : ''),
+        notes: bulkNotes,
+        sourceMode: 'Bulk Attendance',
+        markedBy: 'Staff Admin'
+      })
+
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to submit bulk attendance')
+      }
+
+      showToast(`Bulk attendance saved! Marked ${res.count} records across ${res.datesCount} days.`)
+      setBulkModalOpen(false)
+
+      // Refresh Day view
+      await loadDayAttendance(formatDateToISO(selectedDate))
+
+      // Refresh Month view if currently viewing month
+      if (currentView === 'Month') {
+        await loadMonthAttendance(formatYearMonth(selectedDate))
+      }
+    } catch (err: any) {
+      console.error('Bulk submission error:', err)
+      showToast(err.message || 'Failed to save bulk attendance', 'error')
+    } finally {
+      setIsBulkSubmitting(false)
+    }
+  }
+
   // Export Attendance CSV
   const handleExportAttendance = () => {
     const dateKey = formatDateToISO(selectedDate)
@@ -550,6 +711,17 @@ export default function StaffAttendancePage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Bulk Attendance (Date Range) */}
+          <button
+            type="button"
+            onClick={() => setBulkModalOpen(true)}
+            className="h-11 px-3.5 rounded-2xl bg-white/15 hover:bg-white/25 text-white flex items-center gap-2 transition-colors cursor-pointer text-xs font-bold shadow-xs active:scale-95"
+            title="Mark Bulk Attendance (From - To Date)"
+          >
+            <Calendar className="w-4 h-4 text-teal-100" />
+            <span className="hidden sm:inline">Bulk Attendance</span>
+          </button>
+
           {/* Settings Button */}
           <button
             type="button"
@@ -705,8 +877,8 @@ export default function StaffAttendancePage() {
         </div>
       )}
 
-      {/* ── FILTER DROPDOWNS BAR (Department & Designation) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 w-full">
+      {/* ── FILTER DROPDOWNS & ACTIONS BAR ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 w-full">
         {/* Department */}
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Department</label>
@@ -746,10 +918,22 @@ export default function StaffAttendancePage() {
           <button
             type="button"
             onClick={handleMarkAllPresent}
-            className="w-full py-3 px-4 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 text-[#0f766e] dark:text-teal-300 rounded-2xl text-xs md:text-sm font-black hover:bg-teal-100 transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+            className="w-full py-3 px-4 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 text-[#0f766e] dark:text-teal-300 rounded-2xl text-xs md:text-sm font-black hover:bg-teal-100 transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-2xs active:scale-98"
           >
             <Sparkles className="w-4 h-4" />
             <span>Mark All Present</span>
+          </button>
+        </div>
+
+        {/* Bulk Action: Mark Date Range Attendance */}
+        <div className="space-y-1.5 flex flex-col justify-end">
+          <button
+            type="button"
+            onClick={() => setBulkModalOpen(true)}
+            className="w-full py-3 px-4 bg-[#0f766e] hover:bg-[#0d655f] text-white rounded-2xl text-xs md:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-teal-900/15 active:scale-98"
+          >
+            <Calendar className="w-4 h-4 text-teal-100" />
+            <span>Bulk Attendance (Range)</span>
           </button>
         </div>
       </div>
@@ -1268,6 +1452,427 @@ export default function StaffAttendancePage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          SCREEN 4: BULK ATTENDANCE MODAL (FROM - TO DATE RANGE)
+      ═══════════════════════════════════════════════════════════════════ */}
+      {bulkModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 sm:p-4 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl p-5 sm:p-7 max-w-2xl w-full space-y-5 shadow-2xl animate-in zoom-in-95 duration-150 border border-slate-200 dark:border-slate-700 my-8 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-teal-50 dark:bg-teal-950/60 text-[#0f766e] flex items-center justify-center shrink-0">
+                  <Calendar className="w-6 h-6 stroke-[2.2]" />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-tight">
+                    Mark Bulk Attendance
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                    Record attendance across multiple dates for faculty and employees
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBulkModalOpen(false)}
+                className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-500 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Quick Date Range Presets */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+                Quick Date Range Presets
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: 'Today', key: 'today' },
+                  { label: 'This Week', key: 'thisWeek' },
+                  { label: 'Current Month', key: 'thisMonth' },
+                  { label: 'Past 7 Days', key: 'past7' },
+                  { label: 'Past 30 Days', key: 'past30' }
+                ].map(p => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() => applyDatePreset(p.key as any)}
+                    className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-teal-50 hover:border-teal-300 hover:text-[#0f766e] transition-colors cursor-pointer"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Date Inputs: From Date & To Date */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-[#0f766e]" />
+                  <span>From Date *</span>
+                </label>
+                <input
+                  type="date"
+                  value={bulkFromDate}
+                  onChange={e => setBulkFromDate(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs md:text-sm font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-[#0f766e]" />
+                  <span>To Date *</span>
+                </label>
+                <input
+                  type="date"
+                  value={bulkToDate}
+                  onChange={e => setBulkToDate(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs md:text-sm font-bold text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Attendance Status Selector */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+                Select Attendance Status *
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {/* Present */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBulkStatus('Present')
+                    setBulkInTime('09:00 AM')
+                    setBulkOutTime('04:30 PM')
+                  }}
+                  className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                    bulkStatus === 'Present'
+                      ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 shadow-xs'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <span className="w-7 h-7 rounded-lg bg-emerald-500 text-white font-black text-xs flex items-center justify-center">
+                    P
+                  </span>
+                  <span className="text-xs font-black">Present</span>
+                </button>
+
+                {/* Absent */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBulkStatus('Absent')
+                    setBulkInTime('')
+                    setBulkOutTime('')
+                  }}
+                  className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                    bulkStatus === 'Absent'
+                      ? 'border-rose-500 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 shadow-xs'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-rose-300 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <span className="w-7 h-7 rounded-lg bg-rose-500 text-white font-black text-xs flex items-center justify-center">
+                    A
+                  </span>
+                  <span className="text-xs font-black">Absent</span>
+                </button>
+
+                {/* Leave */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBulkStatus('Leave')
+                    setBulkInTime('')
+                    setBulkOutTime('')
+                  }}
+                  className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                    bulkStatus === 'Leave'
+                      ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 shadow-xs'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-amber-300 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <span className="w-7 h-7 rounded-lg bg-amber-500 text-white font-black text-xs flex items-center justify-center">
+                    L
+                  </span>
+                  <span className="text-xs font-black">On Leave</span>
+                </button>
+
+                {/* Half Day */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBulkStatus('Half Day')
+                    setBulkInTime('09:00 AM')
+                    setBulkOutTime('01:30 PM')
+                  }}
+                  className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                    bulkStatus === 'Half Day'
+                      ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 shadow-xs'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-purple-300 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <span className="w-7 h-7 rounded-lg bg-purple-600 text-white font-black text-xs flex items-center justify-center">
+                    HD
+                  </span>
+                  <span className="text-xs font-black">Half Day</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Target Staff Selection */}
+            <div className="space-y-3 pt-1">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+                Apply To Which Staff Members?
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBulkStaffTarget('filtered')}
+                  className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer ${
+                    bulkStaffTarget === 'filtered'
+                      ? 'border-[#0f766e] bg-teal-50/50 dark:bg-teal-950/30'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-100">Filtered Staff</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-[#0f766e] text-white">
+                      {filteredStaff.length}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">Current view filters</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setBulkStaffTarget('all')}
+                  className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer ${
+                    bulkStaffTarget === 'all'
+                      ? 'border-[#0f766e] bg-teal-50/50 dark:bg-teal-950/30'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-100">All Staff</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-700 text-white">
+                      {staffList.length}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">Entire institute staff</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBulkStaffTarget('custom')
+                    if (bulkSelectedStaffIds.size === 0) {
+                      setBulkSelectedStaffIds(new Set(filteredStaff.map(s => s.id)))
+                    }
+                  }}
+                  className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer ${
+                    bulkStaffTarget === 'custom'
+                      ? 'border-[#0f766e] bg-teal-50/50 dark:bg-teal-950/30'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-100">Custom Select</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-teal-700 text-white">
+                      {bulkSelectedStaffIds.size}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">Pick specific staff</p>
+                </button>
+              </div>
+
+              {/* Custom Staff Picker List if 'custom' is active */}
+              {bulkStaffTarget === 'custom' && (
+                <div className="border border-slate-200 dark:border-slate-700 rounded-2xl p-3 bg-slate-50 dark:bg-slate-900/50 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="relative flex-1">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={bulkStaffSearch}
+                        onChange={e => setBulkStaffSearch(e.target.value)}
+                        placeholder="Search staff to select..."
+                        className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={toggleSelectAllCustomStaff}
+                      className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-[#0f766e] hover:bg-teal-50 transition-colors shrink-0 cursor-pointer"
+                    >
+                      {bulkSelectedStaffIds.size === staffList.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                  </div>
+
+                  <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                    {staffList
+                      .filter(s => {
+                        if (!bulkStaffSearch.trim()) return true
+                        const q = bulkStaffSearch.toLowerCase().trim()
+                        return s.name.toLowerCase().includes(q) || s.role.toLowerCase().includes(q) || s.employeeId.toLowerCase().includes(q)
+                      })
+                      .map(s => {
+                        const isChecked = bulkSelectedStaffIds.has(s.id)
+                        return (
+                          <div
+                            key={s.id}
+                            onClick={() => toggleStaffSelection(s.id)}
+                            className={`flex items-center justify-between p-2 rounded-xl border transition-colors cursor-pointer ${
+                              isChecked
+                                ? 'bg-white dark:bg-slate-800 border-teal-300 dark:border-teal-700'
+                                : 'bg-transparent border-transparent hover:bg-white/60'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {}}
+                                className="w-4 h-4 text-[#0f766e] rounded-sm accent-[#0f766e] cursor-pointer"
+                              />
+                              <div>
+                                <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{s.name}</p>
+                                <p className="text-[10px] text-slate-400">{s.role} • {s.department} • {s.employeeId}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Exclusions & Timing Options */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+                  Exclusions
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={bulkExcludeSundays}
+                      onChange={e => setBulkExcludeSundays(e.target.checked)}
+                      className="w-4 h-4 text-[#0f766e] rounded-sm accent-[#0f766e] cursor-pointer"
+                    />
+                    <span>Exclude Sundays (Skip non-working Sundays)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={bulkExcludeSaturdays}
+                      onChange={e => setBulkExcludeSaturdays(e.target.checked)}
+                      className="w-4 h-4 text-[#0f766e] rounded-sm accent-[#0f766e] cursor-pointer"
+                    />
+                    <span>Exclude Saturdays (Skip Saturdays)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* In Time / Out Time (if Present / Half Day) */}
+              {(bulkStatus === 'Present' || bulkStatus === 'Half Day') && (
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+                    Working Hours
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-400 block mb-1">In Time</span>
+                      <input
+                        type="text"
+                        value={bulkInTime}
+                        onChange={e => setBulkInTime(e.target.value)}
+                        placeholder="09:00 AM"
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-teal-500"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-400 block mb-1">Out Time</span>
+                      <input
+                        type="text"
+                        value={bulkOutTime}
+                        onChange={e => setBulkOutTime(e.target.value)}
+                        placeholder="04:30 PM"
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-teal-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Optional Remark / Notes */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Remarks / Notes (Optional)
+              </label>
+              <input
+                type="text"
+                value={bulkNotes}
+                onChange={e => setBulkNotes(e.target.value)}
+                placeholder="e.g. Regular Working Days, Summer Camp, Examination Duty..."
+                className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold outline-none focus:border-teal-500"
+              />
+            </div>
+
+            {/* Live Calculation Preview Banner */}
+            <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 flex items-center gap-3">
+              <Info className="w-5 h-5 text-[#0f766e] dark:text-teal-400 shrink-0" />
+              <div className="text-xs">
+                <span className="font-black text-slate-900 dark:text-white block">
+                  Summary: {targetStaffForBulk.length} Staff Member{targetStaffForBulk.length === 1 ? '' : 's'} × {bulkPreviewDays} Day{bulkPreviewDays === 1 ? '' : 's'}
+                </span>
+                <span className="text-slate-600 dark:text-slate-300 font-medium mt-0.5 block">
+                  A total of <strong className="text-[#0f766e] dark:text-teal-300">{targetStaffForBulk.length * bulkPreviewDays} records</strong> will be marked as <strong className="font-bold">{bulkStatus}</strong> across {bulkFromDate} to {bulkToDate}.
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setBulkModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isBulkSubmitting || targetStaffForBulk.length === 0 || bulkPreviewDays === 0}
+                onClick={handleBulkSubmit}
+                className="px-6 py-2.5 rounded-xl bg-[#0f766e] hover:bg-[#0d655f] text-white text-xs font-black shadow-md shadow-teal-900/20 active:scale-95 transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+              >
+                {isBulkSubmitting ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Saving Bulk Attendance...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Apply Bulk Attendance ({targetStaffForBulk.length * bulkPreviewDays})</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

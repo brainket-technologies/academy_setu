@@ -409,3 +409,150 @@ export async function saveStaffAttendanceSettings(settings: {
   }
 }
 
+export interface BulkAttendanceStaffInput {
+  id: string
+  name: string
+  employeeId?: string
+  role?: string
+  department?: string
+  contact?: string
+}
+
+export interface BulkMarkStaffAttendanceParams {
+  fromDate: string // YYYY-MM-DD
+  toDate: string   // YYYY-MM-DD
+  status: 'Present' | 'Absent' | 'Leave' | 'Half Day'
+  staff: BulkAttendanceStaffInput[]
+  excludeSundays?: boolean
+  excludeSaturdays?: boolean
+  inTime?: string
+  outTime?: string
+  notes?: string
+  sourceMode?: string
+  markedBy?: string
+}
+
+// Bulk mark staff attendance across a date range
+export async function bulkMarkStaffAttendanceRange(params: BulkMarkStaffAttendanceParams): Promise<{
+  success: boolean
+  count?: number
+  datesCount?: number
+  error?: string
+}> {
+  try {
+    await ensureStaffAttendanceTable()
+    const session = await getSession('institute_session')
+    const instId = session?.userId || 'default-inst'
+
+    const {
+      fromDate,
+      toDate,
+      status,
+      staff,
+      excludeSundays = true,
+      excludeSaturdays = false,
+      inTime = (status === 'Present' || status === 'Half Day') ? '09:00 AM' : '',
+      outTime = status === 'Present' ? '04:30 PM' : (status === 'Half Day' ? '01:30 PM' : ''),
+      notes = '',
+      sourceMode = 'Bulk Action',
+      markedBy = 'Staff Admin'
+    } = params
+
+    if (!staff || staff.length === 0) {
+      return { success: false, error: 'No staff members selected' }
+    }
+
+    if (!fromDate || !toDate) {
+      return { success: false, error: 'Please provide both From Date and To Date' }
+    }
+
+    // Build dates list
+    const dates: string[] = []
+    const start = new Date(fromDate + 'T00:00:00')
+    const end = new Date(toDate + 'T00:00:00')
+
+    if (start > end) {
+      return { success: false, error: 'From Date cannot be later than To Date' }
+    }
+
+    const cur = new Date(start)
+    while (cur <= end) {
+      const dayOfWeek = cur.getDay() // 0 = Sunday, 6 = Saturday
+      const isSunday = dayOfWeek === 0
+      const isSaturday = dayOfWeek === 6
+
+      if ((!excludeSundays || !isSunday) && (!excludeSaturdays || !isSaturday)) {
+        const y = cur.getFullYear()
+        const m = String(cur.getMonth() + 1).padStart(2, '0')
+        const d = String(cur.getDate()).padStart(2, '0')
+        dates.push(`${y}-${m}-${d}`)
+      }
+      cur.setDate(cur.getDate() + 1)
+    }
+
+    if (dates.length === 0) {
+      return { success: false, error: 'No valid dates in the selected range (all excluded as weekends).' }
+    }
+
+    const staffIds = staff.map(s => String(s.id))
+
+    // Delete existing records for these dates and staff to prevent duplicates
+    await pool.query(
+      `DELETE FROM institute_staff_attendance
+       WHERE attendance_date = ANY($1::date[]) AND staff_id = ANY($2::varchar[])`,
+      [dates, staffIds]
+    )
+
+    // Batch insert into institute_staff_attendance in chunks
+    const allRecords: any[] = []
+    for (const d of dates) {
+      for (const s of staff) {
+        allRecords.push([
+          instId,
+          String(s.id),
+          s.name,
+          s.employeeId || '',
+          s.role || 'Teacher',
+          s.department || 'General',
+          s.contact || '',
+          d,
+          status,
+          sourceMode,
+          inTime,
+          outTime,
+          markedBy,
+          notes
+        ])
+      }
+    }
+
+    const CHUNK_SIZE = 100
+    for (let i = 0; i < allRecords.length; i += CHUNK_SIZE) {
+      const chunk = allRecords.slice(i, i + CHUNK_SIZE)
+      const valuePlaceholders: string[] = []
+      const flatParams: any[] = []
+
+      chunk.forEach((rec, rIdx) => {
+        const base = rIdx * 14
+        const placeholders = Array.from({ length: 14 }, (_, c) => `$${base + c + 1}`)
+        valuePlaceholders.push(`(${placeholders.join(', ')}, NOW())`)
+        flatParams.push(...rec)
+      })
+
+      const query = `
+        INSERT INTO institute_staff_attendance (
+          institution_id, staff_id, staff_name, employee_id, role, department, contact,
+          attendance_date, status, source_mode, in_time, out_time, marked_by, notes, updated_at
+        ) VALUES ${valuePlaceholders.join(', ')}
+      `
+      await pool.query(query, flatParams)
+    }
+
+    return { success: true, count: allRecords.length, datesCount: dates.length }
+  } catch (err: any) {
+    console.error('bulkMarkStaffAttendanceRange error:', err)
+    return { success: false, error: err.message || 'Failed to apply bulk attendance' }
+  }
+}
+
+
