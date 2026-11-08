@@ -60,6 +60,7 @@ export async function ensurePayrollTable() {
     -- Ensure institution_id is flexible varchar
     ALTER TABLE institute_payroll DROP CONSTRAINT IF EXISTS institute_payroll_institution_id_fkey;
     ALTER TABLE institute_payroll ALTER COLUMN institution_id TYPE VARCHAR(255) USING institution_id::varchar;
+    ALTER TABLE institute_payroll ALTER COLUMN employee_name DROP NOT NULL;
 
     CREATE INDEX IF NOT EXISTS idx_inst_payroll_lookup 
       ON institute_payroll (institution_id, month_year, user_type);
@@ -365,14 +366,15 @@ export async function generatePayrollForMonth(targetMonthYear?: string): Promise
       // Upsert into institute_payroll
       await pool.query(`
         INSERT INTO institute_payroll (
-          institution_id, staff_id, staff_name, user_type, role, department, employee_id,
+          institution_id, employee_name, staff_id, staff_name, user_type, role, department, employee_id,
           month_year, total_month_days, present_days, absent_days, half_days,
           paid_leaves, non_paid_leaves, basic_salary, gross_salary, leave_deduction,
           net_salary, status, payment_method, payment_date, transaction_id, updated_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, NOW()
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, NOW()
         )
         ON CONFLICT (institution_id, staff_id, month_year) DO UPDATE SET
+          employee_name = EXCLUDED.employee_name,
           staff_name = EXCLUDED.staff_name,
           user_type = EXCLUDED.user_type,
           role = EXCLUDED.role,
@@ -392,6 +394,7 @@ export async function generatePayrollForMonth(targetMonthYear?: string): Promise
           updated_at = NOW()
       `, [
         instId,
+        staff.name,
         staff.id,
         staff.name,
         staff.userType,
