@@ -17,6 +17,11 @@ async function ensureTeachersTable() {
       joining_date DATE DEFAULT CURRENT_DATE,
       avatar TEXT,
       details JSONB,
+      applicable_start_date DATE,
+      basic_salary NUMERIC,
+      gross_salary NUMERIC,
+      leave_quota_frequency VARCHAR(50) DEFAULT 'Annually',
+      leave_effective_date DATE,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
@@ -28,6 +33,11 @@ async function ensureTeachersTable() {
     ALTER TABLE institute_teachers ADD COLUMN IF NOT EXISTS assigned_classes TEXT[];
     ALTER TABLE institute_teachers ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active';
     ALTER TABLE institute_teachers ADD COLUMN IF NOT EXISTS joining_date DATE DEFAULT CURRENT_DATE;
+    ALTER TABLE institute_teachers ADD COLUMN IF NOT EXISTS applicable_start_date DATE;
+    ALTER TABLE institute_teachers ADD COLUMN IF NOT EXISTS basic_salary NUMERIC;
+    ALTER TABLE institute_teachers ADD COLUMN IF NOT EXISTS gross_salary NUMERIC;
+    ALTER TABLE institute_teachers ADD COLUMN IF NOT EXISTS leave_quota_frequency VARCHAR(50) DEFAULT 'Annually';
+    ALTER TABLE institute_teachers ADD COLUMN IF NOT EXISTS leave_effective_date DATE;
   `)
 }
 
@@ -94,13 +104,22 @@ export async function createTeacher(data: any) {
 
     const status = data.personal?.status || data.status || 'Active'
     const joiningDate = data.personal?.joiningDate ? new Date(data.personal.joiningDate) : new Date()
+    const applicableStartDate = data.payroll?.applicableStartDate ? new Date(data.payroll.applicableStartDate) : null
+    const basicSalary = parseFloat(data.payroll?.basicSalary) || null
+    const grossSalary = parseFloat(data.payroll?.grossSalary) || null
+    const leaveQuotaFrequency = data.payroll?.leaveQuotaFrequency || 'Annually'
+    const leaveEffectiveDate = (data.payroll?.leaveEffectiveDate || data.payroll?.casualLeaveFrom) ? new Date(data.payroll.leaveEffectiveDate || data.payroll.casualLeaveFrom) : null
 
     const res = await pool.query(`
-      INSERT INTO institute_teachers (institution_id, username, name, contact, email, assigned_classes, status, joining_date, avatar, details)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      INSERT INTO institute_teachers (
+        institution_id, username, name, contact, email, assigned_classes, status, joining_date, avatar, details,
+        applicable_start_date, basic_salary, gross_salary, leave_quota_frequency, leave_effective_date
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING id, username, name, contact, email, assigned_classes as "assignedClasses", status, 
                 TO_CHAR(joining_date, 'DD/MM/YYYY') as "joiningDate", avatar
-    `, [session.userId, username, fullName, contact, email, assignedClasses, status, joiningDate, avatar, JSON.stringify(data)])
+    `, [session.userId, username, fullName, contact, email, assignedClasses, status, joiningDate, avatar, JSON.stringify(data),
+        applicableStartDate, basicSalary, grossSalary, leaveQuotaFrequency, leaveEffectiveDate])
 
     return { success: true, data: res.rows[0] }
   } catch (err: any) {
@@ -117,6 +136,11 @@ export async function fetchTeacherById(id: string) {
     const res = await pool.query(`
       SELECT id, username, name, contact, email, assigned_classes as "assignedClasses", status, 
              TO_CHAR(joining_date, 'YYYY-MM-DD') as "joiningDate",
+             TO_CHAR(applicable_start_date, 'YYYY-MM-DD') as "applicableStartDate",
+             basic_salary as "basicSalary",
+             gross_salary as "grossSalary",
+             leave_quota_frequency as "leaveQuotaFrequency",
+             TO_CHAR(leave_effective_date, 'YYYY-MM-DD') as "leaveEffectiveDate",
              avatar, details
       FROM institute_teachers
       WHERE id = $1 AND institution_id = $2
@@ -161,6 +185,11 @@ export async function updateTeacher(id: string, data: any) {
 
     const status = data.personal?.status || data.status || 'Active'
     const joiningDate = data.personal?.joiningDate ? new Date(data.personal.joiningDate) : new Date()
+    const applicableStartDate = data.payroll?.applicableStartDate ? new Date(data.payroll.applicableStartDate) : null
+    const basicSalary = parseFloat(data.payroll?.basicSalary) || null
+    const grossSalary = parseFloat(data.payroll?.grossSalary) || null
+    const leaveQuotaFrequency = data.payroll?.leaveQuotaFrequency || 'Annually'
+    const leaveEffectiveDate = (data.payroll?.leaveEffectiveDate || data.payroll?.casualLeaveFrom) ? new Date(data.payroll.leaveEffectiveDate || data.payroll.casualLeaveFrom) : null
 
     const res = await pool.query(`
       UPDATE institute_teachers 
@@ -173,11 +202,17 @@ export async function updateTeacher(id: string, data: any) {
           joining_date = $7, 
           avatar = $8, 
           details = $9,
+          applicable_start_date = $10,
+          basic_salary = $11,
+          gross_salary = $12,
+          leave_quota_frequency = $13,
+          leave_effective_date = $14,
           updated_at = NOW()
-      WHERE id = $10 AND institution_id = $11
+      WHERE id = $15 AND institution_id = $16
       RETURNING id, username, name, contact, email, assigned_classes as "assignedClasses", status, 
                 TO_CHAR(joining_date, 'DD/MM/YYYY') as "joiningDate", avatar
-    `, [username, fullName, contact, email, assignedClasses, status, joiningDate, avatar, JSON.stringify(data), id, session.userId])
+    `, [username, fullName, contact, email, assignedClasses, status, joiningDate, avatar, JSON.stringify(data),
+        applicableStartDate, basicSalary, grossSalary, leaveQuotaFrequency, leaveEffectiveDate, id, session.userId])
 
     if (res.rows.length === 0) {
       return { success: false, error: 'Teacher not found or unauthorized' }

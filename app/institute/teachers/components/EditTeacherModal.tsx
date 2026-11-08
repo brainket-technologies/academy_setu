@@ -750,10 +750,12 @@ export default function EditTeacherModal({ isOpen, teacherId, onClose, onSuccess
             ...(details.classes || {})
           },
           payroll: {
-            applicableStartDate: details.payroll?.applicableStartDate || '',
-            leaveQuotaFrequency: details.payroll?.leaveQuotaFrequency || 'Annually',
+            applicableStartDate: details.payroll?.applicableStartDate || t.applicableStartDate || '',
+            basicSalary: details.payroll?.basicSalary || (t.basicSalary ? String(t.basicSalary) : ''),
+            grossSalary: details.payroll?.grossSalary || (t.grossSalary ? String(t.grossSalary) : ''),
+            leaveQuotaFrequency: details.payroll?.leaveQuotaFrequency || t.leaveQuotaFrequency || 'Annually',
             customAllowances: details.payroll?.customAllowances || [],
-            leaveEffectiveDate: details.payroll?.leaveEffectiveDate || details.payroll?.casualLeaveFrom || '',
+            leaveEffectiveDate: details.payroll?.leaveEffectiveDate || t.leaveEffectiveDate || details.payroll?.casualLeaveFrom || '',
             ...(details.payroll || {})
           },
           payment: details.payment || {}
