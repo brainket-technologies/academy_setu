@@ -5,7 +5,7 @@ import {
   ArrowLeft, ChevronLeft, ChevronRight, GraduationCap, Users, User,
   BookOpen, FileText, Paperclip, Calendar, Clock, Check, Plus,
   Search, Upload, X, Loader2, Sparkles, Send, Signal, Wifi,
-  Battery, AlertCircle, CheckCircle2, ChevronDown, Download,
+  Battery, AlertCircle, CheckCircle, CheckCircle2, ChevronDown, Download,
   Trash2, Eye, RefreshCw, Filter, Layers, CheckSquare, Square, Star,
   Award, MessageSquare, XCircle, CalendarClock, AlertTriangle, SlidersHorizontal, Folder
 } from 'lucide-react'
@@ -53,7 +53,7 @@ interface HomeworkTaskItem {
   submissionDate: string
   hasAttachment: boolean
   attachmentName?: string
-  status: 'Active' | 'Closed'
+  status: 'Active' | 'Completed' | 'Closed'
   studentsCount?: number
   assignedStudentIds?: string[]
   submissions?: any[]
@@ -354,6 +354,73 @@ function isTaskDueOnDate(task: any, targetDate: Date | string): boolean {
     if (sLow.includes(dd) && monStr && sLow.includes(monStr) && sLow.includes(yyyy)) {
       return true
     }
+  }
+
+  return false
+}
+
+// ── CHECK IF A HOMEWORK TASK IS FULLY REMARKED / COMPLETED ──
+function isTaskCompleted(
+  task: any,
+  taskSubsMap?: Record<string, any>,
+  allStudentsList?: any[]
+): boolean {
+  if (!task) return false
+  if (task.status === 'Completed' || task.status === 'Closed' || task.status === 'Remarked') return true
+
+  // 1. Submissions from DB or memory
+  const dbSubs = Array.isArray(task.submissions) ? task.submissions : []
+  const dbSubmittedCount = typeof task.submittedCount === 'number'
+    ? task.submittedCount
+    : dbSubs.filter((s: any) => s.status === 'Submitted' || s.status === 'Completed').length
+
+  // 2. Submissions from localStorage
+  let localSubmittedCount = 0
+  let localTotal = 0
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(`school_task_subs_${task.id}`)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          localSubmittedCount = parsed.filter((s: any) => s.status === 'Submitted' || s.status === 'Completed').length
+          localTotal = parsed.length
+        }
+      }
+    } catch {}
+  }
+
+  // 3. Submissions from active task map
+  let activeSubsCount = 0
+  if (taskSubsMap && Object.keys(taskSubsMap).length > 0 && task.id) {
+    activeSubsCount = Object.values(taskSubsMap).filter((s: any) => s.status === 'Submitted' || s.status === 'Completed').length
+  }
+
+  const effectiveSubmitted = Math.max(dbSubmittedCount, localSubmittedCount, activeSubsCount)
+
+  // Determine total assigned students
+  let totalAssigned = 0
+  if (Array.isArray(task.assignedStudentIds) && task.assignedStudentIds.length > 0) {
+    totalAssigned = task.assignedStudentIds.length
+  } else if (typeof task.studentsCount === 'number' && task.studentsCount > 0) {
+    totalAssigned = task.studentsCount
+  } else if (allStudentsList && allStudentsList.length > 0) {
+    const classStuds = allStudentsList.filter(s => matchesClassAndSection(s, task.classes, task.section))
+    totalAssigned = classStuds.length > 0 ? classStuds.length : Math.max(1, localTotal, dbSubs.length)
+  } else {
+    totalAssigned = Math.max(1, localTotal, dbSubs.length)
+  }
+
+  if (totalAssigned > 0 && effectiveSubmitted >= totalAssigned) {
+    return true
+  }
+
+  // Also if effectiveSubmitted > 0 and all remaining students are rescheduled
+  const dbResched = typeof task.rescheduledCount === 'number'
+    ? task.rescheduledCount
+    : dbSubs.filter((s: any) => s.status === 'Rescheduled').length
+  if (totalAssigned > 0 && (effectiveSubmitted + dbResched) >= totalAssigned && effectiveSubmitted > 0) {
+    return true
   }
 
   return false
@@ -1289,17 +1356,37 @@ function RemarkHomeworkContent() {
         const classTasksOnDate = allClassTasks.filter(t => isTaskDueOnDate(t, selectedCalendarDate))
 
         let completed = 0
+        let dueRemarks = 0
         if (classTasksOnDate.length > 0) {
           classTasksOnDate.forEach(t => {
+            const isComp = isTaskCompleted(t, undefined, allStudents)
+            const dbSubs = Array.isArray(t.submissions) ? t.submissions : []
+            const dbSubmitted = typeof t.submittedCount === 'number'
+              ? t.submittedCount
+              : dbSubs.filter((s: any) => s.status === 'Submitted' || s.status === 'Completed').length
+
+            let localSubmitted = 0
+            let localTotal = 0
             try {
               const raw = localStorage.getItem(`school_task_subs_${t.id}`)
               if (raw) {
                 const parsed = JSON.parse(raw)
-                if (Array.isArray(parsed)) {
-                  completed += parsed.filter((s: any) => s.status === 'Submitted' || s.status === 'Completed').length
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  localSubmitted = parsed.filter((s: any) => s.status === 'Submitted' || s.status === 'Completed').length
+                  localTotal = parsed.length
                 }
               }
             } catch (e) {}
+
+            const effectiveSubmitted = Math.max(dbSubmitted, localSubmitted)
+            const assignedCount = Array.isArray(t.assignedStudentIds) && t.assignedStudentIds.length > 0
+              ? t.assignedStudentIds.length
+              : (item.count || localTotal || 1)
+
+            completed += effectiveSubmitted
+            if (!isComp) {
+              dueRemarks += Math.max(0, assignedCount - effectiveSubmitted)
+            }
           })
         }
 
@@ -1312,26 +1399,6 @@ function RemarkHomeworkContent() {
             .filter(Boolean)
         )
         const totalSubjects = subjectsOnDate.size
-
-        let dueRemarks = 0
-        classTasksOnDate.forEach(t => {
-          try {
-            const raw = localStorage.getItem(`school_task_subs_${t.id}`)
-            if (raw) {
-              const parsed = JSON.parse(raw)
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                const submittedCount = parsed.filter((s: any) => s.status === 'Submitted').length
-                dueRemarks += Math.max(0, parsed.length - submittedCount)
-                return
-              }
-            }
-          } catch (e) {}
-
-          const assignedCount = Array.isArray(t.assignedStudentIds) && t.assignedStudentIds.length > 0
-            ? t.assignedStudentIds.length
-            : item.count
-          dueRemarks += assignedCount
-        })
 
         list.push({
           id: `${item.className}-${item.section}`,
@@ -1720,6 +1787,63 @@ function RemarkHomeworkContent() {
         }
       } catch (e) {}
 
+      // Update tasks & activeTask in memory
+      setTasks(prevTasks => {
+        const updated = prevTasks.map(t => {
+          if (t.id !== activeTask.id) return t
+          const existingSubs = Array.isArray(t.submissions) ? [...t.submissions] : []
+          const subIdx = existingSubs.findIndex(s => String(s.studentId || s.student_id) === String(stId))
+          const newSubItem = {
+            studentId: stId,
+            studentName: completeModalStudent.name,
+            status: 'Submitted' as const,
+            remark: reviewText,
+            rating: completeRating
+          }
+          if (subIdx >= 0) existingSubs[subIdx] = { ...existingSubs[subIdx], ...newSubItem }
+          else existingSubs.push(newSubItem)
+
+          const submittedCount = existingSubs.filter(s => s.status === 'Submitted').length
+          const totalCount = t.studentsCount || existingSubs.length || 1
+          const isNowCompleted = submittedCount >= totalCount
+
+          return {
+            ...t,
+            status: isNowCompleted ? 'Completed' as const : t.status,
+            submissions: existingSubs,
+            submittedCount
+          }
+        })
+        try {
+          localStorage.setItem('school_homework_tasks', JSON.stringify(updated))
+        } catch {}
+        return updated
+      })
+
+      setActiveTask(prev => {
+        if (!prev) return prev
+        const existingSubs = Array.isArray(prev.submissions) ? [...prev.submissions] : []
+        const subIdx = existingSubs.findIndex(s => String(s.studentId || s.student_id) === String(stId))
+        const newSubItem = {
+          studentId: stId,
+          studentName: completeModalStudent.name,
+          status: 'Submitted' as const,
+          remark: reviewText,
+          rating: completeRating
+        }
+        if (subIdx >= 0) existingSubs[subIdx] = { ...existingSubs[subIdx], ...newSubItem }
+        else existingSubs.push(newSubItem)
+        const submittedCount = existingSubs.filter(s => s.status === 'Submitted').length
+        const totalCount = prev.studentsCount || existingSubs.length || 1
+        const isNowCompleted = submittedCount >= totalCount
+        return {
+          ...prev,
+          status: isNowCompleted ? 'Completed' as const : prev.status,
+          submissions: existingSubs,
+          submittedCount
+        }
+      })
+
       showToast(`Completed evaluation saved for ${completeModalStudent.name}!`, 'success')
       setSessionActionedIds(prev => Array.from(new Set([...prev, stId])))
       setCompleteModalStudent(null)
@@ -2019,16 +2143,47 @@ function RemarkHomeworkContent() {
               if (subIdx >= 0) existingSubs[subIdx] = { ...existingSubs[subIdx], ...newSubItem }
               else existingSubs.push(newSubItem)
             })
+            const submittedCount = existingSubs.filter(s => s.status === 'Submitted').length
+            const totalCount = t.studentsCount || existingSubs.length || 1
+            const isNowCompleted = submittedCount >= totalCount
+
             return {
               ...t,
+              status: isNowCompleted ? 'Completed' as const : t.status,
               submissions: existingSubs,
-              submittedCount: existingSubs.filter(s => s.status === 'Submitted').length
+              submittedCount
             }
           })
           try {
             localStorage.setItem('school_homework_tasks', JSON.stringify(updated))
           } catch {}
           return updated
+        })
+
+        setActiveTask(prev => {
+          if (!prev) return prev
+          const existingSubs = Array.isArray(prev.submissions) ? [...prev.submissions] : []
+          selectedStudents.forEach(st => {
+            const subIdx = existingSubs.findIndex(s => String(s.studentId || s.student_id) === String(st.studentId))
+            const newSubItem = {
+              studentId: st.studentId,
+              studentName: st.name,
+              status: 'Submitted' as const,
+              remark: text,
+              rating: bulkRating
+            }
+            if (subIdx >= 0) existingSubs[subIdx] = { ...existingSubs[subIdx], ...newSubItem }
+            else existingSubs.push(newSubItem)
+          })
+          const submittedCount = existingSubs.filter(s => s.status === 'Submitted').length
+          const totalCount = prev.studentsCount || existingSubs.length || 1
+          const isNowCompleted = submittedCount >= totalCount
+          return {
+            ...prev,
+            status: isNowCompleted ? 'Completed' as const : prev.status,
+            submissions: existingSubs,
+            submittedCount
+          }
         })
 
         showToast(`Marked ${selectedStudents.length} students as Completed!`, 'success')
@@ -2618,15 +2773,39 @@ function RemarkHomeworkContent() {
                 Remark Due Date: <strong className="text-slate-800 dark:text-white">{formatDisplayDate(selectedCalendarDate)}</strong>
               </span>
 
-              {tasks.some(t => normalizeDateStr(t.submissionDate) === toDateIso(selectedCalendarDate)) ? (
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 dark:bg-teal-950/40 text-[#0f766e] dark:text-teal-300 border border-teal-200/80">
-                  {tasks.filter(t => normalizeDateStr(t.submissionDate) === toDateIso(selectedCalendarDate)).length} Task(s) Due
-                </span>
-              ) : (
-                <span className="text-[11px] text-slate-400 font-medium">
-                  No task due on this date
-                </span>
-              )}
+              {(() => {
+                const tasksOnDate = tasks.filter(t => isTaskDueOnDate(t, selectedCalendarDate))
+                const completedOnDate = tasksOnDate.filter(t => isTaskCompleted(t, taskSubmissions, allStudents)).length
+                const pendingOnDate = tasksOnDate.length - completedOnDate
+
+                if (tasksOnDate.length === 0) {
+                  return (
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      No task due on this date
+                    </span>
+                  )
+                }
+                if (pendingOnDate === 0 && completedOnDate > 0) {
+                  return (
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3 stroke-[2.5]" />
+                      <span>{completedOnDate} Task(s) Remarked Completed</span>
+                    </span>
+                  )
+                }
+                return (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 dark:bg-teal-950/40 text-[#0f766e] dark:text-teal-300 border border-teal-200/80">
+                      {pendingOnDate} Task(s) Due
+                    </span>
+                    {completedOnDate > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        {completedOnDate} Completed
+                      </span>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           </div>
 
@@ -2700,9 +2879,16 @@ function RemarkHomeworkContent() {
                           {cls.className} - Section {cls.section}
                         </h3>
                         {cls.tasksCount > 0 ? (
-                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 dark:bg-teal-950/40 text-[#0f766e] dark:text-teal-300 border border-teal-200">
-                            {cls.tasksCount} Task{cls.tasksCount > 1 ? 's' : ''} Due
-                          </span>
+                          cls.dueRemarks === 0 ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 flex items-center gap-1">
+                              <CheckCircle className="w-3 h-3 stroke-[2.5]" />
+                              <span>Remarked Completed</span>
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 dark:bg-teal-950/40 text-[#0f766e] dark:text-teal-300 border border-teal-200">
+                              {cls.dueRemarks} Remark{cls.dueRemarks > 1 ? 's' : ''} Due
+                            </span>
+                          )
                         ) : (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 dark:bg-slate-700/60 text-slate-400">
                             No Task Due
@@ -2908,11 +3094,14 @@ function RemarkHomeworkContent() {
             <div className="space-y-3.5 w-full">
               {displayedSubjectCards.map(sub => {
                 const selectedIso = toDateIso(selectedCalendarDate)
-                const tasksDueCount = tasks.filter(t => 
+                const subjectTasksOnDate = tasks.filter(t => 
                   matchesClassAndSection({ class: t.classes, section: t.section }, selectedClass, selectedSection) &&
                   t.subject.toLowerCase().trim() === sub.subjectName.toLowerCase().trim() &&
                   isTaskDueOnDate(t, selectedCalendarDate)
-                ).length
+                )
+
+                const completedTasksCount = subjectTasksOnDate.filter(t => isTaskCompleted(t, taskSubmissions, allStudents)).length
+                const pendingTasksCount = subjectTasksOnDate.length - completedTasksCount
 
                 return (
                   <div
@@ -2929,11 +3118,31 @@ function RemarkHomeworkContent() {
                         <h4 className={`text-sm md:text-base font-black ${sub.textColor} dark:text-white leading-tight`}>
                           Subject : {sub.subjectName}
                         </h4>
-                        {tasksDueCount > 0 ? (
-                          <span className="px-2 py-0.5 rounded-lg bg-[#0f766e] text-white text-[10px] font-bold">
-                            {tasksDueCount} Task{tasksDueCount > 1 ? 's' : ''} Due
-                          </span>
-                        ) : null}
+
+                        {/* Status Pills: Remarked Completed vs Tasks Due */}
+                        {subjectTasksOnDate.length > 0 && (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {pendingTasksCount === 0 && completedTasksCount > 0 ? (
+                              <span className="px-2.5 py-0.5 rounded-lg bg-emerald-600 text-white text-[10px] font-bold flex items-center gap-1 shadow-2xs">
+                                <CheckCircle className="w-3 h-3 stroke-[2.5]" />
+                                <span>Remarked Completed</span>
+                              </span>
+                            ) : null}
+
+                            {pendingTasksCount > 0 ? (
+                              <span className="px-2 py-0.5 rounded-lg bg-[#0f766e] text-white text-[10px] font-bold">
+                                {pendingTasksCount} Task{pendingTasksCount > 1 ? 's' : ''} Due
+                              </span>
+                            ) : null}
+
+                            {pendingTasksCount > 0 && completedTasksCount > 0 ? (
+                              <span className="px-2.5 py-0.5 rounded-lg bg-emerald-600 text-white text-[10px] font-bold flex items-center gap-1 shadow-2xs">
+                                <CheckCircle className="w-3 h-3 stroke-[2.5]" />
+                                <span>{completedTasksCount} Remarked</span>
+                              </span>
+                            ) : null}
+                          </div>
+                        )}
                       </div>
                       <span className={`inline-block px-3 py-1 rounded-xl text-xs font-bold ${sub.badgeColor} dark:bg-slate-700 dark:text-slate-200 shadow-2xs`}>
                         Teacher : {sub.teacherName}
@@ -3067,14 +3276,19 @@ function RemarkHomeworkContent() {
                 >
                   {/* Top Badges Row */}
                   <div className="flex items-center justify-between">
-                    <span className={`px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 ${
-                      task.status === 'Active'
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80'
-                        : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${task.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
-                      {task.status}
-                    </span>
+                    {(() => {
+                      const isCompleted = isTaskCompleted(task, taskSubmissions, allStudents)
+                      return (
+                        <span className={`px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 ${
+                          isCompleted
+                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80'
+                            : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/80'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                          {isCompleted ? 'Completed' : 'Active'}
+                        </span>
+                      )
+                    })()}
 
                     {task.hasAttachment && (
                       <span className="px-3 py-1 rounded-full bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200/80 text-[11px] font-bold flex items-center gap-1">
@@ -3220,6 +3434,12 @@ function RemarkHomeworkContent() {
               <span className="font-bold text-[#0f766e] dark:text-teal-300 flex items-center gap-2 truncate">
                 <FileText className="w-4 h-4 shrink-0" />
                 <span className="truncate">{activeTask.title}</span>
+                {isTaskCompleted(activeTask, taskSubmissions, allStudents) && (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-[10px] font-black shrink-0 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3 stroke-[2.5]" />
+                    <span>Completed</span>
+                  </span>
+                )}
               </span>
               <div className="flex items-center gap-1.5 shrink-0">
                 <span className="text-orange-600 dark:text-orange-400 font-bold">

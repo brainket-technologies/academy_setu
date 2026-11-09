@@ -57,11 +57,36 @@ export async function fetchHomeworkTasks(classes?: string, section?: string, sub
 
   try {
     await ensureHomeworkTables()
+
+    // Auto-sync completed tasks: if all submissions are 'Submitted', mark task as 'Completed'
+    try {
+      await pool.query(`
+        UPDATE institute_homework_tasks t
+        SET status = 'Completed', updated_at = NOW()
+        WHERE t.institution_id = $1 AND t.status != 'Completed'
+          AND (
+            SELECT COUNT(*) FROM institute_homework_submissions s
+            WHERE s.institution_id = t.institution_id AND s.task_id = t.id AND s.status != 'Submitted'
+          ) = 0
+          AND (
+            SELECT COUNT(*) FROM institute_homework_submissions s
+            WHERE s.institution_id = t.institution_id AND s.task_id = t.id AND s.status = 'Submitted'
+          ) > 0
+      `, [session.userId])
+    } catch {}
+
     let query = `
       SELECT t.id, t.title, t.description, t.subject, t.classes, t.section, t.assigned_by as "assignedBy",
              t.assign_date as "assignDate", t.submission_date as "submissionDate",
              t.has_attachment as "hasAttachment", t.attachment_name as "attachmentName",
-             t.status, t.created_at as "createdAt",
+             CASE
+               WHEN t.status = 'Completed' THEN 'Completed'
+               WHEN COUNT(CASE WHEN s.status = 'Submitted' THEN 1 END) > 0
+                AND COUNT(CASE WHEN s.status != 'Submitted' THEN 1 END) = 0
+                THEN 'Completed'
+               ELSE t.status
+             END as status,
+             t.created_at as "createdAt",
              COUNT(s.student_id)::int as "totalSubmissionsCount",
              COUNT(CASE WHEN s.status = 'Submitted' THEN 1 END)::int as "submittedCount",
              COUNT(CASE WHEN s.status = 'Rescheduled' THEN 1 END)::int as "rescheduledCount",
@@ -229,6 +254,27 @@ export async function updateStudentTaskSubmission(
       submittedAt
     ])
 
+    // Auto-update task status: if all submissions are 'Submitted', mark task as 'Completed'
+    try {
+      await pool.query(`
+        UPDATE institute_homework_tasks
+        SET status = CASE
+          WHEN (
+            SELECT COUNT(*)
+            FROM institute_homework_submissions
+            WHERE institution_id = $1 AND task_id = $2 AND status != 'Submitted'
+          ) = 0 AND (
+            SELECT COUNT(*)
+            FROM institute_homework_submissions
+            WHERE institution_id = $1 AND task_id = $2 AND status = 'Submitted'
+          ) > 0 THEN 'Completed'
+          ELSE 'Active'
+        END,
+        updated_at = NOW()
+        WHERE institution_id = $1 AND id = $2
+      `, [session.userId, taskId])
+    } catch {}
+
     return { success: true }
   } catch (err: any) {
     return { success: false, error: err.message }
@@ -303,6 +349,27 @@ export async function updateStudentRemark(
       submittedAt
     ])
 
+    // Auto-update task status: if all submissions are 'Submitted', mark task as 'Completed'
+    try {
+      await pool.query(`
+        UPDATE institute_homework_tasks
+        SET status = CASE
+          WHEN (
+            SELECT COUNT(*)
+            FROM institute_homework_submissions
+            WHERE institution_id = $1 AND task_id = $2 AND status != 'Submitted'
+          ) = 0 AND (
+            SELECT COUNT(*)
+            FROM institute_homework_submissions
+            WHERE institution_id = $1 AND task_id = $2 AND status = 'Submitted'
+          ) > 0 THEN 'Completed'
+          ELSE 'Active'
+        END,
+        updated_at = NOW()
+        WHERE institution_id = $1 AND id = $2
+      `, [session.userId, taskId])
+    } catch {}
+
     return { success: true }
   } catch (err: any) {
     return { success: false, error: err.message }
@@ -372,6 +439,27 @@ export async function bulkUpdateStudentTaskSubmissions(
         submittedAt
       ])
     }
+
+    // Auto-update task status: if all submissions are 'Submitted', mark task as 'Completed'
+    try {
+      await pool.query(`
+        UPDATE institute_homework_tasks
+        SET status = CASE
+          WHEN (
+            SELECT COUNT(*)
+            FROM institute_homework_submissions
+            WHERE institution_id = $1 AND task_id = $2 AND status != 'Submitted'
+          ) = 0 AND (
+            SELECT COUNT(*)
+            FROM institute_homework_submissions
+            WHERE institution_id = $1 AND task_id = $2 AND status = 'Submitted'
+          ) > 0 THEN 'Completed'
+          ELSE 'Active'
+        END,
+        updated_at = NOW()
+        WHERE institution_id = $1 AND id = $2
+      `, [session.userId, taskId])
+    } catch {}
 
     return { success: true, count: students.length }
   } catch (err: any) {
@@ -465,6 +553,24 @@ export async function rescheduleHomeworkTask(
       WHERE institution_id = $3 AND task_id = $4
     `, [newSubmissionDate, rescheduleReason || null, session.userId, taskId])
 
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+// 9. Update task status explicitly (Active / Completed / Closed)
+export async function updateHomeworkTaskStatus(taskId: string, status: 'Active' | 'Completed' | 'Closed') {
+  const session = await getSession('institute_session')
+  if (!session?.userId) return { success: false, error: 'Unauthorized' }
+
+  try {
+    await ensureHomeworkTables()
+    await pool.query(`
+      UPDATE institute_homework_tasks
+      SET status = $1, updated_at = NOW()
+      WHERE institution_id = $2 AND id = $3
+    `, [status, session.userId, taskId])
     return { success: true }
   } catch (err: any) {
     return { success: false, error: err.message }

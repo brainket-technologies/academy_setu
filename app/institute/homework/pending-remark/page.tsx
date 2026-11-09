@@ -77,8 +77,13 @@ interface HomeworkTaskItem {
   submissionDate: string
   hasAttachment: boolean
   attachmentName?: string
-  status: 'Active' | 'Closed'
+  status: 'Active' | 'Completed' | 'Closed'
   studentsCount?: number
+  assignedStudentIds?: string[]
+  submissions?: any[]
+  rescheduledCount?: number
+  submittedCount?: number
+  rescheduledDate?: string
 }
 
 interface StudentSubmissionItem {
@@ -273,6 +278,73 @@ function matchesClassAndSection(student: any, cardClassName: string, cardSection
   if (!cardSecNorm || cardSecNorm === 'all') return true
   if (studentSecNorm) return studentSecNorm === cardSecNorm
   return cardSecNorm === 'a' || cardSecNorm === ''
+}
+
+// ── CHECK IF A HOMEWORK TASK IS FULLY REMARKED / COMPLETED ──
+function isTaskCompleted(
+  task: any,
+  taskSubsMap?: Record<string, any>,
+  allStudentsList?: any[]
+): boolean {
+  if (!task) return false
+  if (task.status === 'Completed' || task.status === 'Closed' || task.status === 'Remarked') return true
+
+  // 1. Submissions from DB or memory
+  const dbSubs = Array.isArray(task.submissions) ? task.submissions : []
+  const dbSubmittedCount = typeof task.submittedCount === 'number'
+    ? task.submittedCount
+    : dbSubs.filter((s: any) => s.status === 'Submitted' || s.status === 'Completed').length
+
+  // 2. Submissions from localStorage
+  let localSubmittedCount = 0
+  let localTotal = 0
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(`school_task_subs_${task.id}`)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          localSubmittedCount = parsed.filter((s: any) => s.status === 'Submitted' || s.status === 'Completed').length
+          localTotal = parsed.length
+        }
+      }
+    } catch {}
+  }
+
+  // 3. Submissions from active task map
+  let activeSubsCount = 0
+  if (taskSubsMap && Object.keys(taskSubsMap).length > 0 && task.id) {
+    activeSubsCount = Object.values(taskSubsMap).filter((s: any) => s.status === 'Submitted' || s.status === 'Completed').length
+  }
+
+  const effectiveSubmitted = Math.max(dbSubmittedCount, localSubmittedCount, activeSubsCount)
+
+  // Determine total assigned students
+  let totalAssigned = 0
+  if (Array.isArray(task.assignedStudentIds) && task.assignedStudentIds.length > 0) {
+    totalAssigned = task.assignedStudentIds.length
+  } else if (typeof task.studentsCount === 'number' && task.studentsCount > 0) {
+    totalAssigned = task.studentsCount
+  } else if (allStudentsList && allStudentsList.length > 0) {
+    const classStuds = allStudentsList.filter(s => matchesClassAndSection(s, task.classes, task.section))
+    totalAssigned = classStuds.length > 0 ? classStuds.length : Math.max(1, localTotal, dbSubs.length)
+  } else {
+    totalAssigned = Math.max(1, localTotal, dbSubs.length)
+  }
+
+  if (totalAssigned > 0 && effectiveSubmitted >= totalAssigned) {
+    return true
+  }
+
+  // Also if effectiveSubmitted > 0 and all remaining students are rescheduled
+  const dbResched = typeof task.rescheduledCount === 'number'
+    ? task.rescheduledCount
+    : dbSubs.filter((s: any) => s.status === 'Rescheduled').length
+  if (totalAssigned > 0 && (effectiveSubmitted + dbResched) >= totalAssigned && effectiveSubmitted > 0) {
+    return true
+  }
+
+  return false
 }
 
 export default function PendingRemarkHomeworkPage() {
@@ -1426,6 +1498,63 @@ export default function PendingRemarkHomeworkPage() {
 
       setRescheduledSubmissions(prev => prev.filter(r => !(r.taskId === activeTask.id && r.studentId === stId)))
 
+      // Update tasks & activeTask in memory
+      setTasks(prevTasks => {
+        const updated = prevTasks.map(t => {
+          if (t.id !== activeTask.id) return t
+          const existingSubs = Array.isArray(t.submissions) ? [...t.submissions] : []
+          const subIdx = existingSubs.findIndex(s => String(s.studentId || s.student_id) === String(stId))
+          const newSubItem = {
+            studentId: stId,
+            studentName: completeModalStudent.name,
+            status: 'Submitted' as const,
+            remark: reviewText,
+            rating: completeRating
+          }
+          if (subIdx >= 0) existingSubs[subIdx] = { ...existingSubs[subIdx], ...newSubItem }
+          else existingSubs.push(newSubItem)
+
+          const submittedCount = existingSubs.filter(s => s.status === 'Submitted').length
+          const totalCount = t.studentsCount || existingSubs.length || 1
+          const isNowCompleted = submittedCount >= totalCount
+
+          return {
+            ...t,
+            status: isNowCompleted ? 'Completed' as const : t.status,
+            submissions: existingSubs,
+            submittedCount
+          }
+        })
+        try {
+          localStorage.setItem('school_homework_tasks', JSON.stringify(updated))
+        } catch {}
+        return updated
+      })
+
+      setActiveTask(prev => {
+        if (!prev) return prev
+        const existingSubs = Array.isArray(prev.submissions) ? [...prev.submissions] : []
+        const subIdx = existingSubs.findIndex(s => String(s.studentId || s.student_id) === String(stId))
+        const newSubItem = {
+          studentId: stId,
+          studentName: completeModalStudent.name,
+          status: 'Submitted' as const,
+          remark: reviewText,
+          rating: completeRating
+        }
+        if (subIdx >= 0) existingSubs[subIdx] = { ...existingSubs[subIdx], ...newSubItem }
+        else existingSubs.push(newSubItem)
+        const submittedCount = existingSubs.filter(s => s.status === 'Submitted').length
+        const totalCount = prev.studentsCount || existingSubs.length || 1
+        const isNowCompleted = submittedCount >= totalCount
+        return {
+          ...prev,
+          status: isNowCompleted ? 'Completed' as const : prev.status,
+          submissions: existingSubs,
+          submittedCount
+        }
+      })
+
       showToast(`Completed evaluation saved for ${completeModalStudent.name}!`, 'success')
       setSessionActionedIds(prev => Array.from(new Set([...prev, stId])))
       setCompleteModalStudent(null)
@@ -1636,6 +1765,64 @@ export default function PendingRemarkHomeworkPage() {
             localStorage.setItem(`school_task_subs_${activeTask.id}`, JSON.stringify(Object.values(next)))
           } catch {}
           return next
+        })
+
+        setTasks(prevTasks => {
+          const updated = prevTasks.map(t => {
+            if (t.id !== activeTask.id) return t
+            const existingSubs = Array.isArray(t.submissions) ? [...t.submissions] : []
+            selectedStudents.forEach(st => {
+              const subIdx = existingSubs.findIndex(s => String(s.studentId || s.student_id) === String(st.studentId))
+              const newSubItem = {
+                studentId: st.studentId,
+                studentName: st.name,
+                status: 'Submitted' as const,
+                remark: text,
+                rating: bulkRating
+              }
+              if (subIdx >= 0) existingSubs[subIdx] = { ...existingSubs[subIdx], ...newSubItem }
+              else existingSubs.push(newSubItem)
+            })
+            const submittedCount = existingSubs.filter(s => s.status === 'Submitted').length
+            const totalCount = t.studentsCount || existingSubs.length || 1
+            const isNowCompleted = submittedCount >= totalCount
+            return {
+              ...t,
+              status: isNowCompleted ? 'Completed' as const : t.status,
+              submissions: existingSubs,
+              submittedCount
+            }
+          })
+          try {
+            localStorage.setItem('school_homework_tasks', JSON.stringify(updated))
+          } catch {}
+          return updated
+        })
+
+        setActiveTask(prev => {
+          if (!prev) return prev
+          const existingSubs = Array.isArray(prev.submissions) ? [...prev.submissions] : []
+          selectedStudents.forEach(st => {
+            const subIdx = existingSubs.findIndex(s => String(s.studentId || s.student_id) === String(st.studentId))
+            const newSubItem = {
+              studentId: st.studentId,
+              studentName: st.name,
+              status: 'Submitted' as const,
+              remark: text,
+              rating: bulkRating
+            }
+            if (subIdx >= 0) existingSubs[subIdx] = { ...existingSubs[subIdx], ...newSubItem }
+            else existingSubs.push(newSubItem)
+          })
+          const submittedCount = existingSubs.filter(s => s.status === 'Submitted').length
+          const totalCount = prev.studentsCount || existingSubs.length || 1
+          const isNowCompleted = submittedCount >= totalCount
+          return {
+            ...prev,
+            status: isNowCompleted ? 'Completed' as const : prev.status,
+            submissions: existingSubs,
+            submittedCount
+          }
         })
 
         showToast(`Marked ${selectedStudents.length} students as Completed!`, 'success')
@@ -2556,14 +2743,19 @@ export default function PendingRemarkHomeworkPage() {
                 >
                   {/* Status Pills Row matching Screenshot 3 */}
                   <div className="flex items-center justify-between">
-                    <span className={`px-3 py-1 rounded-full text-[11px] font-black inline-flex items-center gap-1.5 ${
-                      task.status === 'Active'
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200'
-                        : 'bg-slate-100 text-slate-600 border border-slate-200'
-                    }`}>
-                      <span className={`w-2 h-2 rounded-full ${task.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
-                      {task.status}
-                    </span>
+                    {(() => {
+                      const isCompleted = isTaskCompleted(task, submissions, allStudents)
+                      return (
+                        <span className={`px-3 py-1 rounded-full text-[11px] font-black inline-flex items-center gap-1.5 ${
+                          isCompleted
+                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200'
+                            : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200'
+                        }`}>
+                          <span className={`w-2 h-2 rounded-full ${isCompleted ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                          {isCompleted ? 'Completed' : 'Active'}
+                        </span>
+                      )
+                    })()}
 
                     {task.hasAttachment && (
                       <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 flex items-center gap-1">
@@ -2710,6 +2902,12 @@ export default function PendingRemarkHomeworkPage() {
               <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200 truncate">
                 <FileText className="w-4 h-4 text-teal-600 shrink-0" />
                 <span className="truncate">{activeTask.title}</span>
+                {isTaskCompleted(activeTask, submissions, allStudents) && (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-[10px] font-black shrink-0 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3 stroke-[2.5]" />
+                    <span>Completed</span>
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className="text-slate-400 font-semibold">
