@@ -44,9 +44,27 @@ async function ensureHomeworkTables() {
       CONSTRAINT uq_inst_task_student UNIQUE (institution_id, task_id, student_id)
     );
     CREATE INDEX IF NOT EXISTS idx_inst_hw_sub_task ON institute_homework_submissions(institution_id, task_id);
+    
+    -- Ensure all columns on institute_homework_tasks exist
+    ALTER TABLE institute_homework_tasks ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active';
+    ALTER TABLE institute_homework_tasks ADD COLUMN IF NOT EXISTS has_attachment BOOLEAN DEFAULT FALSE;
+    ALTER TABLE institute_homework_tasks ADD COLUMN IF NOT EXISTS attachment_name TEXT;
+    ALTER TABLE institute_homework_tasks ADD COLUMN IF NOT EXISTS assigned_by VARCHAR(255);
+    ALTER TABLE institute_homework_tasks ADD COLUMN IF NOT EXISTS assign_date VARCHAR(50);
+    ALTER TABLE institute_homework_tasks ADD COLUMN IF NOT EXISTS submission_date VARCHAR(50);
+    ALTER TABLE institute_homework_tasks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+    -- Ensure all columns on institute_homework_submissions exist
+    ALTER TABLE institute_homework_submissions ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Pending';
+    ALTER TABLE institute_homework_submissions ADD COLUMN IF NOT EXISTS remark TEXT;
     ALTER TABLE institute_homework_submissions ADD COLUMN IF NOT EXISTS rating INT DEFAULT 5;
     ALTER TABLE institute_homework_submissions ADD COLUMN IF NOT EXISTS rescheduled_date VARCHAR(50);
     ALTER TABLE institute_homework_submissions ADD COLUMN IF NOT EXISTS attachment_name TEXT;
+    ALTER TABLE institute_homework_submissions ADD COLUMN IF NOT EXISTS student_name TEXT;
+    ALTER TABLE institute_homework_submissions ADD COLUMN IF NOT EXISTS admission_no TEXT;
+    ALTER TABLE institute_homework_submissions ADD COLUMN IF NOT EXISTS roll_no TEXT;
+    ALTER TABLE institute_homework_submissions ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMPTZ;
+    ALTER TABLE institute_homework_submissions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
   `)
 }
 
