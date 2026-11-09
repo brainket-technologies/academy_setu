@@ -78,7 +78,7 @@ export function parseStudentClassAndSection(student: any): { className: string; 
   if (!student) return { className: '', section: 'A' }
 
   // 1. Direct fields
-  let rawClass = String(student.class || student.className || student.current_class || '').trim()
+  let rawClass = String(student.classes || student.class || student.className || student.current_class || '').trim()
   let rawSection = String(student.section || student.sectionName || student.section_name || student.current_section || '').trim()
 
   // 2. Combined field parsing (e.g. "Class 1 (A)", "Class 1 - Section A", "Class 1 (Section A)")
@@ -785,7 +785,7 @@ export default function HomeworkAssignPage() {
     }
   }, [])
 
-  // ── Class Cards for Page 1 (Built ONLY from Real Masters & Real Students) ──
+  // ── Class Cards for Page 1 (Built from Masters, Real Students, Tasks & Timetables) ──
   const classCards = useMemo(() => {
     const list: any[] = []
     const parseLocal = (k: string) => {
@@ -799,65 +799,101 @@ export default function HomeworkAssignPage() {
     const rawClasses = parseLocal('school_masters_classes')
     const mergedClasses = Array.isArray(classesData) && classesData.length > 0 ? classesData : rawClasses
 
+    type ClassEntry = {
+      className: string
+      sections: Set<string>
+      masterData?: any
+    }
+    const classMap = new Map<string, ClassEntry>()
+
+    // 1. From masters classes
     if (Array.isArray(mergedClasses) && mergedClasses.length > 0) {
       mergedClasses.forEach((c: any) => {
         if (c.deleted) return
         const cName = c.className || c.name || ''
         if (!cName) return
-        const sections = Array.isArray(c.sections) && c.sections.length > 0
-          ? c.sections.map((s: any) => (typeof s === 'string' ? s : s?.sectionName || 'A'))
-          : ['A']
-
-        sections.forEach((sec: string) => {
-          const matchedStudents = allStudents.filter(s => matchesClassAndSection(s, cName, sec))
-          const matchedCount = matchedStudents.length
-          const masterCount = Number(c.totalStudents ?? c.studentsCount ?? c.total_students ?? 0)
-          const studentCount = allStudents.length > 0 ? matchedCount : (matchedCount > 0 ? matchedCount : masterCount)
-
-          const rawTeacher = c.classTeacher || c.class_teacher || ''
-          const teacher = (rawTeacher && rawTeacher !== 'Not Assigned')
-            ? rawTeacher
-            : (findClassTeacher(allTeachers, cName, sec) || 'Not Assigned')
-
-          list.push({
-            id: `${cName}-${sec}`,
-            className: cName,
-            section: sec,
-            classTeacher: teacher,
-            studentsCount: studentCount
-          })
-        })
-      })
-    }
-
-    // If classes in masters is empty, check if students have class names assigned
-    if (list.length === 0 && allStudents.length > 0) {
-      const classSecMap = new Map<string, { className: string; section: string; count: number }>()
-      allStudents.forEach(st => {
-        const { className: cn, section: sn } = parseStudentClassAndSection(st)
-        const effectiveClass = cn || 'Class 1'
-        const effectiveSec = sn || 'A'
-        const key = `${effectiveClass}-${effectiveSec}`
-        if (!classSecMap.has(key)) {
-          classSecMap.set(key, { className: effectiveClass, section: effectiveSec, count: 0 })
+        const normKey = normalizeClassKey(cName)
+        if (!classMap.has(normKey)) {
+          classMap.set(normKey, { className: cName, sections: new Set(), masterData: c })
         }
-        classSecMap.get(key)!.count++
-      })
-
-      classSecMap.forEach(item => {
-        const teacher = findClassTeacher(allTeachers, item.className, item.section) || 'Not Assigned'
-        list.push({
-          id: `${item.className}-${item.section}`,
-          className: item.className,
-          section: item.section,
-          classTeacher: teacher,
-          studentsCount: item.count
+        const entry = classMap.get(normKey)!
+        if (!entry.masterData) entry.masterData = c
+        const rawSecs = Array.isArray(c.sections) && c.sections.length > 0 ? c.sections : ['A']
+        rawSecs.forEach((s: any) => {
+          const sName = typeof s === 'string' ? s : s?.sectionName || 'A'
+          const clean = sName.replace(/^section\s+/i, '').replace(/^sec\s+/i, '').replace(/[-_]/g, '').trim().toUpperCase() || 'A'
+          entry.sections.add(clean)
         })
       })
     }
+
+    // 2. From all students
+    allStudents.forEach(st => {
+      const { className: cn, section: sn } = parseStudentClassAndSection(st)
+      if (cn) {
+        const normKey = normalizeClassKey(cn)
+        if (!classMap.has(normKey)) {
+          classMap.set(normKey, { className: cn, sections: new Set(['A']) })
+        }
+        const clean = sn.replace(/^section\s+/i, '').replace(/^sec\s+/i, '').replace(/[-_]/g, '').trim().toUpperCase() || 'A'
+        classMap.get(normKey)!.sections.add(clean)
+      }
+    })
+
+    // 3. From tasks
+    tasks.forEach(t => {
+      const cName = t.classes || ''
+      if (cName) {
+        const normKey = normalizeClassKey(cName)
+        if (!classMap.has(normKey)) {
+          classMap.set(normKey, { className: cName, sections: new Set(['A']) })
+        }
+        const clean = (t.section || 'A').replace(/^section\s+/i, '').replace(/^sec\s+/i, '').replace(/[-_]/g, '').trim().toUpperCase() || 'A'
+        classMap.get(normKey)!.sections.add(clean)
+      }
+    })
+
+    // 4. From timetables
+    timetables.forEach(tt => {
+      const cName = tt.classes || tt.className || ''
+      if (cName) {
+        const normKey = normalizeClassKey(cName)
+        if (!classMap.has(normKey)) {
+          classMap.set(normKey, { className: cName, sections: new Set(['A']) })
+        }
+        const clean = (tt.section || 'A').replace(/^section\s+/i, '').replace(/^sec\s+/i, '').replace(/[-_]/g, '').trim().toUpperCase() || 'A'
+        classMap.get(normKey)!.sections.add(clean)
+      }
+    })
+
+    classMap.forEach(entry => {
+      const cName = entry.className
+      const c = entry.masterData || {}
+      const sections = entry.sections.size > 0 ? Array.from(entry.sections).sort() : ['A']
+
+      sections.forEach((sec: string) => {
+        const matchedStudents = allStudents.filter(s => matchesClassAndSection(s, cName, sec))
+        const matchedCount = matchedStudents.length
+        const masterCount = Number(c.totalStudents ?? c.studentsCount ?? c.total_students ?? 0)
+        const studentCount = allStudents.length > 0 ? matchedCount : (matchedCount > 0 ? matchedCount : masterCount)
+
+        const rawTeacher = c.classTeacher || c.class_teacher || ''
+        const teacher = (rawTeacher && rawTeacher !== 'Not Assigned')
+          ? rawTeacher
+          : (findClassTeacher(allTeachers, cName, sec) || 'Not Assigned')
+
+        list.push({
+          id: `${cName}-${sec}`,
+          className: cName,
+          section: sec,
+          classTeacher: teacher,
+          studentsCount: studentCount
+        })
+      })
+    })
 
     return list
-  }, [classesData, allStudents, allTeachers])
+  }, [classesData, allStudents, allTeachers, tasks, timetables])
 
   // Select initial class automatically from real classes
   useEffect(() => {
@@ -946,7 +982,7 @@ export default function HomeworkAssignPage() {
     return 'Not Assigned'
   }
 
-  // ── Subject Cards for Page 2 (Loaded Strictly from Timetable for Selected Day) ──
+  // ── Subject Cards for Page 2 (Loaded Strictly from Timetable for Selected Day with fallback to Masters) ──
   const subjectCards = useMemo<SubjectCard[]>(() => {
     const list: SubjectCard[] = []
     const seenSubs = new Set<string>()
@@ -968,6 +1004,43 @@ export default function HomeworkAssignPage() {
           subjectName: subName,
           teacherName: teacher,
           timeSlot: slot.timeFrom && slot.timeTo ? `${slot.timeFrom} - ${slot.timeTo}` : undefined,
+          periodNumber: idx + 1,
+          dayName: selectedDayName,
+          bgColor: presetColor.bgColor,
+          borderColor: presetColor.borderColor,
+          textColor: presetColor.textColor,
+          badgeColor: presetColor.badgeColor
+        })
+      })
+    }
+
+    // Fallback: If no timetable slots scheduled for this day, fallback to master subjects
+    if (list.length === 0) {
+      const parseLocal = (k: string) => {
+        if (typeof window === 'undefined') return []
+        try {
+          const raw = localStorage.getItem(k)
+          return raw ? JSON.parse(raw) : []
+        } catch { return [] }
+      }
+      const rawSubjects = parseLocal('school_masters_subjects')
+      const mergedSubjects = Array.isArray(subjectsData) && subjectsData.length > 0 ? subjectsData : rawSubjects
+      const activeSubs = (mergedSubjects || []).filter((s: any) => !s.deleted && s.subjectName && (
+        !s.className || normalizeClassKey(s.className) === normalizeClassKey(selectedClass)
+      ))
+
+      activeSubs.forEach((sub: any, idx: number) => {
+        const subName = String(sub.subjectName || sub.name || '').trim()
+        if (!subName || seenSubs.has(subName.toLowerCase())) return
+        seenSubs.add(subName.toLowerCase())
+
+        const teacher = resolveTeacherForSubject(subName, sub.teacherName)
+        const presetColor = PASTEL_PALETTES[list.length % PASTEL_PALETTES.length]
+
+        list.push({
+          id: `master-${idx}-${subName}`,
+          subjectName: subName,
+          teacherName: teacher,
           periodNumber: idx + 1,
           dayName: selectedDayName,
           bgColor: presetColor.bgColor,

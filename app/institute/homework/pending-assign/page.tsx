@@ -153,7 +153,7 @@ function normalizeDateStr(dStr: string | undefined | null): string | null {
 function parseStudentClassAndSection(student: any): { className: string; section: string } {
   if (!student) return { className: '', section: 'A' }
 
-  let rawClass = String(student.class || student.className || student.current_class || '').trim()
+  let rawClass = String(student.classes || student.class || student.className || student.current_class || '').trim()
   let rawSection = String(student.section || student.sectionName || student.section_name || student.current_section || '').trim()
 
   const rawCombined = String(student.class_name || student.classNameCombined || '').trim()
@@ -739,64 +739,88 @@ export default function PendingAssignHomeworkPage() {
     const rawClasses = parseLocal('school_masters_classes')
     const mergedClasses = Array.isArray(classesData) && classesData.length > 0 ? classesData : rawClasses
 
+    type ClassEntry = {
+      className: string
+      sections: Set<string>
+      masterData?: any
+    }
+    const classMap = new Map<string, ClassEntry>()
+
+    // 1. From masters classes
     if (Array.isArray(mergedClasses) && mergedClasses.length > 0) {
       mergedClasses.forEach((c: any) => {
         if (c.deleted) return
         const cName = c.className || c.name || ''
         if (!cName) return
-        const sections = Array.isArray(c.sections) && c.sections.length > 0
-          ? c.sections.map((s: any) => (typeof s === 'string' ? s : s?.sectionName || 'A'))
-          : ['A']
-
-        sections.forEach((sec: string) => {
-          const matchedStudents = allStudents.filter(s => matchesClassAndSection(s, cName, sec))
-          const matchedCount = matchedStudents.length
-          const masterCount = Number(c.totalStudents ?? c.studentsCount ?? c.total_students ?? 0)
-          const studentCount = allStudents.length > 0 ? matchedCount : (matchedCount > 0 ? matchedCount : masterCount)
-
-          const rawTeacher = c.classTeacher || c.class_teacher || ''
-          const teacher = (rawTeacher && rawTeacher !== 'Not Assigned')
-            ? rawTeacher
-            : (findClassTeacher(allTeachers, cName, sec) || 'Not Assigned')
-
-          list.push({
-            id: `${cName}-${sec}`,
-            className: cName,
-            section: sec,
-            classTeacher: teacher,
-            studentsCount: studentCount
-          })
-        })
-      })
-    }
-
-    if (list.length === 0 && allStudents.length > 0) {
-      const classSecMap = new Map<string, { className: string; section: string; count: number }>()
-      allStudents.forEach(st => {
-        const { className: cn, section: sn } = parseStudentClassAndSection(st)
-        const effectiveClass = cn || 'Class 1'
-        const effectiveSec = sn || 'A'
-        const key = `${effectiveClass}-${effectiveSec}`
-        if (!classSecMap.has(key)) {
-          classSecMap.set(key, { className: effectiveClass, section: effectiveSec, count: 0 })
+        const normKey = normalizeClassKey(cName)
+        if (!classMap.has(normKey)) {
+          classMap.set(normKey, { className: cName, sections: new Set(), masterData: c })
         }
-        classSecMap.get(key)!.count++
-      })
-
-      classSecMap.forEach(item => {
-        const teacher = findClassTeacher(allTeachers, item.className, item.section) || 'Not Assigned'
-        list.push({
-          id: `${item.className}-${item.section}`,
-          className: item.className,
-          section: item.section,
-          classTeacher: teacher,
-          studentsCount: item.count
+        const entry = classMap.get(normKey)!
+        if (!entry.masterData) entry.masterData = c
+        const rawSecs = Array.isArray(c.sections) && c.sections.length > 0 ? c.sections : ['A']
+        rawSecs.forEach((s: any) => {
+          const sName = typeof s === 'string' ? s : s?.sectionName || 'A'
+          const clean = sName.replace(/^section\s+/i, '').replace(/^sec\s+/i, '').replace(/[-_]/g, '').trim().toUpperCase() || 'A'
+          entry.sections.add(clean)
         })
       })
     }
+
+    // 2. From all students
+    allStudents.forEach(st => {
+      const { className: cn, section: sn } = parseStudentClassAndSection(st)
+      if (cn) {
+        const normKey = normalizeClassKey(cn)
+        if (!classMap.has(normKey)) {
+          classMap.set(normKey, { className: cn, sections: new Set(['A']) })
+        }
+        const clean = sn.replace(/^section\s+/i, '').replace(/^sec\s+/i, '').replace(/[-_]/g, '').trim().toUpperCase() || 'A'
+        classMap.get(normKey)!.sections.add(clean)
+      }
+    })
+
+    // 3. From tasks
+    tasks.forEach(t => {
+      const cName = t.classes || ''
+      if (cName) {
+        const normKey = normalizeClassKey(cName)
+        if (!classMap.has(normKey)) {
+          classMap.set(normKey, { className: cName, sections: new Set(['A']) })
+        }
+        const clean = (t.section || 'A').replace(/^section\s+/i, '').replace(/^sec\s+/i, '').replace(/[-_]/g, '').trim().toUpperCase() || 'A'
+        classMap.get(normKey)!.sections.add(clean)
+      }
+    })
+
+    classMap.forEach(entry => {
+      const cName = entry.className
+      const c = entry.masterData || {}
+      const sections = entry.sections.size > 0 ? Array.from(entry.sections).sort() : ['A']
+
+      sections.forEach((sec: string) => {
+        const matchedStudents = allStudents.filter(s => matchesClassAndSection(s, cName, sec))
+        const matchedCount = matchedStudents.length
+        const masterCount = Number(c.totalStudents ?? c.studentsCount ?? c.total_students ?? 0)
+        const studentCount = allStudents.length > 0 ? matchedCount : (matchedCount > 0 ? matchedCount : masterCount)
+
+        const rawTeacher = c.classTeacher || c.class_teacher || ''
+        const teacher = (rawTeacher && rawTeacher !== 'Not Assigned')
+          ? rawTeacher
+          : (findClassTeacher(allTeachers, cName, sec) || 'Not Assigned')
+
+        list.push({
+          id: `${cName}-${sec}`,
+          className: cName,
+          section: sec,
+          classTeacher: teacher,
+          studentsCount: studentCount
+        })
+      })
+    })
 
     return list
-  }, [classesData, allStudents, allTeachers])
+  }, [classesData, allStudents, allTeachers, tasks])
 
   // Helper to check if a subject has homework assigned for a class & section on a specific date
   const isSubjectAssignedOnDate = useCallback((className: string, section: string, subjectName: string, dateIso: string) => {

@@ -102,7 +102,7 @@ const QUICK_REMARK_CHIPS = [
 function parseStudentClassAndSection(student: any): { className: string; section: string } {
   if (!student) return { className: '', section: 'A' }
 
-  let rawClass = String(student.class || student.className || student.current_class || '').trim()
+  let rawClass = String(student.classes || student.class || student.className || student.current_class || '').trim()
   let rawSection = String(student.section || student.sectionName || student.section_name || student.current_section || '').trim()
 
   const rawCombined = String(student.class_name || student.classNameCombined || '').trim()
@@ -1278,113 +1278,82 @@ function RemarkHomeworkContent() {
     const mergedSubjects = Array.isArray(subjectsData) && subjectsData.length > 0 ? subjectsData : rawSubjects
     const selectedIso = toDateIso(selectedCalendarDate)
 
+    // Collect all unique classes & their sections from masters, students, and tasks
+    type ClassEntry = {
+      className: string
+      sections: Set<string>
+      masterData?: any
+    }
+    const classMap = new Map<string, ClassEntry>()
+
+    // 1. From masters
     if (Array.isArray(mergedClasses) && mergedClasses.length > 0) {
       mergedClasses.forEach((c: any) => {
         if (c.deleted) return
         const cName = c.className || c.name || ''
         if (!cName) return
-        const sections = Array.isArray(c.sections) && c.sections.length > 0
-          ? c.sections.map((s: any) => (typeof s === 'string' ? s : s?.sectionName || 'A'))
-          : ['A']
-
-        sections.forEach((sec: string) => {
-          const matchedStudents = allStudents.filter(s => matchesClassAndSection(s, cName, sec))
-          const matchedCount = matchedStudents.length
-          const masterCount = Number(c.totalStudents ?? c.studentsCount ?? c.total_students ?? 0)
-          const studentCount = allStudents.length > 0 ? matchedCount : (matchedCount > 0 ? matchedCount : masterCount)
-
-          // All tasks for this class & section
-          const allClassTasks = tasks.filter(t => matchesClassAndSection({ class: t.classes, section: t.section }, cName, sec))
-
-          // Filter tasks due on selected submission date (strictly matching selected calendar date)
-          const classTasksOnDate = allClassTasks.filter(t => isTaskDueOnDate(t, selectedCalendarDate))
-          
-          let completed = 0
-          let dueRemarks = 0
-          const completedTasksOnDate = classTasksOnDate.filter(t => isTaskCompleted(t, taskSubmissions, allStudents)).length
-          const pendingTasksOnDate = classTasksOnDate.length - completedTasksOnDate
-          const isClassCompletedOnDate = classTasksOnDate.length > 0 && pendingTasksOnDate === 0
-
-          if (classTasksOnDate.length > 0) {
-            classTasksOnDate.forEach(t => {
-              const isComp = isTaskCompleted(t, taskSubmissions, allStudents)
-              const dbSubs = Array.isArray(t.submissions) ? t.submissions : []
-              let dbSubmitted = typeof t.submittedCount === 'number'
-                ? t.submittedCount
-                : dbSubs.filter((s: any) => s.status === 'Submitted' || s.status === 'Completed').length
-
-              let localSubmitted = 0
-              let localTotal = 0
-              try {
-                const raw = localStorage.getItem(`school_task_subs_${t.id}`)
-                if (raw) {
-                  const parsed = JSON.parse(raw)
-                  if (Array.isArray(parsed) && parsed.length > 0) {
-                    localSubmitted = parsed.filter((s: any) => s.status === 'Submitted' || s.status === 'Completed').length
-                    localTotal = parsed.length
-                  }
-                }
-              } catch (e) {}
-
-              const effectiveSubmitted = Math.max(dbSubmitted, localSubmitted)
-              const assignedCount = Array.isArray(t.assignedStudentIds) && t.assignedStudentIds.length > 0
-                ? t.assignedStudentIds.length
-                : (studentCount || localTotal || 1)
-
-              completed += effectiveSubmitted
-              if (!isComp) {
-                dueRemarks += Math.max(0, assignedCount - effectiveSubmitted)
-              }
-            })
-          }
-
-          const pending = classTasksOnDate.length > 0 ? Math.max(0, (studentCount * classTasksOnDate.length) - completed) : 0
-
-          // Calculate unique subjects for this class that have tasks due on selected date
-          const subjectsOnDate = new Set(
-            classTasksOnDate
-              .map(t => t.subject?.toLowerCase().trim())
-              .filter(Boolean)
-          )
-          const totalSubjects = subjectsOnDate.size
-          const teacher = resolveClassTeacher(cName, c, allTeachers, tasks)
-
-          list.push({
-            id: `${cName}-${sec}`,
-            className: cName,
-            section: sec,
-            classTeacher: teacher,
-            studentsCount: studentCount,
-            completedCount: completed,
-            pendingCount: pending,
-            tasksCount: classTasksOnDate.length,
-            completedTasksCount: completedTasksOnDate,
-            pendingTasksCount: pendingTasksOnDate,
-            allTasksCount: allClassTasks.length,
-            totalSubjects,
-            dueRemarks: isClassCompletedOnDate ? 0 : dueRemarks,
-            isCompleted: isClassCompletedOnDate
-          })
+        const normKey = normalizeClassKey(cName)
+        if (!classMap.has(normKey)) {
+          classMap.set(normKey, { className: cName, sections: new Set(), masterData: c })
+        }
+        const entry = classMap.get(normKey)!
+        if (!entry.masterData) entry.masterData = c
+        const rawSecs = Array.isArray(c.sections) && c.sections.length > 0 ? c.sections : ['A']
+        rawSecs.forEach((s: any) => {
+          const sName = typeof s === 'string' ? s : s?.sectionName || 'A'
+          const clean = sName.replace(/^section\s+/i, '').replace(/^sec\s+/i, '').replace(/[-_]/g, '').trim().toUpperCase() || 'A'
+          entry.sections.add(clean)
         })
       })
     }
 
-    // Fallback if masters is empty
-    if (list.length === 0 && allStudents.length > 0) {
-      const classSecMap = new Map<string, { className: string; section: string; count: number }>()
-      allStudents.forEach(st => {
-        const { className: cn, section: sn } = parseStudentClassAndSection(st)
-        const effectiveClass = cn || 'Class 1'
-        const effectiveSec = sn || 'A'
-        const key = `${effectiveClass}-${effectiveSec}`
-        if (!classSecMap.has(key)) {
-          classSecMap.set(key, { className: effectiveClass, section: effectiveSec, count: 0 })
+    // 2. From all students
+    allStudents.forEach(st => {
+      const { className: cn, section: sn } = parseStudentClassAndSection(st)
+      if (cn) {
+        const normKey = normalizeClassKey(cn)
+        if (!classMap.has(normKey)) {
+          classMap.set(normKey, { className: cn, sections: new Set(['A']) })
         }
-        classSecMap.get(key)!.count++
-      })
+        const clean = sn.replace(/^section\s+/i, '').replace(/^sec\s+/i, '').replace(/[-_]/g, '').trim().toUpperCase() || 'A'
+        classMap.get(normKey)!.sections.add(clean)
+      }
+    })
 
-      classSecMap.forEach(item => {
-        const allClassTasks = tasks.filter(t => matchesClassAndSection({ class: t.classes, section: t.section }, item.className, item.section))
+    // 3. From tasks (CRITICAL: any class/section with assigned tasks must always appear in class cards)
+    tasks.forEach(t => {
+      if (t.classes) {
+        const normKey = normalizeClassKey(t.classes)
+        if (!classMap.has(normKey)) {
+          classMap.set(normKey, { className: t.classes, sections: new Set(['A']) })
+        }
+        const tSec = String(t.section || 'A').replace(/^section\s+/i, '').replace(/^sec\s+/i, '').replace(/[-_]/g, '').trim().toUpperCase() || 'A'
+        classMap.get(normKey)!.sections.add(tSec)
+      }
+    })
+
+    // If still no classes found, fallback to Class 1 Section A
+    if (classMap.size === 0) {
+      classMap.set('1', { className: 'Class 1', sections: new Set(['A']) })
+    }
+
+    classMap.forEach(entry => {
+      const cName = entry.className
+      const c = entry.masterData
+      const sections = Array.from(entry.sections)
+      if (sections.length === 0) sections.push('A')
+
+      sections.forEach(sec => {
+        const matchedStudents = allStudents.filter(s => matchesClassAndSection(s, cName, sec))
+        const matchedCount = matchedStudents.length
+        const masterCount = Number(c?.totalStudents ?? c?.studentsCount ?? c?.total_students ?? 0)
+        const classCount = allStudents.filter(s => normalizeClassKey(s.className || s.class_name || s.class || '') === normalizeClassKey(cName)).length
+        const studentCount = matchedCount > 0 ? matchedCount : (classCount > 0 ? classCount : (masterCount > 0 ? masterCount : 1))
+
+        // All tasks for this class & section
+        const allClassTasks = tasks.filter(t => matchesClassAndSection({ class: t.classes, section: t.section }, cName, sec))
+
+        // Filter tasks due on selected submission date (strictly matching selected calendar date)
         const classTasksOnDate = allClassTasks.filter(t => isTaskDueOnDate(t, selectedCalendarDate))
 
         let completed = 0
@@ -1397,7 +1366,7 @@ function RemarkHomeworkContent() {
           classTasksOnDate.forEach(t => {
             const isComp = isTaskCompleted(t, taskSubmissions, allStudents)
             const dbSubs = Array.isArray(t.submissions) ? t.submissions : []
-            const dbSubmitted = typeof t.submittedCount === 'number'
+            let dbSubmitted = typeof t.submittedCount === 'number'
               ? t.submittedCount
               : dbSubs.filter((s: any) => s.status === 'Submitted' || s.status === 'Completed').length
 
@@ -1417,7 +1386,7 @@ function RemarkHomeworkContent() {
             const effectiveSubmitted = Math.max(dbSubmitted, localSubmitted)
             const assignedCount = Array.isArray(t.assignedStudentIds) && t.assignedStudentIds.length > 0
               ? t.assignedStudentIds.length
-              : (item.count || localTotal || 1)
+              : (studentCount || localTotal || 1)
 
             completed += effectiveSubmitted
             if (!isComp) {
@@ -1426,7 +1395,7 @@ function RemarkHomeworkContent() {
           })
         }
 
-        const pending = classTasksOnDate.length > 0 ? Math.max(0, (item.count * classTasksOnDate.length) - completed) : 0
+        const pending = classTasksOnDate.length > 0 ? Math.max(0, (studentCount * classTasksOnDate.length) - completed) : 0
 
         // Calculate unique subjects for this class that have tasks due on selected date
         const subjectsOnDate = new Set(
@@ -1435,13 +1404,14 @@ function RemarkHomeworkContent() {
             .filter(Boolean)
         )
         const totalSubjects = subjectsOnDate.size
+        const teacher = resolveClassTeacher(cName, c, allTeachers, tasks)
 
         list.push({
-          id: `${item.className}-${item.section}`,
-          className: item.className,
-          section: item.section,
-          classTeacher: resolveClassTeacher(item.className, null, allTeachers, tasks),
-          studentsCount: item.count,
+          id: `${cName}-${sec}`,
+          className: cName,
+          section: sec,
+          classTeacher: teacher,
+          studentsCount: studentCount,
           completedCount: completed,
           pendingCount: pending,
           tasksCount: classTasksOnDate.length,
@@ -1453,7 +1423,7 @@ function RemarkHomeworkContent() {
           isCompleted: isClassCompletedOnDate
         })
       })
-    }
+    })
 
     // Sort classes: classes with tasks due on selectedCalendarDate appear first
     list.sort((a, b) => b.tasksCount - a.tasksCount)
@@ -1605,9 +1575,34 @@ function RemarkHomeworkContent() {
     if (!activeTask) return []
 
     // 1. Get all students enrolled in this class & section
-    const classEnrolledStudents = allStudents.filter(s =>
+    let classEnrolledStudents = allStudents.filter(s =>
       matchesClassAndSection(s, activeTask.classes, activeTask.section)
     )
+
+    // Fallback: If no students match this specific section, fallback to all students enrolled in this class
+    if (classEnrolledStudents.length === 0) {
+      classEnrolledStudents = allStudents.filter(s =>
+        normalizeClassKey(s.className || s.class_name || s.class || '') === normalizeClassKey(activeTask.classes)
+      )
+    }
+
+    // Also include any students that have recorded submissions for this task
+    const existingIds = new Set(classEnrolledStudents.map(s => getStudentKey(s)))
+    const dbSubs = Array.isArray(activeTask.submissions) ? activeTask.submissions : []
+    dbSubs.forEach((sub: any) => {
+      const subKey = String(sub.studentId || sub.student_id)
+      if (subKey && !existingIds.has(subKey)) {
+        classEnrolledStudents.push({
+          id: subKey,
+          name: sub.studentName || sub.student_name || 'Student',
+          rollNo: sub.rollNo || sub.roll_no || '1',
+          admissionNo: sub.admissionNo || sub.admission_no || 'ADM-1',
+          class_name: activeTask.classes,
+          section_name: activeTask.section
+        })
+        existingIds.add(subKey)
+      }
+    })
 
     // 2. Check if specific assignments were recorded in localStorage or DB submissions
     let assignedIdsSet: Set<string> | null = null
@@ -3115,9 +3110,42 @@ function RemarkHomeworkContent() {
               </div>
             </div>
 
-            <span className="px-4 py-1.5 rounded-xl bg-[#0f766e] text-white font-bold text-xs shadow-xs">
-              Section {selectedSection}
-            </span>
+            {(() => {
+              const availableSecs = Array.from(new Set(
+                classCards
+                  .filter(c => normalizeClassKey(c.className) === normalizeClassKey(selectedClass))
+                  .map(c => c.section)
+              )).sort()
+
+              if (availableSecs.length > 1) {
+                return (
+                  <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700/60 p-1 rounded-2xl">
+                    {availableSecs.map(sec => {
+                      const isSel = String(sec).toUpperCase() === String(selectedSection).toUpperCase()
+                      return (
+                        <button
+                          key={sec}
+                          type="button"
+                          onClick={() => setSelectedSection(sec)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            isSel
+                              ? 'bg-[#0f766e] text-white shadow-xs'
+                              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+                          }`}
+                        >
+                          Section {sec}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )
+              }
+              return (
+                <span className="px-4 py-1.5 rounded-xl bg-[#0f766e] text-white font-bold text-xs shadow-xs">
+                  Section {selectedSection}
+                </span>
+              )
+            })()}
           </div>
 
           {/* Section Heading & Filter switcher */}
@@ -3157,9 +3185,37 @@ function RemarkHomeworkContent() {
               <BookOpen className="w-10 h-10 text-slate-300 mx-auto" />
               <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
                 {subjectDateFilter === 'selected'
-                  ? `No subjects have tasks due on ${formatDisplayDate(selectedCalendarDate)}.`
+                  ? `No subjects have tasks due on ${formatDisplayDate(selectedCalendarDate)} for Section ${selectedSection}.`
                   : 'No subjects assigned.'}
               </p>
+              {(() => {
+                const otherSecTasks = tasks.filter(t => 
+                  normalizeClassKey(t.classes) === normalizeClassKey(selectedClass) &&
+                  String(t.section || '').toUpperCase().trim() !== String(selectedSection).toUpperCase().trim() &&
+                  isTaskDueOnDate(t, selectedCalendarDate)
+                )
+                if (otherSecTasks.length > 0) {
+                  const otherSecs = Array.from(new Set(otherSecTasks.map(t => String(t.section || 'A').toUpperCase().trim())))
+                  return (
+                    <div className="mt-2 inline-flex flex-col sm:flex-row items-center gap-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 px-4 py-2.5 rounded-2xl text-xs font-bold text-amber-800 dark:text-amber-200">
+                      <span>{otherSecTasks.length} task(s) due in Section {otherSecs.join(', ')} on this date:</span>
+                      <div className="flex items-center gap-1.5">
+                        {otherSecs.map(sec => (
+                          <button
+                            key={sec}
+                            type="button"
+                            onClick={() => setSelectedSection(sec)}
+                            className="px-3 py-1 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-black cursor-pointer shadow-2xs active:scale-95 transition-transform"
+                          >
+                            Switch to Section {sec}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                }
+                return null
+              })()}
               {subjectDateFilter === 'selected' && subjectCards.length > 0 && (
                 <button
                   type="button"

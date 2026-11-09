@@ -413,16 +413,24 @@ export default function HomeworkReportPage() {
         secList = Array.from(new Set(
           cls.sections.map((s: any) => String(s.name || s.sectionName || s).trim().toUpperCase())
         )).filter(Boolean) as string[]
-      } else {
-        const studentSecs = Array.from(new Set(
-          allStudents
-            .filter(s => matchesClassAndSection(s, cName, 'all'))
-            .map(s => String(s.section || s.section_name || s.sectionName || '').trim().toUpperCase())
-        )).filter(Boolean) as string[]
+      }
 
-        if (studentSecs.length > 0) {
-          secList = studentSecs
-        } else if (sectionsData && sectionsData.length > 0) {
+      // Also gather sections from real students and real tasks
+      const studentSecs = Array.from(new Set(
+        allStudents
+          .filter(s => matchesClassAndSection(s, cName, 'all'))
+          .map(s => String(s.section || s.section_name || s.sectionName || '').replace(/^section\s+/i, '').replace(/^sec\s+/i, '').replace(/[-_]/g, '').trim().toUpperCase())
+      )).filter(Boolean) as string[]
+
+      const taskSecs = Array.from(new Set(
+        allTasks
+          .filter(t => matchesClassAndSection({ class: t.classes, section: 'all' }, cName, 'all'))
+          .map(t => String(t.section || '').replace(/^section\s+/i, '').replace(/^sec\s+/i, '').replace(/[-_]/g, '').trim().toUpperCase())
+      )).filter(Boolean) as string[]
+
+      secList = Array.from(new Set([...secList, ...studentSecs, ...taskSecs]))
+      if (secList.length === 0) {
+        if (sectionsData && sectionsData.length > 0) {
           secList = Array.from(new Set(
             sectionsData.map((s: any) => String(s.sectionName || s.name || s).trim().toUpperCase())
           )).filter(Boolean) as string[]
