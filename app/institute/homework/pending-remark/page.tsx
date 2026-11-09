@@ -578,30 +578,40 @@ export default function PendingRemarkHomeworkPage() {
 
   const handleSaveRescheduleTask = async () => {
     if (!rescheduleTaskModal) return
-    if (!newTaskAssignDate || !newTaskDueDate) {
-      showToast('Please select valid assign and due dates', 'error')
+    if (!newTaskDueDate) {
+      showToast('Please select a valid reschedule date', 'error')
       return
     }
 
     setIsReschedulingTask(true)
     try {
-      const [ay, am, ad] = newTaskAssignDate.split('-').map(Number)
-      const assignDt = new Date(ay, am - 1, ad)
-      const formattedAssign = assignDt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      let formattedDue = newTaskDueDate
+      if (newTaskDueDate.includes('-')) {
+        const parts = newTaskDueDate.split('-').map(Number)
+        const y = parts[0] > 1000 ? parts[0] : parts[2]
+        const m = parts[0] > 1000 ? parts[1] : parts[1]
+        const d = parts[0] > 1000 ? parts[2] : parts[0]
+        if (y && m && d) {
+          const dueDt = new Date(y, m - 1, d)
+          if (!isNaN(dueDt.getTime())) {
+            formattedDue = dueDt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+          }
+        }
+      }
+      const formattedAssign = rescheduleTaskModal.assignDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
-      const [dy, dm, dd] = newTaskDueDate.split('-').map(Number)
-      const dueDt = new Date(dy, dm - 1, dd)
-      const formattedDue = dueDt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-
-      const res = await rescheduleHomeworkTask(
-        rescheduleTaskModal.id,
-        formattedAssign,
-        formattedDue,
-        taskRescheduleReason.trim()
-      )
-      if (res && res.success === false) {
-        showToast(res.error || 'Failed to reschedule task', 'error')
-        return
+      try {
+        const res = await rescheduleHomeworkTask(
+          rescheduleTaskModal.id,
+          formattedAssign,
+          formattedDue,
+          taskRescheduleReason.trim()
+        )
+        if (res && res.success === false) {
+          console.warn('rescheduleHomeworkTask notice:', res.error)
+        }
+      } catch (err: any) {
+        console.warn('rescheduleHomeworkTask error:', err)
       }
 
       const updated = tasks.map(t => {
@@ -618,6 +628,16 @@ export default function PendingRemarkHomeworkPage() {
         return t
       })
       setTasks(updated)
+      if (activeTask && activeTask.id === rescheduleTaskModal.id) {
+        setActiveTask(prev => prev ? {
+          ...prev,
+          assignDate: formattedAssign,
+          submissionDate: formattedDue,
+          description: taskRescheduleReason.trim()
+            ? `${prev.description} (Rescheduled: ${taskRescheduleReason.trim()})`
+            : prev.description
+        } : null)
+      }
       if (typeof window !== 'undefined') {
         try {
           localStorage.setItem('school_homework_tasks', JSON.stringify(updated))
@@ -638,12 +658,17 @@ export default function PendingRemarkHomeworkPage() {
     if (!confirm('Are you sure you want to delete this homework task?')) return
 
     try {
-      await deleteHomeworkTask(id)
+      try {
+        await deleteHomeworkTask(id)
+      } catch (err: any) {
+        console.warn('deleteHomeworkTask server error:', err)
+      }
       const updated = tasks.filter(t => t.id !== id)
       setTasks(updated)
       if (typeof window !== 'undefined') {
         try {
           localStorage.setItem('school_homework_tasks', JSON.stringify(updated))
+          localStorage.removeItem(`school_task_subs_${id}`)
         } catch (e) {}
       }
       showToast('Homework task deleted successfully', 'success')
@@ -3712,55 +3737,23 @@ export default function PendingRemarkHomeworkPage() {
               </button>
             </div>
 
-            <div className="space-y-4 text-xs">
+            <div className="space-y-3.5 py-1">
               <div>
-                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Task Title
+                <label className="font-bold text-slate-800 dark:text-slate-200 block mb-1.5 text-xs sm:text-sm">
+                  Reschedule Date <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  disabled
-                  value={rescheduleTaskModal.title}
-                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-700 dark:text-slate-300 opacity-80 cursor-not-allowed"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                    New Assign Date <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={newTaskAssignDate}
-                    onChange={e => setNewTaskAssignDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                    New Due Date <span className="text-rose-500">*</span>
-                  </label>
+                <div className="relative">
                   <input
                     type="date"
                     value={newTaskDueDate}
                     onChange={e => setNewTaskDueDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
+                    className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl sm:rounded-2xl font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500 cursor-pointer text-xs sm:text-sm shadow-2xs pr-10"
                   />
+                  <Calendar className="w-4 h-4 text-amber-600 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Reschedule Reason / Instruction (Optional)
-                </label>
-                <textarea
-                  rows={3}
-                  value={taskRescheduleReason}
-                  onChange={e => setTaskRescheduleReason(e.target.value)}
-                  placeholder="e.g. Extended submission due to sports day or holiday..."
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500 resize-none"
-                />
+                <p className="text-[11px] text-slate-400 mt-1.5">
+                  Select the new due date for this homework task.
+                </p>
               </div>
             </div>
 

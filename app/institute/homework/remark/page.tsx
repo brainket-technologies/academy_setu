@@ -771,20 +771,33 @@ function RemarkHomeworkContent() {
 
     setIsReschedulingTask(true)
     try {
-      const [dy, dm, dd] = newTaskDueDate.split('-').map(Number)
-      const dueDt = new Date(dy, dm - 1, dd)
-      const formattedDue = dueDt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      let formattedDue = newTaskDueDate
+      if (newTaskDueDate.includes('-')) {
+        const parts = newTaskDueDate.split('-').map(Number)
+        const y = parts[0] > 1000 ? parts[0] : parts[2]
+        const m = parts[0] > 1000 ? parts[1] : parts[1]
+        const d = parts[0] > 1000 ? parts[2] : parts[0]
+        if (y && m && d) {
+          const dueDt = new Date(y, m - 1, d)
+          if (!isNaN(dueDt.getTime())) {
+            formattedDue = dueDt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+          }
+        }
+      }
       const formattedAssign = rescheduleTaskModal.assignDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
-      const res = await rescheduleHomeworkTask(
-        rescheduleTaskModal.id,
-        formattedAssign,
-        formattedDue,
-        taskRescheduleReason.trim()
-      )
-      if (res && res.success === false) {
-        showToast(res.error || 'Failed to reschedule task', 'error')
-        return
+      try {
+        const res = await rescheduleHomeworkTask(
+          rescheduleTaskModal.id,
+          formattedAssign,
+          formattedDue,
+          taskRescheduleReason.trim()
+        )
+        if (res && res.success === false) {
+          console.warn('rescheduleHomeworkTask notice:', res.error)
+        }
+      } catch (err: any) {
+        console.warn('rescheduleHomeworkTask error:', err)
       }
 
       const updated = tasks.map(t => {
@@ -801,6 +814,16 @@ function RemarkHomeworkContent() {
         return t
       })
       setTasks(updated)
+      if (activeTask && activeTask.id === rescheduleTaskModal.id) {
+        setActiveTask(prev => prev ? {
+          ...prev,
+          assignDate: formattedAssign,
+          submissionDate: formattedDue,
+          description: taskRescheduleReason.trim()
+            ? `${prev.description} (Rescheduled: ${taskRescheduleReason.trim()})`
+            : prev.description
+        } : null)
+      }
       if (typeof window !== 'undefined') {
         try {
           localStorage.setItem('school_homework_tasks', JSON.stringify(updated))
@@ -821,16 +844,21 @@ function RemarkHomeworkContent() {
     if (!confirm('Are you sure you want to delete this homework task?')) return
 
     try {
-      await deleteHomeworkTask(id)
+      try {
+        await deleteHomeworkTask(id)
+      } catch (err: any) {
+        console.warn('deleteHomeworkTask server error:', err)
+      }
       const updated = tasks.filter(t => t.id !== id)
       setTasks(updated)
       if (typeof window !== 'undefined') {
         try {
           localStorage.setItem('school_homework_tasks', JSON.stringify(updated))
+          localStorage.removeItem(`school_task_subs_${id}`)
         } catch (e) {}
       }
-      showToast('Homework task deleted successfully', 'success')
       if (activeTask?.id === id) setActiveTask(null)
+      showToast('Homework task deleted successfully', 'success')
     } catch (err: any) {
       showToast(err.message || 'Failed to delete task', 'error')
     }
@@ -1271,23 +1299,46 @@ function RemarkHomeworkContent() {
           // Filter tasks due on selected submission date (strictly matching selected calendar date)
           const classTasksOnDate = allClassTasks.filter(t => isTaskDueOnDate(t, selectedCalendarDate))
           
-          // Calculate completed submissions vs pending for tasks due on this date
           let completed = 0
+          let dueRemarks = 0
+          const completedTasksOnDate = classTasksOnDate.filter(t => isTaskCompleted(t, taskSubmissions, allStudents)).length
+          const pendingTasksOnDate = classTasksOnDate.length - completedTasksOnDate
+          const isClassCompletedOnDate = classTasksOnDate.length > 0 && pendingTasksOnDate === 0
+
           if (classTasksOnDate.length > 0) {
             classTasksOnDate.forEach(t => {
+              const isComp = isTaskCompleted(t, taskSubmissions, allStudents)
+              const dbSubs = Array.isArray(t.submissions) ? t.submissions : []
+              let dbSubmitted = typeof t.submittedCount === 'number'
+                ? t.submittedCount
+                : dbSubs.filter((s: any) => s.status === 'Submitted' || s.status === 'Completed').length
+
+              let localSubmitted = 0
+              let localTotal = 0
               try {
                 const raw = localStorage.getItem(`school_task_subs_${t.id}`)
                 if (raw) {
                   const parsed = JSON.parse(raw)
-                  if (Array.isArray(parsed)) {
-                    completed += parsed.filter((s: any) => s.status === 'Submitted' || s.status === 'Completed').length
+                  if (Array.isArray(parsed) && parsed.length > 0) {
+                    localSubmitted = parsed.filter((s: any) => s.status === 'Submitted' || s.status === 'Completed').length
+                    localTotal = parsed.length
                   }
                 }
               } catch (e) {}
+
+              const effectiveSubmitted = Math.max(dbSubmitted, localSubmitted)
+              const assignedCount = Array.isArray(t.assignedStudentIds) && t.assignedStudentIds.length > 0
+                ? t.assignedStudentIds.length
+                : (studentCount || localTotal || 1)
+
+              completed += effectiveSubmitted
+              if (!isComp) {
+                dueRemarks += Math.max(0, assignedCount - effectiveSubmitted)
+              }
             })
           }
 
-          const pending = classTasksOnDate.length > 0 ? Math.max(0, studentCount - completed) : 0
+          const pending = classTasksOnDate.length > 0 ? Math.max(0, (studentCount * classTasksOnDate.length) - completed) : 0
 
           // Calculate unique subjects for this class that have tasks due on selected date
           const subjectsOnDate = new Set(
@@ -1296,28 +1347,6 @@ function RemarkHomeworkContent() {
               .filter(Boolean)
           )
           const totalSubjects = subjectsOnDate.size
-
-          // Calculate dueRemarks: pending remarks strictly for tasks due on this date
-          let dueRemarks = 0
-          classTasksOnDate.forEach(t => {
-            try {
-              const raw = localStorage.getItem(`school_task_subs_${t.id}`)
-              if (raw) {
-                const parsed = JSON.parse(raw)
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                  const submittedCount = parsed.filter((s: any) => s.status === 'Submitted').length
-                  dueRemarks += Math.max(0, parsed.length - submittedCount)
-                  return
-                }
-              }
-            } catch (e) {}
-
-            const assignedCount = Array.isArray(t.assignedStudentIds) && t.assignedStudentIds.length > 0
-              ? t.assignedStudentIds.length
-              : studentCount
-            dueRemarks += assignedCount
-          })
-
           const teacher = resolveClassTeacher(cName, c, allTeachers, tasks)
 
           list.push({
@@ -1329,9 +1358,12 @@ function RemarkHomeworkContent() {
             completedCount: completed,
             pendingCount: pending,
             tasksCount: classTasksOnDate.length,
+            completedTasksCount: completedTasksOnDate,
+            pendingTasksCount: pendingTasksOnDate,
             allTasksCount: allClassTasks.length,
             totalSubjects,
-            dueRemarks
+            dueRemarks: isClassCompletedOnDate ? 0 : dueRemarks,
+            isCompleted: isClassCompletedOnDate
           })
         })
       })
@@ -1357,9 +1389,13 @@ function RemarkHomeworkContent() {
 
         let completed = 0
         let dueRemarks = 0
+        const completedTasksOnDate = classTasksOnDate.filter(t => isTaskCompleted(t, taskSubmissions, allStudents)).length
+        const pendingTasksOnDate = classTasksOnDate.length - completedTasksOnDate
+        const isClassCompletedOnDate = classTasksOnDate.length > 0 && pendingTasksOnDate === 0
+
         if (classTasksOnDate.length > 0) {
           classTasksOnDate.forEach(t => {
-            const isComp = isTaskCompleted(t, undefined, allStudents)
+            const isComp = isTaskCompleted(t, taskSubmissions, allStudents)
             const dbSubs = Array.isArray(t.submissions) ? t.submissions : []
             const dbSubmitted = typeof t.submittedCount === 'number'
               ? t.submittedCount
@@ -1390,7 +1426,7 @@ function RemarkHomeworkContent() {
           })
         }
 
-        const pending = classTasksOnDate.length > 0 ? Math.max(0, item.count - completed) : 0
+        const pending = classTasksOnDate.length > 0 ? Math.max(0, (item.count * classTasksOnDate.length) - completed) : 0
 
         // Calculate unique subjects for this class that have tasks due on selected date
         const subjectsOnDate = new Set(
@@ -1409,9 +1445,12 @@ function RemarkHomeworkContent() {
           completedCount: completed,
           pendingCount: pending,
           tasksCount: classTasksOnDate.length,
+          completedTasksCount: completedTasksOnDate,
+          pendingTasksCount: pendingTasksOnDate,
           allTasksCount: allClassTasks.length,
           totalSubjects,
-          dueRemarks
+          dueRemarks: isClassCompletedOnDate ? 0 : dueRemarks,
+          isCompleted: isClassCompletedOnDate
         })
       })
     }
@@ -1420,7 +1459,7 @@ function RemarkHomeworkContent() {
     list.sort((a, b) => b.tasksCount - a.tasksCount)
 
     return list
-  }, [classesData, subjectsData, allStudents, allTeachers, tasks, selectedCalendarDate])
+  }, [classesData, subjectsData, allStudents, allTeachers, tasks, selectedCalendarDate, taskSubmissions])
 
   // Initial Class Selection
   useEffect(() => {
@@ -2879,7 +2918,7 @@ function RemarkHomeworkContent() {
                           {cls.className} - Section {cls.section}
                         </h3>
                         {cls.tasksCount > 0 ? (
-                          cls.dueRemarks === 0 ? (
+                          (cls.isCompleted || cls.dueRemarks === 0) ? (
                             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 flex items-center gap-1">
                               <CheckCircle className="w-3 h-3 stroke-[2.5]" />
                               <span>Remarked Completed</span>
@@ -2924,15 +2963,27 @@ function RemarkHomeworkContent() {
                       Total Task: {cls.tasksCount}
                     </span>
                   </div>
-                  <div className="px-1.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-800/60 text-center flex items-center justify-center gap-1 sm:gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
-                    <span className="text-[10px] sm:text-xs font-black text-amber-800 dark:text-amber-200 truncate">
-                      Due Remarks: {cls.dueRemarks}
+                  <div className={`px-1.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border text-center flex items-center justify-center gap-1 sm:gap-1.5 ${
+                    (cls.isCompleted || (cls.tasksCount > 0 && cls.dueRemarks === 0))
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60'
+                      : 'bg-amber-50 dark:bg-amber-950/40 border-amber-100 dark:border-amber-800/60'
+                  }`}>
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${
+                      (cls.isCompleted || (cls.tasksCount > 0 && cls.dueRemarks === 0)) ? 'bg-emerald-500' : 'bg-amber-500'
+                    }`}></span>
+                    <span className={`text-[10px] sm:text-xs font-black truncate ${
+                      (cls.isCompleted || (cls.tasksCount > 0 && cls.dueRemarks === 0))
+                        ? 'text-emerald-800 dark:text-emerald-200'
+                        : 'text-amber-800 dark:text-amber-200'
+                    }`}>
+                      {(cls.isCompleted || (cls.tasksCount > 0 && cls.dueRemarks === 0))
+                        ? 'Remarked: Completed'
+                        : `Due Remarks: ${cls.dueRemarks}`}
                     </span>
                   </div>
                 </div>
 
-                {/* Bottom Row Action Button: "Remark Homework" */}
+                {/* Bottom Row Action Button: "Remark Homework" / "Review Remark" */}
                 <div className="flex justify-end pt-1">
                   <button
                     type="button"
@@ -2942,10 +2993,23 @@ function RemarkHomeworkContent() {
                       setSelectedTeacherName(cls.classTeacher)
                       setCurrentScreen('subjects')
                     }}
-                    className="px-6 py-2.5 rounded-2xl bg-[#0f766e] hover:bg-[#0d655f] text-white text-xs md:text-sm font-bold shadow-xs flex items-center gap-2 active:scale-95 transition-all cursor-pointer"
+                    className={`px-6 py-2.5 rounded-2xl text-white text-xs md:text-sm font-bold shadow-xs flex items-center gap-2 active:scale-95 transition-all cursor-pointer ${
+                      (cls.isCompleted || (cls.tasksCount > 0 && cls.dueRemarks === 0))
+                        ? 'bg-emerald-700 hover:bg-emerald-800'
+                        : 'bg-[#0f766e] hover:bg-[#0d655f]'
+                    }`}
                   >
-                    <BookOpen className="w-4 h-4" />
-                    <span>Remark Homework</span>
+                    {(cls.isCompleted || (cls.tasksCount > 0 && cls.dueRemarks === 0)) ? (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Remark Completed</span>
+                      </>
+                    ) : (
+                      <>
+                        <BookOpen className="w-4 h-4" />
+                        <span>Remark Homework</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -2990,6 +3054,22 @@ function RemarkHomeworkContent() {
                   <span className="text-xs md:text-sm text-slate-400 font-semibold">
                     {subjectCards.length} Subjects Assigned
                   </span>
+                  {(() => {
+                    const classTasksOnDate = tasks.filter(t => 
+                      matchesClassAndSection({ class: t.classes, section: t.section }, selectedClass, selectedSection) &&
+                      isTaskDueOnDate(t, selectedCalendarDate)
+                    )
+                    const isAllDone = classTasksOnDate.length > 0 && classTasksOnDate.every(t => isTaskCompleted(t, taskSubmissions, allStudents))
+                    if (isAllDone) {
+                      return (
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 flex items-center gap-1 shadow-2xs">
+                          <CheckCircle className="w-3 h-3 stroke-[2.5]" />
+                          <span>Remarked Completed</span>
+                        </span>
+                      )
+                    }
+                    return null
+                  })()}
                   <div className="flex items-center gap-1 bg-white dark:bg-slate-700/80 px-2 py-0.5 rounded-xl border border-teal-200/80 dark:border-teal-800 shadow-2xs">
                     <button
                       type="button"

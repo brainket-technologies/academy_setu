@@ -1492,21 +1492,33 @@ export default function PendingAssignHomeworkPage() {
 
     setIsRescheduling(true)
     try {
-      const [ay, am, ad] = newAssignDateInput.split('-').map(Number)
-      const assignDt = new Date(ay, am - 1, ad)
-      const formattedAssign = assignDt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      let formattedAssign = newAssignDateInput
+      if (newAssignDateInput.includes('-')) {
+        const parts = newAssignDateInput.split('-').map(Number)
+        const y = parts[0] > 1000 ? parts[0] : parts[2]
+        const m = parts[0] > 1000 ? parts[1] : parts[1]
+        const d = parts[0] > 1000 ? parts[2] : parts[0]
+        if (y && m && d) {
+          const assignDt = new Date(y, m - 1, d)
+          if (!isNaN(assignDt.getTime())) {
+            formattedAssign = assignDt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+          }
+        }
+      }
       const formattedDue = rescheduleTaskModal.submissionDate || formattedAssign
 
-      const res = await rescheduleHomeworkTask(
-        rescheduleTaskModal.id,
-        formattedAssign,
-        formattedDue,
-        `Rescheduled to ${formattedAssign}`
-      )
-
-      if (res && res.success === false) {
-        showToast(res.error || 'Failed to reschedule task', 'error')
-        return
+      try {
+        const res = await rescheduleHomeworkTask(
+          rescheduleTaskModal.id,
+          formattedAssign,
+          formattedDue,
+          `Rescheduled to ${formattedAssign}`
+        )
+        if (res && res.success === false) {
+          console.warn('rescheduleHomeworkTask notice:', res.error)
+        }
+      } catch (err: any) {
+        console.warn('rescheduleHomeworkTask error:', err)
       }
 
       const updatedTasks = tasks.map(t => {

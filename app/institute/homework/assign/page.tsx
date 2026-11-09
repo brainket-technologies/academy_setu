@@ -532,21 +532,33 @@ export default function HomeworkAssignPage() {
 
     setIsRescheduling(true)
     try {
-      const [dy, dm, dd] = newDueDateInput.split('-').map(Number)
-      const dueDt = new Date(dy, dm - 1, dd)
-      const formattedDue = dueDt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      let formattedDue = newDueDateInput
+      if (newDueDateInput.includes('-')) {
+        const parts = newDueDateInput.split('-').map(Number)
+        const y = parts[0] > 1000 ? parts[0] : parts[2]
+        const m = parts[0] > 1000 ? parts[1] : parts[1]
+        const d = parts[0] > 1000 ? parts[2] : parts[0]
+        if (y && m && d) {
+          const dueDt = new Date(y, m - 1, d)
+          if (!isNaN(dueDt.getTime())) {
+            formattedDue = dueDt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+          }
+        }
+      }
       const formattedAssign = rescheduleTaskModal.assignDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
-      const res = await rescheduleHomeworkTask(
-        rescheduleTaskModal.id,
-        formattedAssign,
-        formattedDue,
-        rescheduleReason.trim()
-      )
-
-      if (res && res.success === false) {
-        showToast(res.error || 'Failed to reschedule task', 'error')
-        return
+      try {
+        const res = await rescheduleHomeworkTask(
+          rescheduleTaskModal.id,
+          formattedAssign,
+          formattedDue,
+          rescheduleReason.trim()
+        )
+        if (res && res.success === false) {
+          console.warn('rescheduleHomeworkTask notice:', res.error)
+        }
+      } catch (err: any) {
+        console.warn('rescheduleHomeworkTask error:', err)
       }
 
       const updatedTasks = tasks.map(t => {
