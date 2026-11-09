@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { ensureStudyMaterialDb, ensureLessonsDb } from '@/lib/study-material-db'
 import { getSession } from '@/lib/session'
+import { normalizeClassName, normalizeSectionName } from '@/lib/institute-classes'
 
 export async function GET(request: NextRequest) {
   try {
@@ -113,20 +114,71 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const canonicalClass = normalizeClassName(className)
+    const canonicalSection = normalizeSectionName(section)
+    const canonicalSubject = subject.trim()
+    const canonicalName = lessonName.trim()
+
+    // 1. Pre-check: Check if folder already exists in same class, section, subject
+    const existingCheck = await pool.query(`
+      SELECT *, TO_CHAR(created_at, 'DD/MM/YYYY hh:mi AM') as created_at_formatted
+      FROM school_study_material_lessons
+      WHERE (institute_name ILIKE $1 OR institute_name = 'Cosmopolitan Inter')
+        AND LOWER(TRIM(class_name)) = LOWER(TRIM($2))
+        AND LOWER(TRIM(REGEXP_REPLACE(section, '^Section\\s*', '', 'i'))) = LOWER(TRIM(REGEXP_REPLACE($3, '^Section\\s*', '', 'i')))
+        AND LOWER(TRIM(subject)) = LOWER(TRIM($4))
+        AND LOWER(TRIM(lesson_name)) = LOWER(TRIM($5))
+      LIMIT 1
+    `, [
+      `%${instituteName}%`,
+      canonicalClass,
+      canonicalSection,
+      canonicalSubject,
+      canonicalName
+    ])
+
+    if (existingCheck.rows.length > 0) {
+      const existing = existingCheck.rows[0]
+      return NextResponse.json({
+        success: true,
+        message: `Folder "${existing.lesson_name}" already exists in ${canonicalClass} • ${canonicalSection} • ${canonicalSubject}.`,
+        data: {
+          id: existing.id,
+          className: existing.class_name,
+          section: existing.section,
+          subject: existing.subject,
+          lessonName: existing.lesson_name,
+          lessonNumber: existing.lesson_number || '',
+          description: existing.description || '',
+          color: existing.color || 'teal',
+          materialCount: 0,
+          createdAt: existing.created_at_formatted
+        },
+        alreadyExisted: true
+      })
+    }
+
     const insertQuery = `
       INSERT INTO school_study_material_lessons (
         institute_name, class_name, section, subject,
         lesson_name, lesson_number, description, color
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (
+        LOWER(TRIM(institute_name)),
+        LOWER(TRIM(class_name)),
+        LOWER(TRIM(REGEXP_REPLACE(section, '^Section\\s*', '', 'i'))),
+        LOWER(TRIM(subject)),
+        LOWER(TRIM(lesson_name))
+      ) DO UPDATE SET updated_at = NOW()
       RETURNING *, TO_CHAR(created_at, 'DD/MM/YYYY hh:mi AM') as created_at_formatted
     `
 
     const result = await pool.query(insertQuery, [
       instituteName,
-      className,
-      section,
-      subject,
-      lessonName.trim(),
+      canonicalClass,
+      canonicalSection,
+      canonicalSubject,
+      canonicalName,
       lessonNumber ? lessonNumber.trim() : '',
       description ? description.trim() : '',
       color || 'teal'

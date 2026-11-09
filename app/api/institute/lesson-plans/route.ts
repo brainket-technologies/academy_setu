@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     const className = searchParams.get('className') || ''
     const section = searchParams.get('section') || ''
     const subject = searchParams.get('subject') || ''
+    const chapterFolder = searchParams.get('chapterFolder') || ''
     const progressStatus = searchParams.get('status') || ''
 
     let query = `
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     if (search.trim()) {
       params.push(`%${search.trim()}%`)
-      query += ` AND (title ILIKE $${params.length} OR subject ILIKE $${params.length} OR methodology ILIKE $${params.length} OR class_name ILIKE $${params.length})`
+      query += ` AND (title ILIKE $${params.length} OR subject ILIKE $${params.length} OR methodology ILIKE $${params.length} OR class_name ILIKE $${params.length} OR chapter_folder ILIKE $${params.length})`
     }
 
     if (className && className !== 'All' && className !== 'Select class') {
@@ -42,6 +43,11 @@ export async function GET(request: NextRequest) {
     if (subject && subject !== 'All' && subject !== 'Select subject') {
       params.push(subject)
       query += ` AND subject = $${params.length}`
+    }
+
+    if (chapterFolder && chapterFolder !== 'All') {
+      params.push(chapterFolder)
+      query += ` AND (chapter_folder = $${params.length} OR title = $${params.length})`
     }
 
     if (progressStatus === 'completed') {
@@ -61,6 +67,7 @@ export async function GET(request: NextRequest) {
       className: row.class_name,
       section: row.section,
       title: row.title,
+      chapterFolder: row.chapter_folder || row.title || 'General Chapter',
       subject: row.subject,
       methodology: row.methodology,
       description: row.description || '',
@@ -90,6 +97,7 @@ export async function POST(request: NextRequest) {
       className,
       section,
       title,
+      chapterFolder = '',
       subject,
       methodology,
       description = '',
@@ -119,16 +127,17 @@ export async function POST(request: NextRequest) {
     }
     const totalMilestones = milestoneList.filter((m: any) => m.topic && m.topic.trim()).length || Math.max(1, milestoneList.length)
     const validProgress = Math.min(100, Math.max(0, parseInt(String(progress || 0))))
+    const resolvedFolder = (chapterFolder || title || 'General Chapter').trim()
 
     const insertRes = await pool.query(`
       INSERT INTO school_lesson_plans (
-        institute_name, class_name, section, title, subject, methodology,
+        institute_name, class_name, section, title, chapter_folder, subject, methodology,
         description, date, total_milestones, progress, milestones, attachment_name,
         created_at, updated_at
       )
       VALUES (
-        $1, $2, $3, $4, $5, $6,
-        $7, TO_CHAR(CURRENT_DATE, 'DD/MM/YYYY'), $8, $9, $10::jsonb, $11,
+        $1, $2, $3, $4, $5, $6, $7,
+        $8, TO_CHAR(CURRENT_DATE, 'DD/MM/YYYY'), $9, $10, $11::jsonb, $12,
         NOW(), NOW()
       )
       RETURNING *,
@@ -138,6 +147,7 @@ export async function POST(request: NextRequest) {
       className.trim(),
       section.trim(),
       title.trim(),
+      resolvedFolder,
       subject.trim(),
       methodology.trim(),
       description.trim(),
@@ -157,6 +167,7 @@ export async function POST(request: NextRequest) {
         className: row.class_name,
         section: row.section,
         title: row.title,
+        chapterFolder: row.chapter_folder || resolvedFolder,
         subject: row.subject,
         methodology: row.methodology,
         description: row.description,

@@ -58,21 +58,37 @@ export async function fetchHomeworkTasks(classes?: string, section?: string, sub
   try {
     await ensureHomeworkTables()
     let query = `
-      SELECT id, title, description, subject, classes, section, assigned_by as "assignedBy",
-             assign_date as "assignDate", submission_date as "submissionDate",
-             has_attachment as "hasAttachment", attachment_name as "attachmentName",
-             status, created_at as "createdAt"
-      FROM institute_homework_tasks
-      WHERE institution_id = $1
+      SELECT t.id, t.title, t.description, t.subject, t.classes, t.section, t.assigned_by as "assignedBy",
+             t.assign_date as "assignDate", t.submission_date as "submissionDate",
+             t.has_attachment as "hasAttachment", t.attachment_name as "attachmentName",
+             t.status, t.created_at as "createdAt",
+             COUNT(s.student_id)::int as "totalSubmissionsCount",
+             COUNT(CASE WHEN s.status = 'Submitted' THEN 1 END)::int as "submittedCount",
+             COUNT(CASE WHEN s.status = 'Rescheduled' THEN 1 END)::int as "rescheduledCount",
+             COALESCE(
+               JSON_AGG(
+                 JSON_BUILD_OBJECT(
+                   'studentId', s.student_id,
+                   'studentName', s.student_name,
+                   'status', s.status,
+                   'remark', s.remark,
+                   'rescheduledDate', s.rescheduled_date
+                 )
+               ) FILTER (WHERE s.student_id IS NOT NULL),
+               '[]'::json
+             ) as "submissions"
+      FROM institute_homework_tasks t
+      LEFT JOIN institute_homework_submissions s ON s.task_id = t.id AND s.institution_id = t.institution_id
+      WHERE t.institution_id = $1
     `
     const params: any[] = [session.userId]
 
     if (classes && section && subject) {
-      query += ` AND LOWER(classes) = LOWER($2) AND LOWER(section) = LOWER($3) AND LOWER(subject) = LOWER($4)`
+      query += ` AND LOWER(t.classes) = LOWER($2) AND LOWER(t.section) = LOWER($3) AND LOWER(t.subject) = LOWER($4)`
       params.push(classes, section, subject)
     }
 
-    query += ` ORDER BY created_at DESC`
+    query += ` GROUP BY t.id ORDER BY t.created_at DESC`
 
     const res = await pool.query(query, params)
     return { success: true, data: res.rows }

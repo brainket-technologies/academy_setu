@@ -27,6 +27,26 @@ export async function PUT(
     }
     const oldLesson = oldRes.rows[0]
 
+    // Pre-check: Ensure no duplicate folder with the target name exists in the same class, section & subject
+    if (oldLesson.lesson_name.toLowerCase().trim() !== lessonName.trim().toLowerCase()) {
+      const dupCheck = await pool.query(`
+        SELECT id FROM school_study_material_lessons
+        WHERE id != $1
+          AND LOWER(TRIM(class_name)) = LOWER(TRIM($2))
+          AND LOWER(TRIM(REGEXP_REPLACE(section, '^Section\\s*', '', 'i'))) = LOWER(TRIM(REGEXP_REPLACE($3, '^Section\\s*', '', 'i')))
+          AND LOWER(TRIM(subject)) = LOWER(TRIM($4))
+          AND LOWER(TRIM(lesson_name)) = LOWER(TRIM($5))
+        LIMIT 1
+      `, [id, oldLesson.class_name, oldLesson.section, oldLesson.subject, lessonName.trim()])
+
+      if (dupCheck.rows.length > 0) {
+        return NextResponse.json({
+          success: false,
+          error: `A folder named "${lessonName.trim()}" already exists in ${oldLesson.class_name} • ${oldLesson.section} • ${oldLesson.subject}.`
+        }, { status: 400 })
+      }
+    }
+
     const query = `
       UPDATE school_study_material_lessons
       SET lesson_name = $1, lesson_number = $2, description = $3, color = $4, updated_at = NOW()
@@ -43,12 +63,20 @@ export async function PUT(
       `%${instituteName}%`
     ])
 
-    // If lesson name changed, update associated materials
+    // If lesson name changed, update associated materials and lesson plans
     if (oldLesson.lesson_name !== lessonName.trim()) {
       await pool.query(
         `UPDATE school_study_materials
          SET lesson_folder = $1, chapter_topic = $1
          WHERE (lesson_folder = $2 OR chapter_topic = $2)
+           AND class_name = $3 AND section = $4 AND subject = $5`,
+        [lessonName.trim(), oldLesson.lesson_name, oldLesson.class_name, oldLesson.section, oldLesson.subject]
+      )
+
+      await pool.query(
+        `UPDATE school_lesson_plans
+         SET chapter_folder = $1
+         WHERE (chapter_folder = $2 OR title = $2)
            AND class_name = $3 AND section = $4 AND subject = $5`,
         [lessonName.trim(), oldLesson.lesson_name, oldLesson.class_name, oldLesson.section, oldLesson.subject]
       )

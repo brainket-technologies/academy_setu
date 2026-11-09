@@ -7,7 +7,7 @@ import {
   Search, Upload, X, Loader2, Sparkles, Send, AlertCircle,
   CheckCircle2, ChevronDown, Download, Trash2, Eye, RefreshCw,
   Filter, Layers, CheckSquare, Square, CalendarClock, Star,
-  Award, MessageSquare, XCircle, CheckCircle, Edit3
+  Award, MessageSquare, XCircle, CheckCircle, Edit3, SlidersHorizontal, AlertTriangle
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -311,7 +311,14 @@ export default function PendingRemarkHomeworkPage() {
   // Screen 4: Student Evaluation State
   const [studentSearch, setStudentSearch] = useState('')
   const [studentStatusFilter, setStudentStatusFilter] = useState<'All' | 'Completed' | 'Not Completed' | 'Rescheduled'>('All')
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false)
   const [submissions, setSubmissions] = useState<Record<string, StudentSubmissionItem>>({})
+  const [sessionActionedIds, setSessionActionedIds] = useState<string[]>([])
+  const [alreadyRemarkWarning, setAlreadyRemarkWarning] = useState<{
+    student: StudentSubmissionItem
+    actionType: 'complete' | 'incomplete' | 'reschedule' | 'rate' | 'remark'
+    starRating?: number
+  } | null>(null)
 
   // Modal 1: Complete Modal (Screenshot 3)
   const [completeModalStudent, setCompleteModalStudent] = useState<StudentSubmissionItem | null>(null)
@@ -430,6 +437,55 @@ export default function PendingRemarkHomeworkPage() {
     handleSwitchDate(dateIsoStr)
     setCurrentScreen('classes')
   }
+
+  // ── 7-DAY DATE SLIDER STRIP ON SCREEN 2 (Exact match to Assign & Pending Assign) ──
+  const [calendarAnchorDate, setCalendarAnchorDate] = useState<Date>(() => {
+    return new Date(Date.now() - 86400000)
+  })
+
+  useEffect(() => {
+    if (selectedDateItem?.fullDate) {
+      const [y, m, d] = selectedDateItem.fullDate.split('-').map(Number)
+      if (y && m && d) {
+        setCalendarAnchorDate(new Date(y, m - 1, d))
+      }
+    }
+  }, [selectedDateItem?.fullDate])
+
+  const shiftCalendar = (offsetDays: number) => {
+    setCalendarAnchorDate(prev => {
+      const next = new Date(prev)
+      next.setDate(next.getDate() + offsetDays)
+      return next
+    })
+  }
+
+  const weekDays = useMemo(() => {
+    const days = []
+    const start = new Date(calendarAnchorDate)
+    start.setDate(start.getDate() - 3)
+
+    const selectedIso = selectedDateItem?.fullDate || ''
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start)
+      d.setDate(d.getDate() + i)
+      const dayNum = d.getDate()
+      const dayName = d.toLocaleDateString('en-US', { weekday: 'short' })
+      const yyyy = d.getFullYear()
+      const mm = String(d.getMonth() + 1).padStart(2, '0')
+      const dd = String(d.getDate()).padStart(2, '0')
+      const isoStr = `${yyyy}-${mm}-${dd}`
+
+      days.push({
+        dayNum,
+        dayName,
+        isoStr,
+        isSelected: isoStr === selectedIso
+      })
+    }
+    return days
+  }, [calendarAnchorDate, selectedDateItem?.fullDate])
 
   // ── RESCHEDULE TASK STATE & HANDLERS (Screen 3) ──
   const [rescheduleTaskModal, setRescheduleTaskModal] = useState<HomeworkTaskItem | null>(null)
@@ -1371,6 +1427,7 @@ export default function PendingRemarkHomeworkPage() {
       setRescheduledSubmissions(prev => prev.filter(r => !(r.taskId === activeTask.id && r.studentId === stId)))
 
       showToast(`Completed evaluation saved for ${completeModalStudent.name}!`, 'success')
+      setSessionActionedIds(prev => Array.from(new Set([...prev, stId])))
       setCompleteModalStudent(null)
       setCompleteFileName('')
     } catch (err: any) {
@@ -1418,6 +1475,7 @@ export default function PendingRemarkHomeworkPage() {
       })
 
       showToast(`Not Complete remark saved for ${notCompleteModalStudent.name}!`, 'success')
+      setSessionActionedIds(prev => Array.from(new Set([...prev, stId])))
       setNotCompleteModalStudent(null)
       setNotCompleteFileName('')
     } catch (err: any) {
@@ -1433,7 +1491,7 @@ export default function PendingRemarkHomeworkPage() {
     setIsSavingModal(true)
     const stId = rescheduleModalStudent.studentId
     const formattedReschedDate = rescheduleDate || new Date(Date.now() + 86400000).toISOString().split('T')[0]
-    const desc = rescheduleDescription.trim() || 'Excellent work, all questions answered with clear steps.'
+    const desc = rescheduleDescription.trim() || 'Homework rescheduled to a new date.'
 
     try {
       await updateStudentTaskSubmission(activeTask.id, stId, 'Rescheduled', {
@@ -1493,6 +1551,7 @@ export default function PendingRemarkHomeworkPage() {
       } catch {}
 
       showToast(`${rescheduleModalStudent.name} rescheduled to ${formattedReschedDate}!`, 'success')
+      setSessionActionedIds(prev => Array.from(new Set([...prev, stId])))
       setRescheduleModalStudent(null)
     } catch (err: any) {
       console.error('Failed to reschedule:', err)
@@ -1619,7 +1678,7 @@ export default function PendingRemarkHomeworkPage() {
         showToast(`Marked ${selectedStudents.length} students as Not Complete!`, 'success')
       } else if (bulkActionMode === 'Reschedule') {
         const formattedReschedDate = bulkRescheduleDate || new Date(Date.now() + 86400000).toISOString().split('T')[0]
-        const desc = bulkRescheduleDescription.trim() || 'Excellent work, all questions answered with clear steps.'
+        const desc = bulkRescheduleDescription.trim() || 'Homework rescheduled to a new date.'
 
         await bulkUpdateStudentTaskSubmissions(
           activeTask.id,
@@ -1658,6 +1717,7 @@ export default function PendingRemarkHomeworkPage() {
         showToast(`Rescheduled ${selectedStudents.length} students to ${formattedReschedDate}!`, 'success')
       }
 
+      setSessionActionedIds(prev => Array.from(new Set([...prev, ...selectedStudents.map(s => s.studentId)])))
       setBulkModalOpen(false)
       setBulkSelectedStudentIds([])
     } catch (err: any) {
@@ -1666,6 +1726,218 @@ export default function PendingRemarkHomeworkPage() {
     } finally {
       setIsBulkSubmitting(false)
     }
+  }
+
+  // ── STUDENT REMARK WARNING & ACTION DISPATCHERS ──
+  const isStudentAlreadyRemarked = (st: StudentSubmissionItem) => {
+    if (sessionActionedIds.includes(st.studentId)) return true
+    if (st.status === 'Completed' || st.status === 'Submitted' || st.status === 'Rescheduled') return true
+    if (st.remark && st.remark.trim() && st.remark !== 'No evaluation remark added yet.') return true
+    return false
+  }
+
+  const executeStudentAction = (
+    st: StudentSubmissionItem,
+    actionType: 'complete' | 'incomplete' | 'reschedule' | 'rate' | 'remark',
+    starRating?: number
+  ) => {
+    if (actionType === 'complete') {
+      setCompleteModalStudent(st)
+      setCompleteRating(st.rating || 5)
+      setCompleteReview(st.remark && st.remark !== 'No evaluation remark added yet.' ? st.remark : 'Excellent work, all questions answered with clear steps.')
+      setCompleteFileName(st.attachmentName || '')
+    } else if (actionType === 'incomplete') {
+      setNotCompleteModalStudent(st)
+      setNotCompleteRemark(st.remark && st.remark !== 'No evaluation remark added yet.' ? st.remark : 'Incomplete assignment, please finish and resubmit.')
+      setNotCompleteFileName(st.attachmentName || '')
+    } else if (actionType === 'reschedule') {
+      setRescheduleModalStudent(st)
+      const defaultDate = st.rescheduledDate || new Date(Date.now() + 86400000).toISOString().split('T')[0]
+      setRescheduleDate(defaultDate)
+      setRescheduleDescription('Homework rescheduled to a new date.')
+    } else if (actionType === 'rate') {
+      setCompleteModalStudent(st)
+      setCompleteRating(starRating || 5)
+      setCompleteReview(st.remark && st.remark !== 'No evaluation remark added yet.' ? st.remark : 'Excellent work, all questions answered with clear steps.')
+      setCompleteFileName(st.attachmentName || '')
+    } else if (actionType === 'remark') {
+      if (st.status === 'Completed' || st.status === 'Submitted') {
+        setCompleteModalStudent(st)
+        setCompleteRating(st.rating || 5)
+        setCompleteReview(st.remark && st.remark !== 'No evaluation remark added yet.' ? st.remark : '')
+        setCompleteFileName(st.attachmentName || '')
+      } else {
+        setNotCompleteModalStudent(st)
+        setNotCompleteRemark(st.remark && st.remark !== 'No evaluation remark added yet.' ? st.remark : '')
+        setNotCompleteFileName(st.attachmentName || '')
+      }
+    }
+  }
+
+  const handleActionWithWarning = (
+    st: StudentSubmissionItem,
+    actionType: 'complete' | 'incomplete' | 'reschedule' | 'rate' | 'remark',
+    starRating?: number
+  ) => {
+    if (isStudentAlreadyRemarked(st)) {
+      setAlreadyRemarkWarning({ student: st, actionType, starRating })
+    } else {
+      executeStudentAction(st, actionType, starRating)
+    }
+  }
+
+  const handleConfirmWarning = () => {
+    if (!alreadyRemarkWarning) return
+    const { student, actionType, starRating } = alreadyRemarkWarning
+    setAlreadyRemarkWarning(null)
+    executeStudentAction(student, actionType, starRating)
+  }
+
+  // ── RENDER INDIVIDUAL STUDENT CARD (Exact UI of Remark Homework) ──
+  const renderStudentCard = (st: StudentSubmissionItem) => {
+    const isCompleted = st.status === 'Completed' || st.status === 'Submitted'
+    const isRescheduled = st.status === 'Rescheduled'
+    const isSelected = bulkSelectedStudentIds.includes(st.studentId)
+    const alreadyRemarked = isStudentAlreadyRemarked(st)
+
+    return (
+      <div
+        key={st.studentId}
+        className={`bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-3 sm:p-4 md:p-5 shadow-xs border transition-all hover:shadow-md space-y-2.5 sm:space-y-3 w-full ${
+          isSelected ? 'border-teal-500 ring-1 ring-teal-500/30' : 'border-slate-200/80 dark:border-slate-700/80'
+        }`}
+      >
+        {/* Top Row: Checkbox, Photo, Name, Gender, Roll No, Status Badge & Already Remarked */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            {/* Checkbox for Bulk Selection */}
+            <button
+              type="button"
+              onClick={() => toggleStudentSelect(st.studentId)}
+              className="cursor-pointer text-slate-400 hover:text-teal-600 transition-colors"
+              title="Select for bulk action"
+            >
+              {isSelected ? (
+                <CheckSquare className="w-5 h-5 text-teal-600" />
+              ) : (
+                <Square className="w-5 h-5 text-slate-300 dark:text-slate-600" />
+              )}
+            </button>
+
+            {st.avatar ? (
+              <img
+                src={st.avatar}
+                alt={st.name}
+                className="w-12 h-12 rounded-2xl object-cover border-2 border-teal-500/30 p-0.5 shrink-0"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border-2 border-teal-500/40 text-[#0f766e] dark:text-teal-300 flex items-center justify-center font-bold text-base shrink-0">
+                {st.name.charAt(0).toUpperCase()}
+              </div>
+            )}
+
+            <div>
+              <h4 className="text-sm md:text-base font-black text-slate-900 dark:text-white leading-tight">
+                {st.name}
+              </h4>
+              <span className="inline-block mt-1 px-2.5 py-0.5 rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 text-[11px] font-bold">
+                {st.gender}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-end gap-1.5">
+            <span className="text-xs font-bold text-teal-700 dark:text-teal-300 flex items-center gap-1">
+              <Award className="w-3.5 h-3.5 text-teal-600" />
+              Roll No. : {st.rollNo}
+            </span>
+
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+              {alreadyRemarked && (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 flex items-center gap-1 shadow-2xs">
+                  <AlertTriangle className="w-3 h-3 text-amber-500 shrink-0" />
+                  Already Remarked
+                </span>
+              )}
+
+              <span className={`px-3 py-0.5 rounded-full text-[11px] font-black flex items-center gap-1 ${
+                isCompleted
+                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200'
+                  : isRescheduled
+                  ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200'
+                  : 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200'
+              }`}>
+                {isCompleted ? <Check className="w-3 h-3 stroke-[2.5]" /> : null}
+                {isRescheduled ? <CalendarClock className="w-3 h-3" /> : null}
+                {!isCompleted && !isRescheduled ? <X className="w-3 h-3 stroke-[2.5]" /> : null}
+                {isCompleted ? 'Completed' : (isRescheduled ? 'Rescheduled' : 'Not Completed')}
+              </span>
+            </div>
+
+            {isRescheduled && st.rescheduledDate && (
+              <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1 mt-0.5">
+                <CalendarClock className="w-3 h-3" />
+                Rescheduled: {st.rescheduledDate}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Middle Row: Remark Text line */}
+        <div className="pt-2 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between gap-2.5">
+          <div className="flex-1">
+            <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 italic">
+              {st.remark ? `"${st.remark}"` : 'No evaluation remark added yet.'}
+            </p>
+          </div>
+        </div>
+
+        {/* Bottom Row: Evaluation Action Buttons (Check, Cross, Calendar) - Remark button removed as requested */}
+        <div className="flex items-center justify-end gap-2 pt-1">
+          {/* Mark Completed (Green) */}
+          <button
+            type="button"
+            onClick={() => handleActionWithWarning(st, 'complete')}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+              isCompleted
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 hover:bg-emerald-100 border border-emerald-200'
+            }`}
+            title="Mark Completed"
+          >
+            <Check className="w-4 h-4 stroke-[3]" />
+          </button>
+
+          {/* Mark Incomplete / Not Complete (Red) */}
+          <button
+            type="button"
+            onClick={() => handleActionWithWarning(st, 'incomplete')}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+              !isCompleted && !isRescheduled
+                ? 'bg-rose-600 text-white shadow-xs'
+                : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-100 border border-rose-200'
+            }`}
+            title="Mark Not Completed"
+          >
+            <X className="w-4 h-4 stroke-[3]" />
+          </button>
+
+          {/* Reschedule (Orange) */}
+          <button
+            type="button"
+            onClick={() => handleActionWithWarning(st, 'reschedule')}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+              isRescheduled
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 hover:bg-amber-100 border border-amber-200'
+            }`}
+            title="Reschedule Homework"
+          >
+            <CalendarClock className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -1680,6 +1952,116 @@ export default function PendingRemarkHomeworkPage() {
           <span className="text-xs md:text-sm font-bold">{toast.msg}</span>
         </div>
       )}
+
+      {/* ── TOP UNIFIED LOCATION / DESTINATION BAR (DATE - CLASS - SECTION - TASK) ────────── */}
+      <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-3.5 sm:p-4 md:p-5 shadow-xs border border-slate-200/80 dark:border-slate-700/80 w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          
+          {/* Dynamic Destination Breadcrumbs: Date -> Class -> Section -> Task */}
+          <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold flex-wrap">
+            {/* 1. Date */}
+            {currentScreen === 'dates' ? (
+              <span className="flex items-center gap-1.5 text-[#0f766e] dark:text-teal-400 font-black">
+                <Calendar className="w-4 h-4 text-[#0f766e] dark:text-teal-400" />
+                <span>Select Date</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedClass('')
+                  setSelectedSection('')
+                  setSelectedSubject('')
+                  setActiveTask(null)
+                  setCurrentScreen('dates')
+                }}
+                className={`flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  currentScreen === 'classes'
+                    ? 'text-[#0f766e] dark:text-teal-400 font-black'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                }`}
+              >
+                <Calendar className="w-4 h-4 text-[#0f766e] dark:text-teal-400" />
+                <span>{selectedDateItem?.assignFormat || 'Pending Date'}</span>
+              </button>
+            )}
+
+            {/* 2. Class */}
+            {currentScreen !== 'dates' && currentScreen !== 'classes' && selectedClass && (
+              <>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSubject('')
+                    setActiveTask(null)
+                    setCurrentScreen('classes')
+                  }}
+                  className={`flex items-center gap-1 transition-colors cursor-pointer ${
+                    currentScreen === 'tasks' && !selectedSubject
+                      ? 'text-[#0f766e] dark:text-teal-400 font-black'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  <span>{selectedClass}</span>
+                </button>
+              </>
+            )}
+
+            {/* 3. Section */}
+            {currentScreen !== 'dates' && currentScreen !== 'classes' && selectedSection && (
+              <>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTask(null)
+                    setCurrentScreen('tasks')
+                  }}
+                  className={`flex items-center gap-1 transition-colors cursor-pointer ${
+                    currentScreen === 'tasks'
+                      ? 'text-[#0f766e] dark:text-teal-400 font-black'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>{selectedSection.toLowerCase().startsWith('sec') ? selectedSection : `Section ${selectedSection}`}</span>
+                </button>
+              </>
+            )}
+
+            {/* 4. Task */}
+            {currentScreen === 'evaluation' && activeTask && (
+              <>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span className="flex items-center gap-1.5 font-black text-[#0f766e] dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 px-2.5 py-0.5 rounded-lg border border-teal-200 dark:border-teal-800">
+                  <FileText className="w-3.5 h-3.5 text-[#0f766e] dark:text-teal-400 shrink-0" />
+                  <span className="truncate max-w-[200px]">{activeTask.title || 'Task'}</span>
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* Back Button on Right */}
+          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                if (currentScreen === 'evaluation') setCurrentScreen('tasks')
+                else if (currentScreen === 'tasks') setCurrentScreen('classes')
+                else if (currentScreen === 'classes') setCurrentScreen('dates')
+                else router.push('/institute/homework')
+              }}
+              className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-300 text-xs font-bold shadow-2xs flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
 
       {/* ═══════════════════════════════════════════════════════════════════
           SCREEN 1: SELECT DATE (Exact Layout of Screenshot 1 - Orange Numbers)
@@ -1809,76 +2191,64 @@ export default function PendingRemarkHomeworkPage() {
             </h1>
           </div>
 
-          {/* Selected Date Banner Card with Date Switcher */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-4 md:p-5 shadow-xs border border-orange-200/80 dark:border-orange-950/60 flex items-center justify-between flex-wrap gap-3.5 w-full">
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-orange-50 dark:bg-orange-950/40 text-orange-600 flex items-center justify-center shrink-0">
-                <Calendar className="w-6 h-6" />
+          {/* 7-Day Date Slider Strip + Jump to Date Picker matching Assign & Pending Assign */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-4 md:p-5 shadow-xs border border-slate-200/80 dark:border-slate-700/80 flex flex-col md:flex-row items-center justify-between gap-3 w-full">
+            <div className="flex items-center justify-between w-full md:w-auto gap-2">
+              <button
+                type="button"
+                onClick={() => shiftCalendar(-7)}
+                className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0 cursor-pointer"
+                title="Previous Week"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center justify-around flex-1 gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar">
+                {weekDays.map(item => (
+                  <button
+                    key={item.isoStr}
+                    type="button"
+                    onClick={() => handlePickCustomDate(item.isoStr)}
+                    className={`flex flex-col items-center justify-center py-2.5 px-3 sm:px-5 md:px-7 rounded-2xl transition-all cursor-pointer min-w-[50px] sm:min-w-[65px] ${
+                      item.isSelected
+                        ? 'bg-[#0f766e] text-white shadow-md shadow-teal-700/30 font-black scale-105'
+                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                    }`}
+                  >
+                    <span className="text-sm md:text-base font-black">{item.dayNum}</span>
+                    <span className={`text-[11px] mt-0.5 ${item.isSelected ? 'text-teal-100 font-bold' : 'text-slate-400 font-medium'}`}>
+                      {item.dayName}
+                    </span>
+                  </button>
+                ))}
               </div>
-              <div>
-                <p className="text-xs text-orange-600 dark:text-orange-400 font-bold">
-                  Pending Remark Date
-                </p>
-                <h2 className="text-base md:text-lg font-black text-slate-900 dark:text-white leading-tight mt-0.5">
-                  {selectedDateItem?.displayBanner || 'Selected Date'}
-                </h2>
-              </div>
+
+              <button
+                type="button"
+                onClick={() => shiftCalendar(7)}
+                className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0 cursor-pointer"
+                title="Next Week"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
             </div>
 
-            {/* Interactive Date Switcher (Prev / Picker / Next / Yesterday) */}
-            <div className="flex items-center gap-1.5 bg-orange-50/70 dark:bg-orange-950/30 p-1.5 rounded-2xl border border-orange-200/70 dark:border-orange-900/60">
-              <button
-                type="button"
-                onClick={() => {
-                  const cur = selectedDateItem?.fullDate || new Date(Date.now() - 86400000).toISOString().split('T')[0]
-                  const parts = cur.split('-').map(Number)
-                  const d = new Date(parts[0], parts[1] - 1, parts[2] - 1)
-                  handleSwitchDate(d)
+            {/* Direct Date Input: Enter or Pick Any Date */}
+            <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 md:border-l border-slate-100 dark:border-slate-700 pl-0 md:pl-4 shrink-0 w-full md:w-auto justify-end">
+              <label htmlFor="pending-remark-date-picker" className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 cursor-pointer">
+                <Calendar className="w-4 h-4 text-[#0f766e]" />
+                <span>Jump to Date:</span>
+              </label>
+              <input
+                id="pending-remark-date-picker"
+                type="date"
+                max={new Date(Date.now() - 86400000).toISOString().split('T')[0]}
+                value={selectedDateItem?.fullDate || ''}
+                onChange={e => {
+                  if (e.target.value) handlePickCustomDate(e.target.value)
                 }}
-                className="w-8 h-8 rounded-xl hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
-                title="Previous Day"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              <div className="relative flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white dark:bg-slate-800 border border-orange-200/80 dark:border-orange-900/80 shadow-2xs cursor-pointer hover:border-orange-400">
-                <Calendar className="w-3.5 h-3.5 text-orange-600" />
-                <span className="text-xs font-black text-slate-800 dark:text-slate-100">
-                  {selectedDateItem?.assignFormat || 'Pick Date'}
-                </span>
-                <input
-                  type="date"
-                  max={new Date(Date.now() - 86400000).toISOString().split('T')[0]}
-                  value={selectedDateItem?.fullDate || ''}
-                  onChange={e => {
-                    if (e.target.value) handleSwitchDate(e.target.value)
-                  }}
-                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                  title="Click to pick any date"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const cur = selectedDateItem?.fullDate || new Date(Date.now() - 86400000).toISOString().split('T')[0]
-                  const parts = cur.split('-').map(Number)
-                  const d = new Date(parts[0], parts[1] - 1, parts[2] + 1)
-                  handleSwitchDate(d)
-                }}
-                className="w-8 h-8 rounded-xl hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
-                title="Next Day"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSwitchDate(new Date(Date.now() - 86400000))}
-                className="px-2.5 py-1 text-[11px] font-bold rounded-xl text-orange-700 dark:text-orange-300 hover:bg-white dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                Yesterday
-              </button>
+                className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-black text-slate-800 dark:text-slate-200 outline-none focus:border-teal-500 shadow-2xs cursor-pointer"
+              />
             </div>
           </div>
 
@@ -2363,8 +2733,8 @@ export default function PendingRemarkHomeworkPage() {
             </div>
           </div>
 
-          {/* Search Bar & Status Filter Buttons Row */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full">
+          {/* Search Bar & SlidersHorizontal Dropdown Button Row matching Remark Homework */}
+          <div className="flex items-center gap-2 sm:gap-3 w-full">
             <div className="relative flex-1">
               <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
@@ -2372,58 +2742,102 @@ export default function PendingRemarkHomeworkPage() {
                 value={studentSearch}
                 onChange={e => setStudentSearch(e.target.value)}
                 placeholder="Search By Name, Roll No."
-                className="w-full pl-11 pr-11 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs md:text-sm font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 shadow-2xs placeholder:text-slate-400"
+                className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs md:text-sm font-semibold text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 shadow-2xs placeholder:text-slate-400"
               />
-              <Filter className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
 
-            {/* Filter Pills: All / Completed / Not Completed / Rescheduled */}
-            <div className="flex items-center gap-1 sm:gap-1.5 bg-white dark:bg-slate-800 p-1 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs shrink-0 overflow-x-auto no-scrollbar">
+            {/* Filter Dropdown Toggle Button (SlidersHorizontal icon matching mobile screenshot) */}
+            <div className="relative">
               <button
                 type="button"
-                onClick={() => setStudentStatusFilter('All')}
-                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
-                  studentStatusFilter === 'All' ? 'bg-[#0f766e] text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
+                onClick={() => setFilterDropdownOpen(prev => !prev)}
+                className={`w-11 h-11 rounded-2xl flex items-center justify-center border transition-all cursor-pointer shadow-2xs ${
+                  studentStatusFilter !== 'All' || filterDropdownOpen
+                    ? 'bg-[#0f766e] text-white border-teal-700'
+                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
                 }`}
+                title="Filter status"
               >
-                All ({allEvaluationStudents.length})
+                <SlidersHorizontal className="w-4 h-4" />
               </button>
-              <button
-                type="button"
-                onClick={() => setStudentStatusFilter('Completed')}
-                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
-                  studentStatusFilter === 'Completed' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
-                }`}
-              >
-                Completed ({completedEvaluationStudents.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStudentStatusFilter('Not Completed')}
-                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
-                  studentStatusFilter === 'Not Completed' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
-                }`}
-              >
-                Not Completed ({notCompletedEvaluationStudents.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setStudentStatusFilter('Rescheduled')}
-                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
-                  studentStatusFilter === 'Rescheduled' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100'
-                }`}
-              >
-                Rescheduled ({rescheduledEvaluationStudents.length})
-              </button>
+
+              {/* Dropdown Popup Menu */}
+              {filterDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-30"
+                    onClick={() => setFilterDropdownOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-2 w-48 sm:w-56 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 py-1.5 z-40 animate-in fade-in zoom-in-95 duration-150">
+                    <button
+                      type="button"
+                      onClick={() => { setStudentStatusFilter('All'); setFilterDropdownOpen(false); }}
+                      className={`w-full px-4 py-2.5 text-left text-xs sm:text-sm font-bold flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700/60 cursor-pointer ${
+                        studentStatusFilter === 'All' ? 'text-[#0f766e] dark:text-teal-300 bg-teal-50/60 dark:bg-teal-950/40' : 'text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0"></span>
+                      <span>All ({allEvaluationStudents.length})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { setStudentStatusFilter('Completed'); setFilterDropdownOpen(false); }}
+                      className={`w-full px-4 py-2.5 text-left text-xs sm:text-sm font-bold flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700/60 cursor-pointer ${
+                        studentStatusFilter === 'Completed' ? 'text-emerald-800 dark:text-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/40' : 'text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                      <span>Completed ({completedEvaluationStudents.length})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { setStudentStatusFilter('Not Completed'); setFilterDropdownOpen(false); }}
+                      className={`w-full px-4 py-2.5 text-left text-xs sm:text-sm font-bold flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700/60 cursor-pointer ${
+                        studentStatusFilter === 'Not Completed' ? 'text-rose-800 dark:text-rose-200 bg-rose-50/50 dark:bg-rose-950/40' : 'text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>
+                      <span>Not Completed ({notCompletedEvaluationStudents.length})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { setStudentStatusFilter('Rescheduled'); setFilterDropdownOpen(false); }}
+                      className={`w-full px-4 py-2.5 text-left text-xs sm:text-sm font-bold flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700/60 cursor-pointer ${
+                        studentStatusFilter === 'Rescheduled' ? 'text-amber-800 dark:text-amber-200 bg-amber-50/50 dark:bg-amber-950/40' : 'text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
+                      <span>Rescheduled ({rescheduledEvaluationStudents.length})</span>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
-          {/* Students Heading, Select All & Bulk Action Button matching Screenshot 4 */}
+          {/* Subheading Row: Students (count), Filter badge, Select All & Bulk Action */}
           <div className="flex items-center justify-between pt-1">
-            <div className="flex items-center gap-3">
-              <h3 className="text-sm md:text-base font-bold text-slate-700 dark:text-slate-300">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h3 className="text-base md:text-lg font-black text-slate-900 dark:text-white">
                 Students ({evaluationStudents.length})
               </h3>
+
+              {studentStatusFilter !== 'All' && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800">
+                  <span>Filtered: {studentStatusFilter}</span>
+                  <button
+                    type="button"
+                    onClick={() => setStudentStatusFilter('All')}
+                    className="p-0.5 hover:text-rose-600 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
               {evaluationStudents.length > 0 && (
                 <button
                   type="button"
@@ -2443,443 +2857,27 @@ export default function PendingRemarkHomeworkPage() {
             <button
               type="button"
               onClick={handleOpenBulkModal}
-              className="px-4 py-2 rounded-2xl bg-white dark:bg-slate-800 border border-[#0f766e] text-[#0f766e] dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-slate-700 text-xs md:text-sm font-bold shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+              className="px-3.5 sm:px-4 py-2 rounded-2xl bg-white dark:bg-slate-800 border border-teal-600/40 text-[#0f766e] dark:text-teal-300 hover:bg-teal-50 text-xs font-black shadow-2xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer whitespace-nowrap"
             >
               <Sparkles className="w-4 h-4 text-teal-600" />
               <span>Bulk Action {bulkSelectedStudentIds.length > 0 ? `(${bulkSelectedStudentIds.length})` : ''}</span>
             </button>
           </div>
 
-          {/* ── REAL STUDENT EVALUATION CARDS CATEGORIZED (Completed -> Not Completed -> Rescheduled) ── */}
-          {allEvaluationStudents.length === 0 ? (
+          {/* Single Unified List of Student Cards matching Remark Homework */}
+          {evaluationStudents.length === 0 ? (
             <div className="py-16 px-4 text-center bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-700 space-y-2 w-full">
               <Users className="w-12 h-12 text-slate-300 mx-auto" />
               <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
                 No students found matching your criteria.
               </p>
               <p className="text-xs text-slate-400">
-                Check your search keyword or enroll students in this class.
+                Try switching the filter back to All or clearing your search.
               </p>
             </div>
           ) : (
-            <div className="space-y-6 w-full pb-8">
-              {/* Category 1: Completed (Comes First) */}
-              {(studentStatusFilter === 'All' || studentStatusFilter === 'Completed') && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 pt-1 pb-1">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
-                    <h4 className="text-xs md:text-sm font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-2">
-                      <span>Completed</span>
-                      <span className="px-2 py-0.5 rounded-full text-[11px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold">
-                        {completedEvaluationStudents.length}
-                      </span>
-                    </h4>
-                    <div className="h-px bg-emerald-200/60 dark:bg-emerald-800/40 flex-1"></div>
-                  </div>
-
-                  {completedEvaluationStudents.length === 0 ? (
-                    <div className="p-4 rounded-2xl bg-emerald-50/40 dark:bg-emerald-950/20 border border-dashed border-emerald-200/80 dark:border-emerald-800/40 text-center text-xs text-emerald-700/80 dark:text-emerald-300/80 font-medium">
-                      No students marked as Completed yet.
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {completedEvaluationStudents.map(student => {
-                        const isSelected = bulkSelectedStudentIds.includes(student.studentId)
-                        const isCompleted = true
-                        const isRescheduled = false
-
-                        return (
-                          <div
-                            key={student.studentId}
-                            className={`bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 shadow-xs border transition-all space-y-3.5 w-full hover:border-teal-400 ${
-                              isSelected ? 'border-teal-500 ring-1 ring-teal-500/30' : 'border-slate-200/80 dark:border-slate-700/80'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-center gap-3">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleStudentSelect(student.studentId)}
-                                  className="cursor-pointer text-slate-400 hover:text-teal-600 transition-colors"
-                                  title="Select for bulk action"
-                                >
-                                  {isSelected ? (
-                                    <CheckSquare className="w-5 h-5 text-teal-600" />
-                                  ) : (
-                                    <Square className="w-5 h-5 text-slate-300 dark:text-slate-600" />
-                                  )}
-                                </button>
-
-                                {student.avatar ? (
-                                  <img
-                                    src={student.avatar}
-                                    alt={student.name}
-                                    className="w-12 h-12 rounded-2xl object-cover border border-slate-200 dark:border-slate-700"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-950/40 text-[#0f766e] font-black text-sm flex items-center justify-center border border-teal-200/60 dark:border-teal-800/60">
-                                    {student.name.charAt(0)}
-                                  </div>
-                                )}
-
-                                <div>
-                                  <h4 className="text-base font-black text-slate-900 dark:text-white leading-tight">
-                                    {student.name}
-                                  </h4>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                                      {student.gender}
-                                    </span>
-                                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                                      <Check className="w-3 h-3 stroke-[3]" />
-                                      Completed
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <span className="px-3 py-1 rounded-xl text-xs font-black bg-slate-50 dark:bg-slate-900/60 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 shrink-0">
-                                <Award className="w-3.5 h-3.5 text-teal-600" />
-                                Roll No. : {student.rollNo}
-                              </span>
-                            </div>
-
-                            <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                              <p className="text-xs text-slate-600 dark:text-slate-400 font-medium leading-relaxed flex-1 italic">
-                                {student.remark ? `"${student.remark}"` : 'No evaluation remark added yet.'}
-                              </p>
-
-                              <div className="flex items-center gap-2 shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCompleteModalStudent(student)
-                                    setCompleteRating(student.rating || 5)
-                                    setCompleteReview(student.remark || '')
-                                    setCompleteFileName(student.attachmentName || '')
-                                  }}
-                                  className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors cursor-pointer"
-                                  title="Edit Remark"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </div>
-
-                            <div className="flex justify-end items-center gap-2 pt-1">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setCompleteModalStudent(student)
-                                  setCompleteRating(student.rating || 5)
-                                  setCompleteReview(student.remark || 'Excellent work, all questions answered with clear steps.')
-                                  setCompleteFileName(student.attachmentName || '')
-                                }}
-                                className="w-9 h-9 rounded-xl flex items-center justify-center border transition-all cursor-pointer bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                                title="Edit Completed Details"
-                              >
-                                <Check className="w-4 h-4 stroke-[3]" />
-                              </button>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Category 2: Not Completed (Comes Second) */}
-              {(studentStatusFilter === 'All' || studentStatusFilter === 'Not Completed') && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 pt-2 pb-1">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
-                    <h4 className="text-xs md:text-sm font-black text-amber-800 dark:text-amber-300 uppercase tracking-wider flex items-center gap-2">
-                      <span>Not Completed</span>
-                      <span className="px-2 py-0.5 rounded-full text-[11px] bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-bold">
-                        {notCompletedEvaluationStudents.length}
-                      </span>
-                    </h4>
-                    <div className="h-px bg-amber-200/60 dark:bg-amber-800/40 flex-1"></div>
-                  </div>
-
-                  {notCompletedEvaluationStudents.length === 0 ? (
-                    <div className="p-4 rounded-2xl bg-amber-50/40 dark:bg-amber-950/20 border border-dashed border-amber-200/80 dark:border-amber-800/40 text-center text-xs text-amber-700/80 dark:text-amber-300/80 font-medium">
-                      No students pending evaluation in Not Completed.
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {notCompletedEvaluationStudents.map(student => {
-                        const isSelected = bulkSelectedStudentIds.includes(student.studentId)
-
-                        return (
-                          <div
-                            key={student.studentId}
-                            className={`bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 shadow-xs border transition-all space-y-3.5 w-full hover:border-teal-400 ${
-                              isSelected ? 'border-teal-500 ring-1 ring-teal-500/30' : 'border-slate-200/80 dark:border-slate-700/80'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-center gap-3">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleStudentSelect(student.studentId)}
-                                  className="cursor-pointer text-slate-400 hover:text-teal-600 transition-colors"
-                                  title="Select for bulk action"
-                                >
-                                  {isSelected ? (
-                                    <CheckSquare className="w-5 h-5 text-teal-600" />
-                                  ) : (
-                                    <Square className="w-5 h-5 text-slate-300 dark:text-slate-600" />
-                                  )}
-                                </button>
-
-                                {student.avatar ? (
-                                  <img
-                                    src={student.avatar}
-                                    alt={student.name}
-                                    className="w-12 h-12 rounded-2xl object-cover border border-slate-200 dark:border-slate-700"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-950/40 text-[#0f766e] font-black text-sm flex items-center justify-center border border-teal-200/60 dark:border-teal-800/60">
-                                    {student.name.charAt(0)}
-                                  </div>
-                                )}
-
-                                <div>
-                                  <h4 className="text-base font-black text-slate-900 dark:text-white leading-tight">
-                                    {student.name}
-                                  </h4>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                                      {student.gender}
-                                    </span>
-                                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200">
-                                      <AlertCircle className="w-3 h-3" />
-                                      Not Completed
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <span className="px-3 py-1 rounded-xl text-xs font-black bg-slate-50 dark:bg-slate-900/60 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 shrink-0">
-                                <Award className="w-3.5 h-3.5 text-teal-600" />
-                                Roll No. : {student.rollNo}
-                              </span>
-                            </div>
-
-                            <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                              <p className="text-xs text-slate-600 dark:text-slate-400 font-medium leading-relaxed flex-1 italic">
-                                {student.remark ? `"${student.remark}"` : 'No evaluation remark added yet.'}
-                              </p>
-
-                              <div className="flex items-center gap-2 shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setNotCompleteModalStudent(student)
-                                    setNotCompleteRemark(student.remark || '')
-                                    setNotCompleteFileName(student.attachmentName || '')
-                                  }}
-                                  className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors cursor-pointer"
-                                  title="Edit Remark"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </div>
-
-                            <div className="flex justify-end items-center gap-2 pt-1">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setCompleteModalStudent(student)
-                                  setCompleteRating(student.rating || 5)
-                                  setCompleteReview(student.remark || 'Excellent work, all questions answered with clear steps.')
-                                  setCompleteFileName(student.attachmentName || '')
-                                }}
-                                className="w-9 h-9 rounded-xl flex items-center justify-center border transition-all cursor-pointer bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100"
-                                title="Mark Completed"
-                              >
-                                <Check className="w-4 h-4 stroke-[3]" />
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setNotCompleteModalStudent(student)
-                                  setNotCompleteRemark(student.remark || 'Incomplete assignment, please finish and resubmit.')
-                                  setNotCompleteFileName(student.attachmentName || '')
-                                }}
-                                className="w-9 h-9 rounded-xl flex items-center justify-center border transition-all cursor-pointer bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100"
-                                title="Mark Incomplete"
-                              >
-                                <X className="w-4 h-4 stroke-[3]" />
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setRescheduleModalStudent(student)
-                                  const defaultDate = student.rescheduledDate || new Date(Date.now() + 86400000).toISOString().split('T')[0]
-                                  setRescheduleDate(defaultDate)
-                                  setRescheduleDescription(student.remark || 'Excellent work, all questions answered with clear steps.')
-                                }}
-                                className="w-9 h-9 rounded-xl flex items-center justify-center border transition-all cursor-pointer bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100"
-                                title="Reschedule Homework"
-                              >
-                                <CalendarClock className="w-4 h-4 text-purple-600" />
-                              </button>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Category 3: Rescheduled (Comes Third) */}
-              {(studentStatusFilter === 'All' || studentStatusFilter === 'Rescheduled') && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 pt-2 pb-1">
-                    <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shrink-0"></span>
-                    <h4 className="text-xs md:text-sm font-black text-purple-800 dark:text-purple-300 uppercase tracking-wider flex items-center gap-2">
-                      <span>Rescheduled</span>
-                      <span className="px-2 py-0.5 rounded-full text-[11px] bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 font-bold">
-                        {rescheduledEvaluationStudents.length}
-                      </span>
-                    </h4>
-                    <div className="h-px bg-purple-200/60 dark:bg-purple-800/40 flex-1"></div>
-                  </div>
-
-                  {rescheduledEvaluationStudents.length === 0 ? (
-                    <div className="p-4 rounded-2xl bg-purple-50/40 dark:bg-purple-950/20 border border-dashed border-purple-200/80 dark:border-purple-800/40 text-center text-xs text-purple-700/80 dark:text-purple-300/80 font-medium">
-                      No students rescheduled for this task.
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {rescheduledEvaluationStudents.map(student => {
-                        const isSelected = bulkSelectedStudentIds.includes(student.studentId)
-
-                        return (
-                          <div
-                            key={student.studentId}
-                            className={`bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-5 shadow-xs border transition-all space-y-3.5 w-full hover:border-teal-400 ${
-                              isSelected ? 'border-teal-500 ring-1 ring-teal-500/30' : 'border-slate-200/80 dark:border-slate-700/80'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-center gap-3">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleStudentSelect(student.studentId)}
-                                  className="cursor-pointer text-slate-400 hover:text-teal-600 transition-colors"
-                                  title="Select for bulk action"
-                                >
-                                  {isSelected ? (
-                                    <CheckSquare className="w-5 h-5 text-teal-600" />
-                                  ) : (
-                                    <Square className="w-5 h-5 text-slate-300 dark:text-slate-600" />
-                                  )}
-                                </button>
-
-                                {student.avatar ? (
-                                  <img
-                                    src={student.avatar}
-                                    alt={student.name}
-                                    className="w-12 h-12 rounded-2xl object-cover border border-slate-200 dark:border-slate-700"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-950/40 text-[#0f766e] font-black text-sm flex items-center justify-center border border-teal-200/60 dark:border-teal-800/60">
-                                    {student.name.charAt(0)}
-                                  </div>
-                                )}
-
-                                <div>
-                                  <h4 className="text-base font-black text-slate-900 dark:text-white leading-tight">
-                                    {student.name}
-                                  </h4>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                                      {student.gender}
-                                    </span>
-                                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black flex items-center gap-1 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200">
-                                      <Clock className="w-3 h-3" />
-                                      Rescheduled
-                                    </span>
-                                    {student.rescheduledDate && (
-                                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
-                                        Scheduled: {student.rescheduledDate}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <span className="px-3 py-1 rounded-xl text-xs font-black bg-slate-50 dark:bg-slate-900/60 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 shrink-0">
-                                <Award className="w-3.5 h-3.5 text-teal-600" />
-                                Roll No. : {student.rollNo}
-                              </span>
-                            </div>
-
-                            <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                              <p className="text-xs text-slate-600 dark:text-slate-400 font-medium leading-relaxed flex-1 italic">
-                                {student.remark ? `"${student.remark}"` : 'No evaluation remark added yet.'}
-                              </p>
-
-                              <div className="flex items-center gap-2 shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setNotCompleteModalStudent(student)
-                                    setNotCompleteRemark(student.remark || '')
-                                    setNotCompleteFileName(student.attachmentName || '')
-                                  }}
-                                  className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors cursor-pointer"
-                                  title="Edit Remark"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </div>
-
-                            <div className="flex justify-end items-center gap-2 pt-1">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setCompleteModalStudent(student)
-                                  setCompleteRating(student.rating || 5)
-                                  setCompleteReview(student.remark || 'Excellent work, all questions answered with clear steps.')
-                                  setCompleteFileName(student.attachmentName || '')
-                                }}
-                                className="w-9 h-9 rounded-xl flex items-center justify-center border transition-all cursor-pointer bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100"
-                                title="Mark Completed"
-                              >
-                                <Check className="w-4 h-4 stroke-[3]" />
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setRescheduleModalStudent(student)
-                                  const defaultDate = student.rescheduledDate || new Date(Date.now() + 86400000).toISOString().split('T')[0]
-                                  setRescheduleDate(defaultDate)
-                                  setRescheduleDescription(student.remark || 'Excellent work, all questions answered with clear steps.')
-                                }}
-                                className="w-9 h-9 rounded-xl flex items-center justify-center border transition-all cursor-pointer bg-purple-600 text-white border-purple-600 shadow-xs"
-                                title="Edit Rescheduled Homework"
-                              >
-                                <CalendarClock className="w-4 h-4 text-white" />
-                              </button>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
+            <div className="space-y-3.5 w-full pb-8">
+              {evaluationStudents.map(st => renderStudentCard(st))}
             </div>
           )}
 
@@ -3060,9 +3058,14 @@ export default function PendingRemarkHomeworkPage() {
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-7 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 border border-slate-100 dark:border-slate-800">
             <div className="flex items-center justify-between pb-1">
-              <h3 className="text-xl font-bold text-[#0f766e] dark:text-teal-400">
-                Reschedule
-              </h3>
+              <div>
+                <h3 className="text-xl font-bold text-[#0f766e] dark:text-teal-400">
+                  Reschedule
+                </h3>
+                <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                  {rescheduleModalStudent.name} (Roll: {rescheduleModalStudent.rollNo})
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setRescheduleModalStudent(null)}
@@ -3072,46 +3075,39 @@ export default function PendingRemarkHomeworkPage() {
               </button>
             </div>
 
-            {/* Reschedule Date */}
+            {/* Reschedule Date - Only Reschedule Date */}
             <div className="space-y-1.5 pt-1">
               <label className="block text-sm font-bold text-slate-900 dark:text-slate-100">
-                Reschedule Date
+                Reschedule Date <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <input
                   type="date"
                   value={rescheduleDate}
                   onChange={e => setRescheduleDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-slate-800 dark:text-slate-100 outline-none focus:border-teal-600 pr-10 shadow-2xs"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-slate-800 dark:text-slate-100 outline-none focus:border-teal-600 pr-10 shadow-2xs cursor-pointer"
                   placeholder="DD-MM-YYYY"
                 />
                 <Calendar className="w-5 h-5 text-teal-600 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
             </div>
 
-            {/* Description */}
-            <div className="space-y-1.5">
-              <label className="block text-sm font-bold text-slate-900 dark:text-slate-100">
-                Description
-              </label>
-              <textarea
-                rows={3}
-                value={rescheduleDescription}
-                onChange={e => setRescheduleDescription(e.target.value)}
-                placeholder="Excellent work, all questions answered with clear steps."
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-slate-800 dark:text-slate-100 outline-none focus:border-teal-600 resize-none placeholder:text-slate-400"
-              />
-            </div>
-
-            {/* Save button matching Screenshot 2 */}
-            <div className="flex justify-center pt-2">
+            {/* Action Buttons */}
+            <div className="flex justify-end items-center gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setRescheduleModalStudent(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                Cancel
+              </button>
               <button
                 type="button"
                 onClick={handleSaveRescheduleModal}
                 disabled={isSavingModal}
-                className="px-10 py-2.5 rounded-full bg-[#0f766e] hover:bg-[#0d655f] text-white font-bold text-sm shadow-sm active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                className="px-5 py-2 rounded-xl text-xs font-black bg-[#0f766e] hover:bg-[#0d655f] text-white shadow-xs active:scale-95 transition-all cursor-pointer disabled:opacity-50"
               >
-                {isSavingModal ? 'Saving...' : 'Save'}
+                {isSavingModal ? 'Saving...' : 'Save & Reschedule'}
               </button>
             </div>
           </div>
@@ -3123,7 +3119,7 @@ export default function PendingRemarkHomeworkPage() {
       ═══════════════════════════════════════════════════════════════════ */}
       {bulkModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-7 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 border border-slate-100 dark:border-slate-800">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-7 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 border border-slate-100 dark:border-slate-800">
             <div className="flex items-center justify-between pb-1">
               <div>
                 <h3 className="text-xl font-bold text-[#0f766e] dark:text-teal-400">
@@ -3178,6 +3174,119 @@ export default function PendingRemarkHomeworkPage() {
                 Reschedule
               </button>
             </div>
+
+            {/* Student Selection with Select All checkbox matching user request */}
+            <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Select Students ({bulkSelectedStudentIds.length}/{allEvaluationStudents.length})
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (bulkSelectedStudentIds.length === allEvaluationStudents.length) {
+                      setBulkSelectedStudentIds([])
+                    } else {
+                      setBulkSelectedStudentIds(allEvaluationStudents.map(s => s.studentId))
+                    }
+                  }}
+                  className="flex items-center gap-1.5 text-xs font-bold text-[#0f766e] dark:text-teal-400 hover:underline cursor-pointer"
+                >
+                  {bulkSelectedStudentIds.length === allEvaluationStudents.length && allEvaluationStudents.length > 0 ? (
+                    <CheckSquare className="w-3.5 h-3.5 text-teal-600" />
+                  ) : (
+                    <Square className="w-3.5 h-3.5 text-slate-400" />
+                  )}
+                  <span>{bulkSelectedStudentIds.length === allEvaluationStudents.length ? 'Deselect All' : 'Select All'}</span>
+                </button>
+              </div>
+
+              {/* Scrollable list of students */}
+              <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 p-2 bg-slate-50/50 dark:bg-slate-800/50">
+                {allEvaluationStudents.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-3">No students found.</p>
+                ) : (
+                  allEvaluationStudents.map(st => {
+                    const isSelected = bulkSelectedStudentIds.includes(st.studentId)
+                    return (
+                      <div
+                        key={st.studentId}
+                        onClick={() => toggleStudentSelect(st.studentId)}
+                        className={`flex items-center justify-between p-2 rounded-xl border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-teal-50/80 dark:bg-teal-950/40 border-teal-300 dark:border-teal-700'
+                            : 'bg-white dark:bg-slate-800 border-slate-200/60 dark:border-slate-700/60 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <button
+                            type="button"
+                            onClick={e => {
+                              e.stopPropagation()
+                              toggleStudentSelect(st.studentId)
+                            }}
+                            className="text-slate-400 hover:text-teal-600 cursor-pointer"
+                          >
+                            {isSelected ? (
+                              <CheckSquare className="w-4 h-4 text-teal-600" />
+                            ) : (
+                              <Square className="w-4 h-4 text-slate-300 dark:text-slate-600" />
+                            )}
+                          </button>
+
+                          {st.avatar ? (
+                            <img
+                              src={st.avatar}
+                              alt={st.name}
+                              className="w-7 h-7 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-7 h-7 rounded-lg bg-teal-100 text-[#0f766e] font-bold text-xs flex items-center justify-center shrink-0">
+                              {st.name.charAt(0)}
+                            </div>
+                          )}
+
+                          <div className="truncate">
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                              {st.name}
+                            </p>
+                            <p className="text-[10px] text-slate-400">
+                              Roll No. : {st.rollNo}
+                            </p>
+                          </div>
+                        </div>
+
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                          st.status === 'Submitted' || st.status === 'Completed'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                            : st.status === 'Rescheduled'
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                            : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                        }`}>
+                          {st.status === 'Submitted' || st.status === 'Completed' ? 'Completed' : (st.status === 'Rescheduled' ? 'Rescheduled' : 'Not Complete')}
+                        </span>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Warning if any selected student is already remarked */}
+            {bulkSelectedStudentIds.some(id => {
+              const st = allEvaluationStudents.find(s => s.studentId === id)
+              return st && isStudentAlreadyRemarked(st)
+            }) && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-200">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">Warning: Contains Already Remarked Students</p>
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">
+                    One or more selected students already have evaluation remarks on record. Applying this bulk action will overwrite their existing remarks.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Tab 1: Complete */}
             {bulkActionMode === 'Complete' && (
@@ -3288,31 +3397,18 @@ export default function PendingRemarkHomeworkPage() {
               <div className="space-y-3.5 pt-1">
                 <div className="space-y-1.5">
                   <label className="block text-sm font-bold text-slate-900 dark:text-slate-100">
-                    Reschedule Date
+                    Reschedule Date <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <input
                       type="date"
                       value={bulkRescheduleDate}
                       onChange={e => setBulkRescheduleDate(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-slate-800 dark:text-slate-100 outline-none focus:border-teal-600 pr-10 shadow-2xs"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-slate-800 dark:text-slate-100 outline-none focus:border-teal-600 pr-10 shadow-2xs cursor-pointer"
                       placeholder="DD-MM-YYYY"
                     />
                     <Calendar className="w-5 h-5 text-teal-600 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-bold text-slate-900 dark:text-slate-100">
-                    Description
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={bulkRescheduleDescription}
-                    onChange={e => setBulkRescheduleDescription(e.target.value)}
-                    placeholder="Excellent work, all questions answered with clear steps."
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-medium text-slate-800 dark:text-slate-100 outline-none focus:border-teal-600 resize-none placeholder:text-slate-400"
-                  />
                 </div>
               </div>
             )}
@@ -3326,6 +3422,65 @@ export default function PendingRemarkHomeworkPage() {
                 className="px-10 py-2.5 rounded-full bg-[#0f766e] hover:bg-[#0d655f] text-white font-bold text-sm shadow-sm active:scale-95 transition-all cursor-pointer disabled:opacity-50"
               >
                 {isBulkSubmitting ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          MODAL 5: ALREADY REMARKED WARNING CONFIRMATION MODAL
+      ═══════════════════════════════════════════════════════════════════ */}
+      {alreadyRemarkWarning && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-7 max-w-md w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white leading-tight">
+                  Already Remarked!
+                </h3>
+                <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                  {alreadyRemarkWarning.student.name} (Roll: {alreadyRemarkWarning.student.rollNo})
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/60 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+              <p className="font-bold">This student has already been evaluated as:</p>
+              <div className="font-semibold flex items-center gap-2">
+                <span className="capitalize font-black text-amber-700 dark:text-amber-300">
+                  {alreadyRemarkWarning.student.status === 'Submitted' || alreadyRemarkWarning.student.status === 'Completed'
+                    ? 'Completed'
+                    : alreadyRemarkWarning.student.status}
+                </span>
+                {alreadyRemarkWarning.student.remark && (
+                  <span className="italic truncate max-w-[200px]">
+                    "{alreadyRemarkWarning.student.remark}"
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80 pt-1">
+                Are you sure you want to change or override their evaluation?
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setAlreadyRemarkWarning(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmWarning}
+                className="px-5 py-2 rounded-xl text-xs font-black bg-amber-600 hover:bg-amber-700 text-white shadow-xs cursor-pointer active:scale-95 transition-all"
+              >
+                Yes, Change Evaluation
               </button>
             </div>
           </div>

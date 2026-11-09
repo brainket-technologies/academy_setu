@@ -15,6 +15,7 @@ export async function ensureLessonPlanDb(): Promise<void> {
             class_name VARCHAR(100) NOT NULL,
             section VARCHAR(100) NOT NULL,
             title VARCHAR(255) NOT NULL,
+            chapter_folder VARCHAR(255) DEFAULT '',
             subject VARCHAR(100) NOT NULL,
             methodology VARCHAR(255) NOT NULL,
             description TEXT DEFAULT '',
@@ -28,6 +29,7 @@ export async function ensureLessonPlanDb(): Promise<void> {
           );
         `)
 
+        await pool.query(`ALTER TABLE school_lesson_plans ADD COLUMN IF NOT EXISTS chapter_folder VARCHAR(255) DEFAULT ''`)
         await pool.query(`ALTER TABLE school_lesson_plans ADD COLUMN IF NOT EXISTS progress INTEGER DEFAULT 0`)
         await pool.query(`ALTER TABLE school_lesson_plans ADD COLUMN IF NOT EXISTS milestones JSONB DEFAULT '[]'::jsonb`)
         await pool.query(`ALTER TABLE school_lesson_plans ADD COLUMN IF NOT EXISTS attachment_name VARCHAR(255) DEFAULT ''`)

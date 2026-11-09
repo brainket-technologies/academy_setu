@@ -7,7 +7,7 @@ import {
   Search, Upload, X, Loader2, Sparkles, Send, Signal, Wifi,
   Battery, AlertCircle, CheckCircle2, ChevronDown, Download,
   Trash2, Eye, RefreshCw, Filter, Layers, CheckSquare, UserCheck, UserX, Lock,
-  CalendarClock
+  CalendarClock, Folder
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -525,24 +525,17 @@ export default function HomeworkAssignPage() {
 
   const handleSaveReschedule = async () => {
     if (!rescheduleTaskModal) return
-    if (!newAssignDateInput) {
-      showToast('Please select a new assign date.', 'error')
-      return
-    }
     if (!newDueDateInput) {
-      showToast('Please select a new submission due date.', 'error')
+      showToast('Please select a valid reschedule date.', 'error')
       return
     }
 
     setIsRescheduling(true)
     try {
-      const [ay, am, ad] = newAssignDateInput.split('-').map(Number)
-      const assignDt = new Date(ay, am - 1, ad)
-      const formattedAssign = assignDt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-
       const [dy, dm, dd] = newDueDateInput.split('-').map(Number)
       const dueDt = new Date(dy, dm - 1, dd)
       const formattedDue = dueDt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      const formattedAssign = rescheduleTaskModal.assignDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
       const res = await rescheduleHomeworkTask(
         rescheduleTaskModal.id,
@@ -1436,6 +1429,135 @@ export default function HomeworkAssignPage() {
 
   return (
     <div className="w-full flex flex-col gap-5 pb-16 animate-in fade-in duration-200">
+      
+      {/* ── TOP UNIFIED LOCATION / DESTINATION BAR (DATE - CLASS - SECTION - TASK) ────────── */}
+      <div className="bg-white dark:bg-slate-800 rounded-2xl md:rounded-3xl p-3.5 sm:p-4 md:p-5 shadow-xs border border-slate-200/80 dark:border-slate-700/80 w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          
+          {/* Dynamic Destination Breadcrumbs: Date -> Class -> Section -> Task */}
+          <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold flex-wrap">
+            {/* 1. Date */}
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedClass('')
+                setSelectedSection('')
+                setSelectedSubject('')
+                setActiveTask(null)
+                setCurrentScreen('classes')
+              }}
+              className={`flex items-center gap-1.5 transition-colors cursor-pointer ${
+                currentScreen === 'classes'
+                  ? 'text-[#0f766e] dark:text-teal-400 font-black'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <Calendar className="w-4 h-4 text-[#0f766e] dark:text-teal-400" />
+              <span>{selectedDateFormatted}</span>
+            </button>
+
+            {/* 2. Class */}
+            {currentScreen !== 'classes' && selectedClass && (
+              <>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSubject('')
+                    setActiveTask(null)
+                    setCurrentScreen('subjects')
+                  }}
+                  className={`flex items-center gap-1 transition-colors cursor-pointer ${
+                    currentScreen === 'subjects'
+                      ? 'text-[#0f766e] dark:text-teal-400 font-black'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  <span>{selectedClass}</span>
+                </button>
+              </>
+            )}
+
+            {/* 3. Section */}
+            {currentScreen !== 'classes' && selectedSection && (
+              <>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSubject('')
+                    setActiveTask(null)
+                    setCurrentScreen('subjects')
+                  }}
+                  className={`flex items-center gap-1 transition-colors cursor-pointer ${
+                    currentScreen === 'subjects'
+                      ? 'text-[#0f766e] dark:text-teal-400 font-black'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>{selectedSection.toLowerCase().startsWith('sec') ? selectedSection : `Section ${selectedSection}`}</span>
+                </button>
+              </>
+            )}
+
+            {/* 4. Task */}
+            {currentScreen === 'tasks' && selectedSubject && (
+              <>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span className="flex items-center gap-1.5 font-black text-[#0f766e] dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 px-2.5 py-0.5 rounded-lg border border-teal-200 dark:border-teal-800">
+                  <FileText className="w-3.5 h-3.5 text-[#0f766e] dark:text-teal-400 shrink-0" />
+                  <span>{selectedSubject} Tasks</span>
+                </span>
+              </>
+            )}
+
+            {currentScreen === 'students' && activeTask && (
+              <>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span className="flex items-center gap-1.5 font-black text-[#0f766e] dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 px-2.5 py-0.5 rounded-lg border border-teal-200 dark:border-teal-800 max-w-[240px] sm:max-w-xs truncate">
+                  <FileText className="w-3.5 h-3.5 text-[#0f766e] dark:text-teal-400 shrink-0" />
+                  <span className="truncate">Task: {activeTask.title}</span>
+                </span>
+              </>
+            )}
+
+            {currentScreen === 'create_task' && (
+              <>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span className="flex items-center gap-1.5 font-black text-[#0f766e] dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 px-2.5 py-0.5 rounded-lg border border-teal-200 dark:border-teal-800">
+                  <Plus className="w-3.5 h-3.5 text-[#0f766e] dark:text-teal-400 shrink-0" />
+                  <span>Create Task</span>
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* Back Button on Right */}
+          <div className="flex items-center gap-2 shrink-0">
+            {currentScreen !== 'classes' && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (currentScreen === 'create_task') setCurrentScreen('tasks')
+                  else if (currentScreen === 'students') setCurrentScreen('tasks')
+                  else if (currentScreen === 'tasks') setCurrentScreen('subjects')
+                  else if (currentScreen === 'subjects') {
+                    setSelectedClass('')
+                    setSelectedSection('')
+                    setCurrentScreen('classes')
+                  }
+                }}
+                className="px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-xl transition cursor-pointer flex items-center gap-1"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
       
       {/* ═══════════════════════════════════════════════════════════════════
           PAGE 1: ASSIGN HOMEWORK - FULL WIDTH (Exact Layout of Screenshot 1)
@@ -2614,43 +2736,24 @@ export default function HomeworkAssignPage() {
               </div>
             </div>
 
-            {/* Inputs */}
-            <div className="space-y-4 text-xs font-bold text-slate-700 dark:text-slate-300">
+            {/* Inputs - Only Reschedule Date */}
+            <div className="space-y-3.5 py-1">
               <div>
-                <label className="block mb-1.5">
-                  New Assign Date <span className="text-rose-500">*</span>
+                <label className="block mb-1.5 font-bold text-slate-800 dark:text-slate-200 text-xs sm:text-sm">
+                  Reschedule Date <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="date"
-                  value={newAssignDateInput}
-                  onChange={e => setNewAssignDateInput(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-teal-500 shadow-2xs cursor-pointer"
-                />
-              </div>
-
-              <div>
-                <label className="block mb-1.5">
-                  New Submission Due Date <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={newDueDateInput}
-                  onChange={e => setNewDueDateInput(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-teal-500 shadow-2xs cursor-pointer"
-                />
-              </div>
-
-              <div>
-                <label className="block mb-1.5">
-                  Reason / Reschedule Note <span className="text-slate-400 font-normal">(Optional)</span>
-                </label>
-                <textarea
-                  rows={2}
-                  value={rescheduleReason}
-                  onChange={e => setRescheduleReason(e.target.value)}
-                  placeholder="e.g. Extended due date, or moved due to school event..."
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none focus:border-teal-500 shadow-2xs"
-                />
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={newDueDateInput}
+                    onChange={e => setNewDueDateInput(e.target.value)}
+                    className="w-full px-4 py-2.5 sm:py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl sm:rounded-2xl font-bold text-slate-800 dark:text-slate-200 outline-none focus:border-amber-500 shadow-2xs cursor-pointer text-xs sm:text-sm pr-10"
+                  />
+                  <Calendar className="w-4 h-4 text-amber-600 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1.5">
+                  Select the new due date for this homework task.
+                </p>
               </div>
             </div>
 
