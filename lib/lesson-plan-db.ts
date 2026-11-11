@@ -34,6 +34,8 @@ export async function ensureLessonPlanDb(): Promise<void> {
         await pool.query(`ALTER TABLE school_lesson_plans ADD COLUMN IF NOT EXISTS milestones JSONB DEFAULT '[]'::jsonb`)
         await pool.query(`ALTER TABLE school_lesson_plans ADD COLUMN IF NOT EXISTS attachment_name VARCHAR(255) DEFAULT ''`)
         await pool.query(`ALTER TABLE school_lesson_plans ADD COLUMN IF NOT EXISTS description TEXT DEFAULT ''`)
+        await pool.query(`ALTER TABLE school_lesson_plans ADD COLUMN IF NOT EXISTS start_date VARCHAR(50) DEFAULT ''`)
+        await pool.query(`ALTER TABLE school_lesson_plans ADD COLUMN IF NOT EXISTS end_date VARCHAR(50) DEFAULT ''`)
 
         // Seed sample lesson plans if empty
         const countRes = await pool.query('SELECT COUNT(*)::int FROM school_lesson_plans')

@@ -32,6 +32,7 @@ import {
   Folder,
   ArrowLeft,
   List,
+  LayoutGrid,
   ExternalLink,
   ChevronDown
 } from 'lucide-react'
@@ -63,6 +64,8 @@ export interface LessonPlanRecord {
   methodology: string
   description?: string
   date: string
+  startDate?: string
+  endDate?: string
   totalMilestones: number
   progress: number
   milestones?: Milestone[]
@@ -292,8 +295,26 @@ export default function LessonPlansPage() {
     }
   ])
   const [formAttachmentName, setFormAttachmentName] = useState('')
+  const [formStartDate, setFormStartDate] = useState('')
+  const [formEndDate, setFormEndDate] = useState('')
   const [submittingForm, setSubmittingForm] = useState(false)
   const [formError, setFormError] = useState('')
+
+  // Book custom progress override state (persisted)
+  const [bookCustomProgress, setBookCustomProgress] = useState<Record<string, number>>({})
+  const [bookProgressModal, setBookProgressModal] = useState<{
+    open: boolean
+    chapter: ChapterFolder | null
+    calculatedProgress: number
+    currentProgress: number
+    isCustom: boolean
+  }>({
+    open: false,
+    chapter: null,
+    calculatedProgress: 0,
+    currentProgress: 0,
+    isCustom: false
+  })
 
   // Quick Progress Modal
   const [progressModalOpen, setProgressModalOpen] = useState(false)
@@ -301,6 +322,9 @@ export default function LessonPlansPage() {
   const [tempProgress, setTempProgress] = useState<number>(0)
   const [tempMilestones, setTempMilestones] = useState<Milestone[]>([])
   const [updatingProgress, setUpdatingProgress] = useState(false)
+
+  // View mode in Level 5 (Book View): Table (default) or Cards
+  const [bookViewMode, setBookViewMode] = useState<'table' | 'cards'>('table')
 
   // View Details Modal State
   const [viewPlan, setViewPlan] = useState<LessonPlanRecord | null>(null)
@@ -398,6 +422,14 @@ export default function LessonPlansPage() {
               }))
           )
         }
+      }
+    } catch (e) {}
+
+    // Book Custom Progress Overrides
+    try {
+      const rawCustom = localStorage.getItem('school_book_custom_progress')
+      if (rawCustom) {
+        setBookCustomProgress(JSON.parse(rawCustom))
       }
     } catch (e) {}
   }, [])
@@ -627,10 +659,69 @@ export default function LessonPlansPage() {
   const getSectionPlanCount = (cls: string, sec: string) => plans.filter(p => checkClassMatch(p.className, cls) && checkSectionMatch(p.section, sec)).length
   const getSubjectPlanCount = (cls: string, sec: string, sub: string) => plans.filter(p => checkClassMatch(p.className, cls) && checkSectionMatch(p.section, sec) && p.subject.toLowerCase().trim() === sub.toLowerCase().trim()).length
 
-  const getChapterProgress = (cls: string, sec: string, sub: string, chapter: string) => {
+  const getChapterCalculatedProgress = (cls: string, sec: string, sub: string, chapter: string) => {
     const list = getChapterPlans(cls, sec, sub, chapter)
     if (list.length === 0) return 0
     return Math.round(list.reduce((sum, p) => sum + (p.progress || 0), 0) / list.length)
+  }
+
+  const getChapterProgressData = (cls: string, sec: string, sub: string, chapter: string) => {
+    const calc = getChapterCalculatedProgress(cls, sec, sub, chapter)
+    const key = `${cls}_${sec}_${sub}_${chapter}`.toLowerCase()
+    const customVal = bookCustomProgress[key]
+    if (customVal !== undefined && customVal !== null) {
+      return {
+        progress: customVal,
+        isCustom: true,
+        calculated: calc
+      }
+    }
+    return {
+      progress: calc,
+      isCustom: false,
+      calculated: calc
+    }
+  }
+
+  const getChapterProgress = (cls: string, sec: string, sub: string, chapter: string) => {
+    return getChapterProgressData(cls, sec, sub, chapter).progress
+  }
+
+  const openBookProgressModal = (chapter: ChapterFolder) => {
+    const cls = selectedClass || chapter.className
+    const sec = selectedSection || chapter.section
+    const sub = selectedSubject || chapter.subject
+    const data = getChapterProgressData(cls, sec, sub, chapter.lessonName)
+    setBookProgressModal({
+      open: true,
+      chapter,
+      calculatedProgress: data.calculated,
+      currentProgress: data.progress,
+      isCustom: data.isCustom
+    })
+  }
+
+  const handleSaveBookProgress = (useDefault: boolean, customVal: number) => {
+    if (!bookProgressModal.chapter) return
+    const ch = bookProgressModal.chapter
+    const cls = selectedClass || ch.className
+    const sec = selectedSection || ch.section
+    const sub = selectedSubject || ch.subject
+    const key = `${cls}_${sec}_${sub}_${ch.lessonName}`.toLowerCase()
+
+    const updated = { ...bookCustomProgress }
+    if (useDefault) {
+      delete updated[key]
+      triggerToast(`Book progress reset to lesson completion default (${bookProgressModal.calculatedProgress}%)`)
+    } else {
+      updated[key] = Math.min(100, Math.max(0, customVal))
+      triggerToast(`Book progress updated to ${updated[key]}%!`)
+    }
+    setBookCustomProgress(updated)
+    try {
+      localStorage.setItem('school_book_custom_progress', JSON.stringify(updated))
+    } catch (e) {}
+    setBookProgressModal(prev => ({ ...prev, open: false }))
   }
 
   // ── All Plans View Filters ─────────────────────────────────────────────────
@@ -782,8 +873,6 @@ export default function LessonPlansPage() {
           setChapterModalOpen(false)
           if (editingChapter && selectedChapter === editingChapter.lessonName) {
             setSelectedChapter(trimmedName)
-          } else if (selectedClass && selectedSection && selectedSubject) {
-            setSelectedChapter(trimmedName)
           }
           if (editingChapter && formChapter === editingChapter.lessonName) {
             setFormChapter(trimmedName)
@@ -839,6 +928,8 @@ export default function LessonPlansPage() {
     setFormTitle('')
     setFormMethodology('Interactive Problem Solving & Lab Work')
     setFormDescription('')
+    setFormStartDate(new Date().toISOString().split('T')[0])
+    setFormEndDate('')
     setFormProgress(0)
     setFormMilestones([
       {
@@ -870,6 +961,8 @@ export default function LessonPlansPage() {
     setFormTitle(item.title)
     setFormMethodology(item.methodology || 'Structured Teaching')
     setFormDescription(item.description || '')
+    setFormStartDate(item.startDate || '')
+    setFormEndDate(item.endDate || '')
     setFormProgress(item.progress || 0)
     setFormMilestones(
       Array.isArray(item.milestones) && item.milestones.length > 0
@@ -972,6 +1065,8 @@ export default function LessonPlansPage() {
         title: formTitle.trim(),
         methodology: formMethodology.trim(),
         description: formDescription.trim(),
+        startDate: formStartDate,
+        endDate: formEndDate,
         progress: formProgress,
         milestones: formMilestones,
         attachmentName: formAttachmentName.trim()
@@ -1247,24 +1342,6 @@ export default function LessonPlansPage() {
                   <span>Back</span>
                 </button>
               )}
-
-              <button
-                type="button"
-                onClick={() => openCreateChapterModal(selectedClass || undefined, selectedSection || undefined, selectedSubject || undefined)}
-                className="px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer flex items-center gap-1.5"
-              >
-                <BookOpen className="w-3.5 h-3.5 text-[#007A78]" />
-                <span>+ Add Book Title</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => openAddPlanModal(selectedChapter || undefined)}
-                className="px-4 py-2 text-xs font-black text-white bg-[#007A78] hover:bg-teal-700 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5 active:scale-95"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Lesson Plan</span>
-              </button>
             </div>
           </div>
 
@@ -1454,17 +1531,21 @@ export default function LessonPlansPage() {
                   </button>
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-xl border border-slate-100 font-semibold text-xs">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 font-semibold text-xs">
                   <table className="w-full text-center border-collapse">
                     <thead className="bg-slate-50/80 font-black text-slate-600 border-b border-slate-200 text-[11px] uppercase tracking-wider">
                       <tr>
-                        <th className="px-3 py-3.5 w-12">S. No.</th>
-                        <th className="px-3 py-3.5 text-left min-w-[200px]">Class & Subject Path</th>
-                        <th className="px-3 py-3.5 text-left min-w-[180px]">Lesson Title</th>
-                        <th className="px-3 py-3.5 text-left min-w-[150px]">Methodology</th>
-                        <th className="px-3 py-3.5 w-24">Date</th>
-                        <th className="px-3 py-3.5 min-w-[160px] text-left">Syllabus Progress</th>
-                        <th className="px-3 py-3.5 w-28">Action</th>
+                        <th className="px-3 py-3.5 w-10">#</th>
+                        <th className="px-3 py-3.5 text-left min-w-[150px]">Class & Subject</th>
+                        <th className="px-3 py-3.5 text-left min-w-[130px]">Book Title</th>
+                        <th className="px-3 py-3.5 text-left min-w-[160px]">Lesson Title</th>
+                        <th className="px-3 py-3.5 text-left min-w-[170px]">Description</th>
+                        <th className="px-3 py-3.5 text-left min-w-[130px]">Methodology</th>
+                        <th className="px-3 py-3.5 text-left min-w-[140px]">Attachment Name</th>
+                        <th className="px-3 py-3.5 text-left min-w-[150px]">Start & Completion Date</th>
+                        <th className="px-3 py-3.5 min-w-[140px] text-left">Overall Progress</th>
+                        <th className="px-3 py-3.5 min-w-[120px] text-left">Syllabus</th>
+                        <th className="px-3 py-3.5 w-28 text-center">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-xs">
@@ -1473,9 +1554,9 @@ export default function LessonPlansPage() {
                         const totalM = item.milestones?.length || item.totalMilestones || 1
                         const completedM = item.milestones ? item.milestones.filter(m => m.completed).length : Math.round((percent / 100) * totalM)
                         return (
-                          <tr key={item.id} className="hover:bg-slate-50/60 transition-colors cursor-pointer" onClick={() => setViewPlan(item)}>
-                            <td className="px-3 py-3.5 text-slate-400 font-bold">{idx + 1}.</td>
-                            <td className="px-3 py-3.5 text-left">
+                          <tr key={item.id} className="hover:bg-teal-50/30 transition-colors cursor-pointer" onClick={() => setViewPlan(item)}>
+                            <td className="px-3 py-3 text-slate-400 font-bold">{idx + 1}.</td>
+                            <td className="px-3 py-3 text-left">
                               <div className="font-bold text-slate-800 text-xs flex items-center gap-1.5 flex-wrap">
                                 <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-bold">{item.className}</span>
                                 <span className="text-slate-300">&bull;</span>
@@ -1483,24 +1564,52 @@ export default function LessonPlansPage() {
                                 <span className="text-slate-300">&bull;</span>
                                 <span className="text-[#007A78] font-bold">{item.subject}</span>
                               </div>
-                              <p className="text-[11px] text-slate-500 mt-0.5 font-medium flex items-center gap-1">
-                                <BookOpen className="w-3 h-3 text-[#007A78]" />
-                                <span>Book: {item.chapterFolder || item.title}</span>
-                              </p>
                             </td>
-                            <td className="px-3 py-3.5 text-left">
-                              <div className="font-black text-slate-900 text-xs">{item.title}</div>
-                              {item.description && (
-                                <p className="text-[10.5px] text-slate-400 font-medium line-clamp-1 mt-0.5">{item.description}</p>
+                            {/* 1. Book Title */}
+                            <td className="px-3 py-3 text-left">
+                              <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                                <BookOpen className="w-3.5 h-3.5 text-[#007A78] shrink-0" />
+                                <span className="truncate max-w-[120px]" title={item.chapterFolder || item.title}>
+                                  {item.chapterFolder || item.title}
+                                </span>
+                              </span>
+                            </td>
+                            {/* 2. Lesson Title */}
+                            <td className="px-3 py-3 text-left">
+                              <div className="font-black text-slate-900 text-xs line-clamp-2" title={item.title}>{item.title}</div>
+                            </td>
+                            {/* 3. Description */}
+                            <td className="px-3 py-3 text-left text-slate-500 font-medium">
+                              <span className="line-clamp-2 text-xs" title={item.description || '—'}>
+                                {item.description || '—'}
+                              </span>
+                            </td>
+                            {/* 4. Methodology */}
+                            <td className="px-3 py-3 text-left">
+                              <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-bold text-[11px] line-clamp-1">
+                                {item.methodology}
+                              </span>
+                            </td>
+                            {/* 5. Attachment Name */}
+                            <td className="px-3 py-3 text-left">
+                              {item.attachmentName ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-teal-50 text-[#007A78] text-[11px] font-bold border border-teal-200">
+                                  <Paperclip className="w-3 h-3 shrink-0" />
+                                  <span className="truncate max-w-[120px]" title={item.attachmentName}>{item.attachmentName}</span>
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 italic text-[11px]">No attachment</span>
                               )}
                             </td>
-                            <td className="px-3 py-3.5 text-left text-slate-600 text-[11px]">
-                              <span className="line-clamp-2">{item.methodology}</span>
+                            {/* 6. Start & Completion Date */}
+                            <td className="px-3 py-3 text-left whitespace-nowrap text-[11px]">
+                              <div className="flex flex-col gap-0.5 font-semibold text-slate-700">
+                                <span className="text-slate-500">Start: <b className="text-slate-800">{item.startDate || item.date || '—'}</b></span>
+                                <span className="text-slate-500">End: <b className="text-slate-800">{item.endDate || 'Ongoing'}</b></span>
+                              </div>
                             </td>
-                            <td className="px-3 py-3.5 text-slate-500 whitespace-nowrap text-[11px]">
-                              {item.date}
-                            </td>
-                            <td className="px-3 py-3.5 text-left" onClick={e => handleOpenProgressModal(item, e)}>
+                            {/* 7. Overall Progress (Progress Bar after date) */}
+                            <td className="px-3 py-3 text-left" onClick={e => { e.stopPropagation(); handleOpenProgressModal(item, e); }}>
                               <div className="flex flex-col gap-1 min-w-[130px] group/prog">
                                 <div className="flex items-center justify-between text-xs">
                                   <span className={`px-2 py-0.5 rounded-md font-black text-[10.5px] ${
@@ -1509,7 +1618,6 @@ export default function LessonPlansPage() {
                                     {percent}%
                                   </span>
                                   <span className="text-[10px] text-slate-400 font-bold group-hover/prog:text-[#007A78] flex items-center gap-0.5">
-                                    <span>{completedM}/{totalM} Topics</span>
                                     <Sliders className="w-2.5 h-2.5" />
                                   </span>
                                 </div>
@@ -1518,7 +1626,14 @@ export default function LessonPlansPage() {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-3 py-3.5 whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                            {/* 8. Syllabus */}
+                            <td className="px-3 py-3 text-left">
+                              <span className="text-xs font-bold text-[#007A78] whitespace-nowrap">
+                                {completedM}/{totalM} Topics
+                              </span>
+                            </td>
+                            {/* 9. Action */}
+                            <td className="px-3 py-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                               <div className="flex items-center justify-center gap-1.5">
                                 <button onClick={e => handleOpenProgressModal(item, e)} className="p-1 text-[#007A78] hover:bg-teal-50 rounded" title="Update Progress">
                                   <Sliders className="w-3.5 h-3.5" />
@@ -1809,7 +1924,8 @@ export default function LessonPlansPage() {
                     {currentSubjectChapters.map(chapter => {
                       const chPlans = getChapterPlans(selectedClass!, selectedSection!, selectedSubject!, chapter.lessonName)
                       const count = chPlans.length
-                      const prog = getChapterProgress(selectedClass!, selectedSection!, selectedSubject!, chapter.lessonName)
+                      const progData = getChapterProgressData(selectedClass!, selectedSection!, selectedSubject!, chapter.lessonName)
+                      const prog = progData.progress
 
                       return (
                         <div
@@ -1857,15 +1973,48 @@ export default function LessonPlansPage() {
                               {chapter.lessonName}
                             </h3>
 
-                            {/* Progress bar inside book */}
-                            <div className="mt-3 space-y-1">
+                            {/* Progress bar inside book with update option */}
+                            <div className="mt-3 space-y-1.5">
                               <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
-                                <span>Progress</span>
-                                <span className={prog >= 100 ? 'text-emerald-600' : 'text-[#007A78]'}>{prog}%</span>
+                                <span className="flex items-center gap-1.5">
+                                  <span>Progress</span>
+                                  {progData.isCustom ? (
+                                    <span className="px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 text-[9.5px] font-black border border-amber-200">
+                                      Custom
+                                    </span>
+                                  ) : (
+                                    <span className="px-1.5 py-0.5 rounded-md bg-teal-50 text-[#007A78] text-[9.5px] font-bold border border-teal-200">
+                                      Auto ({progData.calculated}%)
+                                    </span>
+                                  )}
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  <span className={prog >= 100 ? 'text-emerald-600 font-black' : 'text-[#007A78] font-black'}>
+                                    {prog}%
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      openBookProgressModal(chapter)
+                                    }}
+                                    className="p-1 text-slate-400 hover:text-[#007A78] hover:bg-slate-100 rounded-md transition cursor-pointer"
+                                    title="Update Book Progress (Auto / Custom)"
+                                  >
+                                    <Sliders className="w-3 h-3" />
+                                  </button>
+                                </div>
                               </div>
-                              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openBookProgressModal(chapter)
+                                }}
+                                className="w-full bg-slate-100 rounded-full h-2 overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#007A78]/30 transition"
+                                title="Click to update book progress"
+                              >
                                 <div
-                                  className={`h-full rounded-full transition-all ${prog >= 100 ? 'bg-emerald-500' : 'bg-[#007A78]'}`}
+                                  className={`h-full rounded-full transition-all duration-300 ${prog >= 100 ? 'bg-emerald-500' : 'bg-[#007A78]'}`}
                                   style={{ width: `${prog}%` }}
                                 />
                               </div>
@@ -1931,12 +2080,79 @@ export default function LessonPlansPage() {
                     </div>
                   </div>
 
-                  {/* Single Clean Add Button */}
-                  <div className="flex items-center gap-2">
+                  {/* Book Progress Quick Access & Actions */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(() => {
+                      const chData = getChapterProgressData(selectedClass || '', selectedSection || '', selectedSubject || '', selectedChapter || '')
+                      const matchedChapter = currentSubjectChapters.find(
+                        c => c.lessonName.toLowerCase().trim() === selectedChapter?.toLowerCase().trim()
+                      ) || {
+                        id: 'active',
+                        lessonName: selectedChapter || '',
+                        className: selectedClass || '',
+                        section: selectedSection || '',
+                        subject: selectedSubject || '',
+                        resourcesCount: currentChapterPlans.length
+                      }
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => openBookProgressModal(matchedChapter)}
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-teal-50 border border-slate-200 hover:border-teal-300 transition cursor-pointer text-xs"
+                          title="Click to update Book Progress (Auto default or Custom)"
+                        >
+                          <Sliders className="w-3.5 h-3.5 text-[#007A78]" />
+                          <span className="font-bold text-slate-700">Book Progress:</span>
+                          <span className={`font-black ${chData.progress >= 100 ? 'text-emerald-600' : 'text-[#007A78]'}`}>
+                            {chData.progress}%
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-bold">
+                            ({chData.isCustom ? 'Custom' : 'Auto'})
+                          </span>
+                          <div className="w-14 bg-slate-200 rounded-full h-1.5 overflow-hidden ml-0.5">
+                            <div
+                              className={`h-full rounded-full transition-all ${chData.progress >= 100 ? 'bg-emerald-500' : 'bg-[#007A78]'}`}
+                              style={{ width: `${chData.progress}%` }}
+                            />
+                          </div>
+                        </button>
+                      )
+                    })()}
+
+                    {/* View Switch: Table / Cards */}
+                    <div className="inline-flex items-center p-1 bg-slate-100 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setBookViewMode('table')}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                          bookViewMode === 'table'
+                            ? 'bg-white text-[#007A78] shadow-2xs'
+                            : 'text-slate-500 hover:text-slate-900'
+                        }`}
+                        title="Table View (Columns)"
+                      >
+                        <List className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Table</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBookViewMode('cards')}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                          bookViewMode === 'cards'
+                            ? 'bg-white text-[#007A78] shadow-2xs'
+                            : 'text-slate-500 hover:text-slate-900'
+                        }`}
+                        title="Cards View"
+                      >
+                        <LayoutGrid className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Cards</span>
+                      </button>
+                    </div>
+
                     <button
                       type="button"
                       onClick={() => openAddPlanModal(selectedChapter!)}
-                      className="px-4 py-2.5 bg-[#007A78] hover:bg-teal-700 text-white font-black text-xs sm:text-sm rounded-xl shadow-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                      className="px-4 py-2 bg-[#007A78] hover:bg-teal-700 text-white font-black text-xs sm:text-sm rounded-xl shadow-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer"
                     >
                       <Plus className="w-4 h-4" />
                       <span>Add Lesson Plan</span>
@@ -1966,7 +2182,165 @@ export default function LessonPlansPage() {
                       <span>Add Lesson Plan</span>
                     </button>
                   </div>
+                ) : bookViewMode === 'table' ? (
+                  /* ── TABLE VIEW (Requested Column Order) ─────────────────────── */
+                  <div className="overflow-x-auto rounded-2xl border border-slate-200/80">
+                    <table className="w-full text-center border-collapse">
+                      <thead className="bg-slate-50/90 font-black text-slate-600 border-b border-slate-200 text-[11px] uppercase tracking-wider">
+                        <tr>
+                          <th className="px-3.5 py-3.5 text-left min-w-[130px]">Book Title</th>
+                          <th className="px-3.5 py-3.5 text-left min-w-[160px]">Lesson Title</th>
+                          <th className="px-3.5 py-3.5 text-left min-w-[180px]">Description</th>
+                          <th className="px-3.5 py-3.5 text-left min-w-[140px]">Methodology</th>
+                          <th className="px-3.5 py-3.5 text-left min-w-[150px]">Attachment Name</th>
+                          <th className="px-3.5 py-3.5 text-left min-w-[160px]">Start & Completion Date</th>
+                          <th className="px-3.5 py-3.5 text-left min-w-[150px]">Overall Progress</th>
+                          <th className="px-3.5 py-3.5 text-left min-w-[140px]">Syllabus</th>
+                          <th className="px-3.5 py-3.5 w-28 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-xs">
+                        {currentChapterPlans.map(item => {
+                          const percent = Math.min(100, Math.max(0, item.progress || 0))
+                          const totalM = item.milestones?.length || item.totalMilestones || 1
+                          const completedM = item.milestones ? item.milestones.filter(m => m.completed).length : Math.round((percent / 100) * totalM)
+
+                          return (
+                            <tr key={item.id} className="hover:bg-teal-50/30 transition-colors">
+                              {/* 1. Book Title */}
+                              <td className="px-3.5 py-3 text-left">
+                                <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                                  <BookOpen className="w-3.5 h-3.5 text-[#007A78] shrink-0" />
+                                  <span className="truncate max-w-[140px]" title={item.chapterFolder || selectedChapter || undefined}>
+                                    {item.chapterFolder || selectedChapter}
+                                  </span>
+                                </span>
+                              </td>
+
+                              {/* 2. Lesson Title */}
+                              <td className="px-3.5 py-3 text-left font-black text-slate-900 text-xs">
+                                <span className="line-clamp-2" title={item.title}>{item.title}</span>
+                              </td>
+
+                              {/* 3. Description */}
+                              <td className="px-3.5 py-3 text-left text-slate-500 font-medium">
+                                <span className="line-clamp-2" title={item.description || '—'}>
+                                  {item.description || '—'}
+                                </span>
+                              </td>
+
+                              {/* 4. Methodology */}
+                              <td className="px-3.5 py-3 text-left">
+                                <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-bold text-[11px] line-clamp-1">
+                                  {item.methodology}
+                                </span>
+                              </td>
+
+                              {/* 5. Attachment Name */}
+                              <td className="px-3.5 py-3 text-left">
+                                {item.attachmentName ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-teal-50 text-[#007A78] text-[11px] font-bold border border-teal-200">
+                                    <Paperclip className="w-3 h-3 shrink-0" />
+                                    <span className="truncate max-w-[130px]" title={item.attachmentName}>{item.attachmentName}</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400 italic text-[11px]">No attachment</span>
+                                )}
+                              </td>
+
+                              {/* 6. Start & Completion Date */}
+                              <td className="px-3.5 py-3 text-left whitespace-nowrap text-[11px]">
+                                <div className="flex flex-col gap-0.5 font-semibold text-slate-700">
+                                  <span className="text-slate-500">Start: <b className="text-slate-800">{item.startDate || item.date || '—'}</b></span>
+                                  <span className="text-slate-500">End: <b className="text-slate-800">{item.endDate || 'Ongoing'}</b></span>
+                                </div>
+                              </td>
+
+                              {/* 7. Overall Progress (Progress Bar after date) */}
+                              <td className="px-3.5 py-3 text-left" onClick={() => handleOpenProgressModal(item)}>
+                                <div className="flex flex-col gap-1 min-w-[130px] cursor-pointer group">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className={`px-2 py-0.5 rounded-md font-black text-[10.5px] ${
+                                      percent >= 100
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                        : percent > 0
+                                        ? 'bg-teal-50 text-[#007A78] border border-teal-200'
+                                        : 'bg-slate-100 text-slate-600'
+                                    }`}>
+                                      {percent}%
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 font-bold group-hover:text-[#007A78] flex items-center gap-0.5">
+                                      <Sliders className="w-2.5 h-2.5" />
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full transition-all ${percent >= 100 ? 'bg-emerald-500' : 'bg-[#007A78]'}`}
+                                      style={{ width: `${percent}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* 8. Syllabus */}
+                              <td className="px-3.5 py-3 text-left">
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="text-xs font-bold text-[#007A78]">
+                                    {completedM}/{totalM} Topics Done
+                                  </span>
+                                  {Array.isArray(item.milestones) && item.milestones.length > 0 && (
+                                    <span className="text-[10.5px] text-slate-400 truncate max-w-[140px]" title={item.milestones.map(m => m.topic || m.unit).filter(Boolean).join(', ')}>
+                                      {item.milestones.map(m => m.topic || m.unit).filter(Boolean).join(', ')}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* 9. Action */}
+                              <td className="px-3.5 py-3 whitespace-nowrap">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenProgressModal(item)}
+                                    className="p-1.5 text-[#007A78] hover:bg-teal-50 rounded-lg transition cursor-pointer"
+                                    title="Update Progress"
+                                  >
+                                    <Sliders className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setViewPlan(item)}
+                                    className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                                    title="View Plan"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => openEditPlanModal(item)}
+                                    className="p-1.5 text-slate-500 hover:text-[#007A78] hover:bg-teal-50 rounded-lg transition cursor-pointer"
+                                    title="Edit Plan"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeletePlanId(item.id)}
+                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                                    title="Delete Plan"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 ) : (
+                  /* ── CARDS VIEW (Matching the same column order) ───────────────── */
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
                     {currentChapterPlans.map(item => {
                       const percent = Math.min(100, Math.max(0, item.progress || 0))
@@ -1978,10 +2352,14 @@ export default function LessonPlansPage() {
                           key={item.id}
                           className="bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between overflow-hidden"
                         >
-                          <div className="p-5">
-                            {/* Header row: Status badge + Methodology */}
-                            <div className="flex items-start justify-between gap-2 mb-3">
-                              <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-wider ${
+                          <div className="p-5 space-y-3">
+                            {/* 1. Book Title Badge & Status */}
+                            <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-100">
+                              <span className="text-xs font-black text-[#007A78] flex items-center gap-1.5">
+                                <BookOpen className="w-3.5 h-3.5" />
+                                <span className="truncate max-w-[180px]">Book: {item.chapterFolder || selectedChapter}</span>
+                              </span>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
                                 percent >= 100
                                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                   : percent > 0
@@ -1990,34 +2368,77 @@ export default function LessonPlansPage() {
                               }`}>
                                 {percent >= 100 ? 'Completed' : percent > 0 ? 'In Progress' : 'Not Started'}
                               </span>
+                            </div>
 
-                              <span className="text-[11px] font-bold text-slate-500">
-                                {item.date}
+                            {/* 2. Lesson Title */}
+                            <div>
+                              <h3 className="text-base font-black text-slate-900 line-clamp-2">
+                                {item.title}
+                              </h3>
+                            </div>
+
+                            {/* 3. Description */}
+                            {item.description ? (
+                              <p className="text-xs text-slate-600 line-clamp-2 font-medium">
+                                {item.description}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-slate-400 italic font-medium">No description provided</p>
+                            )}
+
+                            {/* 4. Methodology */}
+                            <div className="flex items-center gap-2 flex-wrap text-xs">
+                              <span className="text-slate-400 text-[11px] font-bold">Methodology:</span>
+                              <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-bold text-[11px]">
+                                {item.methodology}
                               </span>
                             </div>
 
-                            <h3 className="text-base font-black text-slate-900 line-clamp-2">
-                              {item.title}
-                            </h3>
-
-                            <div className="mt-2 inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[11px] font-bold">
-                              {item.methodology}
-                            </div>
-
-                            {item.description && (
-                              <p className="text-xs text-slate-500 mt-2.5 line-clamp-2 font-medium">
-                                {item.description}
-                              </p>
+                            {/* 5. Attachment Name */}
+                            {item.attachmentName && (
+                              <div className="flex items-center gap-1.5 text-xs">
+                                <span className="text-slate-400 text-[11px] font-bold">Attachment:</span>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 text-[#007A78] font-bold text-[11px] border border-teal-200">
+                                  <Paperclip className="w-3 h-3 text-[#007A78]" />
+                                  <span className="truncate max-w-[180px]">{item.attachmentName}</span>
+                                </span>
+                              </div>
                             )}
 
-                            {/* Syllabus Milestones / Topics Checklist */}
+                            {/* 6. Overall Lesson / Chapter Dates */}
+                            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+                              <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                                <Calendar className="w-3 h-3 text-[#007A78]" />
+                                <span>Overall Lesson / Chapter Dates</span>
+                              </div>
+                              <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
+                                <span>Start: <b>{item.startDate || item.date || '—'}</b></span>
+                                <span>Completion: <b>{item.endDate || 'Ongoing'}</b></span>
+                              </div>
+                            </div>
+
+                            {/* 7. Progress Bar AFTER date of overall lesson/chapter */}
+                            <div className="space-y-1.5 pt-1">
+                              <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                                <span>Overall Progress</span>
+                                <span className={percent >= 100 ? 'text-emerald-600 font-black' : 'text-[#007A78] font-black'}>{percent}%</span>
+                              </div>
+                              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all ${percent >= 100 ? 'bg-emerald-500' : 'bg-[#007A78]'}`}
+                                  style={{ width: `${percent}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* 8. Syllabus Topics (without unit-wise date) */}
                             {Array.isArray(item.milestones) && item.milestones.length > 0 && (
-                              <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5">
+                              <div className="pt-2.5 border-t border-slate-100 space-y-1.5">
                                 <div className="text-[11px] font-black text-slate-700 uppercase tracking-wider flex items-center justify-between">
                                   <span>Syllabus Topics</span>
                                   <span className="text-[#007A78]">{completedM}/{totalM} Done</span>
                                 </div>
-                                <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                                <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
                                   {item.milestones.map((m, mIdx) => (
                                     <div key={m.id || mIdx} className="flex items-center gap-2 text-[11.5px] font-medium text-slate-600">
                                       <span className={`w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 text-[10px] ${
@@ -2033,23 +2454,9 @@ export default function LessonPlansPage() {
                                 </div>
                               </div>
                             )}
-
-                            {/* Progress bar */}
-                            <div className="mt-4 space-y-1.5">
-                              <div className="flex items-center justify-between text-xs font-bold text-slate-600">
-                                <span>Progress</span>
-                                <span className={percent >= 100 ? 'text-emerald-600' : 'text-[#007A78]'}>{percent}%</span>
-                              </div>
-                              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full transition-all ${percent >= 100 ? 'bg-emerald-500' : 'bg-[#007A78]'}`}
-                                  style={{ width: `${percent}%` }}
-                                />
-                              </div>
-                            </div>
                           </div>
 
-                          {/* Action Footer */}
+                          {/* 9. Action Footer */}
                           <div className="p-3 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between">
                             <button
                               type="button"
@@ -2130,42 +2537,28 @@ export default function LessonPlansPage() {
             </div>
 
             <form onSubmit={handleSaveChapterFolder} className="p-5 space-y-4 text-xs font-semibold">
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-slate-600 mb-1 font-bold">Class</label>
-                  <select
-                    value={chapterFormClass}
-                    onChange={e => setChapterFormClass(e.target.value)}
-                    className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#007A78]"
-                  >
-                    {unifiedClasses.map(c => (
-                      <option key={c.className} value={c.className}>{c.className}</option>
-                    ))}
-                  </select>
+              {/* Navigation Trail (Locked Class, Section, Subject) */}
+              <div className="bg-slate-50/90 border border-slate-200/90 rounded-2xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-400">
+                    Curriculum Location:
+                  </span>
                 </div>
-                <div>
-                  <label className="block text-slate-600 mb-1 font-bold">Section</label>
-                  <select
-                    value={chapterFormSection}
-                    onChange={e => setChapterFormSection(e.target.value)}
-                    className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#007A78]"
-                  >
-                    {getAvailableSectionsForClass(chapterFormClass, masterSections, unifiedClasses).map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-600 mb-1 font-bold">Subject</label>
-                  <select
-                    value={chapterFormSubject}
-                    onChange={e => setChapterFormSubject(e.target.value)}
-                    className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#007A78]"
-                  >
-                    {getAvailableSubjectsForClass(chapterFormClass, masterSubjects).map(sub => (
-                      <option key={sub} value={sub}>{sub}</option>
-                    ))}
-                  </select>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-black text-slate-800 shadow-2xs">
+                    <GraduationCap className="w-3.5 h-3.5 text-[#007A78]" />
+                    <span>{chapterFormClass || 'Class 1'}</span>
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-black text-slate-800 shadow-2xs">
+                    <Layers className="w-3.5 h-3.5 text-[#007A78]" />
+                    <span>{chapterFormSection || 'Section A'}</span>
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 border border-teal-200 text-xs font-black text-[#007A78] shadow-2xs">
+                    <BookOpen className="w-3.5 h-3.5 text-[#007A78]" />
+                    <span>{chapterFormSubject || 'English'}</span>
+                  </span>
                 </div>
               </div>
 
@@ -2294,51 +2687,28 @@ export default function LessonPlansPage() {
                   </div>
                 )}
 
-                {/* 1. Class, Section, Subject Cascading Selection */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  <div>
-                    <label className="block text-slate-600 mb-1 font-bold">Class *</label>
-                    <select
-                      value={formClass}
-                      onChange={e => {
-                        setFormClass(e.target.value)
-                        setFormSection('Section A')
-                      }}
-                      required
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#007A78]"
-                    >
-                      {unifiedClasses.map(c => (
-                        <option key={c.className} value={c.className}>{c.className}</option>
-                      ))}
-                    </select>
+                {/* Navigation Trail (Locked Class, Section, Subject) */}
+                <div className="bg-slate-50/90 border border-slate-200/90 rounded-2xl p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-400">
+                      Curriculum Location:
+                    </span>
                   </div>
-
-                  <div>
-                    <label className="block text-slate-600 mb-1 font-bold">Section *</label>
-                    <select
-                      value={formSection}
-                      onChange={e => setFormSection(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#007A78]"
-                    >
-                      {formAvailableSections.map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-600 mb-1 font-bold">Subject *</label>
-                    <select
-                      value={formSubject}
-                      onChange={e => setFormSubject(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#007A78]"
-                    >
-                      {formAvailableSubjects.map(sub => (
-                        <option key={sub} value={sub}>{sub}</option>
-                      ))}
-                    </select>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-black text-slate-800 shadow-2xs">
+                      <GraduationCap className="w-3.5 h-3.5 text-[#007A78]" />
+                      <span>{formClass || 'Class 1'}</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-black text-slate-800 shadow-2xs">
+                      <Layers className="w-3.5 h-3.5 text-[#007A78]" />
+                      <span>{formSection || 'Section A'}</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 border border-teal-200 text-xs font-black text-[#007A78] shadow-2xs">
+                      <BookOpen className="w-3.5 h-3.5 text-[#007A78]" />
+                      <span>{formSubject || 'English'}</span>
+                    </span>
                   </div>
                 </div>
 
@@ -2411,10 +2781,10 @@ export default function LessonPlansPage() {
                   )}
                 </div>
 
-                {/* 3. Lesson Plan Title */}
+                {/* 2. Lesson Title */}
                 <div>
                   <label className="block text-slate-600 mb-1 font-bold">
-                    Lesson Plan Title *
+                    Lesson Title / Chapter Topic *
                   </label>
                   <input
                     type="text"
@@ -2426,37 +2796,7 @@ export default function LessonPlansPage() {
                   />
                 </div>
 
-                {/* 4. Methodology & Attachment */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-600 mb-1 font-bold">
-                      Teaching Methodology *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Interactive Problem Solving & Visual Slides"
-                      value={formMethodology}
-                      onChange={e => setFormMethodology(e.target.value)}
-                      className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:border-[#007A78]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-600 mb-1 font-bold">
-                      Attachment Name / File (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Chapter_Worksheet.pdf"
-                      value={formAttachmentName}
-                      onChange={e => setFormAttachmentName(e.target.value)}
-                      className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:border-[#007A78]"
-                    />
-                  </div>
-                </div>
-
-                {/* 5. Description */}
+                {/* 3. Description / Learning Objectives */}
                 <div>
                   <label className="block text-slate-600 mb-1 font-bold">
                     Description / Learning Objectives (Optional)
@@ -2470,7 +2810,153 @@ export default function LessonPlansPage() {
                   />
                 </div>
 
-                {/* 6. Topics & Syllabus Milestones Checklist */}
+                {/* 4. Teaching Methodology */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-600 font-bold">
+                      Teaching Methodology *
+                    </label>
+                    <span className="text-[10.5px] text-slate-400">Select preset or type custom</span>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Interactive Problem Solving & Visual Slides"
+                    value={formMethodology}
+                    onChange={e => setFormMethodology(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:border-[#007A78]"
+                  />
+                  <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                    {[
+                      'Interactive Problem Solving',
+                      'Lecture & Lab Work',
+                      'Visual Slides & Quiz',
+                      'Group Discussion',
+                      'Hands-on Practical'
+                    ].map(m => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setFormMethodology(m)}
+                        className={`px-2 py-0.5 rounded-md text-[10.5px] font-bold transition cursor-pointer ${
+                          formMethodology === m
+                            ? 'bg-teal-50 text-[#007A78] border border-teal-200 font-black shadow-2xs'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 5. Attachment Name (PPT, Class Note, Chapter PDF, etc.) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-600 font-bold">
+                      Attachment Name / File (Optional)
+                    </label>
+                    <span className="text-[10.5px] text-slate-400">Quick options: PPT, Class Note, Chapter PDF...</span>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g. Chapter_Presentation.pptx or select quick type below..."
+                    value={formAttachmentName}
+                    onChange={e => setFormAttachmentName(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:border-[#007A78]"
+                  />
+                  <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                    {[
+                      { label: 'PPT Slides', value: 'PPT Slides - Presentation.pptx' },
+                      { label: 'Class Note', value: 'Class Notes & Lecture Summary.pdf' },
+                      { label: 'Chapter PDF', value: 'Chapter PDF & Textbook Reading.pdf' },
+                      { label: 'Worksheet', value: 'Practice Worksheet & Exercises.pdf' },
+                      { label: 'Reference Guide', value: 'Reference Guide & Study Material.pdf' }
+                    ].map(opt => (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => setFormAttachmentName(opt.value)}
+                        className={`px-2 py-0.5 rounded-md text-[10.5px] font-bold transition cursor-pointer flex items-center gap-1 ${
+                          formAttachmentName === opt.value
+                            ? 'bg-teal-50 text-[#007A78] border border-teal-200 font-black shadow-2xs'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        <Paperclip className="w-2.5 h-2.5 text-[#007A78]" />
+                        <span>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 6. Overall Lesson / Chapter Dates & 4. Progress Bar after Dates */}
+                <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-[#007A78]" />
+                      <span>Overall Lesson / Chapter Schedule</span>
+                    </span>
+                    <span className="text-[10.5px] text-slate-400 font-medium">Start & Completion</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-slate-600 mb-1 font-bold text-[11px]">
+                        Start Date of Lesson / Chapter
+                      </label>
+                      <input
+                        type="date"
+                        value={formStartDate}
+                        onChange={e => setFormStartDate(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-[#007A78]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-600 mb-1 font-bold text-[11px]">
+                        Completion Date of Lesson / Chapter
+                      </label>
+                      <input
+                        type="date"
+                        value={formEndDate}
+                        onChange={e => setFormEndDate(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-[#007A78]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 4. Progress bar AFTER date of overall lesson/chapter */}
+                  <div className="pt-2 border-t border-slate-200/60 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="text-slate-700 flex items-center gap-1.5">
+                        <TrendingUp className="w-3.5 h-3.5 text-[#007A78]" />
+                        <span>Overall Lesson / Chapter Progress:</span>
+                      </span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
+                        formProgress >= 100
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : formProgress > 0
+                          ? 'bg-teal-50 text-[#007A78] border border-teal-200'
+                          : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        {formProgress}% {formProgress >= 100 ? 'Completed' : formProgress > 0 ? 'In Progress' : 'Not Started'}
+                      </span>
+                    </div>
+
+                    {/* Visual Animated Progress Bar */}
+                    <div className="w-full bg-slate-200/80 rounded-full h-2.5 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          formProgress >= 100 ? 'bg-emerald-500' : 'bg-[#007A78]'
+                        }`}
+                        style={{ width: `${formProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 7. Topics & Syllabus Milestones Checklist (Unit-wise date removed) */}
                 <div className="space-y-2 pt-2 border-t border-slate-100">
                   <div className="flex items-center justify-between">
                     <div>
@@ -2478,7 +2964,7 @@ export default function LessonPlansPage() {
                         Syllabus Topics & Milestones ({formMilestones.length})
                       </h4>
                       <p className="text-[11px] text-slate-400">
-                        Check off completed topics to update syllabus progress automatically
+                        Check off completed topics to update overall lesson progress automatically
                       </p>
                     </div>
                     <button
@@ -2493,13 +2979,13 @@ export default function LessonPlansPage() {
 
                   <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                     {formMilestones.map((m, index) => (
-                      <div key={m.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-2">
+                      <div key={m.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-2.5">
                         <label className="flex items-center cursor-pointer">
                           <input
                             type="checkbox"
                             checked={m.completed || false}
                             onChange={e => handleMilestoneChange(m.id, 'completed', e.target.checked)}
-                            className="w-4 h-4 text-[#007A78] rounded cursor-pointer"
+                            className="w-4 h-4 text-[#007A78] rounded cursor-pointer accent-[#007A78]"
                           />
                         </label>
 
@@ -2509,15 +2995,9 @@ export default function LessonPlansPage() {
                           placeholder={`Topic ${index + 1}: e.g. Introduction & Definitions`}
                           value={m.topic}
                           onChange={e => handleMilestoneChange(m.id, 'topic', e.target.value)}
-                          className="flex-1 px-2.5 py-1 text-xs bg-white border border-slate-200 rounded-lg font-semibold outline-none focus:border-[#007A78]"
-                        />
-
-                        <input
-                          type="date"
-                          value={m.startDate || ''}
-                          onChange={e => handleMilestoneChange(m.id, 'startDate', e.target.value)}
-                          className="w-28 px-2 py-1 text-[11px] bg-white border border-slate-200 rounded-lg outline-none"
-                          title="Target Date"
+                          className={`flex-1 px-3 py-1.5 text-xs bg-white border rounded-xl font-semibold outline-none focus:border-[#007A78] ${
+                            m.completed ? 'line-through text-slate-400 border-slate-200' : 'text-slate-800 border-slate-200'
+                          }`}
                         />
 
                         {formMilestones.length > 1 && (
@@ -2525,6 +3005,7 @@ export default function LessonPlansPage() {
                             type="button"
                             onClick={() => handleRemoveMilestone(m.id)}
                             className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition cursor-pointer"
+                            title="Remove topic"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -2533,11 +3014,11 @@ export default function LessonPlansPage() {
                     ))}
                   </div>
 
-                  {/* Progress Preview */}
-                  <div className="pt-2 flex items-center justify-between text-xs font-bold">
-                    <span className="text-slate-600">Calculated Syllabus Progress:</span>
-                    <span className={`px-2.5 py-0.5 rounded-full ${formProgress >= 100 ? 'bg-emerald-50 text-emerald-700' : 'bg-teal-50 text-[#007A78]'}`}>
-                      {formProgress}% ({formMilestones.filter(m => m.completed).length}/{formMilestones.length} Topics Completed)
+                  {/* Summary preview */}
+                  <div className="pt-1.5 flex items-center justify-between text-[11px] font-bold text-slate-500">
+                    <span>Syllabus Breakdown:</span>
+                    <span>
+                      {formMilestones.filter(m => m.completed).length} of {formMilestones.length} Topics Completed
                     </span>
                   </div>
                 </div>
@@ -2655,6 +3136,197 @@ export default function LessonPlansPage() {
       )}
 
       {/* =========================================================================
+          MODAL 3.5: UPDATE BOOK PROGRESS (AUTO / CUSTOM OVERRIDE)
+         ========================================================================= */}
+      {bookProgressModal.open && bookProgressModal.chapter && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-teal-50 text-[#007A78] flex items-center justify-center shrink-0">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Update Book Progress</h3>
+                  <p className="text-xs text-slate-500 font-semibold truncate max-w-[240px]">
+                    {bookProgressModal.chapter.lessonName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBookProgressModal(prev => ({ ...prev, open: false }))}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-full cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {/* Option 1: Default from lesson completion */}
+              <div
+                onClick={() => setBookProgressModal(prev => ({
+                  ...prev,
+                  isCustom: false,
+                  currentProgress: prev.calculatedProgress
+                }))}
+                className={`p-3.5 rounded-2xl border cursor-pointer transition ${
+                  !bookProgressModal.isCustom
+                    ? 'bg-teal-50/60 border-[#007A78]/40 ring-1 ring-[#007A78]/20'
+                    : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="bookProgressOption"
+                    checked={!bookProgressModal.isCustom}
+                    onChange={() => setBookProgressModal(prev => ({
+                      ...prev,
+                      isCustom: false,
+                      currentProgress: prev.calculatedProgress
+                    }))}
+                    className="mt-0.5 w-4 h-4 text-[#007A78] accent-[#007A78] cursor-pointer"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-800">
+                        Default (From Lesson Completion)
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full bg-teal-100 text-[#007A78] text-xs font-black border border-teal-300">
+                        {bookProgressModal.calculatedProgress}%
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Automatically calculated from the average progress of lesson plans inside this book.
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Option 2: Custom Override */}
+              <div
+                className={`p-3.5 rounded-2xl border transition ${
+                  bookProgressModal.isCustom
+                    ? 'bg-teal-50/60 border-[#007A78]/40 ring-1 ring-[#007A78]/20'
+                    : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="bookProgressOption"
+                    checked={bookProgressModal.isCustom}
+                    onChange={() => setBookProgressModal(prev => ({
+                      ...prev,
+                      isCustom: true
+                    }))}
+                    className="mt-0.5 w-4 h-4 text-[#007A78] accent-[#007A78] cursor-pointer"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-800">
+                        Custom Progress Override
+                      </span>
+                      {bookProgressModal.isCustom && (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-black border ${
+                          bookProgressModal.currentProgress >= 100
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                            : 'bg-teal-100 text-[#007A78] border-teal-300'
+                        }`}>
+                          {bookProgressModal.currentProgress}%
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Manually set book progress percentage regardless of lesson plan completion.
+                    </p>
+                  </div>
+                </label>
+
+                {bookProgressModal.isCustom && (
+                  <div className="pt-3 mt-3 border-t border-slate-200/80 space-y-3">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="text-slate-600">Drag to adjust:</span>
+                      <span className="text-xs font-black text-[#007A78]">{bookProgressModal.currentProgress}%</span>
+                    </div>
+
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={bookProgressModal.currentProgress}
+                      onChange={e => setBookProgressModal(prev => ({
+                        ...prev,
+                        currentProgress: parseInt(e.target.value, 10) || 0
+                      }))}
+                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#007A78]"
+                    />
+
+                    <div className="flex items-center justify-between gap-1">
+                      {[0, 25, 50, 75, 100].map(val => (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => setBookProgressModal(prev => ({
+                            ...prev,
+                            currentProgress: val
+                          }))}
+                          className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition cursor-pointer ${
+                            bookProgressModal.currentProgress === val
+                              ? 'bg-[#007A78] text-white border-[#007A78]'
+                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {val}%
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Live Preview Bar */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/70 space-y-1.5">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-600">
+                  <span>Selected Book Progress</span>
+                  <span className={bookProgressModal.currentProgress >= 100 ? 'text-emerald-600' : 'text-[#007A78]'}>
+                    {bookProgressModal.currentProgress}% {bookProgressModal.isCustom ? '(Custom)' : '(Default)'}
+                  </span>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-200 ${
+                      bookProgressModal.currentProgress >= 100 ? 'bg-emerald-500' : 'bg-[#007A78]'
+                    }`}
+                    style={{ width: `${bookProgressModal.currentProgress}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setBookProgressModal(prev => ({ ...prev, open: false }))}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSaveBookProgress(!bookProgressModal.isCustom, bookProgressModal.currentProgress)}
+                className="px-4 py-2 text-xs font-black text-white bg-[#007A78] hover:bg-teal-700 rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Save Book Progress</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
           MODAL 4: VIEW PLAN DETAILS
          ========================================================================= */}
       {viewPlan && (
@@ -2684,24 +3356,72 @@ export default function LessonPlansPage() {
               </button>
             </div>
 
-            <div className="space-y-3 text-xs font-semibold">
-              <div>
-                <span className="text-slate-400 block text-[11px] uppercase tracking-wider mb-1">Teaching Methodology</span>
-                <p className="text-slate-800 bg-slate-50 p-2.5 rounded-xl border border-slate-100">{viewPlan.methodology}</p>
-              </div>
-
-              {viewPlan.description && (
+            <div className="space-y-3.5 text-xs font-semibold">
+              {/* 3. Description / Goals */}
+              {viewPlan.description ? (
                 <div>
                   <span className="text-slate-400 block text-[11px] uppercase tracking-wider mb-1">Description / Goals</span>
-                  <p className="text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-100 font-medium">{viewPlan.description}</p>
+                  <p className="text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-100 font-medium leading-relaxed">{viewPlan.description}</p>
+                </div>
+              ) : null}
+
+              {/* 4. Teaching Methodology */}
+              <div>
+                <span className="text-slate-400 block text-[11px] uppercase tracking-wider mb-1">Teaching Methodology</span>
+                <p className="text-slate-800 bg-slate-50 p-2.5 rounded-xl border border-slate-100 font-bold">{viewPlan.methodology}</p>
+              </div>
+
+              {/* 5. Attachment Name */}
+              {viewPlan.attachmentName && (
+                <div>
+                  <span className="text-slate-400 block text-[11px] uppercase tracking-wider mb-1">Attachment Name / File</span>
+                  <div className="p-2.5 rounded-xl bg-teal-50/50 border border-teal-100 flex items-center justify-between">
+                    <span className="text-[#007A78] font-bold flex items-center gap-1.5">
+                      <Paperclip className="w-3.5 h-3.5" />
+                      <span>{viewPlan.attachmentName}</span>
+                    </span>
+                    <span className="text-[10.5px] font-bold text-[#007A78] bg-teal-100/60 px-2 py-0.5 rounded-md">Attached</span>
+                  </div>
                 </div>
               )}
 
-              {/* Progress and Topics */}
+              {/* 6. Overall Schedule Dates & 7. Progress Bar */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
+                <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold uppercase tracking-wider">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-[#007A78]" />
+                    <span>Overall Lesson / Chapter Schedule</span>
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs font-semibold text-slate-800">
+                  <span>Start Date: <b>{viewPlan.startDate || viewPlan.date || '—'}</b></span>
+                  <span>Completion Date: <b>{viewPlan.endDate || 'Ongoing'}</b></span>
+                </div>
+
+                {/* Progress bar placed after date */}
+                <div className="pt-2 border-t border-slate-200/60 space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-600 font-bold">Overall Progress</span>
+                    <span className={viewPlan.progress >= 100 ? 'text-emerald-600 font-black' : 'text-[#007A78] font-black'}>
+                      {viewPlan.progress}% {viewPlan.progress >= 100 ? 'Completed' : 'In Progress'}
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${viewPlan.progress >= 100 ? 'bg-emerald-500' : 'bg-[#007A78]'}`}
+                      style={{ width: `${viewPlan.progress}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 8. Syllabus Topics */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-slate-400 text-[11px] uppercase tracking-wider">Syllabus Breakdown</span>
-                  <span className="text-[#007A78] font-bold">{viewPlan.progress}% Completed</span>
+                  <span className="text-slate-400 text-[11px] uppercase tracking-wider">Syllabus Topics & Milestones</span>
+                  <span className="text-[#007A78] font-bold">
+                    {Array.isArray(viewPlan.milestones) ? viewPlan.milestones.filter(m => m.completed).length : 0} / {Array.isArray(viewPlan.milestones) ? viewPlan.milestones.length : 0} Completed
+                  </span>
                 </div>
 
                 <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
@@ -2718,7 +3438,6 @@ export default function LessonPlansPage() {
                             {m.topic || m.unit || `Topic ${idx + 1}`}
                           </span>
                         </div>
-                        {m.startDate && <span className="text-[11px] text-slate-400 font-normal">{m.startDate}</span>}
                       </div>
                     ))
                   ) : (
@@ -2726,16 +3445,6 @@ export default function LessonPlansPage() {
                   )}
                 </div>
               </div>
-
-              {viewPlan.attachmentName && (
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-slate-400 text-[11px]">Attachment</span>
-                  <span className="text-[#007A78] font-bold flex items-center gap-1">
-                    <Paperclip className="w-3.5 h-3.5" />
-                    <span>{viewPlan.attachmentName}</span>
-                  </span>
-                </div>
-              )}
             </div>
 
             <div className="pt-3 border-t border-slate-100 flex items-center justify-end">

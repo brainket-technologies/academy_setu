@@ -72,6 +72,8 @@ export async function GET(request: NextRequest) {
       methodology: row.methodology,
       description: row.description || '',
       date: row.date || new Date(row.created_at).toLocaleDateString('en-GB'),
+      startDate: row.start_date || '',
+      endDate: row.end_date || '',
       totalMilestones: row.total_milestones || 1,
       progress: parseInt(String(row.progress || 0)),
       milestones: Array.isArray(row.milestones) ? row.milestones : [],
@@ -101,6 +103,8 @@ export async function POST(request: NextRequest) {
       subject,
       methodology,
       description = '',
+      startDate = '',
+      endDate = '',
       milestones = [],
       progress = 0,
       attachmentName = ''
@@ -132,12 +136,12 @@ export async function POST(request: NextRequest) {
     const insertRes = await pool.query(`
       INSERT INTO school_lesson_plans (
         institute_name, class_name, section, title, chapter_folder, subject, methodology,
-        description, date, total_milestones, progress, milestones, attachment_name,
+        description, date, start_date, end_date, total_milestones, progress, milestones, attachment_name,
         created_at, updated_at
       )
       VALUES (
         $1, $2, $3, $4, $5, $6, $7,
-        $8, TO_CHAR(CURRENT_DATE, 'DD/MM/YYYY'), $9, $10, $11::jsonb, $12,
+        $8, TO_CHAR(CURRENT_DATE, 'DD/MM/YYYY'), $9, $10, $11, $12, $13::jsonb, $14,
         NOW(), NOW()
       )
       RETURNING *,
@@ -151,6 +155,8 @@ export async function POST(request: NextRequest) {
       subject.trim(),
       methodology.trim(),
       description.trim(),
+      startDate.trim(),
+      endDate.trim(),
       totalMilestones,
       validProgress,
       JSON.stringify(milestoneList),
@@ -172,6 +178,8 @@ export async function POST(request: NextRequest) {
         methodology: row.methodology,
         description: row.description,
         date: row.date,
+        startDate: row.start_date || startDate,
+        endDate: row.end_date || endDate,
         totalMilestones: row.total_milestones,
         progress: row.progress,
         milestones: row.milestones,

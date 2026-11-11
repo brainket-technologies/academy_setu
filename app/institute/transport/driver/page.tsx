@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Search, Plus, Eye, Pencil, Trash2, RotateCcw, X, UploadCloud, CheckCircle2, ArrowLeft, ArrowRight, Printer } from 'lucide-react'
+import { Search, Plus, Eye, Pencil, Trash2, RotateCcw, X, UploadCloud, CheckCircle2, ArrowLeft, ArrowRight, Printer, Calendar } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 
@@ -33,6 +33,10 @@ interface DriverRecord {
   hra?: string
   conveyance?: string
   specialAllowance?: string
+  customAllowances?: any[]
+  allocatedLeaves?: any[]
+  leaveQuotaFrequency?: 'Monthly' | 'Annually'
+  leaveEffectiveDate?: string
   grossSalary?: string
   accountHolderName?: string
   accountNo?: string
@@ -193,8 +197,17 @@ export default function TransportDriverPage() {
             placeholder="Search by name, ID, mobile no, username..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-teal-500 font-semibold"
+            className="w-full pl-10 pr-8 py-2 border border-slate-200 dark:border-slate-600 rounded-xl text-xs outline-none focus:ring-2 focus:ring-teal-500 font-semibold bg-slate-50 dark:bg-slate-900"
           />
+          {searchQuery && (
+            <button 
+              type="button" 
+              onClick={() => setSearchQuery('')} 
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         {/* Action buttons */}
@@ -259,24 +272,24 @@ export default function TransportDriverPage() {
           
           {currentTab === 'active' ? (
             <table className="w-full text-xs text-center border-collapse">
-              <thead className="bg-slate-900 text-white font-black uppercase tracking-wider">
+              <thead className="bg-slate-50 dark:bg-slate-800/80 text-xs font-black text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
                 <tr>
-                  <th className="px-4 py-4 w-16">S. No.</th>
-                  <th className="px-4 py-4 text-left">Username</th>
-                  <th className="px-4 py-4 text-left">Driver Name</th>
-                  <th className="px-4 py-4">Driver ID</th>
-                  <th className="px-4 py-4">License Number</th>
-                  <th className="px-4 py-4">Assigned Vehicle</th>
-                  <th className="px-4 py-4">Contact</th>
-                  <th className="px-4 py-4">Status</th>
-                  <th className="px-4 py-4">Joining Date</th>
-                  <th className="px-4 py-4 w-24">Action</th>
+                  <th className="px-4 py-3.5 w-16">S. No.</th>
+                  <th className="px-4 py-3.5 text-left">Username</th>
+                  <th className="px-4 py-3.5 text-left">Driver Name</th>
+                  <th className="px-4 py-3.5">Driver ID</th>
+                  <th className="px-4 py-3.5">License Number</th>
+                  <th className="px-4 py-3.5">Assigned Vehicle</th>
+                  <th className="px-4 py-3.5">Contact</th>
+                  <th className="px-4 py-3.5">Status</th>
+                  <th className="px-4 py-3.5">Joining Date</th>
+                  <th className="px-4 py-3.5 w-28">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60 font-semibold text-slate-700 dark:text-slate-200">
                 {activeFiltered.map((driver, idx) => (
                   <tr key={driver.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-700/40 transition-colors">
-                    <td className="px-4 py-3.5 text-slate-500 font-medium">{idx + 1}.</td>
+                    <td className="px-4 py-3.5 text-slate-500 font-bold">{idx + 1}.</td>
                     <td className="px-4 py-3.5 text-left text-slate-600 dark:text-slate-400 font-mono font-bold">{driver.username}</td>
                     <td className="px-4 py-3.5 text-left">
                       <div className="flex items-center gap-2.5">
@@ -289,22 +302,29 @@ export default function TransportDriverPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3.5 font-bold text-slate-800 dark:text-slate-200">{driver.driverId}</td>
-                    <td className="px-4 py-3.5 font-semibold text-slate-600 dark:text-slate-400">{driver.licenseNumber}</td>
+                    <td className="px-4 py-3.5 font-semibold text-slate-600 dark:text-slate-400">
+                      <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600">
+                        {driver.licenseNumber}
+                      </span>
+                    </td>
                     <td className="px-4 py-3.5 font-bold text-teal-600 dark:text-teal-400">
                       {(() => {
                         const matchedVeh = vehiclesList.find((v: any) => {
                           const vD = String(v.assignedDriver || '').toLowerCase()
                           return vD.includes(driver.driverName.toLowerCase())
                         })
-                        return matchedVeh ? `${matchedVeh.vehicleName} (${matchedVeh.registrationNo})` : (driver.assignedVehicle || '-')
+                        return matchedVeh ? `${matchedVeh.vehicleName} (${matchedVeh.registrationNo})` : (driver.assignedVehicle || '—')
                       })()}
                     </td>
                     <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-300">{driver.contact}</td>
                     <td className="px-4 py-3.5">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase ${
-                        driver.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-rose-50 text-rose-500 border border-rose-200'
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase whitespace-nowrap inline-flex items-center gap-1 ${
+                        driver.status === 'Active' 
+                          ? 'text-emerald-600 bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800/60' 
+                          : 'text-rose-500 bg-rose-50 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-800/60'
                       }`}>
-                        ● {driver.status}
+                        <span className={`w-1.5 h-1.5 rounded-full ${driver.status === 'Active' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                        {driver.status}
                       </span>
                     </td>
                     <td className="px-4 py-3.5 text-slate-500 font-semibold">{driver.joiningDate}</td>
@@ -315,21 +335,21 @@ export default function TransportDriverPage() {
                             setSelectedDriver(driver)
                             setActiveProfileTab('details')
                           }}
-                          className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center hover:bg-sky-100 border border-sky-100 transition-colors"
+                          className="w-7 h-7 rounded-lg bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800/60 flex items-center justify-center hover:bg-sky-100 dark:hover:bg-sky-900/60 transition-colors cursor-pointer"
                           title="View Profile Details"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                         <button 
                           onClick={() => openEditModal(driver)}
-                          className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 border border-emerald-100 transition-colors"
+                          className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors cursor-pointer"
                           title="Edit Driver Wizard"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                         <button 
                           onClick={() => handleDelete(driver)}
-                          className="w-7 h-7 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-100 border border-rose-100 transition-colors"
+                          className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-500 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 flex items-center justify-center hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors cursor-pointer"
                           title="Delete Driver"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -340,30 +360,30 @@ export default function TransportDriverPage() {
                 ))}
                 {activeFiltered.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="py-8 text-center text-slate-400 font-bold">No active drivers found.</td>
+                    <td colSpan={10} className="py-12 text-center text-slate-400 font-bold text-xs">No active drivers found.</td>
                   </tr>
                 )}
               </tbody>
             </table>
           ) : (
             <table className="w-full text-xs text-center border-collapse">
-              <thead className="bg-slate-900 text-white font-black uppercase tracking-wider">
+              <thead className="bg-slate-50 dark:bg-slate-800/80 text-xs font-black text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
                 <tr>
-                  <th className="px-4 py-4 w-16">S. No.</th>
-                  <th className="px-4 py-4 text-left">Username</th>
-                  <th className="px-4 py-4 text-left">Driver Name</th>
-                  <th className="px-4 py-4">Driver ID</th>
-                  <th className="px-4 py-4">License Number</th>
-                  <th className="px-4 py-4">Contact</th>
-                  <th className="px-4 py-4">Joining Date</th>
-                  <th className="px-4 py-4">Deleted Date</th>
-                  <th className="px-4 py-4 w-24">Action</th>
+                  <th className="px-4 py-3.5 w-16">S. No.</th>
+                  <th className="px-4 py-3.5 text-left">Username</th>
+                  <th className="px-4 py-3.5 text-left">Driver Name</th>
+                  <th className="px-4 py-3.5">Driver ID</th>
+                  <th className="px-4 py-3.5">License Number</th>
+                  <th className="px-4 py-3.5">Contact</th>
+                  <th className="px-4 py-3.5">Joining Date</th>
+                  <th className="px-4 py-3.5">Deleted Date</th>
+                  <th className="px-4 py-3.5 w-24">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60 font-semibold text-slate-700 dark:text-slate-200">
                 {deletedFiltered.map((driver, idx) => (
                   <tr key={driver.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-700/40 transition-colors">
-                    <td className="px-4 py-3.5 text-slate-500 font-medium">{idx + 1}.</td>
+                    <td className="px-4 py-3.5 text-slate-500 font-bold">{idx + 1}.</td>
                     <td className="px-4 py-3.5 text-left text-slate-600 dark:text-slate-400 font-mono font-bold">{driver.username}</td>
                     <td className="px-4 py-3.5 text-left">
                       <div className="flex items-center gap-2">
@@ -380,7 +400,7 @@ export default function TransportDriverPage() {
                       <div className="flex items-center justify-center">
                         <button 
                           onClick={() => handleRestore(driver)}
-                          className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100 flex items-center justify-center transition-colors"
+                          className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100 flex items-center justify-center transition-colors cursor-pointer"
                           title="Restore Driver"
                         >
                           <RotateCcw className="w-3.5 h-3.5" />
@@ -391,7 +411,7 @@ export default function TransportDriverPage() {
                 ))}
                 {deletedFiltered.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="py-8 text-center text-slate-400 font-bold">No deleted drivers.</td>
+                    <td colSpan={9} className="py-12 text-center text-slate-400 font-bold text-xs">No deleted drivers.</td>
                   </tr>
                 )}
               </tbody>
@@ -545,10 +565,69 @@ function DriverWizardModal({
   const [hra, setHra] = useState(editingDriver?.hra || '2000')
   const [conveyance, setConveyance] = useState(editingDriver?.conveyance || '1500')
   const [specialAllowance, setSpecialAllowance] = useState(editingDriver?.specialAllowance || '4000')
+  const [customAllowances, setCustomAllowances] = useState<any[]>(editingDriver?.customAllowances || [])
   const [grossSalary, setGrossSalary] = useState(editingDriver?.grossSalary || '20000')
-  const [casualLeave, setCasualLeave] = useState('12')
-  const [medicalLeave, setMedicalLeave] = useState('12')
-  const [halfDayLeave, setHalfDayLeave] = useState('6')
+
+  const [leaveQuotaFrequency, setLeaveQuotaFrequency] = useState<'Monthly' | 'Annually'>(editingDriver?.leaveQuotaFrequency || 'Annually')
+  const [leaveEffectiveDate, setLeaveEffectiveDate] = useState(editingDriver?.leaveEffectiveDate || '')
+  const [allocatedLeaves, setAllocatedLeaves] = useState<any[]>(() => {
+    if (Array.isArray(editingDriver?.allocatedLeaves) && editingDriver.allocatedLeaves.length > 0) {
+      return editingDriver.allocatedLeaves
+    }
+    const defaultDate = editingDriver?.leaveEffectiveDate || ''
+    return [
+      { id: 1, leaveType: 'Casual Leave', leaveAbbr: 'CL', allowedLeaves: '12', applyFrom: defaultDate },
+      { id: 2, leaveType: 'Medical Leave', leaveAbbr: 'ML', allowedLeaves: '10', applyFrom: defaultDate },
+      { id: 3, leaveType: 'Half Day Leave', leaveAbbr: 'HDL', allowedLeaves: '6', applyFrom: defaultDate },
+      { id: 4, leaveType: 'Sick Leave', leaveAbbr: 'SL', allowedLeaves: '8', applyFrom: defaultDate }
+    ]
+  })
+
+  const calculateGross = (b: string, h: string, c: string, s: string, allowances: any[]) => {
+    const customSum = allowances.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0)
+    const total = (parseFloat(b) || 0) + (parseFloat(h) || 0) + (parseFloat(c) || 0) + (parseFloat(s) || 0) + customSum
+    return total > 0 ? String(total) : ''
+  }
+
+  const addCustomAllowance = () => {
+    const updated = [...customAllowances, { id: Date.now(), title: '', amount: '' }]
+    setCustomAllowances(updated)
+    setGrossSalary(calculateGross(basicSalary, hra, conveyance, specialAllowance, updated))
+  }
+
+  const updateCustomAllowance = (idx: number, field: string, val: string) => {
+    const updated = [...customAllowances]
+    updated[idx] = { ...updated[idx], [field]: val }
+    setCustomAllowances(updated)
+    setGrossSalary(calculateGross(basicSalary, hra, conveyance, specialAllowance, updated))
+  }
+
+  const removeCustomAllowance = (idx: number) => {
+    const updated = customAllowances.filter((_, i) => i !== idx)
+    setCustomAllowances(updated)
+    setGrossSalary(calculateGross(basicSalary, hra, conveyance, specialAllowance, updated))
+  }
+
+  const handleLeaveDateChange = (val: string) => {
+    setLeaveEffectiveDate(val)
+    const updated = allocatedLeaves.map(l => ({ ...l, applyFrom: val }))
+    setAllocatedLeaves(updated)
+  }
+
+  const updateLeaveRow = (index: number, field: string, val: string) => {
+    const updated = [...allocatedLeaves]
+    updated[index] = { ...updated[index], [field]: val }
+    setAllocatedLeaves(updated)
+  }
+
+  const addCustomLeave = () => {
+    const newRow = { id: Date.now(), leaveType: 'Special Leave', leaveAbbr: 'SPL', allowedLeaves: '5', applyFrom: leaveEffectiveDate }
+    setAllocatedLeaves([...allocatedLeaves, newRow])
+  }
+
+  const removeCustomLeave = (index: number) => {
+    setAllocatedLeaves(allocatedLeaves.filter((_, i) => i !== index))
+  }
 
   // Step 5: Payment
   const [accountHolderName, setAccountHolderName] = useState(editingDriver?.accountHolderName || `${firstName} ${lastName}`.trim())
@@ -615,7 +694,14 @@ function DriverWizardModal({
       photo,
       aadharNo,
       basicSalary,
+      hra,
+      conveyance,
+      specialAllowance,
+      customAllowances,
       grossSalary,
+      leaveQuotaFrequency,
+      leaveEffectiveDate,
+      allocatedLeaves,
       bankName,
       accountNo
     }
@@ -836,22 +922,298 @@ function DriverWizardModal({
           {currentStep === 'Payroll & Leave' && (
              <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="space-y-4">
-                  <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider border-b pb-2">Payroll Setup</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">Basic Salary</label><input type="text" value={basicSalary} onChange={e => setBasicSalary(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
-                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">HRA</label><input type="text" value={hra} onChange={e => setHra(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
-                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">Conveyance</label><input type="text" value={conveyance} onChange={e => setConveyance(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
-                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">Special Allowance</label><input type="text" value={specialAllowance} onChange={e => setSpecialAllowance(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
-                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">Gross Monthly</label><input type="text" value={grossSalary} onChange={e => setGrossSalary(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-bold text-teal-600 bg-slate-50" /></div>
+                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+                    <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider">Monthly Salary Structure</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-wide">
+                        Basic Salary (₹) <span className="text-red-500">*</span>
+                      </label>
+                      <input 
+                        type="number" 
+                        placeholder="e.g. 15000" 
+                        value={basicSalary} 
+                        onChange={e => { 
+                          setBasicSalary(e.target.value)
+                          setGrossSalary(calculateGross(e.target.value, hra, conveyance, specialAllowance, customAllowances)) 
+                        }} 
+                        className="w-full px-3.5 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-sm font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500" 
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-wide">
+                        HRA (₹)
+                      </label>
+                      <input 
+                        type="number" 
+                        placeholder="e.g. 2000" 
+                        value={hra} 
+                        onChange={e => { 
+                          setHra(e.target.value)
+                          setGrossSalary(calculateGross(basicSalary, e.target.value, conveyance, specialAllowance, customAllowances)) 
+                        }} 
+                        className="w-full px-3.5 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-sm font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500" 
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-wide">
+                        Conveyance Allowance (₹)
+                      </label>
+                      <input 
+                        type="number" 
+                        placeholder="e.g. 1500" 
+                        value={conveyance} 
+                        onChange={e => { 
+                          setConveyance(e.target.value)
+                          setGrossSalary(calculateGross(basicSalary, hra, e.target.value, specialAllowance, customAllowances)) 
+                        }} 
+                        className="w-full px-3.5 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-sm font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500" 
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-wide">
+                        Special Allowance (₹)
+                      </label>
+                      <input 
+                        type="number" 
+                        placeholder="e.g. 4000" 
+                        value={specialAllowance} 
+                        onChange={e => { 
+                          setSpecialAllowance(e.target.value)
+                          setGrossSalary(calculateGross(basicSalary, hra, conveyance, e.target.value, customAllowances)) 
+                        }} 
+                        className="w-full px-3.5 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-sm font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500" 
+                      />
+                    </div>
+
+                    {/* Add Salary Title Button placed directly after Special Allowance */}
+                    <div className="flex flex-col justify-end">
+                      <label className="invisible hidden sm:block text-xs font-black uppercase tracking-wide mb-1.5 select-none">
+                        Action
+                      </label>
+                      <button 
+                        type="button" 
+                        onClick={addCustomAllowance} 
+                        className="w-full h-[42px] px-3.5 py-2 rounded-xl bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 text-xs font-bold hover:bg-teal-100 dark:hover:bg-teal-900/50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs active:scale-[0.99]"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Salary Title (Other)</span>
+                      </button>
+                    </div>
+
+                    {/* Dynamic Custom Allowances */}
+                    {customAllowances.map((item, idx) => (
+                      <div key={item.id || idx} className="sm:col-span-2 lg:col-span-3 flex flex-col sm:flex-row gap-3 p-3 bg-slate-50/70 dark:bg-slate-900/40 rounded-xl border border-slate-200/80 dark:border-slate-700/80 items-stretch sm:items-end">
+                        <div className="flex-1">
+                          <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Salary Title / Component</label>
+                          <input 
+                            className="w-full px-3.5 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-sm font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500" 
+                            placeholder="e.g. Overtime Allowance, Fuel Allowance, Bonus" 
+                            value={item.title || ''} 
+                            onChange={e => updateCustomAllowance(idx, 'title', e.target.value)} 
+                            list="driver-salary-titles"
+                          />
+                        </div>
+                        <div className="sm:w-64">
+                          <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Amount (₹)</label>
+                          <input 
+                            type="number" 
+                            className="w-full px-3.5 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-sm font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500" 
+                            placeholder="e.g. 2000" 
+                            value={item.amount || ''} 
+                            onChange={e => updateCustomAllowance(idx, 'amount', e.target.value)} 
+                          />
+                        </div>
+                        <div className="pb-0.5 self-end">
+                          <button 
+                            type="button" 
+                            onClick={() => removeCustomAllowance(idx)} 
+                            className="w-10 h-10 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 border border-red-100 flex items-center justify-center transition-colors cursor-pointer"
+                            title="Remove Component"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Gross Monthly Salary ALWAYS IN LAST */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-wide">
+                        Gross Monthly Salary (₹)
+                      </label>
+                      <div className="relative">
+                        <input 
+                          type="text" 
+                          readOnly 
+                          className="w-full px-3.5 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-800/80 text-sm font-bold text-teal-700 dark:text-teal-300 cursor-not-allowed" 
+                          placeholder="₹ 0" 
+                          value={grossSalary ? `₹ ${Number(grossSalary).toLocaleString('en-IN')}` : '₹ 0'} 
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded border border-teal-200 dark:border-teal-800">
+                          Calculated
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <datalist id="driver-salary-titles">
+                    <option value="Overtime Allowance" />
+                    <option value="Fuel Allowance" />
+                    <option value="Night Shift Allowance" />
+                    <option value="Performance Bonus" />
+                    <option value="Medical Allowance" />
+                    <option value="Other Allowance" />
+                  </datalist>
+                </div>
+
+                {/* ── DISTINCT VISUAL BORDER BETWEEN PAYROLL & LEAVE ── */}
+                <div className="relative my-8 py-2">
+                  <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div className="w-full border-t-2 border-dashed border-slate-300 dark:border-slate-700" />
+                  </div>
+                  <div className="relative flex justify-center">
+                    <span className="bg-white dark:bg-slate-800 px-4 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 shadow-xs flex items-center gap-2">
+                      <Calendar className="w-3.5 h-3.5 text-teal-600" />
+                      <span>Allocated Leave Quota Section</span>
+                    </span>
                   </div>
                 </div>
 
-                <div className="space-y-4 pt-2">
-                  <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider border-b pb-2">Annual Leave Entitlements</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">Casual Leave</label><input type="number" value={casualLeave} onChange={e => setCasualLeave(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
-                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">Medical Leave</label><input type="number" value={medicalLeave} onChange={e => setMedicalLeave(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
-                    <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-slate-700">Half Day Leave</label><input type="number" value={halfDayLeave} onChange={e => setHalfDayLeave(e.target.value)} className="w-full px-3 py-2 border rounded-xl text-xs font-semibold" /></div>
+                {/* ALLOCATED LEAVE QUOTA */}
+                <div>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <h3 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider">Allocated Leave Quota</h3>
+                      {/* Monthly / Annually Radio Buttons */}
+                      <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <label className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            name="driverLeaveQuotaFrequency" 
+                            value="Monthly" 
+                            checked={leaveQuotaFrequency === 'Monthly'} 
+                            onChange={() => setLeaveQuotaFrequency('Monthly')} 
+                            className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500 cursor-pointer accent-teal-600" 
+                          />
+                          <span>Monthly</span>
+                        </label>
+                        <label className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            name="driverLeaveQuotaFrequency" 
+                            value="Annually" 
+                            checked={leaveQuotaFrequency === 'Annually'} 
+                            onChange={() => setLeaveQuotaFrequency('Annually')} 
+                            className="w-4 h-4 text-teal-600 border-slate-300 focus:ring-teal-500 cursor-pointer accent-teal-600" 
+                          />
+                          <span>Annually</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-wide whitespace-nowrap">
+                        Effective Date:
+                      </label>
+                      <input 
+                        type="date" 
+                        className="px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-teal-500" 
+                        value={leaveEffectiveDate} 
+                        onChange={e => handleLeaveDateChange(e.target.value)} 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Column Headers for larger screens */}
+                  <div className="space-y-3">
+                    <div className="hidden sm:grid sm:grid-cols-12 gap-3 px-3 text-xs font-black text-slate-500 uppercase tracking-wide">
+                      <div className="col-span-6">Leave Name</div>
+                      <div className="col-span-2">Abbr</div>
+                      <div className="col-span-3">Allowed Days ({leaveQuotaFrequency === 'Monthly' ? 'Per Month' : 'Per Year'})</div>
+                      <div className="col-span-1 text-center">Action</div>
+                    </div>
+
+                    {/* Leave Rows */}
+                    {allocatedLeaves.map((row, i) => (
+                      <div 
+                        key={row.id || i} 
+                        className="flex flex-col sm:grid sm:grid-cols-12 gap-3 p-3 bg-slate-50/70 dark:bg-slate-900/40 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 items-center"
+                      >
+                        <div className="w-full sm:col-span-6">
+                          <label className="sm:hidden block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1 uppercase tracking-wide">
+                            Leave Name
+                          </label>
+                          <input 
+                            className="w-full px-3.5 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-sm font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500" 
+                            placeholder="e.g. Casual Leave" 
+                            value={row.leaveType || ''} 
+                            onChange={e => updateLeaveRow(i, 'leaveType', e.target.value)} 
+                          />
+                        </div>
+                        <div className="w-full sm:col-span-2">
+                          <label className="sm:hidden block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1 uppercase tracking-wide">
+                            Abbr
+                          </label>
+                          <input 
+                            className="w-full px-3.5 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-sm font-bold uppercase text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500" 
+                            placeholder="CL" 
+                            value={row.leaveAbbr || ''} 
+                            onChange={e => updateLeaveRow(i, 'leaveAbbr', e.target.value)} 
+                          />
+                        </div>
+                        <div className="w-full sm:col-span-3">
+                          <label className="sm:hidden block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1 uppercase tracking-wide">
+                            Allowed Days
+                          </label>
+                          <div className="relative">
+                            <input 
+                              type="number" 
+                              className="w-full px-3.5 py-2.5 pr-14 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-sm font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500" 
+                              placeholder={leaveQuotaFrequency === 'Monthly' ? 'e.g. 1' : 'e.g. 12'} 
+                              value={row.allowedLeaves || ''} 
+                              onChange={e => updateLeaveRow(i, 'allowedLeaves', e.target.value)} 
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 pointer-events-none">
+                              DAYS
+                            </span>
+                          </div>
+                        </div>
+                        <div className="w-full sm:col-span-1 flex justify-center">
+                          <button 
+                            type="button" 
+                            onClick={() => removeCustomLeave(i)} 
+                            className="w-10 h-10 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 border border-red-100 flex items-center justify-center transition-colors cursor-pointer"
+                            title="Remove Leave Type"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {allocatedLeaves.length === 0 && (
+                      <div className="p-8 text-center text-slate-400 font-bold text-xs bg-slate-50 dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+                        No leave types allocated. Click &quot;Add Leave Type&quot; below to allocate leaves.
+                      </div>
+                    )}
+
+                    {/* Add Leave Type Button at the bottom */}
+                    <div className="flex justify-center sm:justify-start pt-2">
+                      <button 
+                        type="button" 
+                        onClick={addCustomLeave} 
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400 border border-teal-200 dark:border-teal-800 text-xs font-bold hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-all cursor-pointer shadow-xs active:scale-95"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Add Leave Type</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
              </div>

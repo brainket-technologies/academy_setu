@@ -6,6 +6,7 @@ import {
   GraduationCap,
   Layers,
   ChevronRight,
+  ChevronDown,
   ArrowLeft,
   Plus,
   Search,
@@ -264,6 +265,7 @@ export default function StudyMaterialPage() {
   const [formSection, setFormSection] = useState('')
   const [formSubject, setFormSubject] = useState('')
   const [formFolder, setFormFolder] = useState('')
+  const [formNoFolder, setFormNoFolder] = useState(false)
   const [formNewFolderMode, setFormNewFolderMode] = useState(false)
   const [formType, setFormType] = useState<ContentType>('pdf')
   const [formTitle, setFormTitle] = useState('')
@@ -281,6 +283,16 @@ export default function StudyMaterialPage() {
     message: '',
     type: 'success'
   })
+
+  // Quick Add Subject State
+  const [quickAddSubjectOpen, setQuickAddSubjectOpen] = useState(false)
+  const [quickSubName, setQuickSubName] = useState('')
+  const [quickSubCode, setQuickSubCode] = useState('')
+  const [quickSubGroup, setQuickSubGroup] = useState('Core Subject')
+  const [quickSubScope, setQuickSubScope] = useState<'current' | 'selected' | 'all'>('current')
+  const [quickSubSelectedClasses, setQuickSubSelectedClasses] = useState<string[]>([])
+  const [quickSubError, setQuickSubError] = useState('')
+  const [quickSubSubmitting, setQuickSubSubmitting] = useState(false)
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ show: true, message, type })
@@ -635,6 +647,40 @@ export default function StudyMaterialPage() {
     })
   }, [allSubjectMaterials, selectedClass, selectedSection, selectedSubject, selectedLesson, selectedTypeFilter, searchQuery])
 
+  // Direct study materials attached directly to the chosen subject without any chapter folder
+  const directSubjectMaterials = useMemo(() => {
+    if (!selectedClass || !selectedSection || !selectedSubject) return []
+
+    return allSubjectMaterials.filter(m => {
+      const folder = (m.lessonFolder || m.chapterTopic || '').trim()
+      if (folder) return false
+
+      if (selectedTypeFilter !== 'all' && m.contentType.toLowerCase() !== selectedTypeFilter.toLowerCase()) {
+        return false
+      }
+
+      if (lessonSearch.trim()) {
+        const q = lessonSearch.toLowerCase().trim()
+        const matchesQuery =
+          m.title.toLowerCase().includes(q) ||
+          m.description.toLowerCase().includes(q) ||
+          m.fileName.toLowerCase().includes(q)
+        if (!matchesQuery) return false
+      }
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim()
+        const matchesQuery =
+          m.title.toLowerCase().includes(q) ||
+          m.description.toLowerCase().includes(q) ||
+          m.fileName.toLowerCase().includes(q)
+        if (!matchesQuery) return false
+      }
+
+      return true
+    })
+  }, [allSubjectMaterials, selectedClass, selectedSection, selectedSubject, selectedTypeFilter, lessonSearch, searchQuery])
+
   // ── Master "All Uploaded Materials" Filtered List ──────────────────────────
   const allMaterialsFiltered = useMemo(() => {
     return materials.filter(m => {
@@ -818,8 +864,120 @@ export default function StudyMaterialPage() {
     }
   }
 
+  // ── Quick Add Subject Class-Wise ──────────────────────────────────────────
+  const QUICK_SUBJECT_SUGGESTIONS = [
+    'Mathematics',
+    'Science',
+    'Social Science',
+    'English',
+    'Hindi',
+    'Sanskrit',
+    'EVS',
+    'Computer Science',
+    'Physics',
+    'Chemistry',
+    'Biology',
+    'Physical Education',
+    'General Knowledge',
+    'Arts & Craft',
+    'Moral Science'
+  ]
+
+  const openQuickAddSubjectModal = () => {
+    setQuickSubName('')
+    setQuickSubCode('')
+    setQuickSubGroup('Core Subject')
+    setQuickSubScope('current')
+    setQuickSubSelectedClasses([selectedClass || unifiedClasses[0]?.className || 'Class 1'])
+    setQuickSubError('')
+    setQuickAddSubjectOpen(true)
+  }
+
+  const handleQuickAddSubject = (e: React.FormEvent) => {
+    e.preventDefault()
+    setQuickSubError('')
+
+    const trimmedName = quickSubName.trim()
+    if (!trimmedName) {
+      setQuickSubError('Please enter a subject name.')
+      return
+    }
+
+    let targetClasses: string[] = []
+    if (quickSubScope === 'current') {
+      const cls = selectedClass || unifiedClasses[0]?.className || 'Class 1'
+      targetClasses = [cls]
+    } else if (quickSubScope === 'all') {
+      targetClasses = unifiedClasses.map(c => c.className)
+    } else {
+      targetClasses = quickSubSelectedClasses
+    }
+
+    if (targetClasses.length === 0) {
+      setQuickSubError('Please select at least one class.')
+      return
+    }
+
+    setQuickSubSubmitting(true)
+    try {
+      let existing: any[] = []
+      const raw = localStorage.getItem('school_masters_subjects')
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw)
+          if (Array.isArray(parsed)) existing = parsed
+        } catch (err) {}
+      }
+
+      const nowTime =
+        new Date().toLocaleDateString('en-GB') +
+        ' ' +
+        new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+
+      const newSubs = targetClasses.map((cls, idx) => ({
+        id: Date.now() + idx,
+        subjectCode: quickSubCode.trim() || `${trimmedName.slice(0, 3).toUpperCase()}-01`,
+        subjectName: trimmedName,
+        orderNo: existing.length + idx + 1,
+        groupName: quickSubGroup || 'Core Subject',
+        className: cls,
+        streamName: 'General',
+        type: 'Marks' as const,
+        createdAt: nowTime,
+        deleted: false,
+        description: `Subject added for ${cls}`
+      }))
+
+      const updated = [...newSubs, ...existing]
+      localStorage.setItem('school_masters_subjects', JSON.stringify(updated))
+
+      // Sync state immediately so availableSubjects updates reactively
+      setMasterSubjects(prev => [
+        ...newSubs.map(s => ({
+          subjectName: s.subjectName,
+          className: s.className,
+          groupName: s.groupName
+        })),
+        ...prev
+      ])
+
+      showToast(
+        `Subject "${trimmedName}" added successfully for ${
+          targetClasses.length === 1 ? targetClasses[0] : `${targetClasses.length} classes`
+        }!`,
+        'success'
+      )
+      setQuickAddSubjectOpen(false)
+    } catch (err: any) {
+      console.error(err)
+      setQuickSubError(err.message || 'Failed to add subject.')
+    } finally {
+      setQuickSubSubmitting(false)
+    }
+  }
+
   // ── Open Add Material Modal ───────────────────────────────────────────────
-  const openAddModal = (presetType?: ContentType, defaultFolder?: string) => {
+  const openAddModal = (presetType?: ContentType, defaultFolder?: string, withoutFolder?: boolean) => {
     setEditingItem(null)
     const initialClass = selectedClass || (filterClass !== 'all' ? filterClass : (unifiedClasses[0]?.className || 'Class 1'))
     const initialSec = selectedSection || (filterSection !== 'all' ? filterSection : 'Section A')
@@ -829,7 +987,8 @@ export default function StudyMaterialPage() {
     setFormClass(initialClass)
     setFormSection(initialSec)
     setFormSubject(initialSub)
-    setFormFolder(initialFld)
+    setFormFolder(withoutFolder ? '' : initialFld)
+    setFormNoFolder(withoutFolder || (!initialFld && !defaultFolder && !selectedLesson))
     setFormNewFolderMode(false)
     setFormType(presetType || 'pdf')
     setFormTitle('')
@@ -848,7 +1007,9 @@ export default function StudyMaterialPage() {
     setFormClass(item.className)
     setFormSection(item.section)
     setFormSubject(item.subject)
-    setFormFolder(item.lessonFolder || item.chapterTopic || '')
+    const fld = (item.lessonFolder || item.chapterTopic || '').trim()
+    setFormFolder(fld)
+    setFormNoFolder(!fld)
     setFormNewFolderMode(false)
     setFormType(item.contentType)
     setFormTitle(item.title)
@@ -907,7 +1068,7 @@ export default function StudyMaterialPage() {
         else defaultFileSize = 'Web Resource'
       }
 
-      const resolvedFolder = formFolder.trim() || 'General Materials'
+      const resolvedFolder = formNoFolder ? '' : formFolder.trim()
       const payload = {
         className: normalizeClassName(formClass),
         section: formSection,
@@ -944,7 +1105,11 @@ export default function StudyMaterialPage() {
         if (!res.ok || !data.success) {
           throw new Error(data.error || 'Failed to add study material')
         }
-        showToast(`Study material added to "${resolvedFolder}"!`)
+        showToast(
+          resolvedFolder
+            ? `Study material added to "${resolvedFolder}"!`
+            : `Study material added directly under ${formSubject}!`
+        )
       }
 
       setAddEditModalOpen(false)
@@ -1172,24 +1337,6 @@ export default function StudyMaterialPage() {
                   <span>Back</span>
                 </button>
               )}
-
-              <button
-                type="button"
-                onClick={() => openCreateLessonModal(selectedClass || undefined, selectedSection || undefined, selectedSubject || undefined)}
-                className="px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer flex items-center gap-1.5"
-              >
-                <FolderPlus className="w-3.5 h-3.5 text-[#007A78]" />
-                <span>+ Create Folder</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => openAddModal(undefined, selectedLesson || undefined)}
-                className="px-4 py-2 text-xs font-black text-white bg-[#007A78] hover:bg-teal-700 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5 active:scale-95"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Upload Material</span>
-              </button>
             </div>
           </div>
 
@@ -1654,15 +1801,25 @@ export default function StudyMaterialPage() {
                       Select a subject to view chapter folders and learning resources
                     </p>
                   </div>
-                  <div className="relative w-full sm:w-60">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      placeholder="Search subject..."
-                      value={subjectSearch}
-                      onChange={e => setSubjectSearch(e.target.value)}
-                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl font-semibold outline-none focus:border-[#007A78]"
-                    />
+                  <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                    <div className="relative w-full sm:w-60">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Search subject..."
+                        value={subjectSearch}
+                        onChange={e => setSubjectSearch(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl font-semibold outline-none focus:border-[#007A78]"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={openQuickAddSubjectModal}
+                      className="px-3.5 py-2 bg-[#007A78] hover:bg-teal-700 text-white font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ Quick Add Subject</span>
+                    </button>
                   </div>
                 </div>
 
@@ -1707,20 +1864,51 @@ export default function StudyMaterialPage() {
                       </div>
                     )
                   })}
+
+                  {/* Quick Add Subject Card at the end of the cards */}
+                  <div
+                    onClick={openQuickAddSubjectModal}
+                    className="border-2 border-dashed border-slate-200 hover:border-[#007A78] bg-slate-50/60 hover:bg-teal-50/30 rounded-2xl p-5 flex flex-col items-center justify-center text-center transition-all cursor-pointer group min-h-[160px]"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-teal-50 text-[#007A78] group-hover:bg-[#007A78] group-hover:text-white flex items-center justify-center transition-all mb-2.5 shadow-2xs">
+                      <Plus className="w-6 h-6" />
+                    </div>
+                    <span className="text-sm font-black text-slate-800 group-hover:text-[#007A78] transition-colors">
+                      + Add Subject
+                    </span>
+                    <span className="text-xs text-slate-400 font-medium mt-0.5">
+                      Assign to {selectedClass}
+                    </span>
+                  </div>
                 </div>
+
+                {filteredSubjects.length === 0 && (
+                  <div className="py-8 text-center flex flex-col items-center justify-center space-y-2">
+                    <p className="text-xs text-slate-400 font-semibold">
+                      {subjectSearch
+                        ? 'No subjects match your search keyword.'
+                        : `No curriculum subjects found for ${selectedClass}.`}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* ── LEVEL 4: LESSON / CHAPTER FOLDERS VIEW (FULL WIDTH CARD) ───────── */}
+            {/* ── LEVEL 4: LESSON / CHAPTER FOLDERS & DIRECT MATERIALS VIEW (FULL WIDTH CARD) ───────── */}
             {currentLevel === 'lessons' && (
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 w-full space-y-5 animate-in fade-in duration-200">
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 w-full space-y-6 animate-in fade-in duration-200">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
                   <div>
-                    <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-                      <span>Chapter Folders in {selectedSubject}</span>
+                    <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2 flex-wrap">
+                      <span>Chapter Folders & Materials in {selectedSubject}</span>
                       <span className="px-2.5 py-0.5 rounded-full bg-teal-50 text-[#007A78] text-[11px] font-black border border-teal-200">
                         {filteredLessons.length} {filteredLessons.length === 1 ? 'Folder' : 'Folders'}
                       </span>
+                      {directSubjectMaterials.length > 0 && (
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-black border border-emerald-200">
+                          {directSubjectMaterials.length} Direct {directSubjectMaterials.length === 1 ? 'Material' : 'Materials'}
+                        </span>
+                      )}
                     </h2>
                     <p className="text-xs text-slate-400 font-semibold mt-0.5">
                       {selectedClass} &bull; {selectedSection} &bull; {allSubjectMaterials.length} total resources
@@ -1732,7 +1920,7 @@ export default function StudyMaterialPage() {
                       <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
-                        placeholder="Search folders..."
+                        placeholder="Search folders or materials..."
                         value={lessonSearch}
                         onChange={e => setLessonSearch(e.target.value)}
                         className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl font-semibold outline-none focus:border-[#007A78]"
@@ -1742,128 +1930,321 @@ export default function StudyMaterialPage() {
                     <button
                       type="button"
                       onClick={() => openCreateLessonModal(selectedClass!, selectedSection!, selectedSubject!)}
+                      className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shrink-0"
+                    >
+                      <FolderPlus className="w-3.5 h-3.5 text-[#007A78]" />
+                      <span>+ Create Folder</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => openAddModal()}
                       className="px-3.5 py-2 bg-[#007A78] hover:bg-teal-700 text-white font-black text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 active:scale-95 cursor-pointer shrink-0"
                     >
-                      <FolderPlus className="w-3.5 h-3.5" />
-                      <span>+ Create Folder</span>
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Upload Material</span>
                     </button>
                   </div>
                 </div>
 
-                {/* Chapter Folders Grid */}
-                {filteredLessons.length === 0 ? (
+                {filteredLessons.length === 0 && directSubjectMaterials.length === 0 ? (
                   <div className="py-12 sm:py-16 text-center flex flex-col items-center justify-center space-y-3">
                     <div className="w-14 h-14 rounded-2xl bg-teal-50 text-[#007A78] flex items-center justify-center shadow-2xs">
                       <FolderPlus className="w-7 h-7" />
                     </div>
                     <h3 className="text-base font-black text-slate-900">
-                      No Chapter Folders in {selectedSubject} Yet
+                      No Chapter Folders or Materials in {selectedSubject} Yet
                     </h3>
                     <p className="text-xs text-slate-500 font-medium max-w-sm">
-                      Create your first chapter folder to organize and upload study materials inside {selectedSubject}.
+                      Upload study materials directly under {selectedSubject} without a folder, or create a chapter folder to organize by units.
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => openCreateLessonModal(selectedClass!, selectedSection!, selectedSubject!)}
-                      className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-[#007A78] hover:bg-teal-700 text-white font-black text-xs rounded-xl shadow-xs transition cursor-pointer"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Create First Chapter Folder</span>
-                    </button>
+                    <div className="flex items-center gap-2 pt-2 flex-wrap justify-center">
+                      <button
+                        type="button"
+                        onClick={() => openAddModal(undefined, undefined, true)}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#007A78] hover:bg-teal-700 text-white font-black text-xs rounded-xl shadow-xs transition cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Upload Material Without Folder</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openCreateLessonModal(selectedClass!, selectedSection!, selectedSubject!)}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
+                      >
+                        <FolderPlus className="w-4 h-4 text-[#007A78]" />
+                        <span>Create Chapter Folder</span>
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {filteredLessons.map(lesson => {
-                      const lessonMaterials = getMaterialsForLesson(lesson.lessonName)
-                      const count = lessonMaterials.length
-                      const pdfCount = lessonMaterials.filter(m => m.contentType === 'pdf').length
-                      const videoCount = lessonMaterials.filter(m => m.contentType === 'youtube').length
-                      const otherCount = count - pdfCount - videoCount
+                  <div className="space-y-6">
+                    {/* Chapter Folders Grid (if any folders exist) */}
+                    {filteredLessons.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <Folder className="w-3.5 h-3.5 text-[#007A78]" />
+                            <span>Chapter Folders</span>
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                          {filteredLessons.map(lesson => {
+                            const lessonMaterials = getMaterialsForLesson(lesson.lessonName)
+                            const count = lessonMaterials.length
+                            const pdfCount = lessonMaterials.filter(m => m.contentType === 'pdf').length
+                            const videoCount = lessonMaterials.filter(m => m.contentType === 'youtube').length
+                            const otherCount = count - pdfCount - videoCount
 
-                      return (
-                        <div
-                          key={lesson.id || lesson.lessonName}
-                          className="group bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md hover:border-[#007A78] transition-all flex flex-col justify-between"
-                        >
-                          <div>
-                            <div className="flex items-start justify-between gap-3 mb-3">
+                            return (
                               <div
-                                onClick={() => setSelectedLesson(lesson.lessonName)}
-                                className="w-12 h-12 rounded-xl bg-teal-50 text-[#007A78] group-hover:bg-[#007A78] group-hover:text-white flex items-center justify-center transition-all shadow-2xs cursor-pointer"
+                                key={lesson.id || lesson.lessonName}
+                                className="group bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md hover:border-[#007A78] transition-all flex flex-col justify-between"
                               >
-                                <Folder className="w-6 h-6" />
-                              </div>
-
-                              <div className="flex items-center gap-1.5">
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-black uppercase ${
-                                  count > 0 ? 'bg-teal-50 text-[#007A78]' : 'bg-slate-100 text-slate-500'
-                                }`}>
-                                  {count} {count === 1 ? 'Resource' : 'Resources'}
-                                </span>
-                                {!lesson.id.startsWith('auto_') && (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => openEditLessonModal(lesson)}
-                                      title="Edit Folder Name"
-                                      className="p-1 text-slate-400 hover:text-[#007A78] hover:bg-slate-100 rounded cursor-pointer"
+                                <div>
+                                  <div className="flex items-start justify-between gap-3 mb-3">
+                                    <div
+                                      onClick={() => setSelectedLesson(lesson.lessonName)}
+                                      className="w-12 h-12 rounded-xl bg-teal-50 text-[#007A78] group-hover:bg-[#007A78] group-hover:text-white flex items-center justify-center transition-all shadow-2xs cursor-pointer"
                                     >
-                                      <Pencil className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setDeleteLessonId(lesson.id)}
-                                      title="Delete Folder"
-                                      className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded cursor-pointer"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </>
-                                )}
+                                      <Folder className="w-6 h-6" />
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-black uppercase ${
+                                        count > 0 ? 'bg-teal-50 text-[#007A78]' : 'bg-slate-100 text-slate-500'
+                                      }`}>
+                                        {count} {count === 1 ? 'Resource' : 'Resources'}
+                                      </span>
+                                      {!lesson.id.startsWith('auto_') && (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => openEditLessonModal(lesson)}
+                                            title="Edit Folder Name"
+                                            className="p-1 text-slate-400 hover:text-[#007A78] hover:bg-slate-100 rounded cursor-pointer"
+                                          >
+                                            <Pencil className="w-3.5 h-3.5" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => setDeleteLessonId(lesson.id)}
+                                            title="Delete Folder"
+                                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded cursor-pointer"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <h3
+                                    onClick={() => setSelectedLesson(lesson.lessonName)}
+                                    className="text-base font-black text-slate-900 group-hover:text-[#007A78] transition-colors cursor-pointer"
+                                  >
+                                    {lesson.lessonName}
+                                  </h3>
+
+                                  <div className="flex flex-wrap gap-1 mt-2.5">
+                                    {pdfCount > 0 && (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
+                                        <FileText className="w-3 h-3" /> {pdfCount} PDF
+                                      </span>
+                                    )}
+                                    {videoCount > 0 && (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">
+                                        <Play className="w-2.5 h-2.5 fill-red-600" /> {videoCount} Video
+                                      </span>
+                                    )}
+                                    {otherCount > 0 && (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
+                                        +{otherCount} Other
+                                      </span>
+                                    )}
+                                    {count === 0 && (
+                                      <span className="text-[10.5px] text-slate-400 font-medium">Empty folder</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div
+                                  onClick={() => setSelectedLesson(lesson.lessonName)}
+                                  className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-black text-[#007A78] cursor-pointer"
+                                >
+                                  <span>Open Folder Content</span>
+                                  <span className="inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                                    Open <ChevronRight className="w-4 h-4" />
+                                  </span>
+                                </div>
                               </div>
-                            </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
 
-                            <h3
-                              onClick={() => setSelectedLesson(lesson.lessonName)}
-                              className="text-base font-black text-slate-900 group-hover:text-[#007A78] transition-colors cursor-pointer"
-                            >
-                              {lesson.lessonName}
-                            </h3>
-
-                            <div className="flex flex-wrap gap-1 mt-2.5">
-                              {pdfCount > 0 && (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
-                                  <FileText className="w-3 h-3" /> {pdfCount} PDF
-                                </span>
-                              )}
-                              {videoCount > 0 && (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">
-                                  <Play className="w-2.5 h-2.5 fill-red-600" /> {videoCount} Video
-                                </span>
-                              )}
-                              {otherCount > 0 && (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
-                                  +{otherCount} Other
-                                </span>
-                              )}
-                              {count === 0 && (
-                                <span className="text-[10.5px] text-slate-400 font-medium">Empty folder</span>
-                              )}
-                            </div>
+                    {/* Notice if no chapter folders yet, but direct materials exist */}
+                    {filteredLessons.length === 0 && directSubjectMaterials.length > 0 && (
+                      <div className="p-4 bg-teal-50/50 border border-teal-200/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-teal-100/80 text-[#007A78] flex items-center justify-center shrink-0">
+                            <FolderPlus className="w-5 h-5" />
                           </div>
-
-                          <div
-                            onClick={() => setSelectedLesson(lesson.lessonName)}
-                            className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-black text-[#007A78] cursor-pointer"
-                          >
-                            <span>Open Folder Content</span>
-                            <span className="inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                              Open <ChevronRight className="w-4 h-4" />
-                            </span>
+                          <div>
+                            <h4 className="text-xs font-black text-slate-900">
+                              No Chapter Folders Created Yet
+                            </h4>
+                            <p className="text-[11px] text-slate-500 font-medium">
+                              All study materials below are attached directly under {selectedSubject}. You can create chapter folders anytime.
+                            </p>
                           </div>
                         </div>
-                      )
-                    })}
+                        <button
+                          type="button"
+                          onClick={() => openCreateLessonModal(selectedClass!, selectedSection!, selectedSubject!)}
+                          className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
+                        >
+                          <FolderPlus className="w-3.5 h-3.5 text-[#007A78]" />
+                          <span>+ Create Chapter Folder</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* ── Direct Study Materials (Without Folder) Section ──────── */}
+                    {directSubjectMaterials.length > 0 && (
+                      <div className={`space-y-3 ${filteredLessons.length > 0 ? 'pt-6 border-t border-slate-100' : ''}`}>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <div>
+                            <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
+                              <FileText className="w-4 h-4 text-[#007A78]" />
+                              <span>Direct Study Materials in {selectedSubject}</span>
+                              <span className="px-2.5 py-0.5 rounded-full bg-teal-50 text-[#007A78] text-[11px] font-black border border-teal-200">
+                                {directSubjectMaterials.length} {directSubjectMaterials.length === 1 ? 'Resource' : 'Resources'} (Without Folder)
+                              </span>
+                            </h3>
+                            <p className="text-xs text-slate-400 font-semibold mt-0.5">
+                              Materials attached directly to {selectedSubject} without a chapter folder
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => openAddModal(undefined, undefined, true)}
+                            className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-[#007A78] border border-teal-200 font-black text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>+ Add Direct Material</span>
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
+                          {directSubjectMaterials.map(item => {
+                            const isYouTube = item.contentType === 'youtube'
+                            return (
+                              <div
+                                key={item.id}
+                                className="bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between overflow-hidden"
+                              >
+                                <div className="p-5">
+                                  <div className="flex items-center justify-between gap-2 mb-2">
+                                    <div className="flex items-center gap-1.5">
+                                      {renderTypeBadge(item.contentType)}
+                                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold">
+                                        Direct
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => openEditModal(item)}
+                                        title="Edit Material"
+                                        className="p-1.5 text-slate-400 hover:text-[#007A78] hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                                      >
+                                        <Pencil className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setDeletingId(item.id)
+                                          setDeleteModalOpen(true)
+                                        }}
+                                        title="Delete Material"
+                                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <h3 className="text-sm font-black text-slate-900 line-clamp-2 leading-snug">
+                                    {item.title}
+                                  </h3>
+
+                                  {item.description && (
+                                    <p className="text-xs text-slate-500 mt-1.5 line-clamp-2 font-medium">
+                                      {item.description}
+                                    </p>
+                                  )}
+
+                                  <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                                    <span className="truncate max-w-[170px]">
+                                      {item.fileName || item.contentType.toUpperCase()}
+                                    </span>
+                                    <span>{item.fileSize || 'Standard'}</span>
+                                  </div>
+                                </div>
+
+                                <div className="bg-slate-50/80 px-4 py-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                                  {isYouTube ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setYoutubePlayerModal({ open: true, item })}
+                                      className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 text-xs font-black bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-xs transition cursor-pointer"
+                                    >
+                                      <Play className="w-3.5 h-3.5 fill-white" />
+                                      <span>Watch Video Lecture</span>
+                                    </button>
+                                  ) : (
+                                    <>
+                                      <a
+                                        href={item.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold bg-[#007A78] hover:bg-teal-700 text-white rounded-xl transition cursor-pointer"
+                                      >
+                                        <Eye className="w-3.5 h-3.5" />
+                                        <span>
+                                          {item.contentType === 'pdf'
+                                            ? 'View PDF'
+                                            : item.contentType === 'excel'
+                                            ? 'Open Sheet'
+                                            : item.contentType === 'ppt'
+                                            ? 'View Slides'
+                                            : 'Open Link'}
+                                        </span>
+                                      </a>
+                                      {item.allowDownload && (
+                                        <a
+                                          href={item.url}
+                                          download={item.fileName || true}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          title="Download File"
+                                          className="p-2 text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-200 border border-slate-200 rounded-xl transition cursor-pointer"
+                                        >
+                                          <Download className="w-3.5 h-3.5" />
+                                        </a>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -2092,125 +2473,166 @@ export default function StudyMaterialPage() {
                   </div>
                 )}
 
-                {/* 1. Class, Section, Subject cascading selection */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  <div>
-                    <label className="block text-slate-600 mb-1 font-bold">Class *</label>
-                    <select
-                      value={formClass}
-                      onChange={e => {
-                        setFormClass(e.target.value)
-                        setFormSection('Section A')
-                      }}
-                      required
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#007A78]"
-                    >
-                      {unifiedClasses.map(c => (
-                        <option key={c.className} value={c.className}>
-                          {c.className}
-                        </option>
-                      ))}
-                    </select>
+                {/* Navigation Trail (Locked Class, Section, Subject) */}
+                <div className="bg-slate-50/90 border border-slate-200/90 rounded-2xl p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-400">
+                      Curriculum Location:
+                    </span>
                   </div>
-
-                  <div>
-                    <label className="block text-slate-600 mb-1 font-bold">Section *</label>
-                    <select
-                      value={formSection}
-                      onChange={e => setFormSection(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#007A78]"
-                    >
-                      {formAvailableSections.map(s => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-600 mb-1 font-bold">Subject *</label>
-                    <select
-                      value={formSubject}
-                      onChange={e => setFormSubject(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#007A78]"
-                    >
-                      {formAvailableSubjects.map(sub => (
-                        <option key={sub} value={sub}>
-                          {sub}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-black text-slate-800 shadow-2xs">
+                      <GraduationCap className="w-3.5 h-3.5 text-[#007A78]" />
+                      <span>{formClass || 'Class 1'}</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-black text-slate-800 shadow-2xs">
+                      <Layers className="w-3.5 h-3.5 text-[#007A78]" />
+                      <span>{formSection || 'Section A'}</span>
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 border border-teal-200 text-xs font-black text-[#007A78] shadow-2xs">
+                      <BookOpen className="w-3.5 h-3.5 text-[#007A78]" />
+                      <span>{formSubject || 'English'}</span>
+                    </span>
                   </div>
                 </div>
 
-                {/* 2. Chapter Folder Selector / New Folder */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-slate-600 font-bold">
-                      Chapter Folder *
+                {/* 2. Chapter Folder Selector / Without Folder Toggle */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-slate-700 font-bold flex items-center gap-1.5">
+                      <span>Organization Mode</span>
+                      <span className="text-[11px] font-semibold text-slate-400">
+                        (Choose folder or direct)
+                      </span>
                     </label>
-                    {formFolder && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const matched = filteredLessons.find(
-                            l => l.lessonName.toLowerCase().trim() === formFolder.toLowerCase().trim()
-                          )
-                          if (matched) {
-                            openEditLessonModal(matched)
-                          } else {
-                            openCreateLessonModal(formClass, formSection, formSubject)
-                          }
-                        }}
-                        className="text-[11px] font-bold text-[#007A78] hover:underline cursor-pointer flex items-center gap-1"
-                        title="Rename this folder in database"
-                      >
-                        <Pencil className="w-3 h-3" />
-                        <span>Rename chapter folder</span>
-                      </button>
-                    )}
                   </div>
 
-                  {/* Fully Editable Input with Datalist Suggestions */}
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      placeholder="Type chapter folder name or click an existing folder below..."
-                      value={formFolder}
-                      onChange={e => setFormFolder(e.target.value)}
-                      list="available-folders-datalist"
-                      className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:border-[#007A78]"
-                    />
-                    <datalist id="available-folders-datalist">
-                      {formAvailableFolders.map(fld => (
-                        <option key={fld} value={fld} />
-                      ))}
-                    </datalist>
+                  {/* Mode Selector: Direct / Without Folder vs Chapter Folder */}
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormNoFolder(true)
+                        setFormFolder('')
+                      }}
+                      className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        formNoFolder
+                          ? 'bg-white text-[#007A78] shadow-xs font-black border border-teal-100'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Without Folder (Direct)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormNoFolder(false)
+                        if (!formFolder && formAvailableFolders.length > 0) {
+                          setFormFolder(formAvailableFolders[0])
+                        }
+                      }}
+                      className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        !formNoFolder
+                          ? 'bg-white text-[#007A78] shadow-xs font-black border border-teal-100'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Folder className="w-3.5 h-3.5" />
+                      <span>In Chapter Folder</span>
+                    </button>
                   </div>
 
-                  {/* Quick Pick Existing Folder Pills */}
-                  {formAvailableFolders.length > 0 && (
-                    <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[10.5px] text-slate-400 font-semibold">Existing Folders:</span>
-                      {formAvailableFolders.map(fld => (
-                        <button
-                          key={fld}
-                          type="button"
-                          onClick={() => setFormFolder(fld)}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer flex items-center gap-1 ${
-                            formFolder.toLowerCase().trim() === fld.toLowerCase().trim()
-                              ? 'bg-teal-50 text-[#007A78] border border-teal-200 font-black shadow-2xs'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
-                        >
-                          <Folder className="w-3 h-3 text-[#007A78]" />
-                          <span>{fld}</span>
-                        </button>
-                      ))}
+                  {formNoFolder ? (
+                    <div className="p-3 bg-teal-50/70 border border-teal-200/80 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <CheckCircle2 className="w-4 h-4 text-[#007A78] shrink-0" />
+                        <div>
+                          <p className="text-xs font-black text-slate-800">
+                            Adding directly to {formSubject || 'Subject'}
+                          </p>
+                          <p className="text-[11px] text-slate-500 font-medium">
+                            No chapter folder needed. Material will appear directly on the subject page.
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md bg-teal-100 text-[#007A78] text-[10.5px] font-black shrink-0">
+                        Direct Resource
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-600">
+                          Chapter Folder Name <span className="text-slate-400 font-normal">(Optional)</span>:
+                        </span>
+                        {formFolder && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const matched = filteredLessons.find(
+                                l => l.lessonName.toLowerCase().trim() === formFolder.toLowerCase().trim()
+                              )
+                              if (matched) {
+                                openEditLessonModal(matched)
+                              } else {
+                                openCreateLessonModal(formClass, formSection, formSubject)
+                              }
+                            }}
+                            className="text-[11px] font-bold text-[#007A78] hover:underline cursor-pointer flex items-center gap-1"
+                            title="Rename this folder in database"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            <span>Rename chapter folder</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Type chapter folder name or select an existing one below..."
+                          value={formFolder}
+                          onChange={e => {
+                            setFormFolder(e.target.value)
+                            setFormNoFolder(false)
+                          }}
+                          list="available-folders-datalist"
+                          className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:border-[#007A78]"
+                        />
+                        <datalist id="available-folders-datalist">
+                          {formAvailableFolders.map(fld => (
+                            <option key={fld} value={fld} />
+                          ))}
+                        </datalist>
+                      </div>
+
+                      {/* Quick Pick Existing Folder Pills */}
+                      {formAvailableFolders.length > 0 && (
+                        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10.5px] text-slate-400 font-semibold">Existing Folders:</span>
+                          {formAvailableFolders.map(fld => (
+                            <button
+                              key={fld}
+                              type="button"
+                              onClick={() => {
+                                setFormFolder(fld)
+                                setFormNoFolder(false)
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer flex items-center gap-1 ${
+                                formFolder.toLowerCase().trim() === fld.toLowerCase().trim()
+                                  ? 'bg-teal-50 text-[#007A78] border border-teal-200 font-black shadow-2xs'
+                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                              }`}
+                            >
+                              <Folder className="w-3 h-3 text-[#007A78]" />
+                              <span>{fld}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2524,42 +2946,26 @@ export default function StudyMaterialPage() {
             </div>
 
             <form onSubmit={handleSaveLessonFolder} className="p-5 space-y-4 text-xs font-semibold">
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-slate-600 mb-1 font-bold">Class</label>
-                  <select
-                    value={lessonFormClass}
-                    onChange={e => setLessonFormClass(e.target.value)}
-                    className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#007A78]"
-                  >
-                    {unifiedClasses.map(c => (
-                      <option key={c.className} value={c.className}>{c.className}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-600 mb-1 font-bold">Section</label>
-                  <select
-                    value={lessonFormSection}
-                    onChange={e => setLessonFormSection(e.target.value)}
-                    className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#007A78]"
-                  >
-                    {getAvailableSectionsForClass(lessonFormClass, masterSections, unifiedClasses).map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-600 mb-1 font-bold">Subject</label>
-                  <select
-                    value={lessonFormSubject}
-                    onChange={e => setLessonFormSubject(e.target.value)}
-                    className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#007A78]"
-                  >
-                    {getAvailableSubjectsForClass(lessonFormClass, masterSubjects).map(sub => (
-                      <option key={sub} value={sub}>{sub}</option>
-                    ))}
-                  </select>
+              {/* Navigation Trail (Locked Class, Section, Subject) */}
+              <div className="bg-slate-50/90 border border-slate-200/90 rounded-2xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-400">
+                  Target Location:
+                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-black text-slate-800 shadow-2xs">
+                    <GraduationCap className="w-3.5 h-3.5 text-[#007A78]" />
+                    <span>{lessonFormClass || 'Class 1'}</span>
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-black text-slate-800 shadow-2xs">
+                    <Layers className="w-3.5 h-3.5 text-[#007A78]" />
+                    <span>{lessonFormSection || 'Section A'}</span>
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 border border-teal-200 text-xs font-black text-[#007A78] shadow-2xs">
+                    <BookOpen className="w-3.5 h-3.5 text-[#007A78]" />
+                    <span>{lessonFormSubject || 'English'}</span>
+                  </span>
                 </div>
               </div>
 
@@ -2669,6 +3075,244 @@ export default function StudyMaterialPage() {
                 Confirm Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 6: QUICK ADD SUBJECT (CLASS-WISE) ─────────────────────── */}
+      {quickAddSubjectOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl w-full max-w-md max-h-[92vh] flex flex-col overflow-hidden shadow-2xl border border-slate-200">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-gradient-to-r from-teal-50/60 to-white">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#007A78] text-white flex items-center justify-center shadow-xs">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Quick Add Subject</h3>
+                  <p className="text-xs text-slate-400 font-medium">Class-wise curriculum configuration</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuickAddSubjectOpen(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleQuickAddSubject} className="flex-1 overflow-y-auto p-6 space-y-4 text-xs font-semibold">
+              {quickSubError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2 font-bold">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{quickSubError}</span>
+                </div>
+              )}
+
+              {/* Class-wise Selection */}
+              <div>
+                <label className="block text-slate-600 mb-1.5 font-bold uppercase tracking-wide text-[10.5px]">
+                  Target Class(es) *
+                </label>
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuickSubScope('current')
+                      setQuickSubSelectedClasses([selectedClass || unifiedClasses[0]?.className || 'Class 1'])
+                    }}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-black transition cursor-pointer ${
+                      quickSubScope === 'current'
+                        ? 'bg-white text-[#007A78] shadow-2xs border border-slate-200'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {selectedClass || 'Class 1'} Only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQuickSubScope('selected')}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-black transition cursor-pointer ${
+                      quickSubScope === 'selected'
+                        ? 'bg-white text-[#007A78] shadow-2xs border border-slate-200'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Specific Classes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuickSubScope('all')
+                      setQuickSubSelectedClasses(unifiedClasses.map(c => c.className))
+                    }}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-black transition cursor-pointer ${
+                      quickSubScope === 'all'
+                        ? 'bg-white text-[#007A78] shadow-2xs border border-slate-200'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    All Classes
+                  </button>
+                </div>
+
+                {/* If Specific Classes chosen, show pills */}
+                {quickSubScope === 'selected' && (
+                  <div className="mt-2.5 p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
+                      <span>Select Classes:</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setQuickSubSelectedClasses(unifiedClasses.map(c => c.className))}
+                          className="text-[#007A78] hover:underline cursor-pointer"
+                        >
+                          Select All
+                        </button>
+                        <span>&bull;</span>
+                        <button
+                          type="button"
+                          onClick={() => setQuickSubSelectedClasses([])}
+                          className="text-slate-400 hover:underline cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                      {unifiedClasses.map(cls => {
+                        const isSelected = quickSubSelectedClasses.includes(cls.className)
+                        return (
+                          <button
+                            key={cls.className}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setQuickSubSelectedClasses(prev => prev.filter(c => c !== cls.className))
+                              } else {
+                                setQuickSubSelectedClasses(prev => [...prev, cls.className])
+                              }
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                              isSelected
+                                ? 'bg-teal-50 text-[#007A78] border border-teal-200 font-black'
+                                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {isSelected && <Check className="w-3 h-3 text-[#007A78]" />}
+                            <span>{cls.className}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Subject Name */}
+              <div>
+                <label className="block text-slate-600 mb-1 font-bold">
+                  Subject Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Mathematics, Science, Computer..."
+                  value={quickSubName}
+                  onChange={e => {
+                    setQuickSubName(e.target.value)
+                    if (!quickSubCode.trim() && e.target.value.trim()) {
+                      setQuickSubCode(`${e.target.value.trim().slice(0, 3).toUpperCase()}-01`)
+                    }
+                  }}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#007A78]"
+                  autoFocus
+                />
+
+                {/* Quick Subject Suggestion Pills */}
+                <div className="mt-2.5">
+                  <span className="block text-[10.5px] font-bold text-slate-400 mb-1.5">
+                    Quick Pick Popular Subjects:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                    {QUICK_SUBJECT_SUGGESTIONS.map(s => {
+                      const isCurrent = quickSubName.toLowerCase().trim() === s.toLowerCase().trim()
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => {
+                            setQuickSubName(s)
+                            setQuickSubCode(`${s.slice(0, 3).toUpperCase()}-01`)
+                          }}
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition cursor-pointer ${
+                            isCurrent
+                              ? 'bg-teal-50 text-[#007A78] border border-teal-200 font-black shadow-2xs'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          + {s}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Subject Code (Optional) & Category */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block text-slate-600 mb-1 font-bold">
+                    Subject Code <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. MATH-01"
+                    value={quickSubCode}
+                    onChange={e => setQuickSubCode(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#007A78]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-600 mb-1 font-bold">
+                    Subject Group
+                  </label>
+                  <select
+                    value={quickSubGroup}
+                    onChange={e => setQuickSubGroup(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#007A78]"
+                  >
+                    <option value="Core Subject">Core Subject</option>
+                    <option value="Language">Language</option>
+                    <option value="Science / Technical">Science / Technical</option>
+                    <option value="Activity / Arts">Activity / Arts</option>
+                    <option value="General">General</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Footer Buttons */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setQuickAddSubjectOpen(false)}
+                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-bold transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={quickSubSubmitting || !quickSubName.trim()}
+                  className="px-5 py-2 rounded-xl bg-[#007A78] hover:bg-teal-700 text-white text-xs font-black transition cursor-pointer shadow-xs active:scale-95 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{quickSubSubmitting ? 'Adding Subject...' : 'Save Subject'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
-import { X, Plus, Trash2, Upload, ChevronDown, ChevronLeft, ChevronRight, Check, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react'
+import { X, Plus, Trash2, Upload, ChevronDown, ChevronLeft, ChevronRight, Check, Eye, EyeOff, Loader2, AlertCircle, Calendar } from 'lucide-react'
 import { fetchEmployeeById, updateEmployee } from '../actions'
 import { fetchEmployeeRoles } from '../roles/actions'
 import { fetchStatesDistricts } from '../../actions'
@@ -490,22 +490,19 @@ function PayrollLeaveStep({ data, setData }: { data: any; setData: (d: any) => v
     set('allocatedLeaves', updated)
   }
 
+  const quotaFreq = data.leaveQuotaFrequency || 'Annually'
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      
+      {/* ── PART 1: MONTHLY SALARY STRUCTURE ── */}
       <div>
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-4">
           <SectionTitle>Monthly Salary Structure</SectionTitle>
-          <button 
-            type="button" 
-            onClick={addCustomAllowance} 
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-800 text-xs font-bold hover:bg-teal-100 transition-colors cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Salary Title (Other)</span>
-          </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-4">
+        {/* Standard Salary Inputs Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           <Field label="Applicable Start Date">
             <input type="date" className={inputCls(false)} value={data.applicableStartDate || ''} onChange={e => set('applicableStartDate', e.target.value)} />
           </Field>
@@ -522,46 +519,68 @@ function PayrollLeaveStep({ data, setData }: { data: any; setData: (d: any) => v
             <input type="number" className={inputCls(false)} placeholder="e.g. 3000" value={data.specialAllowance || ''} onChange={e => set('specialAllowance', e.target.value)} />
           </Field>
 
+          {/* Add Salary Title Button right after Special Allowance */}
+          <div className="flex flex-col justify-end">
+            <button 
+              type="button" 
+              onClick={addCustomAllowance} 
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400 border border-teal-200 dark:border-teal-800 text-xs font-bold hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-all cursor-pointer shadow-xs active:scale-95 h-[42px]"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Salary Title (Other)</span>
+            </button>
+          </div>
+
           {/* Dynamic Additional Salary Titles */}
           {customAllowances.map((item, idx) => (
-            <div key={item.id || idx} className="sm:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-12 gap-3 p-3 bg-slate-50/70 dark:bg-slate-900/40 rounded-xl border border-slate-200/80 dark:border-slate-700/80 items-center">
-              <div className="sm:col-span-6">
-                <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Salary Title / Component</label>
+            <div key={item.id || idx} className="sm:col-span-2 lg:col-span-3 flex flex-col sm:flex-row items-end gap-3 p-3 bg-slate-50/70 dark:bg-slate-900/40 rounded-2xl border border-slate-200/80 dark:border-slate-700/80">
+              <div className="flex-1 w-full">
+                <label className={labelCls}>Salary Title / Component</label>
                 <input 
                   className={inputCls(false)} 
-                  placeholder="e.g. Other Allowance, Medical, Bonus" 
+                  placeholder="e.g. Other Allowance, Performance Bonus" 
                   value={item.title || ''} 
                   onChange={e => updateCustomAllowance(idx, 'title', e.target.value)} 
                   list="edit-emp-salary-titles"
                 />
               </div>
-              <div className="sm:col-span-5">
-                <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Amount (₹)</label>
+              <div className="w-full sm:w-64">
+                <label className={labelCls}>Amount (₹)</label>
                 <input 
                   type="number" 
                   className={inputCls(false)} 
-                  placeholder="e.g. 2000" 
+                  placeholder="e.g. 5000" 
                   value={item.amount || ''} 
                   onChange={e => updateCustomAllowance(idx, 'amount', e.target.value)} 
                 />
               </div>
-              <div className="sm:col-span-1 flex justify-center pt-5 sm:pt-4">
-                <button type="button" onClick={() => removeCustomAllowance(idx)} className="w-8 h-8 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center justify-center transition-colors">
+              <div className="pb-0.5 self-end">
+                <button 
+                  type="button" 
+                  onClick={() => removeCustomAllowance(idx)} 
+                  className="w-10 h-10 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 border border-red-100 flex items-center justify-center transition-colors cursor-pointer"
+                  title="Remove Component"
+                >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
           ))}
 
-          {/* Gross Monthly Salary ALWAYS IN LAST */}
+          {/* Gross Monthly Salary Field */}
           <Field label="Gross Monthly Salary (₹)">
-            <input 
-              type="number" 
-              readOnly 
-              className={`${inputCls(false)} bg-slate-100 dark:bg-slate-800 text-teal-600 dark:text-teal-400 font-black cursor-not-allowed`} 
-              placeholder="Auto-calculated" 
-              value={data.grossSalary || ''} 
-            />
+            <div className="relative">
+              <input 
+                readOnly 
+                type="text" 
+                className={`${inputCls(false)} font-bold text-teal-700 dark:text-teal-300 bg-slate-50 dark:bg-slate-800/80 cursor-not-allowed`} 
+                value={data.grossSalary ? `₹ ${Number(data.grossSalary).toLocaleString('en-IN')}` : '₹ 0'} 
+                placeholder="₹ 0" 
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded border border-teal-200 dark:border-teal-800">
+                Calculated
+              </span>
+            </div>
           </Field>
         </div>
 
@@ -575,8 +594,21 @@ function PayrollLeaveStep({ data, setData }: { data: any; setData: (d: any) => v
         </datalist>
       </div>
 
+      {/* ── DISTINCT VISUAL BORDER BETWEEN PAYROLL & LEAVE ── */}
+      <div className="relative my-8 py-2">
+        <div className="absolute inset-0 flex items-center" aria-hidden="true">
+          <div className="w-full border-t-2 border-dashed border-slate-300 dark:border-slate-700" />
+        </div>
+        <div className="relative flex justify-center">
+          <span className="bg-white dark:bg-slate-800 px-4 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 shadow-xs flex items-center gap-2">
+            <Calendar className="w-3.5 h-3.5 text-teal-600" />
+            <span>Allocated Leave Quota Section</span>
+          </span>
+        </div>
+      </div>
+
       <div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-4 flex-wrap">
             <SectionTitle>Allocated Leave Quota</SectionTitle>
             {/* Monthly / Annually Radio Buttons */}
@@ -606,49 +638,103 @@ function PayrollLeaveStep({ data, setData }: { data: any; setData: (d: any) => v
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-wide whitespace-nowrap">
-                Effective Date:
-              </label>
-              <input 
-                type="date" 
-                className="px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-teal-500"
-                value={leaveEffectiveDate} 
-                onChange={e => handleLeaveDateChange(e.target.value)} 
-              />
-            </div>
-            <button type="button" onClick={addCustomLeave} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-800 text-xs font-bold hover:bg-teal-100 transition-colors cursor-pointer">
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Leave Type</span>
-            </button>
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-wide whitespace-nowrap">
+              Effective Date:
+            </label>
+            <input 
+              type="date" 
+              className={`${inputCls(false)} py-1.5 text-xs`} 
+              value={leaveEffectiveDate} 
+              onChange={e => handleLeaveDateChange(e.target.value)} 
+            />
           </div>
         </div>
-        <div className="space-y-3 mt-3">
+
+        {/* Column Headers for larger screens */}
+        <div className="space-y-3">
+          <div className="hidden sm:grid sm:grid-cols-12 gap-3 px-3 text-xs font-black text-slate-500 uppercase tracking-wide">
+            <div className="col-span-6">Leave Name</div>
+            <div className="col-span-2">Abbr</div>
+            <div className="col-span-3">Allowed Days ({(data.leaveQuotaFrequency || 'Annually') === 'Monthly' ? 'Per Month' : 'Per Year'})</div>
+            <div className="col-span-1 text-center">Action</div>
+          </div>
+
+          {/* Leave Rows */}
           {allocatedLeaves.map((row, i) => (
-            <div key={row.id || i} className="grid grid-cols-1 sm:grid-cols-12 gap-3 p-3 bg-slate-50/70 dark:bg-slate-900/40 rounded-xl border border-slate-200/80 dark:border-slate-700/80 items-center">
-              <div className="sm:col-span-6">
-                <input className={inputCls(false)} placeholder="Leave Name" value={row.leaveType || ''} onChange={e => updateLeaveRow(i, 'leaveType', e.target.value)} />
-              </div>
-              <div className="sm:col-span-2">
-                <input className={inputCls(false)} placeholder="Abbr" value={row.leaveAbbr || ''} onChange={e => updateLeaveRow(i, 'leaveAbbr', e.target.value)} />
-              </div>
-              <div className="sm:col-span-3">
+            <div 
+              key={row.id || i} 
+              className="flex flex-col sm:grid sm:grid-cols-12 gap-3 p-3 bg-slate-50/70 dark:bg-slate-900/40 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 items-center"
+            >
+              <div className="w-full sm:col-span-6">
+                <label className="sm:hidden block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1 uppercase tracking-wide">
+                  Leave Name
+                </label>
                 <input 
-                  type="number" 
                   className={inputCls(false)} 
-                  placeholder={(data.leaveQuotaFrequency || 'Annually') === 'Monthly' ? 'Days / Month' : 'Days / Year'} 
-                  value={row.allowedLeaves || ''} 
-                  onChange={e => updateLeaveRow(i, 'allowedLeaves', e.target.value)} 
+                  placeholder="e.g. Casual Leave" 
+                  value={row.leaveType || ''} 
+                  onChange={e => updateLeaveRow(i, 'leaveType', e.target.value)} 
                 />
               </div>
-              <div className="sm:col-span-1 flex justify-center">
-                <button type="button" onClick={() => removeCustomLeave(i)} className="w-8 h-8 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center justify-center transition-colors">
+              <div className="w-full sm:col-span-2">
+                <label className="sm:hidden block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1 uppercase tracking-wide">
+                  Abbr
+                </label>
+                <input 
+                  className={`${inputCls(false)} font-bold uppercase`} 
+                  placeholder="CL" 
+                  value={row.leaveAbbr || ''} 
+                  onChange={e => updateLeaveRow(i, 'leaveAbbr', e.target.value)} 
+                />
+              </div>
+              <div className="w-full sm:col-span-3">
+                <label className="sm:hidden block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1 uppercase tracking-wide">
+                  Allowed Days
+                </label>
+                <div className="relative">
+                  <input 
+                    type="number" 
+                    className={`${inputCls(false)} pr-14 font-bold`} 
+                    placeholder={(data.leaveQuotaFrequency || 'Annually') === 'Monthly' ? 'e.g. 1' : 'e.g. 12'} 
+                    value={row.allowedLeaves || ''} 
+                    onChange={e => updateLeaveRow(i, 'allowedLeaves', e.target.value)} 
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 pointer-events-none">
+                    DAYS
+                  </span>
+                </div>
+              </div>
+              <div className="w-full sm:col-span-1 flex justify-center">
+                <button 
+                  type="button" 
+                  onClick={() => removeCustomLeave(i)} 
+                  className="w-10 h-10 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 border border-red-100 flex items-center justify-center transition-colors cursor-pointer"
+                  title="Remove Leave Type"
+                >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
           ))}
+
+          {allocatedLeaves.length === 0 && (
+            <div className="p-8 text-center text-slate-400 font-bold text-xs bg-slate-50 dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+              No leave types allocated. Click &quot;Add Leave Type&quot; below to allocate leaves.
+            </div>
+          )}
+
+          {/* Add Leave Type Button at the bottom */}
+          <div className="flex justify-center sm:justify-start pt-2">
+            <button 
+              type="button" 
+              onClick={addCustomLeave} 
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400 border border-teal-200 dark:border-teal-800 text-xs font-bold hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-all cursor-pointer shadow-xs active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Leave Type</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

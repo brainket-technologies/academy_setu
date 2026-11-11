@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Download, Upload, Plus, Search, MoreVertical, Eye, Pencil, Trash2, ShieldCheck, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Check, Loader2 } from 'lucide-react'
+import { Download, Upload, Plus, Search, MoreVertical, Eye, Pencil, Trash2, ShieldCheck, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Check, Loader2, X } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { fetchEmployees, fetchDeletedEmployees, deleteEmployee } from './actions'
@@ -85,8 +85,17 @@ export default function AllEmployeesPage() {
               placeholder="Search by name, mobile, role..." 
               value={searchTerm}
               onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1) }}
-              className="pl-9 pr-4 py-2 w-full sm:w-64 border border-slate-200 dark:border-slate-600 rounded-xl text-sm bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="pl-9 pr-8 py-2 w-full sm:w-64 border border-slate-200 dark:border-slate-600 rounded-xl text-sm bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
+            {searchTerm && (
+              <button 
+                type="button" 
+                onClick={() => setSearchTerm('')} 
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button 

@@ -4,7 +4,8 @@ import React, { useState, Suspense, useEffect, useMemo } from 'react'
 import {
   CheckCircle2, ArrowLeft, Upload, Eye, X, Paperclip, CheckCircle,
   Coins, Clock, CreditCard, RefreshCw, AlertCircle, FileText, Printer,
-  ArrowRight, ShieldCheck, Check
+  ArrowRight, ShieldCheck, Check, Copy, Building2, QrCode, Banknote,
+  Sparkles, Wallet, Info, Lock
 } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -44,12 +45,19 @@ function PayContent() {
   // Cash / Cheque Info States
   const [chequeNo, setChequeNo] = useState('')
 
+  // Edit Mode toggle for Account Details
+  const [isEditingAccount, setIsEditingAccount] = useState(false)
+
+  // Copy Feedback state
+  const [copiedField, setCopiedField] = useState<string | null>(null)
+
   // Pay Amount State
   const [payAmount, setPayAmount] = useState<string>('')
 
   // Modals
   const [attachModalOpen, setAttachModalOpen] = useState(false)
   const [successModalOpen, setSuccessModalOpen] = useState(false)
+  const [qrModalOpen, setQrModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Attach modal inputs
@@ -60,6 +68,14 @@ function PayContent() {
 
   // Receipt Modal
   const [selectedTxnForReceipt, setSelectedTxnForReceipt] = useState<PayrollTransactionItem | null>(null)
+
+  const handleCopy = (text: string, fieldName: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text)
+      setCopiedField(fieldName)
+      setTimeout(() => setCopiedField(null), 2000)
+    }
+  }
 
   // Load record and transactions from database
   const loadData = async () => {
@@ -113,6 +129,11 @@ function PayContent() {
     return Math.max(0, totalSalary - paidAmount)
   }, [payroll, totalSalary, paidAmount])
 
+  const percentPaid = useMemo(() => {
+    if (totalSalary <= 0) return 100
+    return Math.min(100, Math.round((paidAmount / totalSalary) * 100))
+  }, [paidAmount, totalSalary])
+
   const displayName = payroll?.name || staffNameParam
   const displayRole = payroll ? `${payroll.role} (${payroll.userType})` : staffTypeParam
   const payrollMonth = payroll ? payroll.monthYear : 'Current Month'
@@ -124,6 +145,10 @@ function PayContent() {
 
   const handleSelectHalfPayment = () => {
     setPayAmount(String(Math.round(leftAmount / 2)))
+  }
+
+  const handleSelectQuarterPayment = () => {
+    setPayAmount(String(Math.round(leftAmount / 4)))
   }
 
   // Trigger Pay -> Open Attach/Verification Modal
@@ -195,294 +220,512 @@ function PayContent() {
     router.push('/institute/payroll')
   }
 
+  // Staff Initials Avatar
+  const staffInitials = useMemo(() => {
+    return displayName
+      .split(' ')
+      .map(w => w[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || 'ST'
+  }, [displayName])
+
   return (
-    <div className="flex flex-col gap-6 w-full pb-14 animate-in fade-in duration-300">
+    <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto pb-16 animate-in fade-in duration-300">
       
-      {/* ── TOP HEADER ── */}
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 md:p-5 shadow-xs flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      {/* ── TOP HEADER BANNER ── */}
+      <div className="bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-3xl p-5 md:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
           <Link 
             href="/institute/payroll"
-            className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors bg-white dark:bg-slate-800 shadow-2xs cursor-pointer"
+            className="w-11 h-11 flex items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all bg-white dark:bg-slate-800 shadow-2xs hover:scale-105 active:scale-95 cursor-pointer shrink-0"
             title="Back to Payroll Dashboard"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-5 h-5" />
           </Link>
-          <div>
-            <h1 className="text-lg md:text-xl font-black text-slate-800 dark:text-slate-100 leading-tight">
-              Disburse Salary
-            </h1>
-            <p className="text-xs text-[#0f766e] font-black uppercase tracking-wider mt-0.5">
-              {displayName} &bull; <span className="text-slate-500 dark:text-slate-400 font-semibold">{displayRole}</span>
-            </p>
+          
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-500 to-[#0f766e] text-white font-black flex items-center justify-center text-base shadow-sm shrink-0 tracking-wider">
+              {staffInitials}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                  Disburse Salary
+                </h1>
+                <span className="text-[11px] font-black uppercase tracking-wider bg-teal-50 dark:bg-teal-950/60 text-[#0f766e] dark:text-teal-300 px-2.5 py-0.5 rounded-lg border border-teal-200/60 dark:border-teal-800/60">
+                  {payrollMonth}
+                </span>
+              </div>
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 truncate mt-0.5 flex items-center gap-1.5">
+                <span className="font-extrabold text-slate-800 dark:text-slate-200">{displayName}</span>
+                <span>&bull;</span>
+                <span className="text-teal-700 dark:text-teal-400 uppercase font-black tracking-wider text-[11px]">{displayRole}</span>
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Status Badge */}
-        <div className="flex items-center gap-2">
-          <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+        {/* Right Action & Status Badge */}
+        <div className="flex items-center gap-3 self-end sm:self-center">
+          <button
+            type="button"
+            onClick={loadData}
+            disabled={loading}
+            className="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-center transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+            title="Refresh Live Data"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-teal-600' : ''}`} />
+          </button>
+
+          <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-2xs ${
             leftAmount <= 0
-              ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
               : paidAmount > 0
-              ? 'bg-amber-50 text-amber-600 border border-amber-200'
-              : 'bg-rose-50 text-rose-600 border border-rose-200'
+              ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+              : 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
           }`}>
-            ● {leftAmount <= 0 ? 'Fully Paid' : (paidAmount > 0 ? 'Partially Paid' : 'Unpaid')}
+            <span className={`w-2 h-2 rounded-full ${
+              leftAmount <= 0 ? 'bg-emerald-500 animate-pulse' : (paidAmount > 0 ? 'bg-amber-500 animate-pulse' : 'bg-rose-500')
+            }`} />
+            <span>{leftAmount <= 0 ? 'Fully Disbursed' : (paidAmount > 0 ? 'Partially Paid' : 'Unpaid')}</span>
           </span>
         </div>
       </div>
 
-      {/* ── 3 METRIC BOXES: TOTAL, PAID, LEFT ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-        {/* Box 1: TOTAL */}
-        <div className="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-700 shadow-xs flex items-center justify-between">
-          <div>
-            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 block">
-              Total Salary
-            </span>
-            <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-1 block tracking-tight">
-              ₹{totalSalary.toLocaleString('en-IN')}/-
-            </span>
-            <span className="text-[11px] font-semibold text-slate-500 mt-0.5 block">
-              Period: {payrollMonth}
-            </span>
+      {/* ── 3 METRIC HERO CARDS: TOTAL, PAID, LEFT ── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4.5 w-full">
+        {/* Box 1: TOTAL SALARY */}
+        <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-700/80 shadow-xs relative overflow-hidden flex flex-col justify-between group hover:shadow-md transition-all">
+          <div className="flex items-start justify-between">
+            <div>
+              <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
+                Total Net Salary
+              </span>
+              <span className="text-3xl font-black text-slate-900 dark:text-white mt-1.5 block tracking-tight">
+                ₹{totalSalary.toLocaleString('en-IN')}/-
+              </span>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 shadow-2xs">
+              <Wallet className="w-6 h-6" />
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 flex items-center justify-center shrink-0">
-            <Coins className="w-6 h-6" />
-          </div>
-        </div>
-
-        {/* Box 2: PAID */}
-        <div className="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-emerald-200 dark:border-emerald-800/80 shadow-xs flex items-center justify-between bg-emerald-50/15">
-          <div>
-            <span className="text-[11px] font-black uppercase tracking-wider text-emerald-600 block">
-              Paid Amount
-            </span>
-            <span className="text-2xl sm:text-3xl font-black text-emerald-600 mt-1 block tracking-tight">
-              ₹{paidAmount.toLocaleString('en-IN')}/-
-            </span>
-            <span className="text-[11px] font-semibold text-emerald-700/80 mt-0.5 block">
-              {transactions.length} transaction{transactions.length === 1 ? '' : 's'} recorded
-            </span>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-100/60 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center shrink-0">
-            <CheckCircle2 className="w-6 h-6" />
+          <div className="pt-4 mt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400">
+            <span>Gross: ₹{(payroll?.grossSalary || totalSalary).toLocaleString('en-IN')}</span>
+            {payroll && payroll.leaveDeduction > 0 && (
+              <span className="text-rose-500 font-extrabold bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded-md">
+                -{payroll.formattedLeaveDeduction} leave
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Box 3: LEFT */}
-        <div className={`bg-white dark:bg-slate-800 rounded-3xl p-5 border shadow-xs flex items-center justify-between ${
+        {/* Box 2: PAID AMOUNT */}
+        <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-emerald-200/80 dark:border-emerald-800/80 shadow-xs relative overflow-hidden flex flex-col justify-between group hover:shadow-md transition-all bg-gradient-to-br from-emerald-50/20 to-transparent">
+          <div className="flex items-start justify-between">
+            <div>
+              <span className="text-[11px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
+                Amount Disbursed
+              </span>
+              <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-1.5 block tracking-tight">
+                ₹{paidAmount.toLocaleString('en-IN')}/-
+              </span>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-emerald-100/70 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-2xs">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="pt-3 mt-1 space-y-1.5">
+            <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500 rounded-full"
+                style={{ width: `${percentPaid}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[11px] font-bold text-emerald-700/80 dark:text-emerald-400/90">
+              <span>{transactions.length} transaction{transactions.length === 1 ? '' : 's'}</span>
+              <span className="font-black">{percentPaid}% Cleared</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Box 3: LEFT / REMAINING */}
+        <div className={`rounded-3xl p-6 border shadow-xs relative overflow-hidden flex flex-col justify-between group hover:shadow-md transition-all ${
           leftAmount > 0 
-            ? 'border-amber-200 dark:border-amber-800/80 bg-amber-50/15'
-            : 'border-slate-200 dark:border-slate-700 bg-slate-50/40'
+            ? 'bg-white dark:bg-slate-800 border-amber-200/90 dark:border-amber-800/80 bg-gradient-to-br from-amber-50/20 to-transparent'
+            : 'bg-white dark:bg-slate-800 border-slate-200/80 dark:border-slate-700/80'
         }`}>
-          <div>
-            <span className={`text-[11px] font-black uppercase tracking-wider block ${
-              leftAmount > 0 ? 'text-amber-600' : 'text-slate-400'
+          <div className="flex items-start justify-between">
+            <div>
+              <span className={`text-[11px] font-black uppercase tracking-wider block ${
+                leftAmount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400 dark:text-slate-500'
+              }`}>
+                Remaining Balance
+              </span>
+              <span className={`text-3xl font-black mt-1.5 block tracking-tight ${
+                leftAmount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400 dark:text-slate-500'
+              }`}>
+                ₹{leftAmount.toLocaleString('en-IN')}/-
+              </span>
+            </div>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs ${
+              leftAmount > 0 
+                ? 'bg-amber-100/70 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400'
+                : 'bg-slate-100 dark:bg-slate-700 text-slate-400'
             }`}>
-              Left / Remaining
-            </span>
-            <span className={`text-2xl sm:text-3xl font-black mt-1 block tracking-tight ${
-              leftAmount > 0 ? 'text-amber-600' : 'text-slate-400'
-            }`}>
-              ₹{leftAmount.toLocaleString('en-IN')}/-
-            </span>
-            <span className="text-[11px] font-semibold text-slate-500 mt-0.5 block">
-              {leftAmount <= 0 ? 'Fully Disbursed' : 'Balance to be cleared'}
-            </span>
+              <Clock className="w-6 h-6" />
+            </div>
           </div>
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
-            leftAmount > 0 
-              ? 'bg-amber-100/60 dark:bg-amber-950/60 text-amber-600'
-              : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
-          }`}>
-            <Clock className="w-6 h-6" />
+          <div className="pt-4 mt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-[11px] font-bold">
+            <span className={leftAmount > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-600'}>
+              {leftAmount <= 0 ? '✓ All Dues Cleared' : 'Pending Disbursal'}
+            </span>
+            {leftAmount > 0 && (
+              <button
+                type="button"
+                onClick={handleSelectFullPayment}
+                className="text-[10px] font-black uppercase tracking-wider text-[#0f766e] hover:underline cursor-pointer"
+              >
+                Clear Full Left &rarr;
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ── MAIN PAYMENT CONTAINER ── */}
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+      {/* ── MAIN PAYMENT DISBURSEMENT CARD ── */}
+      <div className="bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-7">
         
-        {/* Payment mode switcher toggles */}
-        <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl max-w-md font-bold text-xs select-none">
-          <button 
-            type="button" 
-            onClick={() => setPaymentMode('Bank')}
-            className={`flex-1 py-2.5 text-center rounded-xl transition-all cursor-pointer ${
-              paymentMode === 'Bank'
-                ? 'bg-[#0f766e] text-white font-black shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
-          >
-            Bank Account
-          </button>
-          <button 
-            type="button" 
-            onClick={() => setPaymentMode('UPI')}
-            className={`flex-1 py-2.5 text-center rounded-xl transition-all cursor-pointer ${
-              paymentMode === 'UPI'
-                ? 'bg-[#0f766e] text-white font-black shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
-          >
-            UPI ID
-          </button>
-          <button 
-            type="button" 
-            onClick={() => setPaymentMode('Cash')}
-            className={`flex-1 py-2.5 text-center rounded-xl transition-all cursor-pointer ${
-              paymentMode === 'Cash'
-                ? 'bg-[#0f766e] text-white font-black shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
-          >
-            Cash / Cheque
-          </button>
+        {/* Payment mode switcher tabs */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Select Disbursal Mode
+            </label>
+            <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5 text-teal-600" /> Secure Audit Trail
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-1.5 bg-slate-100/80 dark:bg-slate-900/80 rounded-2xl font-bold text-xs">
+            <button 
+              type="button" 
+              onClick={() => setPaymentMode('Bank')}
+              className={`py-3 px-4 text-center rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                paymentMode === 'Bank'
+                  ? 'bg-[#0f766e] text-white font-black shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-white/60 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              <span>Bank Account Transfer</span>
+            </button>
+            <button 
+              type="button" 
+              onClick={() => setPaymentMode('UPI')}
+              className={`py-3 px-4 text-center rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                paymentMode === 'UPI'
+                  ? 'bg-[#0f766e] text-white font-black shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-white/60 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <QrCode className="w-4 h-4" />
+              <span>UPI / QR Transfer</span>
+            </button>
+            <button 
+              type="button" 
+              onClick={() => setPaymentMode('Cash')}
+              className={`py-3 px-4 text-center rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                paymentMode === 'Cash'
+                  ? 'bg-[#0f766e] text-white font-black shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-white/60 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <Banknote className="w-4 h-4" />
+              <span>Cash / Cheque Voucher</span>
+            </button>
+          </div>
         </div>
 
-        {/* Account Details Form Fields */}
-        <div className="border border-slate-200 dark:border-slate-700 rounded-2xl p-5 md:p-6 space-y-4">
-          <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-700 pb-2 uppercase tracking-wider text-[#1b3a60] dark:text-teal-400">
-            {paymentMode === 'Bank' ? 'Staff Bank Account Details' : (paymentMode === 'UPI' ? 'Staff UPI Transfer Details' : 'Cash / Cheque Payment Details')}
-          </h3>
+        {/* ── BENEFICIARY DETAILS CARD ── */}
+        <div className="bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl p-5 md:p-6 space-y-4">
+          <div className="flex items-center justify-between pb-1 border-b border-slate-200/60 dark:border-slate-700/60">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-teal-600" />
+              <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                {paymentMode === 'Bank' && 'Beneficiary Bank Account Details'}
+                {paymentMode === 'UPI' && 'Staff UPI Transfer Details'}
+                {paymentMode === 'Cash' && 'Cash / Cheque Voucher Details'}
+              </h3>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                <Check className="w-3 h-3" /> Verified Staff Record
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsEditingAccount(prev => !prev)}
+                className="text-[11px] font-bold text-[#0f766e] hover:underline cursor-pointer pl-1"
+              >
+                {isEditingAccount ? 'Done Editing' : 'Edit'}
+              </button>
+            </div>
+          </div>
           
+          {/* Mode 1: Bank Account */}
           {paymentMode === 'Bank' && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
-              <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-slate-600 dark:text-slate-300">Account No.</label>
-                <input 
-                  type="text" 
-                  value={accountNo} 
-                  onChange={e => setAccountNo(e.target.value)} 
-                  className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl font-bold bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500" 
-                />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              {/* Account Number */}
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200/80 dark:border-slate-700 flex flex-col justify-between shadow-2xs group">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                  Account Number
+                </span>
+                {isEditingAccount ? (
+                  <input
+                    type="text"
+                    value={accountNo}
+                    onChange={e => setAccountNo(e.target.value)}
+                    className="w-full mt-1.5 px-2.5 py-1.5 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-teal-500 bg-slate-50 dark:bg-slate-900 font-mono"
+                  />
+                ) : (
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-sm font-black font-mono text-slate-800 dark:text-slate-100 tracking-wider">
+                      {accountNo}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(accountNo, 'accountNo')}
+                      className="p-1 rounded-md text-slate-400 hover:text-teal-700 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors cursor-pointer"
+                      title="Copy Account Number"
+                    >
+                      {copiedField === 'accountNo' ? (
+                        <span className="text-[10px] font-black text-teal-600">Copied!</span>
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-slate-600 dark:text-slate-300">IFSC Code</label>
-                <input 
-                  type="text" 
-                  value={ifscCode} 
-                  onChange={e => setIfscCode(e.target.value)} 
-                  className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl font-bold bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500 uppercase" 
-                />
+
+              {/* IFSC Code */}
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200/80 dark:border-slate-700 flex flex-col justify-between shadow-2xs group">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                  IFSC Code
+                </span>
+                {isEditingAccount ? (
+                  <input
+                    type="text"
+                    value={ifscCode}
+                    onChange={e => setIfscCode(e.target.value.toUpperCase())}
+                    className="w-full mt-1.5 px-2.5 py-1.5 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-teal-500 bg-slate-50 dark:bg-slate-900 font-mono uppercase"
+                  />
+                ) : (
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-sm font-black font-mono text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                      {ifscCode}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(ifscCode, 'ifscCode')}
+                      className="p-1 rounded-md text-slate-400 hover:text-teal-700 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors cursor-pointer"
+                      title="Copy IFSC Code"
+                    >
+                      {copiedField === 'ifscCode' ? (
+                        <span className="text-[10px] font-black text-teal-600">Copied!</span>
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-slate-600 dark:text-slate-300">Bank Name</label>
-                <input 
-                  type="text" 
-                  value={bankName} 
-                  onChange={e => setBankName(e.target.value)} 
-                  className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl font-bold bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500" 
-                />
+
+              {/* Bank Name */}
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200/80 dark:border-slate-700 flex flex-col justify-between shadow-2xs">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                  Bank Name
+                </span>
+                {isEditingAccount ? (
+                  <input
+                    type="text"
+                    value={bankName}
+                    onChange={e => setBankName(e.target.value)}
+                    className="w-full mt-1.5 px-2.5 py-1.5 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-teal-500 bg-slate-50 dark:bg-slate-900"
+                  />
+                ) : (
+                  <span className="text-sm font-black text-slate-800 dark:text-slate-100 truncate mt-1">
+                    {bankName}
+                  </span>
+                )}
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-slate-600 dark:text-slate-300">Account Holder Name</label>
-                <input 
-                  type="text" 
-                  value={holderName} 
-                  onChange={e => setHolderName(e.target.value)} 
-                  className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl font-bold bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500" 
-                />
+
+              {/* Beneficiary Name */}
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200/80 dark:border-slate-700 flex flex-col justify-between shadow-2xs">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                  Account Holder Name
+                </span>
+                {isEditingAccount ? (
+                  <input
+                    type="text"
+                    value={holderName}
+                    onChange={e => setHolderName(e.target.value)}
+                    className="w-full mt-1.5 px-2.5 py-1.5 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-teal-500 bg-slate-50 dark:bg-slate-900"
+                  />
+                ) : (
+                  <span className="text-sm font-black text-slate-800 dark:text-slate-100 truncate mt-1">
+                    {holderName}
+                  </span>
+                )}
               </div>
             </div>
           )}
 
+          {/* Mode 2: UPI */}
           {paymentMode === 'UPI' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
-              <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-slate-600 dark:text-slate-300">UPI ID / VPA</label>
-                <input 
-                  type="text" 
-                  value={upiId} 
-                  onChange={e => setUpiId(e.target.value)} 
-                  className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl font-bold bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500" 
-                />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200/80 dark:border-slate-700 flex flex-col justify-between shadow-2xs">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                  Beneficiary UPI ID / VPA
+                </span>
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-sm font-black font-mono text-[#0f766e] dark:text-teal-400">
+                    {upiId}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(upiId, 'upiId')}
+                    className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-teal-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                  >
+                    {copiedField === 'upiId' ? (
+                      <span className="text-teal-600 font-black">Copied!</span>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copy VPA</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-              <div className="flex flex-col gap-1.5 justify-end">
-                <button 
-                  type="button" 
-                  onClick={() => alert(`Showing QR code for UPI ID: ${upiId}`)}
-                  className="flex items-center gap-1.5 text-xs text-[#0f766e] font-black pb-2 cursor-pointer hover:underline"
+
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between shadow-2xs">
+                <div>
+                  <span className="text-xs font-black text-slate-800 dark:text-slate-200 block">
+                    Instant Mobile QR Code
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    Scan with GPay, PhonePe, Paytm or BHIM
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setQrModalOpen(true)}
+                  className="px-3.5 py-2 rounded-xl bg-[#0f766e] hover:bg-teal-700 text-white font-bold text-xs transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
                 >
-                  <Eye className="w-4 h-4" /> View QR Code for Scanning
+                  <QrCode className="w-4 h-4" />
+                  <span>Show QR</span>
                 </button>
               </div>
             </div>
           )}
 
+          {/* Mode 3: Cash / Cheque */}
           {paymentMode === 'Cash' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-slate-600 dark:text-slate-300">Cheque / Voucher No. (Optional)</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. CHQ-928194"
-                  value={chequeNo} 
-                  onChange={e => setChequeNo(e.target.value)} 
-                  className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl font-bold bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 outline-none focus:border-teal-500" 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200/80 dark:border-slate-700 shadow-2xs space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                  Cheque / Voucher Number (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. CHQ-928194 or VCH-102"
+                  value={chequeNo}
+                  onChange={e => setChequeNo(e.target.value)}
+                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-teal-500 bg-slate-50 dark:bg-slate-900"
                 />
+              </div>
+
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200/80 dark:border-slate-700 shadow-2xs flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-[#0f766e] flex items-center justify-center shrink-0">
+                  <Banknote className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                    Cash Payment Recording
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    Cash vouchers are automatically logged in the audit ledger.
+                  </span>
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Outstanding Balance Breakdown Table */}
-        <div className="border border-slate-200 dark:border-slate-700 rounded-2xl p-5 md:p-6 space-y-4">
+        {/* ── PAYROLL STATEMENT DETAILS TABLE ── */}
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-              Payroll Statement Details &mdash; {payrollMonth}
+            <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
+              <span>Payroll Statement Details</span>
+              <span className="text-slate-400 font-normal">&mdash;</span>
+              <span className="text-teal-700 dark:text-teal-400">{payrollMonth}</span>
             </h3>
             <span className="text-xs font-bold text-slate-400">
-              Salary For: {payrollMonth}
+              Salary Month: {payrollMonth}
             </span>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 no-scrollbar">
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700/80 shadow-2xs">
             <table className="w-full text-xs text-center border-collapse">
-              <thead className="bg-slate-50 dark:bg-slate-900 font-black text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
+              <thead className="bg-slate-50 dark:bg-slate-900/80 font-black text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
                 <tr>
-                  <th className="px-4 py-3">Salary For</th>
-                  <th className="px-4 py-3">Gross Salary</th>
-                  <th className="px-4 py-3">Leave Deduction</th>
-                  <th className="px-4 py-3">Net Salary</th>
-                  <th className="px-4 py-3">Total Paid</th>
-                  <th className="px-4 py-3">Left / Balance</th>
-                  <th className="px-4 py-3 w-32">Quick Action</th>
+                  <th className="px-4 py-3.5 text-left">Salary Period</th>
+                  <th className="px-4 py-3.5">Gross Salary</th>
+                  <th className="px-4 py-3.5">Leave Deduction</th>
+                  <th className="px-4 py-3.5">Net Payable</th>
+                  <th className="px-4 py-3.5">Total Paid</th>
+                  <th className="px-4 py-3.5">Remaining Left</th>
+                  <th className="px-4 py-3.5 w-36 text-center">Quick Action</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr className="border-b border-slate-100 dark:border-slate-700/60 font-semibold hover:bg-slate-50/50">
-                  <td className="px-4 py-3.5 text-slate-800 dark:text-slate-200 font-bold">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60 font-medium">
+                <tr className="hover:bg-slate-50/60 dark:hover:bg-slate-900/40 transition-colors">
+                  <td className="px-4 py-4 text-left font-black text-slate-900 dark:text-white">
                     {payrollMonth}
                   </td>
-                  <td className="px-4 py-3.5 text-slate-500 dark:text-slate-400">
+                  <td className="px-4 py-4 text-slate-500 dark:text-slate-400 font-semibold">
                     ₹{(payroll ? payroll.grossSalary : totalSalary).toLocaleString('en-IN')}/-
                   </td>
-                  <td className="px-4 py-3.5 text-rose-500 font-bold">
+                  <td className="px-4 py-4 text-rose-500 font-bold">
                     {payroll ? payroll.formattedLeaveDeduction : '₹0'}
                   </td>
-                  <td className="px-4 py-3.5 font-bold text-slate-800 dark:text-slate-200">
+                  <td className="px-4 py-4 font-black text-slate-900 dark:text-white text-sm">
                     ₹{totalSalary.toLocaleString('en-IN')}/-
                   </td>
-                  <td className="px-4 py-3.5 font-bold text-emerald-600">
+                  <td className="px-4 py-4 font-black text-emerald-600 text-sm">
                     ₹{paidAmount.toLocaleString('en-IN')}/-
                   </td>
-                  <td className="px-4 py-3.5 font-black text-amber-600">
+                  <td className="px-4 py-4 font-black text-amber-600 text-sm">
                     ₹{leftAmount.toLocaleString('en-IN')}/-
                   </td>
-                  <td className="px-4 py-3.5">
+                  <td className="px-4 py-4 text-center">
                     {leftAmount > 0 ? (
                       <button 
                         type="button" 
                         onClick={handleSelectFullPayment}
-                        className="px-3 py-1.5 bg-[#0f766e] hover:bg-teal-700 text-white rounded-lg text-[10px] font-black uppercase transition-colors cursor-pointer"
+                        className="px-3.5 py-1.5 bg-[#0f766e] hover:bg-teal-700 text-white rounded-xl text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95 inline-flex items-center gap-1"
                       >
-                        Pay Left
+                        <Sparkles className="w-3 h-3" />
+                        <span>Pay Left</span>
                       </button>
                     ) : (
-                      <span className="text-emerald-600 font-black text-xs flex items-center justify-center gap-1">
-                        <Check className="w-3.5 h-3.5" /> Cleared
+                      <span className="text-emerald-700 dark:text-emerald-300 font-black text-xs flex items-center justify-center gap-1 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-200">
+                        <Check className="w-3.5 h-3.5" /> Fully Cleared
                       </span>
                     )}
                   </td>
@@ -490,120 +733,195 @@ function PayContent() {
               </tbody>
             </table>
           </div>
-
-          {/* Payment submission bar: Single or Multiple Partial Payment */}
-          {leftAmount > 0 ? (
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-700 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Make Payment (One-Time Full or Partial Installment):
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleSelectFullPayment}
-                    className="px-3 py-1 rounded-lg border border-teal-200 text-[#0f766e] text-xs font-bold hover:bg-teal-50 transition-colors cursor-pointer"
-                  >
-                    100% Left (₹{leftAmount.toLocaleString('en-IN')})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSelectHalfPayment}
-                    className="px-3 py-1 rounded-lg border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 transition-colors cursor-pointer"
-                  >
-                    50% Left (₹{Math.round(leftAmount / 2).toLocaleString('en-IN')})
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-2 text-xs font-semibold">
-                <div className="flex flex-col gap-1 w-full sm:w-64">
-                  <label className="text-slate-500 font-bold">Remaining Left Balance</label>
-                  <input 
-                    type="text" 
-                    readOnly 
-                    value={`₹${leftAmount.toLocaleString('en-IN')}/-`} 
-                    className="px-4 py-2.5 bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-xl outline-none font-black text-sm" 
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1 w-full sm:w-80">
-                  <label className="text-slate-500 font-bold">Enter Pay Amount (₹)</label>
-                  <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 overflow-hidden focus-within:border-teal-500 shadow-2xs">
-                    <input 
-                      type="number" 
-                      value={payAmount} 
-                      onChange={e => setPayAmount(e.target.value)} 
-                      placeholder="e.g. 10000 or full" 
-                      className="flex-1 px-4 py-2.5 outline-none font-black text-slate-800 dark:text-slate-100 text-sm bg-transparent" 
-                    />
-                    <button 
-                      type="button" 
-                      onClick={handlePayTrigger}
-                      className="px-6 py-2.5 bg-[#0f766e] hover:bg-teal-700 text-white font-black transition-colors text-xs border-l border-teal-700 shrink-0 cursor-pointer shadow-xs active:scale-95 flex items-center gap-1.5"
-                    >
-                      <CreditCard className="w-3.5 h-3.5" />
-                      <span>Proceed to Pay</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center gap-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-              <p className="text-xs font-black text-emerald-800 dark:text-emerald-200">
-                This payroll statement has been fully disbursed! Total of ₹{totalSalary.toLocaleString('en-IN')}/- has been cleared across {transactions.length} transaction{transactions.length === 1 ? '' : 's'}.
-              </p>
-            </div>
-          )}
         </div>
 
-        {/* ── TRANSACTION HISTORY SECTION (All individual payments for this payroll) ── */}
-        <div className="border border-slate-200 dark:border-slate-700 rounded-2xl p-5 md:p-6 space-y-4">
+        {/* ── MAKE PAYMENT ACTION BAR (FIXED TRUNCATION & SLEEK INTERACTION) ── */}
+        {leftAmount > 0 ? (
+          <div className="bg-gradient-to-br from-slate-50 to-teal-50/20 dark:from-slate-900/60 dark:to-teal-950/10 border border-teal-200/60 dark:border-teal-900/40 rounded-3xl p-6 sm:p-7 space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <span className="text-sm font-black text-slate-900 dark:text-white tracking-tight block">
+                  Disburse Payment (Full or Installment)
+                </span>
+                <span className="text-xs text-slate-500 font-semibold">
+                  Choose a quick percentage chip or specify custom installment amount
+                </span>
+              </div>
+
+              {/* Quick Preset Chips */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleSelectFullPayment}
+                  className="px-3 py-1.5 rounded-xl border border-teal-300/80 bg-teal-50 dark:bg-teal-950/60 text-[#0f766e] dark:text-teal-300 text-xs font-black hover:bg-teal-100/70 transition-all cursor-pointer shadow-2xs active:scale-95"
+                >
+                  100% Left (₹{leftAmount.toLocaleString('en-IN')})
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSelectHalfPayment}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 transition-all cursor-pointer shadow-2xs active:scale-95"
+                >
+                  50% Half (₹{Math.round(leftAmount / 2).toLocaleString('en-IN')})
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSelectQuarterPayment}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 transition-all cursor-pointer shadow-2xs active:scale-95 hidden sm:inline-block"
+                >
+                  25% (₹{Math.round(leftAmount / 4).toLocaleString('en-IN')})
+                </button>
+              </div>
+            </div>
+
+            {/* Input & Big Action Button */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+              {/* Remaining Info Pill */}
+              <div className="lg:col-span-4 bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-2xs flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                    Current Left Balance
+                  </span>
+                  <span className="text-xl font-black text-amber-600 dark:text-amber-400 font-mono mt-0.5 block">
+                    ₹{leftAmount.toLocaleString('en-IN')}/-
+                  </span>
+                </div>
+                <Clock className="w-5 h-5 text-amber-500/80" />
+              </div>
+
+              {/* Enter Amount Input */}
+              <div className="lg:col-span-4">
+                <div className="relative flex items-center">
+                  <span className="absolute left-4 font-black text-slate-400 text-lg pointer-events-none">
+                    ₹
+                  </span>
+                  <input 
+                    type="number" 
+                    value={payAmount} 
+                    onChange={e => setPayAmount(e.target.value)} 
+                    placeholder="Enter amount" 
+                    className="w-full pl-9 pr-4 py-3.5 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl outline-none font-black text-slate-900 dark:text-white text-base focus:border-[#0f766e] transition-colors shadow-2xs" 
+                  />
+                </div>
+              </div>
+
+              {/* Big Bold Pay Button - NEVER TRUNCATED */}
+              <div className="lg:col-span-4">
+                <button 
+                  type="button" 
+                  onClick={handlePayTrigger}
+                  className="w-full px-6 py-4 bg-[#0f766e] hover:bg-teal-700 text-white font-black rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2 text-sm active:scale-98 tracking-wide"
+                >
+                  <CreditCard className="w-4 h-4 shrink-0" />
+                  <span className="truncate">
+                    Proceed to Pay {payAmount ? `₹${Number(payAmount).toLocaleString('en-IN')}` : ''}
+                  </span>
+                  <ArrowRight className="w-4 h-4 shrink-0" />
+                </button>
+              </div>
+            </div>
+
+            {/* Validation / Helper Text */}
+            <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 pt-1">
+              <span>
+                Remaining after this disbursal:{' '}
+                <strong className={Math.max(0, leftAmount - (parseFloat(payAmount) || 0)) === 0 ? 'text-emerald-600' : 'text-slate-700 dark:text-slate-300'}>
+                  ₹{Math.max(0, leftAmount - (parseFloat(payAmount) || 0)).toLocaleString('en-IN')}/-
+                </strong>
+              </span>
+              <span className="text-slate-400 flex items-center gap-1">
+                <Lock className="w-3 h-3 text-slate-400" /> Multi-factor transaction confirmation
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="p-6 rounded-3xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm font-black text-emerald-900 dark:text-emerald-200">
+                This payroll statement has been fully disbursed!
+              </p>
+              <p className="text-xs text-emerald-700/80 dark:text-emerald-300/80 mt-0.5">
+                Total ₹{totalSalary.toLocaleString('en-IN')}/- has been cleared across {transactions.length} transaction{transactions.length === 1 ? '' : 's'}. You can review the ledger receipts below.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── TRANSACTION LEDGER HISTORY TABLE ── */}
+        <div className="space-y-4 pt-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[#1b3a60] dark:text-teal-400">
-              Payment Transaction History ({transactions.length})
-            </h3>
-            <span className="text-xs text-slate-400 font-semibold">
-              Live database records
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                Payment Transaction History
+              </h3>
+              <span className="text-[10px] font-black bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full text-slate-600 dark:text-slate-300">
+                {transactions.length}
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" /> Live DB records
             </span>
           </div>
           
-          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 no-scrollbar">
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700/80 shadow-2xs">
             <table className="w-full text-xs text-center border-collapse">
-              <thead className="bg-slate-50 dark:bg-slate-900 font-black text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
+              <thead className="bg-slate-50 dark:bg-slate-900/80 font-black text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
                 <tr>
-                  <th className="px-4 py-3">S. No.</th>
-                  <th className="px-4 py-3">Transaction ID</th>
-                  <th className="px-4 py-3">Salary For</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Amount Paid</th>
-                  <th className="px-4 py-3">Payment Method</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Receipt / Details</th>
+                  <th className="px-4 py-3.5">#</th>
+                  <th className="px-4 py-3.5 text-left">Transaction ID</th>
+                  <th className="px-4 py-3.5">Salary Period</th>
+                  <th className="px-4 py-3.5">Date &amp; Time</th>
+                  <th className="px-4 py-3.5">Amount Disbursed</th>
+                  <th className="px-4 py-3.5">Payment Method</th>
+                  <th className="px-4 py-3.5">Status</th>
+                  <th className="px-4 py-3.5 w-32 text-center">Receipt</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60 font-medium">
                 {transactions.map((record, idx) => (
-                  <tr key={record.id} className="border-b border-slate-100 dark:border-slate-700/60 last:border-0 hover:bg-slate-50/50 transition-colors font-semibold">
-                    <td className="px-4 py-3 text-slate-500 font-medium">{idx + 1}.</td>
-                    <td className="px-4 py-3 font-mono font-bold text-slate-700 dark:text-slate-300">{record.transactionId}</td>
-                    <td className="px-4 py-3 text-slate-800 dark:text-slate-200 font-bold">{record.monthYear}</td>
-                    <td className="px-4 py-3 text-slate-500">{record.paymentDate}</td>
-                    <td className="px-4 py-3 font-black text-emerald-600">₹{record.amount.toLocaleString('en-IN')}/-</td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{record.paymentMethod}</td>
-                    <td className="px-4 py-3">
-                      <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 border border-emerald-200">
+                  <tr key={record.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-900/40 transition-colors">
+                    <td className="px-4 py-3.5 text-slate-400 font-bold">{idx + 1}.</td>
+                    <td className="px-4 py-3.5 text-left font-mono font-bold text-slate-800 dark:text-slate-200">
+                      <div className="flex items-center gap-1.5">
+                        <span>{record.transactionId}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(record.transactionId, `txn-${record.id}`)}
+                          className="p-1 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                          title="Copy Transaction ID"
+                        >
+                          {copiedField === `txn-${record.id}` ? (
+                            <span className="text-[10px] text-teal-600 font-black">Copied</span>
+                          ) : (
+                            <Copy className="w-3 h-3" />
+                          )}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 text-slate-800 dark:text-slate-200 font-bold">{record.monthYear}</td>
+                    <td className="px-4 py-3.5 text-slate-500 dark:text-slate-400">{record.paymentDate}</td>
+                    <td className="px-4 py-3.5 font-black text-emerald-600 text-sm">
+                      ₹{record.amount.toLocaleString('en-IN')}/-
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                        {record.paymentMethod}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 border border-emerald-200/80 dark:border-emerald-800/80">
                         ● Paid
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3.5 text-center">
                       <button 
                         type="button" 
                         onClick={() => setSelectedTxnForReceipt(record)}
-                        className="p-1.5 rounded-lg hover:bg-slate-100 text-[#0f766e] transition-colors cursor-pointer inline-flex items-center gap-1 text-[11px] font-bold"
-                        title="View receipt"
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-[#0f766e] dark:text-teal-300 transition-all cursor-pointer inline-flex items-center gap-1 text-[11px] font-bold shadow-2xs active:scale-95"
+                        title="View printable receipt"
                       >
                         <FileText className="w-3.5 h-3.5" />
                         <span>Receipt</span>
@@ -613,8 +931,10 @@ function PayContent() {
                 ))}
                 {transactions.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400 font-bold">
-                      No payment transactions recorded yet for this payroll statement.
+                    <td colSpan={8} className="py-12 text-center text-slate-400 font-bold space-y-2">
+                      <FileText className="w-8 h-8 mx-auto text-slate-300" />
+                      <p>No payment transactions recorded yet for this payroll statement.</p>
+                      <p className="text-[11px] text-slate-400 font-normal">When you disburse an installment, records will appear here.</p>
                     </td>
                   </tr>
                 )}
@@ -626,7 +946,7 @@ function PayContent() {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          MODAL: ATTACH SCREENSHOT / VERIFY PAYMENT TRANSACTION
+          MODAL 1: ATTACH SCREENSHOT / VERIFY PAYMENT TRANSACTION
       ═══════════════════════════════════════════════════════════════════ */}
       {attachModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
@@ -634,10 +954,20 @@ function PayContent() {
             onSubmit={handleSubmitTransaction}
             className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-700 animate-in zoom-in-95 duration-150"
           >
-            <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 px-6 py-4 border-b border-slate-200 dark:border-slate-700">
-              <span className="text-xs font-black text-[#1b3a60] dark:text-teal-400 uppercase tracking-wider">
-                Confirm &amp; Record Transaction
-              </span>
+            <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 px-6 py-4.5 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-[#0f766e] flex items-center justify-center">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white leading-tight">
+                    Confirm &amp; Record Disbursal
+                  </h3>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    {displayName} &bull; {payrollMonth}
+                  </span>
+                </div>
+              </div>
               <button 
                 type="button"
                 onClick={() => setAttachModalOpen(false)}
@@ -649,55 +979,60 @@ function PayContent() {
 
             <div className="p-6 space-y-5 text-xs text-slate-700 dark:text-slate-300">
               {/* Payment Summary Header */}
-              <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 flex items-center justify-between">
+              <div className="p-4.5 rounded-2xl bg-gradient-to-br from-teal-50 to-emerald-50 dark:from-teal-950/40 dark:to-emerald-950/40 border border-teal-200 dark:border-teal-800 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Transaction Amount</span>
-                  <span className="text-xl font-black text-[#0f766e] dark:text-teal-300 block">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+                    Disbursal Amount
+                  </span>
+                  <span className="text-2xl font-black text-[#0f766e] dark:text-teal-300 block tracking-tight">
                     ₹{parseFloat(payAmount).toLocaleString('en-IN')}/-
                   </span>
-                  <span className="text-[11px] text-slate-500">
-                    Mode: {paymentMode === 'Bank' ? 'Bank Transfer' : (paymentMode === 'UPI' ? 'UPI' : 'Cash')}
+                  <span className="text-[11px] text-slate-500 font-bold mt-0.5 block">
+                    Mode: {paymentMode === 'Bank' ? 'Bank Transfer' : (paymentMode === 'UPI' ? 'UPI Transfer' : 'Cash Voucher')}
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Remaining After This</span>
-                  <span className="text-base font-black text-amber-600 block">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+                    Balance After Disbursal
+                  </span>
+                  <span className="text-lg font-black text-amber-600 dark:text-amber-400 block">
                     ₹{Math.max(0, leftAmount - parseFloat(payAmount)).toLocaleString('en-IN')}/-
                   </span>
-                  <span className="text-[10px] font-bold text-slate-400">
-                    {Math.max(0, leftAmount - parseFloat(payAmount)) === 0 ? 'Full Settlement' : 'Partial Payment'}
+                  <span className="text-[10px] font-black uppercase tracking-wider text-teal-700 dark:text-teal-400">
+                    {Math.max(0, leftAmount - parseFloat(payAmount)) === 0 ? 'Full Settlement' : 'Partial Installment'}
                   </span>
                 </div>
               </div>
 
               {/* Transaction Reference Input */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-slate-600 dark:text-slate-300 font-bold">
-                  Transaction / UTR Reference ID *
+                <label className="text-slate-700 dark:text-slate-300 font-bold flex items-center justify-between">
+                  <span>Transaction / UTR Reference ID *</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Auto-generated, editable</span>
                 </label>
                 <input 
                   type="text" 
                   value={txnRefNumber}
                   onChange={e => setTxnRefNumber(e.target.value)}
                   placeholder="e.g. UTR123456789 or UPI-TXN-9021"
-                  className="px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-800 dark:text-slate-100 text-xs focus:border-teal-500" 
+                  className="px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none font-mono font-bold text-slate-800 dark:text-slate-100 text-xs focus:border-teal-500 shadow-2xs" 
                   required
                 />
               </div>
 
               {/* Attach Screenshot / Receipt */}
               <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-slate-600 dark:text-slate-300">
-                  Attach Payment Screenshot / Receipt (Optional)
+                <label className="font-bold text-slate-700 dark:text-slate-300">
+                  Attach Payment Proof / Bank Slip (Optional)
                 </label>
-                <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-900 overflow-hidden">
+                <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-900 overflow-hidden shadow-2xs">
                   <input 
                     type="text" 
-                    placeholder={attachedScreenshotName || "No file attached (Click icon to choose)"}
+                    placeholder={attachedScreenshotName || "No file chosen (Click browse to attach slip)"}
                     readOnly 
-                    className="flex-1 px-4 py-2.5 outline-none font-semibold text-slate-500 text-xs bg-transparent" 
+                    className="flex-1 px-4 py-3 outline-none font-semibold text-slate-500 text-xs bg-transparent" 
                   />
-                  <label className="px-4 py-2.5 border-l border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition-colors cursor-pointer flex items-center gap-1.5 font-bold">
+                  <label className="px-4 py-3 border-l border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition-colors cursor-pointer flex items-center gap-1.5 font-bold">
                     <Upload className="w-4 h-4" />
                     <span>Browse</span>
                     <input 
@@ -715,15 +1050,15 @@ function PayContent() {
 
               {/* Notes */}
               <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-slate-600 dark:text-slate-300">
+                <label className="font-bold text-slate-700 dark:text-slate-300">
                   Transaction Notes / Remarks
                 </label>
                 <input 
                   type="text" 
-                  placeholder="e.g. November 1st installment paid via NEFT"
+                  placeholder={`e.g. Disbursed via ${paymentMode} for ${payrollMonth}`}
                   value={notes} 
                   onChange={e => setNotes(e.target.value)} 
-                  className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl outline-none font-semibold text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-900 text-xs focus:border-teal-500" 
+                  className="px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-xl outline-none font-semibold text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-900 text-xs focus:border-teal-500 shadow-2xs" 
                 />
               </div>
             </div>
@@ -732,14 +1067,14 @@ function PayContent() {
               <button 
                 type="button" 
                 onClick={() => setAttachModalOpen(false)}
-                className="px-5 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-500 rounded-xl text-xs font-bold hover:bg-slate-100 transition-colors cursor-pointer"
+                className="px-5 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button 
                 type="submit"
                 disabled={isSubmitting}
-                className="px-7 py-2.5 bg-[#0f766e] hover:bg-teal-700 text-white rounded-xl text-xs font-black shadow-sm transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                className="px-8 py-2.5 bg-[#0f766e] hover:bg-teal-700 text-white rounded-xl text-xs font-black shadow-sm transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 active:scale-95"
               >
                 {isSubmitting ? (
                   <>
@@ -749,7 +1084,7 @@ function PayContent() {
                 ) : (
                   <>
                     <CheckCircle className="w-4 h-4" />
-                    <span>Submit &amp; Record Payment</span>
+                    <span>Confirm &amp; Record Disbursal</span>
                   </>
                 )}
               </button>
@@ -759,32 +1094,41 @@ function PayContent() {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════
-          MODAL: SUBMIT SUCCESS DIALOG
+          MODAL 2: SUBMIT SUCCESS DIALOG
       ═══════════════════════════════════════════════════════════════════ */}
       {successModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-sm shadow-2xl p-6 border border-slate-200 dark:border-slate-700 animate-in zoom-in-95 duration-150 text-center space-y-5">
-            <h2 className="text-lg font-black text-slate-800 dark:text-slate-100">
-              Payment Recorded Successfully!
-            </h2>
-
+          <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-sm shadow-2xl p-7 border border-slate-200 dark:border-slate-700 animate-in zoom-in-95 duration-150 text-center space-y-5">
             <div className="flex justify-center">
-              <div className="w-20 h-20 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-[#0f766e] flex items-center justify-center shadow-inner border border-emerald-100">
+              <div className="w-20 h-20 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-[#0f766e] flex items-center justify-center shadow-inner border border-emerald-100 dark:border-emerald-800">
                 <CheckCircle className="w-12 h-12" />
               </div>
             </div>
 
+            <div>
+              <h2 className="text-xl font-black text-slate-900 dark:text-white">
+                Payment Recorded!
+              </h2>
+              <p className="text-xs text-slate-500 font-semibold mt-1">
+                Salary installment successfully saved in the ledger.
+              </p>
+            </div>
+
             {lastPaymentSummary && (
-              <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl text-xs space-y-1">
-                <p className="font-black text-slate-900 dark:text-white text-base">
+              <div className="p-4 bg-slate-50 dark:bg-slate-900/80 rounded-2xl text-xs space-y-1.5 border border-slate-100 dark:border-slate-700">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                  Amount Disbursed
+                </span>
+                <p className="font-black text-emerald-600 dark:text-emerald-400 text-2xl font-mono">
                   ₹{lastPaymentSummary.amount.toLocaleString('en-IN')}/-
                 </p>
-                <p className="text-[10px] text-slate-400 font-mono">
+                <p className="text-[11px] text-slate-400 font-mono">
                   Ref: {lastPaymentSummary.txnId}
                 </p>
-                <p className="text-[11px] text-slate-500 font-semibold pt-1">
-                  Remaining left: <strong className="text-amber-600">₹{leftAmount.toLocaleString('en-IN')}/-</strong>
-                </p>
+                <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700 flex items-center justify-between text-[11px] font-bold">
+                  <span className="text-slate-500">Remaining left:</span>
+                  <span className="text-amber-600 font-black">₹{leftAmount.toLocaleString('en-IN')}/-</span>
+                </div>
               </div>
             )}
 
@@ -792,9 +1136,9 @@ function PayContent() {
               <button 
                 type="button"
                 onClick={() => setSuccessModalOpen(false)}
-                className="w-full py-2.5 bg-[#0f766e] hover:bg-teal-700 text-white rounded-xl text-xs font-black shadow-xs transition-colors cursor-pointer"
+                className="w-full py-3 bg-[#0f766e] hover:bg-teal-700 text-white rounded-xl text-xs font-black shadow-xs transition-colors cursor-pointer active:scale-95"
               >
-                Make Another Payment / View History
+                View History &amp; Receipts
               </button>
               <button 
                 type="button"
@@ -809,73 +1153,139 @@ function PayContent() {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════
-          MODAL: VIEW SINGLE TRANSACTION RECEIPT
+          MODAL 3: VIEW PRINTABLE TRANSACTION VOUCHER / RECEIPT
       ═══════════════════════════════════════════════════════════════════ */}
       {selectedTxnForReceipt && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-md shadow-2xl p-6 sm:p-7 border border-slate-200 dark:border-slate-700 animate-in zoom-in-95 duration-150 space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-700">
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-[#0f766e]">
-                  Payment Voucher
-                </span>
-                <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  Salary Disbursement Receipt
-                </h3>
+          <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-lg shadow-2xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 animate-in zoom-in-95 duration-150 space-y-6">
+            
+            {/* Voucher Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#0f766e] text-white flex items-center justify-center font-black">
+                  ₹
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[#0f766e] block">
+                    Official Payment Voucher
+                  </span>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white leading-tight">
+                    Salary Disbursement Receipt
+                  </h3>
+                </div>
               </div>
               <button 
                 type="button"
                 onClick={() => setSelectedTxnForReceipt(null)}
-                className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 flex items-center justify-center cursor-pointer"
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-slate-800 flex items-center justify-center cursor-pointer transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-2.5 text-xs">
-              <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-700">
-                <span className="text-slate-400 font-bold">Staff Name</span>
-                <span className="font-black text-slate-900 dark:text-white">{selectedTxnForReceipt.staffName}</span>
+            {/* Voucher Body Details */}
+            <div className="space-y-3 text-xs bg-slate-50 dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/80">
+              <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700">
+                <span className="text-slate-500 font-bold">Staff Beneficiary</span>
+                <span className="font-black text-slate-900 dark:text-white text-sm">{selectedTxnForReceipt.staffName}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-700">
-                <span className="text-slate-400 font-bold">Transaction ID</span>
-                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{selectedTxnForReceipt.transactionId}</span>
+              <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700">
+                <span className="text-slate-500 font-bold">Transaction Reference ID</span>
+                <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{selectedTxnForReceipt.transactionId}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-700">
-                <span className="text-slate-400 font-bold">Date</span>
+              <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700">
+                <span className="text-slate-500 font-bold">Payment Date &amp; Time</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">{selectedTxnForReceipt.paymentDate}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-700">
-                <span className="text-slate-400 font-bold">Salary Period</span>
+              <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700">
+                <span className="text-slate-500 font-bold">Salary Period</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">{selectedTxnForReceipt.monthYear}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-700">
-                <span className="text-slate-400 font-bold">Payment Method</span>
+              <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700">
+                <span className="text-slate-500 font-bold">Payment Channel</span>
                 <span className="font-bold text-slate-700 dark:text-slate-300">{selectedTxnForReceipt.paymentMethod}</span>
               </div>
-              <div className="flex justify-between py-2 text-sm font-black bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 px-3 rounded-xl mt-2">
-                <span>Amount Disbursed</span>
-                <span>₹{selectedTxnForReceipt.amount.toLocaleString('en-IN')}/-</span>
+              
+              {/* Grand Total Box */}
+              <div className="flex justify-between items-center py-3 px-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 mt-2">
+                <span className="font-black uppercase tracking-wider text-xs">Amount Disbursed</span>
+                <span className="font-black text-lg font-mono">₹{selectedTxnForReceipt.amount.toLocaleString('en-IN')}/-</span>
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-2 border-t border-slate-100 dark:border-slate-700">
+            {/* Voucher Footer */}
+            <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold px-1">
+              <span>Status: <strong className="text-emerald-600 font-bold">● Cleared / Authorized</strong></span>
+              <span>Academy Setu Finance Ledger</span>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-700">
               <button
                 type="button"
                 onClick={() => setSelectedTxnForReceipt(null)}
-                className="px-5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 text-xs font-bold hover:bg-slate-100 cursor-pointer"
+                className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-xs font-bold hover:bg-slate-100 cursor-pointer"
               >
                 Close
               </button>
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="px-5 py-2 rounded-xl bg-[#0f766e] text-white text-xs font-black shadow-xs hover:bg-teal-700 flex items-center gap-1.5 cursor-pointer"
+                className="px-6 py-2.5 rounded-xl bg-[#0f766e] text-white text-xs font-black shadow-sm hover:bg-teal-700 flex items-center gap-1.5 cursor-pointer active:scale-95"
               >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Print Receipt</span>
+                <Printer className="w-4 h-4" />
+                <span>Print Voucher</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          MODAL 4: SHOW UPI QR CODE
+      ═══════════════════════════════════════════════════════════════════ */}
+      {qrModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-sm shadow-2xl p-6 sm:p-7 border border-slate-200 dark:border-slate-700 animate-in zoom-in-95 duration-150 text-center space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700">
+              <span className="text-xs font-black text-[#0f766e] uppercase tracking-wider">
+                UPI QR Code
+              </span>
+              <button 
+                type="button"
+                onClick={() => setQrModalOpen(false)}
+                className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs font-bold text-slate-600 dark:text-slate-300">
+              Scan to pay <strong className="text-slate-900 dark:text-white">{displayName}</strong>
+            </p>
+
+            <div className="p-4 bg-white rounded-2xl border-2 border-dashed border-teal-500 inline-block shadow-inner mx-auto">
+              {/* Visual simulated QR graphic */}
+              <div className="w-44 h-44 bg-slate-900 p-2 rounded-xl flex items-center justify-center relative">
+                <QrCode className="w-36 h-36 text-white" />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center text-[#0f766e] font-black text-xs shadow-md">
+                    ₹
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+              {upiId}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleCopy(upiId, 'upi-modal')}
+              className="w-full py-2.5 rounded-xl bg-[#0f766e] hover:bg-teal-700 text-white font-black text-xs transition-colors cursor-pointer active:scale-95"
+            >
+              {copiedField === 'upi-modal' ? 'Copied VPA!' : 'Copy UPI ID'}
+            </button>
           </div>
         </div>
       )}
@@ -886,7 +1296,7 @@ function PayContent() {
 
 export default function DisburseSalaryPage() {
   return (
-    <Suspense fallback={<div className="py-12 text-center text-xs font-bold text-slate-400">Loading payroll payment screen...</div>}>
+    <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-slate-400 animate-pulse">Loading payroll disbursal screen...</div>}>
       <PayContent />
     </Suspense>
   )

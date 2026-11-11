@@ -30,6 +30,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         methodology: row.methodology,
         description: row.description,
         date: row.date,
+        startDate: row.start_date || '',
+        endDate: row.end_date || '',
         totalMilestones: row.total_milestones,
         progress: parseInt(String(row.progress || 0)),
         milestones: Array.isArray(row.milestones) ? row.milestones : [],
@@ -65,6 +67,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       subject = current.subject,
       methodology = current.methodology,
       description = current.description,
+      startDate = current.start_date || '',
+      endDate = current.end_date || '',
       milestones,
       progress,
       attachmentName = current.attachment_name
@@ -95,12 +99,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           subject = $5,
           methodology = $6,
           description = $7,
-          milestones = $8::jsonb,
-          total_milestones = $9,
-          progress = $10,
-          attachment_name = $11,
+          start_date = $8,
+          end_date = $9,
+          milestones = $10::jsonb,
+          total_milestones = $11,
+          progress = $12,
+          attachment_name = $13,
           updated_at = NOW()
-      WHERE id = $12
+      WHERE id = $14
       RETURNING *,
         TO_CHAR(created_at, 'DD/MM/YYYY hh:mi AM') as created_at_formatted
     `, [
@@ -111,6 +117,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       subject.trim(),
       finalMethodology.trim(),
       description.trim(),
+      startDate.trim(),
+      endDate.trim(),
       JSON.stringify(milestoneList),
       totalMilestones,
       validProgress,
@@ -133,6 +141,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         methodology: row.methodology,
         description: row.description,
         date: row.date,
+        startDate: row.start_date || startDate || '',
+        endDate: row.end_date || endDate || '',
         totalMilestones: row.total_milestones,
         progress: row.progress,
         milestones: row.milestones,
