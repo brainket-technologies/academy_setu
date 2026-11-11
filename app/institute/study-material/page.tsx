@@ -1191,7 +1191,7 @@ export default function StudyMaterialPage() {
   }, [selectedClass, selectedSection, selectedSubject, selectedLesson])
 
   return (
-    <div className="min-h-screen bg-slate-50/70 p-4 sm:p-6 lg:p-8 font-sans">
+    <div className="w-full space-y-4 font-sans">
       {/* Toast Notification */}
       {toast.show && (
         <div className="fixed top-6 right-6 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
@@ -1218,8 +1218,8 @@ export default function StudyMaterialPage() {
         </div>
       )}
 
-      {/* Main Container */}
-      <div className="max-w-7xl mx-auto space-y-4">
+      {/* Main Container - Full Screen Width */}
+      <div className="w-full space-y-4">
 
         {/* ── TOP UNIFIED LOCATION NAVIGATION & FILTER BAR (FULL WIDTH) ────────── */}
         <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 space-y-3.5 w-full">

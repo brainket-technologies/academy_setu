@@ -1214,7 +1214,7 @@ export default function LessonPlansPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="w-full space-y-4">
       {/* Toast Notification */}
       {toastOpen && (
         <div className="fixed top-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-slate-900 text-white text-xs font-bold shadow-2xl animate-in slide-in-from-top duration-300">
@@ -1223,8 +1223,8 @@ export default function LessonPlansPage() {
         </div>
       )}
 
-      {/* Main Container */}
-      <div className="max-w-7xl mx-auto space-y-4">
+      {/* Main Container - Full Screen Width */}
+      <div className="w-full space-y-4">
 
         {/* ── TOP UNIFIED LOCATION NAVIGATION & FILTER BAR (FULL WIDTH) ────────── */}
         <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 space-y-3.5 w-full">
@@ -2340,8 +2340,8 @@ export default function LessonPlansPage() {
                     </table>
                   </div>
                 ) : (
-                  /* ── CARDS VIEW (Matching the same column order) ───────────────── */
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
+                  /* ── CARDS VIEW (Clean, modern, and uncluttered) ───────────────── */
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-4.5 w-full">
                     {currentChapterPlans.map(item => {
                       const percent = Math.min(100, Math.max(0, item.progress || 0))
                       const totalM = item.milestones?.length || item.totalMilestones || 1
@@ -2350,16 +2350,12 @@ export default function LessonPlansPage() {
                       return (
                         <div
                           key={item.id}
-                          className="bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between overflow-hidden"
+                          className="bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all flex flex-col justify-between overflow-hidden group hover:border-teal-300"
                         >
                           <div className="p-5 space-y-3">
-                            {/* 1. Book Title Badge & Status */}
-                            <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-100">
-                              <span className="text-xs font-black text-[#007A78] flex items-center gap-1.5">
-                                <BookOpen className="w-3.5 h-3.5" />
-                                <span className="truncate max-w-[180px]">Book: {item.chapterFolder || selectedChapter}</span>
-                              </span>
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                            {/* Header: Status badge & Quick Actions */}
+                            <div className="flex items-center justify-between gap-2">
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-wider ${
                                 percent >= 100
                                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                   : percent > 0
@@ -2368,131 +2364,125 @@ export default function LessonPlansPage() {
                               }`}>
                                 {percent >= 100 ? 'Completed' : percent > 0 ? 'In Progress' : 'Not Started'}
                               </span>
+
+                              <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100 transition">
+                                <button
+                                  type="button"
+                                  onClick={() => setViewPlan(item)}
+                                  title="View Details"
+                                  className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openEditPlanModal(item)}
+                                  title="Edit Plan"
+                                  className="p-1 text-slate-400 hover:text-[#007A78] hover:bg-teal-50 rounded-lg transition cursor-pointer"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDeletePlanId(item.id)}
+                                  title="Delete Plan"
+                                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
 
-                            {/* 2. Lesson Title */}
+                            {/* Lesson Title */}
                             <div>
-                              <h3 className="text-base font-black text-slate-900 line-clamp-2">
+                              <h3
+                                onClick={() => setViewPlan(item)}
+                                className="text-base font-black text-slate-900 line-clamp-2 hover:text-[#007A78] cursor-pointer transition"
+                              >
                                 {item.title}
                               </h3>
+                              {item.description && (
+                                <p className="text-xs text-slate-500 mt-1 line-clamp-2 font-medium">
+                                  {item.description}
+                                </p>
+                              )}
                             </div>
 
-                            {/* 3. Description */}
-                            {item.description ? (
-                              <p className="text-xs text-slate-600 line-clamp-2 font-medium">
-                                {item.description}
-                              </p>
-                            ) : (
-                              <p className="text-xs text-slate-400 italic font-medium">No description provided</p>
-                            )}
-
-                            {/* 4. Methodology */}
-                            <div className="flex items-center gap-2 flex-wrap text-xs">
-                              <span className="text-slate-400 text-[11px] font-bold">Methodology:</span>
-                              <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-bold text-[11px]">
-                                {item.methodology}
-                              </span>
-                            </div>
-
-                            {/* 5. Attachment Name */}
-                            {item.attachmentName && (
-                              <div className="flex items-center gap-1.5 text-xs">
-                                <span className="text-slate-400 text-[11px] font-bold">Attachment:</span>
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-50 text-[#007A78] font-bold text-[11px] border border-teal-200">
-                                  <Paperclip className="w-3 h-3 text-[#007A78]" />
-                                  <span className="truncate max-w-[180px]">{item.attachmentName}</span>
+                            {/* Compact Metadata Chips */}
+                            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                              {item.methodology && (
+                                <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 font-bold text-[11px] truncate max-w-[170px]" title={item.methodology}>
+                                  {item.methodology}
                                 </span>
-                              </div>
-                            )}
+                              )}
 
-                            {/* 6. Overall Lesson / Chapter Dates */}
-                            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-                              <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                                <Calendar className="w-3 h-3 text-[#007A78]" />
-                                <span>Overall Lesson / Chapter Dates</span>
-                              </div>
-                              <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
-                                <span>Start: <b>{item.startDate || item.date || '—'}</b></span>
-                                <span>Completion: <b>{item.endDate || 'Ongoing'}</b></span>
-                              </div>
+                              {item.attachmentName && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-teal-50 text-[#007A78] font-bold text-[11px] border border-teal-200">
+                                  <Paperclip className="w-3 h-3 shrink-0" />
+                                  <span className="truncate max-w-[130px]" title={item.attachmentName}>
+                                    {item.attachmentName}
+                                  </span>
+                                </span>
+                              )}
+
+                              {(item.startDate || item.date) && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-50 text-slate-500 font-semibold text-[11px] border border-slate-200/70">
+                                  <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
+                                  <span>{item.startDate || item.date}{item.endDate ? ` → ${item.endDate}` : ''}</span>
+                                </span>
+                              )}
                             </div>
 
-                            {/* 7. Progress Bar AFTER date of overall lesson/chapter */}
-                            <div className="space-y-1.5 pt-1">
-                              <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                                <span>Overall Progress</span>
-                                <span className={percent >= 100 ? 'text-emerald-600 font-black' : 'text-[#007A78] font-black'}>{percent}%</span>
+                            {/* Clean Progress Bar with Topics Count */}
+                            <div
+                              onClick={() => handleOpenProgressModal(item)}
+                              className="pt-2 border-t border-slate-100 space-y-1.5 cursor-pointer group/bar"
+                              title="Click to update progress"
+                            >
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-bold text-slate-500 group-hover/bar:text-[#007A78] transition flex items-center gap-1">
+                                  <span>Progress</span>
+                                  <Sliders className="w-3 h-3 opacity-0 group-hover/bar:opacity-100 transition text-[#007A78]" />
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] font-bold text-slate-400">
+                                    {completedM}/{totalM} Topics Done
+                                  </span>
+                                  <span className={`font-black ${percent >= 100 ? 'text-emerald-600' : 'text-[#007A78]'}`}>
+                                    {percent}%
+                                  </span>
+                                </div>
                               </div>
                               <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                                 <div
-                                  className={`h-full rounded-full transition-all ${percent >= 100 ? 'bg-emerald-500' : 'bg-[#007A78]'}`}
+                                  className={`h-full rounded-full transition-all duration-300 ${
+                                    percent >= 100 ? 'bg-emerald-500' : 'bg-[#007A78]'
+                                  }`}
                                   style={{ width: `${percent}%` }}
                                 />
                               </div>
                             </div>
-
-                            {/* 8. Syllabus Topics (without unit-wise date) */}
-                            {Array.isArray(item.milestones) && item.milestones.length > 0 && (
-                              <div className="pt-2.5 border-t border-slate-100 space-y-1.5">
-                                <div className="text-[11px] font-black text-slate-700 uppercase tracking-wider flex items-center justify-between">
-                                  <span>Syllabus Topics</span>
-                                  <span className="text-[#007A78]">{completedM}/{totalM} Done</span>
-                                </div>
-                                <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
-                                  {item.milestones.map((m, mIdx) => (
-                                    <div key={m.id || mIdx} className="flex items-center gap-2 text-[11.5px] font-medium text-slate-600">
-                                      <span className={`w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 text-[10px] ${
-                                        m.completed ? 'bg-emerald-600 text-white' : 'border border-slate-300'
-                                      }`}>
-                                        {m.completed && <Check className="w-2.5 h-2.5" />}
-                                      </span>
-                                      <span className={`truncate ${m.completed ? 'line-through text-slate-400' : ''}`}>
-                                        {m.topic || m.unit || `Topic ${mIdx + 1}`}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
                           </div>
 
-                          {/* 9. Action Footer */}
-                          <div className="p-3 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between">
+                          {/* Clean Footer Bar */}
+                          <div className="px-5 py-3 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between text-xs font-bold">
                             <button
                               type="button"
                               onClick={() => handleOpenProgressModal(item)}
-                              className="px-3 py-1.5 bg-[#007A78] hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
+                              className="text-[#007A78] hover:text-teal-700 font-bold transition flex items-center gap-1.5 cursor-pointer"
                             >
                               <Sliders className="w-3.5 h-3.5" />
                               <span>Update Progress</span>
                             </button>
 
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => setViewPlan(item)}
-                                title="View Details"
-                                className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => openEditPlanModal(item)}
-                                title="Edit Plan"
-                                className="p-1.5 text-slate-500 hover:text-[#007A78] hover:bg-teal-50 rounded-lg transition cursor-pointer"
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setDeletePlanId(item.id)}
-                                title="Delete Plan"
-                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setViewPlan(item)}
+                              className="text-slate-500 hover:text-slate-800 font-semibold transition flex items-center gap-0.5 cursor-pointer"
+                            >
+                              <span>View Details</span>
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
                       )
