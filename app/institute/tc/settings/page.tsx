@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, ArrowLeft, CheckCircle2, Save } from 'lucide-react'
+import { Plus, Trash2, ArrowLeft, CheckCircle2, Save, FileText, Sparkles, ChevronRight, LayoutTemplate } from 'lucide-react'
 import Link from 'next/link'
 
 interface TCStatus {
@@ -33,6 +33,15 @@ export default function TCSettingsPage() {
       } catch (e) {
         console.error(e)
       }
+    }
+
+    const savedSettings = localStorage.getItem('school_tc_settings')
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings)
+        if (parsed.affiliationBoard) setSchoolAffiliation(parsed.affiliationBoard)
+        if (parsed.schoolCode) setSchoolCode(parsed.schoolCode)
+      } catch (e) {}
     }
   }, [])
 
@@ -74,6 +83,12 @@ export default function TCSettingsPage() {
   }
 
   const handleSaveSettings = () => {
+    try {
+      localStorage.setItem('school_tc_settings', JSON.stringify({
+        affiliationBoard: schoolAffiliation,
+        schoolCode
+      }))
+    } catch (e) {}
     setToastMsg('TC settings saved successfully!')
     setToastOpen(true)
     setTimeout(() => setToastOpen(false), 3000)
@@ -83,19 +98,66 @@ export default function TCSettingsPage() {
     <div className="flex flex-col gap-6 w-full pb-10 animate-in fade-in duration-300">
       
       {/* Header */}
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
           <Link 
             href="/institute/tc"
-            className="w-8 h-8 flex items-center justify-center rounded-full border border-slate-250 text-slate-500 hover:bg-slate-50 transition-colors"
+            className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 text-slate-500 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-xl font-black text-slate-800 dark:text-slate-100">TC Settings</h1>
-            <p className="text-xs text-slate-400">Configure Transfer Certificate categories and print parameters</p>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-slate-100">TC Settings</h1>
+            <p className="text-xs text-slate-400">Configure Transfer Certificate categories, exit triggers, and print parameters</p>
           </div>
         </div>
+
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/institute/tc"
+            className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+          >
+            Transfer Certificates
+          </Link>
+          <Link
+            href="/institute/tc/setup"
+            className="px-4 py-2 bg-[#007A78] hover:bg-teal-700 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-xs active:scale-95 cursor-pointer"
+          >
+            <LayoutTemplate className="w-4 h-4" />
+            <span>TC Setup (4 Templates)</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* Prominent Quick-Banner to 4 TC Templates */}
+      <div className="bg-gradient-to-r from-teal-50 via-white to-sky-50 dark:from-slate-800 dark:to-slate-800/80 border border-teal-200/80 dark:border-slate-700 rounded-3xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#007A78] text-white flex items-center justify-center font-black shadow-md shrink-0">
+            <Sparkles className="w-6 h-6 text-amber-300 animate-pulse" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full bg-teal-100 text-[#007A78] text-[10.5px] font-black uppercase tracking-wider">
+                New Feature
+              </span>
+              <span className="text-xs font-bold text-slate-500">4 Certified Formats</span>
+            </div>
+            <h2 className="text-base font-black text-slate-900 dark:text-slate-100 mt-0.5">
+              Transfer Certificate Templates &amp; Design Setup
+            </h2>
+            <p className="text-xs text-slate-500 font-medium">
+              Choose from CBSE Official Standard, Modern Executive Accent, Heritage Ornamental, and Clean Academic Grid.
+            </p>
+          </div>
+        </div>
+
+        <Link
+          href="/institute/tc/setup"
+          className="px-5 py-2.5 bg-[#007A78] hover:bg-teal-700 text-white rounded-xl text-xs font-black transition flex items-center gap-2 shadow-xs shrink-0 self-start md:self-auto cursor-pointer"
+        >
+          <span>Open TC Setup Page</span>
+          <ChevronRight className="w-4 h-4" />
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

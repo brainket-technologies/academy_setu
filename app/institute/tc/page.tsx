@@ -1,7 +1,15 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Search, MoreVertical, Download, Eye, Pencil, Trash2, X, Sparkles } from 'lucide-react'
+import { Search, MoreVertical, Download, Eye, Pencil, Trash2, X, Sparkles, LayoutTemplate, Settings } from 'lucide-react'
+import Link from 'next/link'
+import { 
+  TCTemplate1, 
+  TCTemplate2, 
+  TCTemplate3, 
+  TCTemplate4, 
+  TCCustomProps 
+} from '@/components/tc/TCTemplates'
 
 interface StudentTC {
   id: number
@@ -30,8 +38,9 @@ export default function TransferCertificatesListPage() {
   const [activeMenuId, setActiveMenuId] = useState<number | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
-  // Preview target
+  // Preview target & template design
   const [previewTC, setPreviewTC] = useState<StudentTC | null>(null)
+  const [previewDesignId, setPreviewDesignId] = useState<number>(1)
 
   // Load from local storage
   useEffect(() => {
@@ -108,10 +117,32 @@ export default function TransferCertificatesListPage() {
     <div className="flex flex-col gap-6 w-full pb-10 animate-in fade-in duration-300">
       
       {/* Header */}
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm flex items-center justify-between">
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-black text-slate-800 dark:text-slate-100">Transfer Certificate</h1>
-          <p className="text-xs text-slate-400">View and issue school leaving certificates</p>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <span>Transfer Certificates</span>
+            <span className="text-xs bg-teal-50 dark:bg-teal-900/40 text-[#007A78] px-2.5 py-0.5 rounded-full font-black border border-teal-200 dark:border-teal-800">
+              {filtered.length} Issued
+            </span>
+          </h1>
+          <p className="text-xs text-slate-400 font-medium mt-0.5">View, manage, and issue student school leaving transfer certificates</p>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/institute/tc/setup"
+            className="px-4 py-2 bg-[#007A78] hover:bg-teal-700 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5 shadow-xs active:scale-95 cursor-pointer"
+          >
+            <LayoutTemplate className="w-4 h-4" />
+            <span>TC Setup (4 Templates)</span>
+          </Link>
+          <Link
+            href="/institute/tc/settings"
+            className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs flex items-center gap-1.5"
+          >
+            <Settings className="w-3.5 h-3.5 text-slate-500" />
+            <span>TC Settings</span>
+          </Link>
         </div>
       </div>
 
@@ -285,26 +316,48 @@ export default function TransferCertificatesListPage() {
           <div className="bg-slate-100 rounded-3xl w-full max-w-[860px] h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
             
             {/* Modal Control Bar */}
-            <div className="flex justify-between items-center bg-white p-4 border-b border-slate-200/50 shadow-sm shrink-0">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-4 border-b border-slate-200/50 shadow-sm shrink-0 gap-3">
               <div className="flex items-center gap-3">
-                <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
+                <Sparkles className="w-5 h-5 text-teal-600 animate-pulse" />
                 <div>
-                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-wide">Transfer Certificate Preview</h3>
-                  <p className="text-[10px] text-slate-400">Student: {previewTC.studentName} ({previewTC.admissionNo})</p>
+                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-wide">Transfer Certificate Live Preview</h3>
+                  <p className="text-[10px] text-slate-400">Student: <span className="font-bold text-slate-700">{previewTC.studentName}</span> ({previewTC.admissionNo}) • TC No: {previewTC.tcNo}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* Template Switcher Tabs */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-xl gap-1">
+                {[
+                  { id: 1, label: 'Template 1 (Indian CBSE)' },
+                  { id: 2, label: 'Template 2 (Wave Script)' },
+                  { id: 3, label: 'Template 3 (State Board SLC)' },
+                  { id: 4, label: 'Template 4 (Digital Smart TC)' },
+                ].map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    onClick={() => setPreviewDesignId(tpl.id)}
+                    className={`px-2.5 py-1 text-[11px] font-black rounded-lg transition-all ${
+                      previewDesignId === tpl.id
+                        ? 'bg-[#007A78] text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                    }`}
+                  >
+                    {tpl.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
                 <button 
                   onClick={() => window.print()}
-                  className="px-4 py-2 bg-teal-600 hover:bg-teal-700 rounded-xl text-xs font-bold text-white transition-colors shadow-sm"
+                  className="px-4 py-2 bg-[#007A78] hover:bg-teal-700 rounded-xl text-xs font-bold text-white transition-colors shadow-sm"
                 >
                   Print Certificate
                 </button>
 
                 <button 
                   onClick={() => setPreviewTC(null)} 
-                  className="w-8 h-8 flex items-center justify-center rounded-full border border-slate-250 text-slate-500 hover:bg-slate-50 transition-colors"
+                  className="w-8 h-8 flex items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -313,94 +366,58 @@ export default function TransferCertificatesListPage() {
 
             {/* Template Container */}
             <div className="overflow-auto bg-slate-100 p-6 flex-1 flex justify-center items-start shadow-inner">
-              
-              {/* High-Fidelity Printable Template (Screenshot 3) */}
-              <div className="w-[780px] bg-white text-slate-900 border-2 border-slate-350 p-8 flex flex-col font-sans shrink-0 relative shadow-md select-none rounded-lg">
-                
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-slate-300 pb-3 mb-4">
-                  <div className="flex items-center gap-4">
-                    {/* Logo Circle */}
-                    <div className="w-16 h-16 rounded-full border-2 border-slate-400 flex items-center justify-center font-bold text-xs shrink-0 bg-slate-50 text-slate-400">
-                      Logo
-                    </div>
+              {(() => {
+                const tcProps: TCCustomProps = {
+                  title: 'TRANSFER CERTIFICATE',
+                  schoolName: 'COSMOPOLITAN INTER COLLEGE',
+                  schoolAddress: 'Sector 4, Vikas Nagar, Lucknow, Uttar Pradesh - 226022',
+                  affiliationNo: '2130842',
+                  schoolCode: '70211',
+                  affiliationBoard: 'Central Board of Secondary Education (CBSE)',
+                  schoolEmail: 'contact@cosmopolitan.edu.in',
+                  schoolPhone: '+91 98765 43210',
+                  tcNo: previewTC.tcNo,
+                  admissionNo: previewTC.admissionNo,
+                  studentName: previewTC.studentName,
+                  fatherName: 'Mr. Rajesh Mishra',
+                  motherName: 'Mrs. Sunita Mishra',
+                  nationality: 'Indian',
+                  casteCategory: 'General',
+                  admissionDateClass: '01/04/2021 in Class I',
+                  dobFigures: '21/01/2004',
+                  dobWords: 'Twenty First January Two Thousand Four',
+                  lastClassStudied: previewTC.classGrade || 'Class VII',
+                  schoolBoardExamResult: 'Passed Annual Examination',
+                  failedStatus: 'No',
+                  subjectsStudied: 'English, Hindi, Mathematics, Science, Social Science',
+                  promotionQualified: 'Yes, Promoted to Higher Class',
+                  duesPaidMonth: 'March 2026',
+                  feeConcession: 'No',
+                  totalWorkingDays: '214 Days',
+                  totalDaysPresent: '198 Days',
+                  nccCadetStatus: 'NCC Cadet (A-Cert)',
+                  gamesActivities: 'State Level Debate Competition Winner',
+                  generalConduct: 'Exemplary',
+                  dateOfApplication: '10/04/2026',
+                  dateOfIssue: previewTC.dateCreated || '12/04/2026',
+                  reasonForLeaving: 'Course Completed / Relocation',
+                  anyOtherRemarks: 'Eligible for higher secondary admission',
+                  teacherSignLabel: 'Class Teacher',
+                  preparedBySignLabel: 'Prepared By',
+                  checkedBySignLabel: 'Checked By',
+                  principalSignLabel: 'Principal',
+                  themeColor: '#007A78',
+                }
 
-                    <div>
-                      <h1 className="text-xl font-black uppercase text-slate-900 tracking-wide">SCHOOL NAME</h1>
-                      <p className="text-[10px] font-semibold text-slate-500 leading-tight">
-                        Address : 123, Location, Street Name, City, State, Country, Pincode
-                      </p>
-                      
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 text-[9px] font-bold text-slate-700 mt-1.5">
-                        <div>Aff. To : Central Board of Secondary Education</div>
-                        <div>School Code : 0012</div>
-                        <div>Aff. No. : 21/2024</div>
-                        <div>Udise Code : 1234567890</div>
-                      </div>
-                    </div>
+                return (
+                  <div className="shrink-0 shadow-xl rounded-xl overflow-hidden bg-white">
+                    {previewDesignId === 1 && <TCTemplate1 {...tcProps} />}
+                    {previewDesignId === 2 && <TCTemplate2 {...tcProps} />}
+                    {previewDesignId === 3 && <TCTemplate3 {...tcProps} />}
+                    {previewDesignId === 4 && <TCTemplate4 {...tcProps} />}
                   </div>
-                </div>
-
-                <div className="flex justify-center gap-10 text-[9px] font-bold text-slate-655 border-b border-slate-200 pb-2 mb-4">
-                  <span>Email : School@gmail.com</span>
-                  <span>Phone No. : 9999999999</span>
-                </div>
-
-                {/* Title */}
-                <div className="text-center mb-6">
-                  <h2 className="text-2xl font-black tracking-widest text-slate-900 uppercase">
-                    Transfer Certificate
-                  </h2>
-                </div>
-
-                {/* Sub-header numbers */}
-                <div className="grid grid-cols-3 text-[10px] font-extrabold uppercase text-slate-800 mb-6 px-1">
-                  <div>TC No. : {previewTC.tcNo}</div>
-                  <div>SI No. : {previewTC.id}04</div>
-                  <div>Admission No. : {previewTC.admissionNo}</div>
-                </div>
-
-                {/* 25 Detail fields listing with Dotted Formatting */}
-                <div className="space-y-2 mb-8">
-                  {tcDetailsList.map((row, idx) => (
-                    <div key={idx} className="flex items-end text-xs font-bold text-slate-800 leading-none py-1">
-                      
-                      {/* Left: Number + Label */}
-                      <span className="w-8 text-slate-500">{row.num}</span>
-                      <span className="w-72 text-slate-800 font-extrabold">{row.label}</span>
-                      <span className="px-1 text-slate-500">:</span>
-
-                      {/* Right: Value + Dotted Line */}
-                      <span className="flex-1 font-black text-slate-900 border-b border-dotted border-slate-400 pl-2 leading-none pb-0.5 min-h-[14px]">
-                        {row.value || '—'}
-                      </span>
-
-                    </div>
-                  ))}
-                </div>
-
-                {/* Signatures */}
-                <div className="grid grid-cols-4 gap-4 text-center mt-12 pb-2 text-[9px] font-black uppercase text-slate-700">
-                  <div className="flex flex-col items-center">
-                    <div className="w-[80%] h-0.5 border-t border-dashed border-slate-400 mb-2"></div>
-                    <span>Class Teacher</span>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <div className="w-[80%] h-0.5 border-t border-dashed border-slate-400 mb-2"></div>
-                    <span>Prepared By</span>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <div className="w-[80%] h-0.5 border-t border-dashed border-slate-400 mb-2"></div>
-                    <span>Checked By</span>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <div className="w-[80%] h-0.5 border-t border-dashed border-slate-400 mb-2"></div>
-                    <span>Principal</span>
-                  </div>
-                </div>
-
-              </div>
-
+                )
+              })()}
             </div>
 
           </div>

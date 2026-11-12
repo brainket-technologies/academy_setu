@@ -144,6 +144,7 @@ export function InstituteSidebar({ isOpen, onClose }: { isOpen?: boolean; onClos
       icon: FileMinus, label: 'Transfer Certificate', href: '#',
       subItems: [
         { label: 'Transfer Certificates', href: '/institute/tc' },
+        { label: 'TC Setup', href: '/institute/tc/setup' },
         { label: 'TC Settings', href: '/institute/tc/settings' },
       ]
     },
