@@ -324,7 +324,7 @@ export default function LessonPlansPage() {
   const [updatingProgress, setUpdatingProgress] = useState(false)
 
   // View mode in Level 5 (Book View): Table (default) or Cards
-  const [bookViewMode, setBookViewMode] = useState<'table' | 'cards'>('table')
+  const [bookViewMode, setBookViewMode] = useState<'table' | 'cards'>('cards')
 
   // View Details Modal State
   const [viewPlan, setViewPlan] = useState<LessonPlanRecord | null>(null)
@@ -701,7 +701,7 @@ export default function LessonPlansPage() {
     })
   }
 
-  const handleSaveBookProgress = (useDefault: boolean, customVal: number) => {
+  const handleSaveBookProgress = (customVal: number) => {
     if (!bookProgressModal.chapter) return
     const ch = bookProgressModal.chapter
     const cls = selectedClass || ch.className
@@ -710,13 +710,8 @@ export default function LessonPlansPage() {
     const key = `${cls}_${sec}_${sub}_${ch.lessonName}`.toLowerCase()
 
     const updated = { ...bookCustomProgress }
-    if (useDefault) {
-      delete updated[key]
-      triggerToast(`Book progress reset to lesson completion default (${bookProgressModal.calculatedProgress}%)`)
-    } else {
-      updated[key] = Math.min(100, Math.max(0, customVal))
-      triggerToast(`Book progress updated to ${updated[key]}%!`)
-    }
+    updated[key] = Math.min(100, Math.max(0, customVal))
+    triggerToast(`Book progress updated to ${updated[key]}%!`)
     setBookCustomProgress(updated)
     try {
       localStorage.setItem('school_book_custom_progress', JSON.stringify(updated))
@@ -1016,26 +1011,22 @@ export default function LessonPlansPage() {
   }
 
   const handleMilestoneChange = (id: number, field: keyof Milestone, value: any) => {
-    setFormMilestones(prev =>
-      prev.map(m => {
+    setFormMilestones(prev => {
+      const updated = prev.map(m => {
         if (m.id !== id) return m
-        const updated = { ...m, [field]: value }
+        const item = { ...m, [field]: value }
         if (field === 'completed') {
-          updated.progress = value ? 100 : 0
+          item.progress = value ? 100 : 0
         }
-        return updated
+        return item
       })
-    )
+      if (field === 'completed' && updated.length > 0) {
+        const completedCount = updated.filter(m => m.completed).length
+        setFormProgress(Math.round((completedCount / updated.length) * 100))
+      }
+      return updated
+    })
   }
-
-  // Auto-sync overall progress from milestone checkboxes
-  useEffect(() => {
-    if (formMilestones.length > 0) {
-      const completedCount = formMilestones.filter(m => m.completed).length
-      const autoCalculated = Math.round((completedCount / formMilestones.length) * 100)
-      setFormProgress(autoCalculated)
-    }
-  }, [formMilestones])
 
   // ── Handle Save Lesson Plan Submission ────────────────────────────────────
   const handleSavePlanSubmit = async (e: React.FormEvent) => {
@@ -1052,7 +1043,7 @@ export default function LessonPlansPage() {
       return
     }
 
-    const resolvedChapter = (formChapter.trim() || formTitle.trim())
+    const resolvedChapter = (formChapter.trim() || selectedChapter?.trim() || formTitle.trim())
     const canonicalClass = normalizeClassName(formClass)
 
     setSubmittingForm(true)
@@ -1722,10 +1713,9 @@ export default function LessonPlansPage() {
                           </p>
                         </div>
 
-                        <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-[#007A78]">
-                          <span>Open Sections</span>
+                        <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-end text-xs font-bold text-[#007A78]">
                           <span className="inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                            Explore <ChevronRight className="w-4 h-4" />
+                            Open <ChevronRight className="w-4 h-4" />
                           </span>
                         </div>
                       </div>
@@ -1776,8 +1766,7 @@ export default function LessonPlansPage() {
                           </p>
                         </div>
 
-                        <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-[#007A78]">
-                          <span>Select Section</span>
+                        <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-end text-xs font-bold text-[#007A78]">
                           <span className="inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                             Open <ChevronRight className="w-4 h-4" />
                           </span>
@@ -1846,8 +1835,7 @@ export default function LessonPlansPage() {
                           </p>
                         </div>
 
-                        <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-[#007A78]">
-                          <span>View Books</span>
+                        <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-end text-xs font-bold text-[#007A78]">
                           <span className="inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                             Open <ChevronRight className="w-4 h-4" />
                           </span>
@@ -1973,44 +1961,36 @@ export default function LessonPlansPage() {
                               {chapter.lessonName}
                             </h3>
 
-                            {/* Progress bar inside book with update option */}
-                            <div className="mt-3 space-y-1.5">
-                              <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
-                                <span className="flex items-center gap-1.5">
-                                  <span>Progress</span>
-                                  {progData.isCustom ? (
-                                    <span className="px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 text-[9.5px] font-black border border-amber-200">
-                                      Custom
-                                    </span>
-                                  ) : (
-                                    <span className="px-1.5 py-0.5 rounded-md bg-teal-50 text-[#007A78] text-[9.5px] font-bold border border-teal-200">
-                                      Auto ({progData.calculated}%)
-                                    </span>
-                                  )}
-                                </span>
-                                <div className="flex items-center gap-1">
-                                  <span className={prog >= 100 ? 'text-emerald-600 font-black' : 'text-[#007A78] font-black'}>
+                            {/* Progress bar inside book with proper button */}
+                            <div className="mt-3.5 pt-3 border-t border-slate-100 space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold text-slate-700">Progress</span>
+                                  <span className={`text-xs font-black ${prog >= 100 ? 'text-emerald-600' : 'text-[#007A78]'}`}>
                                     {prog}%
                                   </span>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      openBookProgressModal(chapter)
-                                    }}
-                                    className="p-1 text-slate-400 hover:text-[#007A78] hover:bg-slate-100 rounded-md transition cursor-pointer"
-                                    title="Update Book Progress (Auto / Custom)"
-                                  >
-                                    <Sliders className="w-3 h-3" />
-                                  </button>
                                 </div>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openBookProgressModal(chapter)
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold text-[#007A78] hover:text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200/80 transition cursor-pointer shadow-2xs active:scale-95"
+                                  title="Update Book Progress (Auto / Custom)"
+                                >
+                                  <Sliders className="w-3.5 h-3.5" />
+                                  <span>Update Progress</span>
+                                </button>
                               </div>
+
                               <div
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   openBookProgressModal(chapter)
                                 }}
-                                className="w-full bg-slate-100 rounded-full h-2 overflow-hidden cursor-pointer hover:ring-2 hover:ring-[#007A78]/30 transition"
+                                className="w-full bg-slate-100 hover:bg-slate-200/70 rounded-full h-2 overflow-hidden cursor-pointer transition"
                                 title="Click to update book progress"
                               >
                                 <div
@@ -2023,9 +2003,8 @@ export default function LessonPlansPage() {
 
                           <div
                             onClick={() => setSelectedChapter(chapter.lessonName)}
-                            className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-black text-[#007A78] cursor-pointer"
+                            className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-end text-xs font-black text-[#007A78] cursor-pointer"
                           >
-                            <span>Explore Book Plans</span>
                             <span className="inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                               Open <ChevronRight className="w-4 h-4" />
                             </span>
@@ -2099,15 +2078,12 @@ export default function LessonPlansPage() {
                           type="button"
                           onClick={() => openBookProgressModal(matchedChapter)}
                           className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-teal-50 border border-slate-200 hover:border-teal-300 transition cursor-pointer text-xs"
-                          title="Click to update Book Progress (Auto default or Custom)"
+                          title="Click to update Book Progress"
                         >
                           <Sliders className="w-3.5 h-3.5 text-[#007A78]" />
                           <span className="font-bold text-slate-700">Book Progress:</span>
                           <span className={`font-black ${chData.progress >= 100 ? 'text-emerald-600' : 'text-[#007A78]'}`}>
                             {chData.progress}%
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-bold">
-                            ({chData.isCustom ? 'Custom' : 'Auto'})
                           </span>
                           <div className="w-14 bg-slate-200 rounded-full h-1.5 overflow-hidden ml-0.5">
                             <div
@@ -2340,8 +2316,8 @@ export default function LessonPlansPage() {
                     </table>
                   </div>
                 ) : (
-                  /* ── CARDS VIEW (Clean, modern, and uncluttered) ───────────────── */
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-4.5 w-full">
+                  /* ── CARDS VIEW (Clean, compact, less info) ───────────────── */
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-4 w-full">
                     {currentChapterPlans.map(item => {
                       const percent = Math.min(100, Math.max(0, item.progress || 0))
                       const totalM = item.milestones?.length || item.totalMilestones || 1
@@ -2352,7 +2328,7 @@ export default function LessonPlansPage() {
                           key={item.id}
                           className="bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all flex flex-col justify-between overflow-hidden group hover:border-teal-300"
                         >
-                          <div className="p-5 space-y-3">
+                          <div className="p-4 sm:p-5 space-y-2.5">
                             {/* Header: Status badge & Quick Actions */}
                             <div className="flex items-center justify-between gap-2">
                               <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-wider ${
@@ -2393,67 +2369,50 @@ export default function LessonPlansPage() {
                               </div>
                             </div>
 
-                            {/* Lesson Title */}
-                            <div>
-                              <h3
-                                onClick={() => setViewPlan(item)}
-                                className="text-base font-black text-slate-900 line-clamp-2 hover:text-[#007A78] cursor-pointer transition"
-                              >
-                                {item.title}
-                              </h3>
-                              {item.description && (
-                                <p className="text-xs text-slate-500 mt-1 line-clamp-2 font-medium">
-                                  {item.description}
-                                </p>
-                              )}
-                            </div>
+                            {/* Clean Lesson Title */}
+                            <h3
+                              onClick={() => setViewPlan(item)}
+                              className="text-sm font-black text-slate-900 line-clamp-2 hover:text-[#007A78] cursor-pointer transition leading-snug"
+                              title={item.title}
+                            >
+                              {item.title}
+                            </h3>
 
-                            {/* Compact Metadata Chips */}
-                            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                              {item.methodology && (
-                                <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 font-bold text-[11px] truncate max-w-[170px]" title={item.methodology}>
-                                  {item.methodology}
-                                </span>
-                              )}
-
-                              {item.attachmentName && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-teal-50 text-[#007A78] font-bold text-[11px] border border-teal-200">
-                                  <Paperclip className="w-3 h-3 shrink-0" />
-                                  <span className="truncate max-w-[130px]" title={item.attachmentName}>
-                                    {item.attachmentName}
-                                  </span>
-                                </span>
-                              )}
-
+                            {/* Compact single-line info */}
+                            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
+                              <span>{completedM}/{totalM} Topics</span>
                               {(item.startDate || item.date) && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-50 text-slate-500 font-semibold text-[11px] border border-slate-200/70">
-                                  <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
-                                  <span>{item.startDate || item.date}{item.endDate ? ` → ${item.endDate}` : ''}</span>
-                                </span>
+                                <>
+                                  <span>•</span>
+                                  <span>{item.startDate || item.date}</span>
+                                </>
+                              )}
+                              {item.attachmentName && (
+                                <>
+                                  <span>•</span>
+                                  <span className="inline-flex items-center gap-0.5 text-[#007A78] truncate max-w-[110px]" title={item.attachmentName}>
+                                    <Paperclip className="w-2.5 h-2.5 shrink-0" />
+                                    <span className="truncate">{item.attachmentName}</span>
+                                  </span>
+                                </>
                               )}
                             </div>
 
-                            {/* Clean Progress Bar with Topics Count */}
+                            {/* Sleek Progress Bar */}
                             <div
                               onClick={() => handleOpenProgressModal(item)}
-                              className="pt-2 border-t border-slate-100 space-y-1.5 cursor-pointer group/bar"
+                              className="pt-2 border-t border-slate-100 space-y-1 cursor-pointer group/bar"
                               title="Click to update progress"
                             >
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="font-bold text-slate-500 group-hover/bar:text-[#007A78] transition flex items-center gap-1">
-                                  <span>Progress</span>
-                                  <Sliders className="w-3 h-3 opacity-0 group-hover/bar:opacity-100 transition text-[#007A78]" />
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="font-bold text-slate-500 group-hover/bar:text-[#007A78] transition">
+                                  Progress
                                 </span>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[11px] font-bold text-slate-400">
-                                    {completedM}/{totalM} Topics Done
-                                  </span>
-                                  <span className={`font-black ${percent >= 100 ? 'text-emerald-600' : 'text-[#007A78]'}`}>
-                                    {percent}%
-                                  </span>
-                                </div>
+                                <span className={`font-black ${percent >= 100 ? 'text-emerald-600' : 'text-[#007A78]'}`}>
+                                  {percent}%
+                                </span>
                               </div>
-                              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                                 <div
                                   className={`h-full rounded-full transition-all duration-300 ${
                                     percent >= 100 ? 'bg-emerald-500' : 'bg-[#007A78]'
@@ -2464,12 +2423,12 @@ export default function LessonPlansPage() {
                             </div>
                           </div>
 
-                          {/* Clean Footer Bar */}
-                          <div className="px-5 py-3 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between text-xs font-bold">
+                          {/* Clean Action Footer */}
+                          <div className="px-4 py-2.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between text-xs font-bold">
                             <button
                               type="button"
                               onClick={() => handleOpenProgressModal(item)}
-                              className="text-[#007A78] hover:text-teal-700 font-bold transition flex items-center gap-1.5 cursor-pointer"
+                              className="text-[#007A78] hover:text-teal-700 font-bold transition inline-flex items-center gap-1.5 cursor-pointer"
                             >
                               <Sliders className="w-3.5 h-3.5" />
                               <span>Update Progress</span>
@@ -2478,10 +2437,10 @@ export default function LessonPlansPage() {
                             <button
                               type="button"
                               onClick={() => setViewPlan(item)}
-                              className="text-slate-500 hover:text-slate-800 font-semibold transition flex items-center gap-0.5 cursor-pointer"
+                              className="text-[#007A78] hover:text-teal-800 font-bold transition inline-flex items-center gap-1 cursor-pointer group-hover:translate-x-0.5"
                             >
-                              <span>View Details</span>
-                              <ChevronRight className="w-3.5 h-3.5" />
+                              <span>Open</span>
+                              <ChevronRight className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
@@ -2677,7 +2636,7 @@ export default function LessonPlansPage() {
                   </div>
                 )}
 
-                {/* Navigation Trail (Locked Class, Section, Subject) */}
+                {/* Navigation Trail (Locked Class, Section, Subject, and Book when inside) */}
                 <div className="bg-slate-50/90 border border-slate-200/90 rounded-2xl p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-400">
@@ -2695,81 +2654,92 @@ export default function LessonPlansPage() {
                       <span>{formSection || 'Section A'}</span>
                     </span>
                     <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 border border-teal-200 text-xs font-black text-[#007A78] shadow-2xs">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-black text-slate-800 shadow-2xs">
                       <BookOpen className="w-3.5 h-3.5 text-[#007A78]" />
                       <span>{formSubject || 'English'}</span>
                     </span>
-                  </div>
-                </div>
-
-                {/* 2. Book Title Selector / New Book */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-slate-600 font-bold">
-                      Book Title *
-                    </label>
-                    {formChapter && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const matched = currentSubjectChapters.find(
-                            c => c.lessonName.toLowerCase().trim() === formChapter.toLowerCase().trim()
-                          )
-                          if (matched) {
-                            openEditChapterModal(matched)
-                          } else {
-                            openCreateChapterModal(formClass, formSection, formSubject)
-                          }
-                        }}
-                        className="text-[11px] font-bold text-[#007A78] hover:underline cursor-pointer flex items-center gap-1"
-                        title="Rename this book title in database"
-                      >
-                        <Pencil className="w-3 h-3" />
-                        <span>Rename book title</span>
-                      </button>
+                    {(selectedChapter || formChapter) && (
+                      <>
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 border border-teal-200 text-xs font-black text-[#007A78] shadow-2xs">
+                          <BookOpen className="w-3.5 h-3.5 text-[#007A78]" />
+                          <span>{selectedChapter || formChapter}</span>
+                        </span>
+                      </>
                     )}
                   </div>
-
-                  {/* Fully Editable Input with Datalist Suggestions */}
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      placeholder="Type book title or select an existing book below..."
-                      value={formChapter}
-                      onChange={e => setFormChapter(e.target.value)}
-                      list="available-chapters-datalist"
-                      className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:border-[#007A78]"
-                    />
-                    <datalist id="available-chapters-datalist">
-                      {formAvailableChapters.map(ch => (
-                        <option key={ch} value={ch} />
-                      ))}
-                    </datalist>
-                  </div>
-
-                  {/* Quick Pick Existing Book Pills */}
-                  {formAvailableChapters.length > 0 && (
-                    <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[10.5px] text-slate-400 font-semibold">Existing Books:</span>
-                      {formAvailableChapters.map(ch => (
-                        <button
-                          key={ch}
-                          type="button"
-                          onClick={() => setFormChapter(ch)}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer flex items-center gap-1 ${
-                            formChapter.toLowerCase().trim() === ch.toLowerCase().trim()
-                              ? 'bg-teal-50 text-[#007A78] border border-teal-200 font-black shadow-2xs'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
-                        >
-                          <BookOpen className="w-3 h-3 text-[#007A78]" />
-                          <span>{ch}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
+
+                {/* 2. Book Title Selector / New Book (Hidden when inside a book or editing) */}
+                {!selectedChapter && !editingPlanId && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-slate-600 font-bold">
+                        Book Title *
+                      </label>
+                      {formChapter && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const matched = currentSubjectChapters.find(
+                              c => c.lessonName.toLowerCase().trim() === formChapter.toLowerCase().trim()
+                            )
+                            if (matched) {
+                              openEditChapterModal(matched)
+                            } else {
+                              openCreateChapterModal(formClass, formSection, formSubject)
+                            }
+                          }}
+                          className="text-[11px] font-bold text-[#007A78] hover:underline cursor-pointer flex items-center gap-1"
+                          title="Rename this book title in database"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          <span>Rename book title</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Fully Editable Input with Datalist Suggestions */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        placeholder="Type book title or select an existing book below..."
+                        value={formChapter}
+                        onChange={e => setFormChapter(e.target.value)}
+                        list="available-chapters-datalist"
+                        className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:border-[#007A78]"
+                      />
+                      <datalist id="available-chapters-datalist">
+                        {formAvailableChapters.map(ch => (
+                          <option key={ch} value={ch} />
+                        ))}
+                      </datalist>
+                    </div>
+
+                    {/* Quick Pick Existing Book Pills */}
+                    {formAvailableChapters.length > 0 && (
+                      <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10.5px] text-slate-400 font-semibold">Existing Books:</span>
+                        {formAvailableChapters.map(ch => (
+                          <button
+                            key={ch}
+                            type="button"
+                            onClick={() => setFormChapter(ch)}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer flex items-center gap-1 ${
+                              formChapter.toLowerCase().trim() === ch.toLowerCase().trim()
+                                ? 'bg-teal-50 text-[#007A78] border border-teal-200 font-black shadow-2xs'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            <BookOpen className="w-3 h-3 text-[#007A78]" />
+                            <span>{ch}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* 2. Lesson Title */}
                 <div>
@@ -2916,32 +2886,70 @@ export default function LessonPlansPage() {
                     </div>
                   </div>
 
-                  {/* 4. Progress bar AFTER date of overall lesson/chapter */}
-                  <div className="pt-2 border-t border-slate-200/60 space-y-1.5">
+                  {/* 4. Progress section with custom slider & presets */}
+                  <div className="pt-2.5 border-t border-slate-200/70 space-y-2.5">
                     <div className="flex items-center justify-between text-xs font-bold">
                       <span className="text-slate-700 flex items-center gap-1.5">
                         <TrendingUp className="w-3.5 h-3.5 text-[#007A78]" />
                         <span>Overall Lesson / Chapter Progress:</span>
                       </span>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
-                        formProgress >= 100
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : formProgress > 0
-                          ? 'bg-teal-50 text-[#007A78] border border-teal-200'
-                          : 'bg-slate-100 text-slate-500'
-                      }`}>
-                        {formProgress}% {formProgress >= 100 ? 'Completed' : formProgress > 0 ? 'In Progress' : 'Not Started'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-0.5 focus-within:border-[#007A78] shadow-2xs">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={formProgress}
+                            onChange={e => {
+                              const v = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                              setFormProgress(Math.min(100, Math.max(0, isNaN(v) ? 0 : v)));
+                            }}
+                            className="w-10 text-xs font-black text-right text-[#007A78] outline-none"
+                          />
+                          <span className="text-xs font-black text-slate-400">%</span>
+                        </div>
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-black border ${
+                          formProgress >= 100
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : formProgress > 0
+                            ? 'bg-teal-50 text-[#007A78] border border-teal-200'
+                            : 'bg-slate-100 text-slate-600 border-slate-200'
+                        }`}>
+                          {formProgress}% {formProgress >= 100 ? 'Completed' : formProgress > 0 ? 'In Progress' : 'Not Started'}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Visual Animated Progress Bar */}
-                    <div className="w-full bg-slate-200/80 rounded-full h-2.5 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-300 ${
-                          formProgress >= 100 ? 'bg-emerald-500' : 'bg-[#007A78]'
-                        }`}
-                        style={{ width: `${formProgress}%` }}
-                      />
+                    {/* Interactive Custom Slider (Real-time sliding enabled) */}
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={formProgress}
+                      onInput={e => setFormProgress(parseInt((e.target as HTMLInputElement).value, 10) || 0)}
+                      onChange={e => setFormProgress(parseInt(e.target.value, 10) || 0)}
+                      className="w-full h-3 rounded-lg cursor-pointer accent-[#007A78] focus:outline-none"
+                      style={{
+                        background: `linear-gradient(to right, #007A78 0%, #007A78 ${formProgress}%, #e2e8f0 ${formProgress}%, #e2e8f0 100%)`
+                      }}
+                    />
+
+                    {/* Quick Presets */}
+                    <div className="flex items-center justify-between gap-1.5">
+                      {[0, 25, 50, 75, 100].map(val => (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => setFormProgress(val)}
+                          className={`flex-1 py-1 text-xs font-bold rounded-xl border transition cursor-pointer ${
+                            formProgress === val
+                              ? 'bg-[#007A78] text-white border-[#007A78] shadow-2xs'
+                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          {val}%
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -3092,16 +3100,49 @@ export default function LessonPlansPage() {
             <div className="space-y-2 pt-2 border-t border-slate-100">
               <div className="flex items-center justify-between text-xs font-black">
                 <span className="text-slate-700">Overall Progress</span>
-                <span className={tempProgress >= 100 ? 'text-emerald-600' : 'text-[#007A78]'}>{tempProgress}%</span>
+                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-0.5 focus-within:border-[#007A78] shadow-2xs">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={tempProgress}
+                    onChange={e => {
+                      const v = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                      setTempProgress(Math.min(100, Math.max(0, isNaN(v) ? 0 : v)));
+                    }}
+                    className="w-10 text-xs font-black text-right text-[#007A78] outline-none"
+                  />
+                  <span className="text-xs font-black text-slate-400">%</span>
+                </div>
               </div>
               <input
                 type="range"
                 min="0"
                 max="100"
                 value={tempProgress}
-                onChange={e => setTempProgress(parseInt(e.target.value, 10))}
-                className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-[#007A78]"
+                onInput={e => setTempProgress(parseInt((e.target as HTMLInputElement).value, 10) || 0)}
+                onChange={e => setTempProgress(parseInt(e.target.value, 10) || 0)}
+                className="w-full h-3 rounded-lg cursor-pointer accent-[#007A78] focus:outline-none"
+                style={{
+                  background: `linear-gradient(to right, #007A78 0%, #007A78 ${tempProgress}%, #e2e8f0 ${tempProgress}%, #e2e8f0 100%)`
+                }}
               />
+              <div className="flex items-center justify-between gap-1.5 pt-1">
+                {[0, 25, 50, 75, 100].map(val => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setTempProgress(val)}
+                    className={`flex-1 py-1 text-xs font-bold rounded-xl border transition cursor-pointer ${
+                      tempProgress === val
+                        ? 'bg-[#007A78] text-white border-[#007A78] shadow-2xs'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {val}%
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="pt-3 flex items-center justify-end gap-2">
@@ -3152,139 +3193,80 @@ export default function LessonPlansPage() {
               </button>
             </div>
 
-            <div className="space-y-3">
-              {/* Option 1: Default from lesson completion */}
-              <div
-                onClick={() => setBookProgressModal(prev => ({
-                  ...prev,
-                  isCustom: false,
-                  currentProgress: prev.calculatedProgress
-                }))}
-                className={`p-3.5 rounded-2xl border cursor-pointer transition ${
-                  !bookProgressModal.isCustom
-                    ? 'bg-teal-50/60 border-[#007A78]/40 ring-1 ring-[#007A78]/20'
-                    : 'bg-slate-50 border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="bookProgressOption"
-                    checked={!bookProgressModal.isCustom}
-                    onChange={() => setBookProgressModal(prev => ({
-                      ...prev,
-                      isCustom: false,
-                      currentProgress: prev.calculatedProgress
-                    }))}
-                    className="mt-0.5 w-4 h-4 text-[#007A78] accent-[#007A78] cursor-pointer"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-slate-800">
-                        Default (From Lesson Completion)
-                      </span>
-                      <span className="px-2 py-0.5 rounded-full bg-teal-100 text-[#007A78] text-xs font-black border border-teal-300">
-                        {bookProgressModal.calculatedProgress}%
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Automatically calculated from the average progress of lesson plans inside this book.
-                    </p>
-                  </div>
-                </label>
-              </div>
-
-              {/* Option 2: Custom Override */}
-              <div
-                className={`p-3.5 rounded-2xl border transition ${
-                  bookProgressModal.isCustom
-                    ? 'bg-teal-50/60 border-[#007A78]/40 ring-1 ring-[#007A78]/20'
-                    : 'bg-slate-50 border-slate-200'
-                }`}
-              >
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="bookProgressOption"
-                    checked={bookProgressModal.isCustom}
-                    onChange={() => setBookProgressModal(prev => ({
-                      ...prev,
-                      isCustom: true
-                    }))}
-                    className="mt-0.5 w-4 h-4 text-[#007A78] accent-[#007A78] cursor-pointer"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-slate-800">
-                        Custom Progress Override
-                      </span>
-                      {bookProgressModal.isCustom && (
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-black border ${
-                          bookProgressModal.currentProgress >= 100
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                            : 'bg-teal-100 text-[#007A78] border-teal-300'
-                        }`}>
-                          {bookProgressModal.currentProgress}%
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Manually set book progress percentage regardless of lesson plan completion.
-                    </p>
-                  </div>
-                </label>
-
-                {bookProgressModal.isCustom && (
-                  <div className="pt-3 mt-3 border-t border-slate-200/80 space-y-3">
-                    <div className="flex items-center justify-between text-xs font-bold">
-                      <span className="text-slate-600">Drag to adjust:</span>
-                      <span className="text-xs font-black text-[#007A78]">{bookProgressModal.currentProgress}%</span>
-                    </div>
-
+            {/* Direct Custom Progress Controls */}
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-teal-50/50 border border-teal-100 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700">Set Book Progress:</span>
+                  <div className="flex items-center gap-1 bg-white border border-teal-200 rounded-lg px-2.5 py-0.5 focus-within:ring-2 focus-within:ring-[#007A78]/30 shadow-2xs">
                     <input
-                      type="range"
+                      type="number"
                       min="0"
                       max="100"
                       value={bookProgressModal.currentProgress}
-                      onChange={e => setBookProgressModal(prev => ({
-                        ...prev,
-                        currentProgress: parseInt(e.target.value, 10) || 0
-                      }))}
-                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#007A78]"
+                      onChange={e => {
+                        const v = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                        setBookProgressModal(prev => ({
+                          ...prev,
+                          currentProgress: Math.min(100, Math.max(0, isNaN(v) ? 0 : v))
+                        }));
+                      }}
+                      className="w-12 text-sm font-black text-right text-[#007A78] outline-none"
                     />
-
-                    <div className="flex items-center justify-between gap-1">
-                      {[0, 25, 50, 75, 100].map(val => (
-                        <button
-                          key={val}
-                          type="button"
-                          onClick={() => setBookProgressModal(prev => ({
-                            ...prev,
-                            currentProgress: val
-                          }))}
-                          className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition cursor-pointer ${
-                            bookProgressModal.currentProgress === val
-                              ? 'bg-[#007A78] text-white border-[#007A78]'
-                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          {val}%
-                        </button>
-                      ))}
-                    </div>
+                    <span className="text-sm font-black text-slate-400">%</span>
                   </div>
-                )}
+                </div>
+
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={bookProgressModal.currentProgress}
+                  onInput={e => setBookProgressModal(prev => ({
+                    ...prev,
+                    currentProgress: parseInt((e.target as HTMLInputElement).value, 10) || 0
+                  }))}
+                  onChange={e => setBookProgressModal(prev => ({
+                    ...prev,
+                    currentProgress: parseInt(e.target.value, 10) || 0
+                  }))}
+                  className="w-full h-3 rounded-lg cursor-pointer accent-[#007A78] focus:outline-none"
+                  style={{
+                    background: `linear-gradient(to right, #007A78 0%, #007A78 ${bookProgressModal.currentProgress}%, #e2e8f0 ${bookProgressModal.currentProgress}%, #e2e8f0 100%)`
+                  }}
+                />
+
+                {/* Quick Presets */}
+                <div className="flex items-center justify-between gap-1.5 pt-1">
+                  {[0, 25, 50, 75, 100].map(val => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setBookProgressModal(prev => ({
+                        ...prev,
+                        currentProgress: val
+                      }))}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-xl border transition cursor-pointer ${
+                        bookProgressModal.currentProgress === val
+                          ? 'bg-[#007A78] text-white border-[#007A78] shadow-2xs'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      {val}%
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Live Preview Bar */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/70 space-y-1.5">
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70 space-y-2">
                 <div className="flex items-center justify-between text-xs font-bold text-slate-600">
-                  <span>Selected Book Progress</span>
-                  <span className={bookProgressModal.currentProgress >= 100 ? 'text-emerald-600' : 'text-[#007A78]'}>
-                    {bookProgressModal.currentProgress}% {bookProgressModal.isCustom ? '(Custom)' : '(Default)'}
+                  <span>Progress Preview</span>
+                  <span className={bookProgressModal.currentProgress >= 100 ? 'text-emerald-600 font-black' : 'text-[#007A78] font-black'}>
+                    {bookProgressModal.currentProgress}%
                   </span>
                 </div>
-                <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-200 ${
                       bookProgressModal.currentProgress >= 100 ? 'bg-emerald-500' : 'bg-[#007A78]'
@@ -3305,8 +3287,8 @@ export default function LessonPlansPage() {
               </button>
               <button
                 type="button"
-                onClick={() => handleSaveBookProgress(!bookProgressModal.isCustom, bookProgressModal.currentProgress)}
-                className="px-4 py-2 text-xs font-black text-white bg-[#007A78] hover:bg-teal-700 rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
+                onClick={() => handleSaveBookProgress(bookProgressModal.currentProgress)}
+                className="px-4 py-2 text-xs font-black text-white bg-[#007A78] hover:bg-teal-700 rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5 active:scale-95"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>Save Book Progress</span>

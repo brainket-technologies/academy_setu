@@ -977,7 +977,7 @@ export default function StudyMaterialPage() {
   }
 
   // ── Open Add Material Modal ───────────────────────────────────────────────
-  const openAddModal = (presetType?: ContentType, defaultFolder?: string, withoutFolder?: boolean) => {
+  const openAddModal = (presetType?: ContentType, defaultFolder?: string) => {
     setEditingItem(null)
     const initialClass = selectedClass || (filterClass !== 'all' ? filterClass : (unifiedClasses[0]?.className || 'Class 1'))
     const initialSec = selectedSection || (filterSection !== 'all' ? filterSection : 'Section A')
@@ -987,8 +987,8 @@ export default function StudyMaterialPage() {
     setFormClass(initialClass)
     setFormSection(initialSec)
     setFormSubject(initialSub)
-    setFormFolder(withoutFolder ? '' : initialFld)
-    setFormNoFolder(withoutFolder || (!initialFld && !defaultFolder && !selectedLesson))
+    setFormFolder(initialFld)
+    setFormNoFolder(false)
     setFormNewFolderMode(false)
     setFormType(presetType || 'pdf')
     setFormTitle('')
@@ -1009,7 +1009,7 @@ export default function StudyMaterialPage() {
     setFormSubject(item.subject)
     const fld = (item.lessonFolder || item.chapterTopic || '').trim()
     setFormFolder(fld)
-    setFormNoFolder(!fld)
+    setFormNoFolder(false)
     setFormNewFolderMode(false)
     setFormType(item.contentType)
     setFormTitle(item.title)
@@ -1031,6 +1031,8 @@ export default function StudyMaterialPage() {
       setFormError('Class, section, and subject must be selected.')
       return
     }
+
+    const resolvedFolder = (formFolder || selectedLesson || '').trim()
 
     if (!formTitle.trim()) {
       setFormError('Please enter a title for the study material.')
@@ -1068,7 +1070,6 @@ export default function StudyMaterialPage() {
         else defaultFileSize = 'Web Resource'
       }
 
-      const resolvedFolder = formNoFolder ? '' : formFolder.trim()
       const payload = {
         className: normalizeClassName(formClass),
         section: formSection,
@@ -1529,35 +1530,35 @@ export default function StudyMaterialPage() {
                   return (
                     <div
                       key={item.id}
-                      className="bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between overflow-hidden"
+                      className="bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-teal-300 transition-all flex flex-col justify-between overflow-hidden group"
                     >
-                      <div className="p-5">
+                      <div className="p-4 sm:p-5 space-y-2.5">
                         {/* Location Breadcrumb Badge */}
-                        <div className="mb-2.5">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10.5px] font-bold bg-slate-100 text-slate-700 border border-slate-200 flex-wrap">
+                        <div>
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-slate-100 text-slate-700 flex-wrap">
                             <span className="text-[#007A78] font-black">{item.className}</span>
-                            <span>&bull;</span>
+                            <span>•</span>
                             <span>{item.section}</span>
-                            <span>&bull;</span>
+                            <span>•</span>
                             <span className="text-slate-900">{item.subject}</span>
                             {item.chapterTopic && (
                               <>
-                                <span>&bull;</span>
-                                <span className="text-teal-700 font-semibold">{item.chapterTopic}</span>
+                                <span>•</span>
+                                <span className="text-teal-700 font-semibold truncate max-w-[120px]">{item.chapterTopic}</span>
                               </>
                             )}
                           </span>
                         </div>
 
-                        {/* Top row with format badge and edit/delete */}
-                        <div className="flex items-center justify-between gap-2 mb-2">
+                        {/* Header: Type badge & Quick Actions */}
+                        <div className="flex items-center justify-between gap-2">
                           {renderTypeBadge(item.contentType)}
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 opacity-75 group-hover:opacity-100 transition">
                             <button
                               type="button"
                               onClick={() => openEditModal(item)}
                               title="Edit Material"
-                              className="p-1.5 text-slate-400 hover:text-[#007A78] hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                              className="p-1 text-slate-400 hover:text-[#007A78] hover:bg-teal-50 rounded-lg transition cursor-pointer"
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
@@ -1568,7 +1569,7 @@ export default function StudyMaterialPage() {
                                 setDeleteModalOpen(true)
                               }}
                               title="Delete Material"
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -1576,36 +1577,32 @@ export default function StudyMaterialPage() {
                         </div>
 
                         {/* Title */}
-                        <h3 className="text-sm font-black text-slate-900 line-clamp-2 leading-snug">
+                        <h3 className="text-sm font-black text-slate-900 line-clamp-2 leading-snug group-hover:text-[#007A78] transition-colors" title={item.title}>
                           {item.title}
                         </h3>
 
-                        {/* Description */}
-                        {item.description && (
-                          <p className="text-xs text-slate-500 mt-1.5 line-clamp-2 font-medium">
-                            {item.description}
-                          </p>
-                        )}
-
-                        {/* File details */}
-                        <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-                          <span className="truncate max-w-[170px]">
-                            {item.fileName || item.contentType.toUpperCase()}
-                          </span>
-                          <span>{item.fileSize || 'Standard'}</span>
+                        {/* Compact file info */}
+                        <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
+                          <span className="truncate max-w-[190px]">{item.fileName || item.contentType.toUpperCase()}</span>
+                          {item.fileSize && item.fileSize !== 'Standard' && (
+                            <>
+                              <span>•</span>
+                              <span>{item.fileSize}</span>
+                            </>
+                          )}
                         </div>
                       </div>
 
-                      {/* Card Footer Actions */}
-                      <div className="bg-slate-50/80 px-4 py-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                      {/* Clean Action Footer */}
+                      <div className="px-4 py-2.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between gap-2">
                         {isYouTube ? (
                           <button
                             type="button"
                             onClick={() => setYoutubePlayerModal({ open: true, item })}
-                            className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 text-xs font-black bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-xs transition cursor-pointer"
+                            className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-black bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-2xs transition cursor-pointer"
                           >
                             <Play className="w-3.5 h-3.5 fill-white" />
-                            <span>Watch Video Lecture</span>
+                            <span>Watch Video</span>
                           </button>
                         ) : (
                           <>
@@ -1613,7 +1610,7 @@ export default function StudyMaterialPage() {
                               href={item.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold bg-[#007A78] hover:bg-teal-700 text-white rounded-xl transition cursor-pointer"
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-bold bg-[#007A78] hover:bg-teal-700 text-white rounded-xl transition cursor-pointer"
                             >
                               <Eye className="w-3.5 h-3.5" />
                               <span>
@@ -1633,7 +1630,7 @@ export default function StudyMaterialPage() {
                                 target="_blank"
                                 rel="noreferrer"
                                 title="Download File"
-                                className="p-2 text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-200 border border-slate-200 rounded-xl transition cursor-pointer"
+                                className="p-1.5 text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition cursor-pointer"
                               >
                                 <Download className="w-3.5 h-3.5" />
                               </a>
@@ -1722,10 +1719,9 @@ export default function StudyMaterialPage() {
                           )}
                         </div>
 
-                        <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-[#007A78]">
-                          <span>Open Sections</span>
+                        <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-end text-xs font-bold text-[#007A78]">
                           <span className="inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                            Explore <ChevronRight className="w-4 h-4" />
+                            Open <ChevronRight className="w-4 h-4" />
                           </span>
                         </div>
                       </div>
@@ -1776,8 +1772,7 @@ export default function StudyMaterialPage() {
                           </p>
                         </div>
 
-                        <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-[#007A78]">
-                          <span>Select Section</span>
+                        <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-end text-xs font-bold text-[#007A78]">
                           <span className="inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                             Open <ChevronRight className="w-4 h-4" />
                           </span>
@@ -1855,8 +1850,7 @@ export default function StudyMaterialPage() {
                           </p>
                         </div>
 
-                        <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-[#007A78]">
-                          <span>View Chapter Folders</span>
+                        <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-end text-xs font-bold text-[#007A78]">
                           <span className="inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                             Open <ChevronRight className="w-4 h-4" />
                           </span>
@@ -1956,24 +1950,24 @@ export default function StudyMaterialPage() {
                       No Chapter Folders or Materials in {selectedSubject} Yet
                     </h3>
                     <p className="text-xs text-slate-500 font-medium max-w-sm">
-                      Upload study materials directly under {selectedSubject} without a folder, or create a chapter folder to organize by units.
+                      Create chapter folders to organize curriculum by units, then upload study materials.
                     </p>
                     <div className="flex items-center gap-2 pt-2 flex-wrap justify-center">
                       <button
                         type="button"
-                        onClick={() => openAddModal(undefined, undefined, true)}
+                        onClick={() => openCreateLessonModal(selectedClass!, selectedSection!, selectedSubject!)}
                         className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#007A78] hover:bg-teal-700 text-white font-black text-xs rounded-xl shadow-xs transition cursor-pointer"
                       >
-                        <Plus className="w-4 h-4" />
-                        <span>Upload Material Without Folder</span>
+                        <FolderPlus className="w-4 h-4" />
+                        <span>Create Chapter Folder</span>
                       </button>
                       <button
                         type="button"
-                        onClick={() => openCreateLessonModal(selectedClass!, selectedSection!, selectedSubject!)}
+                        onClick={() => openAddModal()}
                         className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
                       >
-                        <FolderPlus className="w-4 h-4 text-[#007A78]" />
-                        <span>Create Chapter Folder</span>
+                        <Plus className="w-4 h-4 text-[#007A78]" />
+                        <span>Upload Material</span>
                       </button>
                     </div>
                   </div>
@@ -1994,54 +1988,53 @@ export default function StudyMaterialPage() {
                             const count = lessonMaterials.length
                             const pdfCount = lessonMaterials.filter(m => m.contentType === 'pdf').length
                             const videoCount = lessonMaterials.filter(m => m.contentType === 'youtube').length
-                            const otherCount = count - pdfCount - videoCount
+                            const sheetCount = lessonMaterials.filter(m => m.contentType === 'excel').length
+                            const pptCount = lessonMaterials.filter(m => m.contentType === 'ppt').length
+                            const linkCount = lessonMaterials.filter(m => m.contentType === 'url').length
 
                             return (
                               <div
                                 key={lesson.id || lesson.lessonName}
-                                className="group bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md hover:border-[#007A78] transition-all flex flex-col justify-between"
+                                className="group bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs hover:shadow-md hover:border-teal-300 transition-all flex flex-col justify-between"
                               >
                                 <div>
                                   <div className="flex items-start justify-between gap-3 mb-3">
                                     <div
                                       onClick={() => setSelectedLesson(lesson.lessonName)}
-                                      className="w-12 h-12 rounded-xl bg-teal-50 text-[#007A78] group-hover:bg-[#007A78] group-hover:text-white flex items-center justify-center transition-all shadow-2xs cursor-pointer"
+                                      className="w-11 h-11 rounded-2xl bg-teal-50 text-[#007A78] flex items-center justify-center transition-transform group-hover:scale-105 shadow-2xs cursor-pointer"
                                     >
-                                      <Folder className="w-6 h-6" />
+                                      <Folder className="w-5 h-5" />
                                     </div>
 
                                     <div className="flex items-center gap-1.5">
-                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-black uppercase ${
-                                        count > 0 ? 'bg-teal-50 text-[#007A78]' : 'bg-slate-100 text-slate-500'
+                                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-wider border ${
+                                        count > 0 ? 'bg-teal-50 text-[#007A78] border-teal-200' : 'bg-slate-100 text-slate-500 border-slate-200'
                                       }`}>
                                         {count} {count === 1 ? 'Resource' : 'Resources'}
                                       </span>
-                                      {!lesson.id.startsWith('auto_') && (
-                                        <>
-                                          <button
-                                            type="button"
-                                            onClick={() => openEditLessonModal(lesson)}
-                                            title="Edit Folder Name"
-                                            className="p-1 text-slate-400 hover:text-[#007A78] hover:bg-slate-100 rounded cursor-pointer"
-                                          >
-                                            <Pencil className="w-3.5 h-3.5" />
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => setDeleteLessonId(lesson.id)}
-                                            title="Delete Folder"
-                                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded cursor-pointer"
-                                          >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                          </button>
-                                        </>
-                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => openEditLessonModal(lesson)}
+                                        title="Rename Folder"
+                                        className="p-1 text-slate-400 hover:text-[#007A78] hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                                      >
+                                        <Pencil className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setDeleteLessonId(lesson.id)}
+                                        title="Delete Folder"
+                                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
                                     </div>
                                   </div>
 
                                   <h3
                                     onClick={() => setSelectedLesson(lesson.lessonName)}
-                                    className="text-base font-black text-slate-900 group-hover:text-[#007A78] transition-colors cursor-pointer"
+                                    className="text-base font-black text-slate-900 group-hover:text-[#007A78] transition-colors cursor-pointer line-clamp-1"
+                                    title={lesson.lessonName}
                                   >
                                     {lesson.lessonName}
                                   </h3>
@@ -2057,9 +2050,19 @@ export default function StudyMaterialPage() {
                                         <Play className="w-2.5 h-2.5 fill-red-600" /> {videoCount} Video
                                       </span>
                                     )}
-                                    {otherCount > 0 && (
-                                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
-                                        +{otherCount} Other
+                                    {sheetCount > 0 && (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                        <FileSpreadsheet className="w-3 h-3" /> {sheetCount} Sheet
+                                      </span>
+                                    )}
+                                    {pptCount > 0 && (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+                                        <Presentation className="w-3 h-3" /> {pptCount} PPT
+                                      </span>
+                                    )}
+                                    {linkCount > 0 && (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-cyan-600 bg-cyan-50 px-1.5 py-0.5 rounded">
+                                        <Globe className="w-3 h-3" /> {linkCount} Link
                                       </span>
                                     )}
                                     {count === 0 && (
@@ -2070,9 +2073,8 @@ export default function StudyMaterialPage() {
 
                                 <div
                                   onClick={() => setSelectedLesson(lesson.lessonName)}
-                                  className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-black text-[#007A78] cursor-pointer"
+                                  className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-end text-xs font-black text-[#007A78] cursor-pointer"
                                 >
-                                  <span>Open Folder Content</span>
                                   <span className="inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                                     Open <ChevronRight className="w-4 h-4" />
                                   </span>
@@ -2130,11 +2132,11 @@ export default function StudyMaterialPage() {
 
                           <button
                             type="button"
-                            onClick={() => openAddModal(undefined, undefined, true)}
+                            onClick={() => openAddModal()}
                             className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-[#007A78] border border-teal-200 font-black text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
                           >
                             <Plus className="w-3.5 h-3.5" />
-                            <span>+ Add Direct Material</span>
+                            <span>+ Add Study Material</span>
                           </button>
                         </div>
 
@@ -2144,22 +2146,23 @@ export default function StudyMaterialPage() {
                             return (
                               <div
                                 key={item.id}
-                                className="bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between overflow-hidden"
+                                className="bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-teal-300 transition-all flex flex-col justify-between overflow-hidden group"
                               >
-                                <div className="p-5">
-                                  <div className="flex items-center justify-between gap-2 mb-2">
+                                <div className="p-4 sm:p-5 space-y-2.5">
+                                  {/* Header: Type badge & Quick Actions */}
+                                  <div className="flex items-center justify-between gap-2">
                                     <div className="flex items-center gap-1.5">
                                       {renderTypeBadge(item.contentType)}
                                       <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold">
                                         Direct
                                       </span>
                                     </div>
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-1 opacity-75 group-hover:opacity-100 transition">
                                       <button
                                         type="button"
                                         onClick={() => openEditModal(item)}
                                         title="Edit Material"
-                                        className="p-1.5 text-slate-400 hover:text-[#007A78] hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                                        className="p-1 text-slate-400 hover:text-[#007A78] hover:bg-teal-50 rounded-lg transition cursor-pointer"
                                       >
                                         <Pencil className="w-3.5 h-3.5" />
                                       </button>
@@ -2170,40 +2173,40 @@ export default function StudyMaterialPage() {
                                           setDeleteModalOpen(true)
                                         }}
                                         title="Delete Material"
-                                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                                       >
                                         <Trash2 className="w-3.5 h-3.5" />
                                       </button>
                                     </div>
                                   </div>
 
-                                  <h3 className="text-sm font-black text-slate-900 line-clamp-2 leading-snug">
+                                  {/* Clean Title */}
+                                  <h3 className="text-sm font-black text-slate-900 line-clamp-2 leading-snug group-hover:text-[#007A78] transition-colors" title={item.title}>
                                     {item.title}
                                   </h3>
 
-                                  {item.description && (
-                                    <p className="text-xs text-slate-500 mt-1.5 line-clamp-2 font-medium">
-                                      {item.description}
-                                    </p>
-                                  )}
-
-                                  <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-                                    <span className="truncate max-w-[170px]">
-                                      {item.fileName || item.contentType.toUpperCase()}
-                                    </span>
-                                    <span>{item.fileSize || 'Standard'}</span>
+                                  {/* Compact file info */}
+                                  <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
+                                    <span className="truncate max-w-[190px]">{item.fileName || item.contentType.toUpperCase()}</span>
+                                    {item.fileSize && item.fileSize !== 'Standard' && (
+                                      <>
+                                        <span>•</span>
+                                        <span>{item.fileSize}</span>
+                                      </>
+                                    )}
                                   </div>
                                 </div>
 
-                                <div className="bg-slate-50/80 px-4 py-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                                {/* Clean Action Footer */}
+                                <div className="px-4 py-2.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between gap-2">
                                   {isYouTube ? (
                                     <button
                                       type="button"
                                       onClick={() => setYoutubePlayerModal({ open: true, item })}
-                                      className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 text-xs font-black bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-xs transition cursor-pointer"
+                                      className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-black bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-2xs transition cursor-pointer"
                                     >
                                       <Play className="w-3.5 h-3.5 fill-white" />
-                                      <span>Watch Video Lecture</span>
+                                      <span>Watch Video</span>
                                     </button>
                                   ) : (
                                     <>
@@ -2211,7 +2214,7 @@ export default function StudyMaterialPage() {
                                         href={item.url}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold bg-[#007A78] hover:bg-teal-700 text-white rounded-xl transition cursor-pointer"
+                                        className="flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-bold bg-[#007A78] hover:bg-teal-700 text-white rounded-xl transition cursor-pointer"
                                       >
                                         <Eye className="w-3.5 h-3.5" />
                                         <span>
@@ -2231,7 +2234,7 @@ export default function StudyMaterialPage() {
                                           target="_blank"
                                           rel="noreferrer"
                                           title="Download File"
-                                          className="p-2 text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-200 border border-slate-200 rounded-xl transition cursor-pointer"
+                                          className="p-1.5 text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition cursor-pointer"
                                         >
                                           <Download className="w-3.5 h-3.5" />
                                         </a>
@@ -2334,17 +2337,18 @@ export default function StudyMaterialPage() {
                       return (
                         <div
                           key={item.id}
-                          className="bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between overflow-hidden"
+                          className="bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-teal-300 transition-all flex flex-col justify-between overflow-hidden group"
                         >
-                          <div className="p-5">
-                            <div className="flex items-center justify-between gap-2 mb-2">
+                          <div className="p-4 sm:p-5 space-y-2.5">
+                            {/* Header: Type badge & Quick Actions */}
+                            <div className="flex items-center justify-between gap-2">
                               {renderTypeBadge(item.contentType)}
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 opacity-75 group-hover:opacity-100 transition">
                                 <button
                                   type="button"
                                   onClick={() => openEditModal(item)}
                                   title="Edit Material"
-                                  className="p-1.5 text-slate-400 hover:text-[#007A78] hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                                  className="p-1 text-slate-400 hover:text-[#007A78] hover:bg-teal-50 rounded-lg transition cursor-pointer"
                                 >
                                   <Pencil className="w-3.5 h-3.5" />
                                 </button>
@@ -2355,40 +2359,40 @@ export default function StudyMaterialPage() {
                                     setDeleteModalOpen(true)
                                   }}
                                   title="Delete Material"
-                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             </div>
 
-                            <h3 className="text-sm font-black text-slate-900 line-clamp-2 leading-snug">
+                            {/* Clean Title */}
+                            <h3 className="text-sm font-black text-slate-900 line-clamp-2 leading-snug group-hover:text-[#007A78] transition-colors" title={item.title}>
                               {item.title}
                             </h3>
 
-                            {item.description && (
-                              <p className="text-xs text-slate-500 mt-1.5 line-clamp-2 font-medium">
-                                {item.description}
-                              </p>
-                            )}
-
-                            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-                              <span className="truncate max-w-[170px]">
-                                {item.fileName || item.contentType.toUpperCase()}
-                              </span>
-                              <span>{item.fileSize || 'Standard'}</span>
+                            {/* Compact file info */}
+                            <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
+                              <span className="truncate max-w-[190px]">{item.fileName || item.contentType.toUpperCase()}</span>
+                              {item.fileSize && item.fileSize !== 'Standard' && (
+                                <>
+                                  <span>•</span>
+                                  <span>{item.fileSize}</span>
+                                </>
+                              )}
                             </div>
                           </div>
 
-                          <div className="bg-slate-50/80 px-4 py-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                          {/* Clean Action Footer */}
+                          <div className="px-4 py-2.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between gap-2">
                             {isYouTube ? (
                               <button
                                 type="button"
                                 onClick={() => setYoutubePlayerModal({ open: true, item })}
-                                className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 text-xs font-black bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-xs transition cursor-pointer"
+                                className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-black bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-2xs transition cursor-pointer"
                               >
                                 <Play className="w-3.5 h-3.5 fill-white" />
-                                <span>Watch Video Lecture</span>
+                                <span>Watch Video</span>
                               </button>
                             ) : (
                               <>
@@ -2396,7 +2400,7 @@ export default function StudyMaterialPage() {
                                   href={item.url}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold bg-[#007A78] hover:bg-teal-700 text-white rounded-xl transition cursor-pointer"
+                                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-bold bg-[#007A78] hover:bg-teal-700 text-white rounded-xl transition cursor-pointer"
                                 >
                                   <Eye className="w-3.5 h-3.5" />
                                   <span>
@@ -2416,7 +2420,7 @@ export default function StudyMaterialPage() {
                                     target="_blank"
                                     rel="noreferrer"
                                     title="Download File"
-                                    className="p-2 text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-200 border border-slate-200 rounded-xl transition cursor-pointer"
+                                    className="p-1.5 text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition cursor-pointer"
                                   >
                                     <Download className="w-3.5 h-3.5" />
                                   </a>
@@ -2473,7 +2477,7 @@ export default function StudyMaterialPage() {
                   </div>
                 )}
 
-                {/* Navigation Trail (Locked Class, Section, Subject) */}
+                {/* Navigation Trail (Locked Class, Section, Subject, Folder) */}
                 <div className="bg-slate-50/90 border border-slate-200/90 rounded-2xl p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-400">
@@ -2491,151 +2495,40 @@ export default function StudyMaterialPage() {
                       <span>{formSection || 'Section A'}</span>
                     </span>
                     <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 border border-teal-200 text-xs font-black text-[#007A78] shadow-2xs">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-black text-slate-800 shadow-2xs">
                       <BookOpen className="w-3.5 h-3.5 text-[#007A78]" />
                       <span>{formSubject || 'English'}</span>
                     </span>
-                  </div>
-                </div>
-
-                {/* 2. Chapter Folder Selector / Without Folder Toggle */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-slate-700 font-bold flex items-center gap-1.5">
-                      <span>Organization Mode</span>
-                      <span className="text-[11px] font-semibold text-slate-400">
-                        (Choose folder or direct)
-                      </span>
-                    </label>
-                  </div>
-
-                  {/* Mode Selector: Direct / Without Folder vs Chapter Folder */}
-                  <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFormNoFolder(true)
-                        setFormFolder('')
-                      }}
-                      className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                        formNoFolder
-                          ? 'bg-white text-[#007A78] shadow-xs font-black border border-teal-100'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      <span>Without Folder (Direct)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFormNoFolder(false)
-                        if (!formFolder && formAvailableFolders.length > 0) {
-                          setFormFolder(formAvailableFolders[0])
-                        }
-                      }}
-                      className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                        !formNoFolder
-                          ? 'bg-white text-[#007A78] shadow-xs font-black border border-teal-100'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      <Folder className="w-3.5 h-3.5" />
-                      <span>In Chapter Folder</span>
-                    </button>
-                  </div>
-
-                  {formNoFolder ? (
-                    <div className="p-3 bg-teal-50/70 border border-teal-200/80 rounded-xl flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <CheckCircle2 className="w-4 h-4 text-[#007A78] shrink-0" />
-                        <div>
-                          <p className="text-xs font-black text-slate-800">
-                            Adding directly to {formSubject || 'Subject'}
-                          </p>
-                          <p className="text-[11px] text-slate-500 font-medium">
-                            No chapter folder needed. Material will appear directly on the subject page.
-                          </p>
-                        </div>
-                      </div>
-                      <span className="px-2 py-0.5 rounded-md bg-teal-100 text-[#007A78] text-[10.5px] font-black shrink-0">
-                        Direct Resource
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="space-y-2 pt-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-slate-600">
-                          Chapter Folder Name <span className="text-slate-400 font-normal">(Optional)</span>:
+                    {(formFolder || selectedLesson) && (
+                      <>
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 border border-teal-200 text-xs font-black text-[#007A78] shadow-2xs">
+                          <Folder className="w-3.5 h-3.5 text-[#007A78]" />
+                          <span>{formFolder || selectedLesson}</span>
                         </span>
-                        {formFolder && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const matched = filteredLessons.find(
-                                l => l.lessonName.toLowerCase().trim() === formFolder.toLowerCase().trim()
-                              )
-                              if (matched) {
-                                openEditLessonModal(matched)
-                              } else {
-                                openCreateLessonModal(formClass, formSection, formSubject)
-                              }
-                            }}
-                            className="text-[11px] font-bold text-[#007A78] hover:underline cursor-pointer flex items-center gap-1"
-                            title="Rename this folder in database"
-                          >
-                            <Pencil className="w-3 h-3" />
-                            <span>Rename chapter folder</span>
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="relative">
-                        <input
-                          type="text"
-                          placeholder="Type chapter folder name or select an existing one below..."
-                          value={formFolder}
-                          onChange={e => {
-                            setFormFolder(e.target.value)
-                            setFormNoFolder(false)
-                          }}
-                          list="available-folders-datalist"
-                          className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-bold outline-none focus:border-[#007A78]"
-                        />
-                        <datalist id="available-folders-datalist">
-                          {formAvailableFolders.map(fld => (
-                            <option key={fld} value={fld} />
-                          ))}
-                        </datalist>
-                      </div>
-
-                      {/* Quick Pick Existing Folder Pills */}
-                      {formAvailableFolders.length > 0 && (
-                        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[10.5px] text-slate-400 font-semibold">Existing Folders:</span>
-                          {formAvailableFolders.map(fld => (
-                            <button
-                              key={fld}
-                              type="button"
-                              onClick={() => {
-                                setFormFolder(fld)
-                                setFormNoFolder(false)
-                              }}
-                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer flex items-center gap-1 ${
-                                formFolder.toLowerCase().trim() === fld.toLowerCase().trim()
-                                  ? 'bg-teal-50 text-[#007A78] border border-teal-200 font-black shadow-2xs'
-                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                              }`}
-                            >
-                              <Folder className="w-3 h-3 text-[#007A78]" />
-                              <span>{fld}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                      </>
+                    )}
+                  </div>
                 </div>
+
+                {/* 2. Target Chapter Folder (Only shown when uploading inside a chapter folder) */}
+                {(selectedLesson || formFolder) && (
+                  <div className="space-y-1.5">
+                    <label className="text-slate-700 font-bold flex items-center gap-1.5">
+                      <Folder className="w-3.5 h-3.5 text-[#007A78]" />
+                      <span>Target Chapter Folder</span>
+                    </label>
+                    <div className="p-3 bg-teal-50/60 border border-teal-200 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Folder className="w-4 h-4 text-[#007A78]" />
+                        <span className="text-xs font-black text-slate-900">{formFolder || selectedLesson}</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md bg-teal-100 text-[#007A78] text-[10.5px] font-bold">
+                        Locked to Folder
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {/* 3. Content Type Selector */}
                 <div>
