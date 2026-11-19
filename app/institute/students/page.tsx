@@ -5,11 +5,17 @@ import { fetchStudents, moveStudent, fetchStudentFees, deleteStudent } from './a
 import { 
   Download, Upload, Filter, Plus, Search, MoreVertical, X, CheckCircle2, Ticket,
   Eye, Edit, Receipt, Banknote, CalendarCheck, FileCheck, FileBadge, RefreshCw, Trash2,
-  Users, UserCheck, ShieldAlert, CreditCard, RotateCcw, ChevronLeft, ChevronRight, Phone
+  Users, UserCheck, ShieldAlert, CreditCard, RotateCcw, ChevronLeft, ChevronRight, Phone,
+  Wallet, ArrowRight
 } from 'lucide-react'
 import { toast } from 'sonner'
 import AddStudentWizard from '@/components/students/AddStudentWizard'
 import { useRouter } from 'next/navigation'
+import { 
+  FeeCollectionWizardModal, 
+  FeeReceiptModal, 
+  StudentFeeItem 
+} from '@/app/institute/fees-collection/page'
 
 type ViewState = 'LIST' | 'FILTER' | 'MOVE_STUDENT' | 'ADD_STUDENT' | 'FEE_DETAILS'
 
@@ -32,6 +38,193 @@ export default function StudentsPage() {
   // Selection/Update State
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [showActionMenu, setShowActionMenu] = useState<string | number | null>(null)
+  const [collectFeeStudent, setCollectFeeStudent] = useState<StudentFeeItem | null>(null)
+  const [receiptStudent, setReceiptStudent] = useState<StudentFeeItem | null>(null)
+
+  // Helper to convert student record to StudentFeeItem for fee wizard
+  const studentToFeeItem = (student: any): StudentFeeItem => {
+    const parseAmt = (val: any) => {
+      if (!val) return 0
+      const str = String(val).replace(/[^0-9.]/g, '')
+      return parseFloat(str) || 0
+    }
+    const fmt = (n: number) => `${Math.round(n).toLocaleString('en-IN')}/-`
+
+    const regAmt = parseAmt(student.regFee || student.reg)
+    const admAmt = parseAmt(student.admFee || student.adm)
+    let classAmt = student.isRteStudent === 'Yes' ? 0 : parseAmt(student.classFee || student.class_fee)
+    if (classAmt === 0 && student.isRteStudent !== 'Yes') {
+      try {
+        const rawMaster = typeof window !== 'undefined' ? localStorage.getItem('school_class_fees') : null
+        if (rawMaster) {
+          const list = JSON.parse(rawMaster)
+          if (Array.isArray(list) && list.length > 0) {
+            const target = (student.class_name || student.class || 'Class 1').replace(/\s*\([^)]*\)/, '').trim().toLowerCase()
+            const found = list.find((c: any) =>
+              (c.className && c.className.toLowerCase() === target) ||
+              (c.name && c.name.toLowerCase() === target) ||
+              (c.className && c.className.toLowerCase() === 'all')
+            )
+            if (found) {
+              classAmt = parseFloat(found.monthly || found.oneTime || found.amount || '0') || 1000
+            } else if (list[0]) {
+              classAmt = parseFloat(list[0].monthly || list[0].oneTime || list[0].amount || '0') || 1000
+            }
+          }
+        }
+      } catch (e) {}
+      if (classAmt === 0) classAmt = 1000
+    }
+    const libAmt = parseAmt(student.libFee || student.lib)
+    const examAmt = parseAmt(student.examFee || student.exam)
+    const hostelAmt = parseAmt(student.hostelFee || student.hostel)
+    const transAmt = parseAmt(student.transFee || student.trans)
+    const extraAmt = parseAmt(student.extraFee || student.extra)
+    const fineAmt = parseAmt(student.fine)
+
+    // Calculate promo discounts
+    const calcPromo = (base: number, promo?: string) => {
+      if (!promo || base <= 0) return 0
+      const match = promo.match(/\d+/)
+      if (match) {
+        const num = parseFloat(match[0])
+        if (num <= 100) return Math.round((base * num) / 100)
+        return Math.min(base, num)
+      }
+      return 0
+    }
+
+    const regDiscount = calcPromo(regAmt, student.regFeePromo)
+    const admDiscount = calcPromo(admAmt, student.admFeePromo)
+    const classDiscount = calcPromo(classAmt, student.classFeePromo)
+    const transDiscount = calcPromo(transAmt, student.transFeePromo)
+    const totalDiscount = regDiscount + admDiscount + classDiscount + transDiscount
+
+    let grossTotal = regAmt + admAmt + classAmt + libAmt + examAmt + hostelAmt + transAmt + extraAmt + fineAmt
+    if (grossTotal === 0) grossTotal = parseAmt(student.total) || 24500
+    const netTotal = Math.max(0, grossTotal - totalDiscount)
+
+    const isPaid = student.fees_status === 'Paid' || student.status === 'Paid'
+    const paidNum = isPaid ? netTotal : (parseAmt(student.paid) || 0)
+    const pendingNum = Math.max(0, netTotal - paidNum)
+
+    return {
+      id: student.id || student.admission_no || Date.now(),
+      name: `${student.first_name || student.firstName || ''} ${student.last_name || student.lastName || ''}`.trim() || student.name || 'Student',
+      class: student.class_name || student.class || 'Class 1',
+      section: student.section || (student.class_name ? student.class_name.match(/\(([^)]+)\)/)?.[1] || 'A' : 'A'),
+      admissionNo: student.admission_no || student.admissionNo || '',
+      rollNo: student.roll_no || student.rollNo || '01',
+      reg: fmt(regAmt),
+      adm: fmt(admAmt),
+      classFee: fmt(classAmt),
+      lib: fmt(libAmt),
+      exam: fmt(examAmt),
+      hostel: fmt(hostelAmt),
+      trans: fmt(transAmt),
+      extra: fmt(extraAmt),
+      fine: fmt(fineAmt),
+      total: fmt(netTotal),
+      paid: fmt(paidNum),
+      pending: fmt(pendingNum),
+      status: isPaid ? 'Paid' : (paidNum > 0 ? 'Partial' : 'Unpaid'),
+      paymentMode: student.paymentMode || 'Cash',
+      receiptNo: student.receiptNo || '',
+      paymentDate: student.paymentDate || '',
+      remarks: student.remarks || '',
+      regFee: student.regFee || (regAmt > 0 ? `${regAmt}/-` : ''),
+      transFee: student.transFee || (transAmt > 0 ? `${transAmt}/-` : ''),
+      classFeePromo: student.classFeePromo || '',
+      regFeePromo: student.regFeePromo || '',
+      transFeePromo: student.transFeePromo || '',
+      ...student
+    }
+  }
+
+  const handleOpenCollectFee = (student: any) => {
+    let fullStudent = { ...student }
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('school_students')
+        if (saved) {
+          const list = JSON.parse(saved)
+          if (Array.isArray(list)) {
+            const match = list.find((s: any) => 
+              String(s.id) === String(student.id) || 
+              String(s.admission_no || s.admissionNo) === String(student.admission_no || student.admissionNo)
+            )
+            if (match) {
+              fullStudent = { ...match, ...fullStudent, ...match }
+            }
+          }
+        }
+        const savedFees = localStorage.getItem('school_all_fees')
+        if (savedFees) {
+          const feeList = JSON.parse(savedFees)
+          if (Array.isArray(feeList)) {
+            const feeMatch = feeList.find((f: any) => 
+              String(f.id) === String(student.id) || 
+              String(f.admissionNo || f.admission_no) === String(student.admission_no || student.admissionNo)
+            )
+            if (feeMatch) {
+              fullStudent = { ...feeMatch, ...fullStudent }
+            }
+          }
+        }
+      }
+    } catch (e) {}
+
+    const feeItem = studentToFeeItem(fullStudent)
+    setCollectFeeStudent(feeItem)
+  }
+
+  const handlePaymentSuccessFromWizard = (updatedStudent: StudentFeeItem) => {
+    const updatedList = students.map(s => {
+      if (String(s.id || s.admission_no) === String(updatedStudent.id || updatedStudent.admissionNo)) {
+        return {
+          ...s,
+          fees_status: updatedStudent.status,
+          paid: updatedStudent.paid,
+          pending: updatedStudent.pending,
+          receiptNo: updatedStudent.receiptNo,
+          paymentDate: updatedStudent.paymentDate,
+          paymentMode: updatedStudent.paymentMode
+        }
+      }
+      return s
+    })
+
+    setStudents(updatedList)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('school_students', JSON.stringify(updatedList))
+
+      const savedAllFees = localStorage.getItem('school_all_fees')
+      if (savedAllFees) {
+        try {
+          const parsed = JSON.parse(savedAllFees)
+          if (Array.isArray(parsed)) {
+            const syncAll = parsed.map((item: any) => {
+              if (String(item.id || item.admissionNo) === String(updatedStudent.id || updatedStudent.admissionNo)) {
+                return {
+                  ...item,
+                  status: updatedStudent.status,
+                  paid: updatedStudent.paid,
+                  pending: updatedStudent.pending,
+                  receiptNo: updatedStudent.receiptNo,
+                  paymentDate: updatedStudent.paymentDate
+                }
+              }
+              return item
+            })
+            localStorage.setItem('school_all_fees', JSON.stringify(syncAll))
+          }
+        } catch (e) {}
+      }
+    }
+
+    setCollectFeeStudent(null)
+    setReceiptStudent(updatedStudent)
+  }
 
   useEffect(() => {
     setMounted(true)
@@ -57,8 +250,15 @@ export default function StudentsPage() {
     const saved = localStorage.getItem('school_students')
     if (saved) {
       try {
-        localList = JSON.parse(saved)
-        if (Array.isArray(localList) && localList.length > 0) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const seenLocal = new Set<string>()
+          localList = parsed.filter((s: any) => {
+            const key = String(s.admission_no || s.admissionNo || s.id).trim().toLowerCase()
+            if (seenLocal.has(key)) return false
+            seenLocal.add(key)
+            return true
+          })
           setStudents(localList)
         }
       } catch (e) {
@@ -78,8 +278,49 @@ export default function StudentsPage() {
           avatar: (s.avatar && s.avatar.trim() !== '') ? s.avatar : `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(s.first_name || 'Student')}`
         }))
         if (dbList.length > 0) {
-          setStudents(dbList)
-          localStorage.setItem('school_students', JSON.stringify(dbList))
+          const merged = dbList.map((dbStudent: any) => {
+            const localMatch = localList.find((l: any) => 
+              String(l.id) === String(dbStudent.id) || 
+              String(l.admission_no || l.admissionNo) === String(dbStudent.admission_no || dbStudent.admissionNo)
+            )
+            return {
+              ...(localMatch || {}),
+              ...dbStudent,
+              // Preserve rich fields from localMatch
+              regFee: localMatch?.regFee || localMatch?.reg || dbStudent.regFee,
+              admFee: localMatch?.admFee || localMatch?.adm || dbStudent.admFee,
+              classFee: localMatch?.classFee || localMatch?.class_fee || dbStudent.classFee,
+              transFee: localMatch?.transFee || localMatch?.trans || dbStudent.transFee,
+              libFee: localMatch?.libFee || localMatch?.lib || dbStudent.libFee,
+              examFee: localMatch?.examFee || localMatch?.exam || dbStudent.examFee,
+              hostelFee: localMatch?.hostelFee || localMatch?.hostel || dbStudent.hostelFee,
+              extraFee: localMatch?.extraFee || localMatch?.extra || dbStudent.extraFee,
+              regFeePromo: localMatch?.regFeePromo || dbStudent.regFeePromo,
+              classFeePromo: localMatch?.classFeePromo || dbStudent.classFeePromo,
+              transFeePromo: localMatch?.transFeePromo || dbStudent.transFeePromo,
+              regFeeDuration: localMatch?.regFeeDuration || dbStudent.regFeeDuration,
+              classFeeDuration: localMatch?.classFeeDuration || dbStudent.classFeeDuration,
+              transFeeDuration: localMatch?.transFeeDuration || dbStudent.transFeeDuration,
+              isRteStudent: localMatch?.isRteStudent || dbStudent.isRteStudent,
+            }
+          })
+          const localOnly = localList.filter((l: any) => 
+            !dbList.some((d: any) => String(d.id) === String(l.id) || String(d.admission_no) === String(l.admission_no || l.admissionNo))
+          )
+          
+          // Deduplicate by admission number / id
+          const seen = new Set<string>()
+          const finalList: any[] = []
+          for (const s of [...merged, ...localOnly]) {
+            const key = String(s.admission_no || s.admissionNo || s.id).trim().toLowerCase()
+            if (!seen.has(key)) {
+              seen.add(key)
+              finalList.push(s)
+            }
+          }
+
+          setStudents(finalList)
+          localStorage.setItem('school_students', JSON.stringify(finalList))
         } else if (localList.length > 0) {
           setStudents(localList)
         } else {
@@ -106,7 +347,26 @@ export default function StudentsPage() {
   }
 
   const handleEditClick = (student: any) => {
-    setSelectedStudent(student)
+    let fullStudent = { ...student }
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('school_students')
+        if (saved) {
+          const list = JSON.parse(saved)
+          if (Array.isArray(list)) {
+            const match = list.find((s: any) => 
+              String(s.id) === String(student.id) || 
+              String(s.admission_no || s.admissionNo) === String(student.admission_no || student.admissionNo)
+            )
+            if (match) {
+              fullStudent = { ...match, ...student, ...match }
+            }
+          }
+        }
+      }
+    } catch (e) {}
+
+    setSelectedStudent(fullStudent)
     setShowActionMenu(null)
     setView('ADD_STUDENT')
   }
@@ -436,20 +696,30 @@ export default function StudentsPage() {
                           </div>
                         </td>
 
-                        {/* Fee Status Button */}
+                        {/* Fee Status Column - Actionable Button */}
                         <td className="py-3.5 px-4 text-center">
-                           <button 
-                             onClick={() => handleFeeClick(student)} 
-                             className={`px-3 py-1 rounded-full text-[11px] font-bold tracking-wide inline-flex items-center gap-1.5 transition-all shadow-sm ${
-                               isPaid 
-                                 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100' 
-                                 : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 border border-rose-200 dark:border-rose-800 hover:bg-rose-100'
-                             }`}
-                             title="Click to view fee details"
-                           >
-                             <Receipt className="w-3.5 h-3.5" />
-                             {isPaid ? 'Paid' : 'Unpaid'}
-                           </button>
+                          {isPaid ? (
+                            <button 
+                              type="button"
+                              onClick={() => setReceiptStudent(studentToFeeItem(student))} 
+                              className="px-3 py-1 rounded-full text-[11px] font-black tracking-wide inline-flex items-center gap-1.5 transition-all bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 shadow-2xs cursor-pointer"
+                              title="Fee is cleared. Click to view & print receipt."
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Paid ✓</span>
+                            </button>
+                          ) : (
+                            <button 
+                              type="button"
+                              onClick={() => handleOpenCollectFee(student)} 
+                              className="px-3 py-1.5 rounded-xl text-[11px] font-black tracking-wide inline-flex items-center gap-1.5 transition-all bg-[#0f766e] hover:bg-teal-700 text-white shadow-2xs cursor-pointer"
+                              title="Click to collect fee via multi-step workflow"
+                            >
+                              <Wallet className="w-3.5 h-3.5" />
+                              <span>Collect Fee</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          )}
                         </td>
 
                         {/* Account Status */}
@@ -463,44 +733,28 @@ export default function StudentsPage() {
                            </span>
                         </td>
 
-                        {/* Direct Action Buttons */}
+                        {/* Direct Action Buttons - Clean & Streamlined (Redundant icons removed) */}
                         <td className="py-3.5 px-4 text-center">
                           <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
                             <button 
                               onClick={() => handleProfileClick(student)} 
-                              className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 hover:bg-sky-100 dark:hover:bg-sky-900/60 transition-colors shadow-sm" 
-                              title="View Profile"
+                              className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 hover:bg-sky-100 dark:hover:bg-sky-900/60 transition-colors shadow-2xs cursor-pointer" 
+                              title="View Student Profile"
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
                             
                             <button 
                               onClick={() => handleEditClick(student)} 
-                              className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors shadow-sm" 
+                              className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors shadow-2xs cursor-pointer" 
                               title="Edit Student Details"
                             >
                               <Edit className="w-3.5 h-3.5" />
                             </button>
                             
                             <button 
-                              onClick={() => handleFeeClick(student)} 
-                              className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900/60 transition-colors shadow-sm" 
-                              title="View Fee Details"
-                            >
-                              <Banknote className="w-3.5 h-3.5" />
-                            </button>
-                            
-                            <button 
-                              onClick={() => handleMoveClick(student)} 
-                              className="p-2 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-600 hover:bg-teal-100 dark:hover:bg-teal-900/60 transition-colors shadow-sm" 
-                              title="Move Student Status"
-                            >
-                              <RefreshCw className="w-3.5 h-3.5" />
-                            </button>
-                            
-                            <button 
                               onClick={() => handleDeleteClick(student)} 
-                              className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors shadow-sm" 
+                              className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors shadow-2xs cursor-pointer" 
                               title="Delete Student"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -546,6 +800,23 @@ export default function StudentsPage() {
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
            <AddStudentWizard initialData={selectedStudent} onClose={handleCloseModal} />
         </div>
+      )}
+
+      {/* MULTI-STEP FEE COLLECTION WIZARD MODAL */}
+      {collectFeeStudent && (
+        <FeeCollectionWizardModal
+          student={collectFeeStudent}
+          onClose={() => setCollectFeeStudent(null)}
+          onPaymentSuccess={handlePaymentSuccessFromWizard}
+        />
+      )}
+
+      {/* OFFICIAL FEE RECEIPT MODAL */}
+      {receiptStudent && (
+        <FeeReceiptModal
+          record={receiptStudent}
+          onClose={() => setReceiptStudent(null)}
+        />
       )}
 
     </div>
@@ -725,9 +996,31 @@ function FeeDetailsModal({ student, onClose }: { student: any, onClose: () => vo
     const amt = parseNum(student.admFee)
     feeItems.push({ name: 'Admission Fee', details: student.admFeeDuration, amountStr: student.admFee || `${amt}/-`, numAmount: amt })
   }
-  if (student?.classFee || student?.classFeeDuration) {
-    const amt = parseNum(student.classFee)
-    feeItems.push({ name: 'Class Fee', details: `${student.classFeeDuration || ''}${student.isRteStudent === 'Yes' ? ' (RTE Exemption)' : ''}`, amountStr: student.classFee || `${amt}/-`, numAmount: amt })
+  let resolvedClassFee = parseNum(student?.classFee || student?.class_fee)
+  if (resolvedClassFee === 0 && student?.isRteStudent !== 'Yes') {
+    try {
+      const rawMaster = typeof window !== 'undefined' ? localStorage.getItem('school_class_fees') : null
+      if (rawMaster) {
+        const list = JSON.parse(rawMaster)
+        if (Array.isArray(list) && list.length > 0) {
+          const target = (student?.class_name || student?.class || 'Class 1').replace(/\s*\([^)]*\)/, '').trim().toLowerCase()
+          const found = list.find((c: any) =>
+            (c.className && c.className.toLowerCase() === target) ||
+            (c.name && c.name.toLowerCase() === target) ||
+            (c.className && c.className.toLowerCase() === 'all')
+          )
+          if (found) {
+            resolvedClassFee = parseFloat(found.monthly || found.oneTime || found.amount || '1000') || 1000
+          } else if (list[0].monthly || list[0].oneTime) {
+            resolvedClassFee = parseFloat(list[0].monthly || list[0].oneTime) || 1000
+          }
+        }
+      }
+    } catch (e) {}
+    if (resolvedClassFee === 0) resolvedClassFee = 1000
+  }
+  if (resolvedClassFee > 0) {
+    feeItems.push({ name: 'Class Fee', details: `${student?.classFeeDuration || 'Monthly'}${student?.isRteStudent === 'Yes' ? ' (RTE Exemption)' : ''}`, amountStr: `${resolvedClassFee}/-`, numAmount: resolvedClassFee })
   }
   if (student?.libFee || student?.libFeeDuration) {
     const amt = parseNum(student.libFee)

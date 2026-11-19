@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Search, Upload, Filter, Receipt, Pencil, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Plus, Printer } from 'lucide-react'
 import { toast } from 'sonner'
+import { FeeReceiptModal } from '@/app/institute/fees-collection/page'
 
 interface AllFeeRecord {
   id: string | number
@@ -59,6 +60,38 @@ export default function AllFeePage() {
     }
     const fmtAmt = (num: number) => `${num.toLocaleString()}/-`
 
+    const resolveStudentClassFee = (currentFee: any, stuObj: any, classNameStr?: string) => {
+      const parsed = parseAmt(currentFee)
+      if (parsed > 0) return parsed
+      if (stuObj?.isRteStudent === 'Yes') return 0
+      if (stuObj?.classFee || stuObj?.class_fee) {
+        const fromObj = parseAmt(stuObj.classFee || stuObj.class_fee)
+        if (fromObj > 0) return fromObj
+      }
+      try {
+        const rawMaster = localStorage.getItem('school_class_fees')
+        if (rawMaster) {
+          const list = JSON.parse(rawMaster)
+          if (Array.isArray(list) && list.length > 0) {
+            const target = (classNameStr || stuObj?.class || stuObj?.class_name || 'Class 1').trim().toLowerCase()
+            const found = list.find((c: any) =>
+              (c.className && c.className.toLowerCase() === target) ||
+              (c.name && c.name.toLowerCase() === target) ||
+              (c.className && c.className.toLowerCase() === 'all')
+            )
+            if (found) {
+              const amt = parseFloat(found.monthly || found.oneTime || found.amount || '0') || 0
+              if (amt > 0) return amt
+            } else if (list[0]) {
+              const amt = parseFloat(list[0].monthly || list[0].oneTime || list[0].amount || '0') || 0
+              if (amt > 0) return amt
+            }
+          }
+        }
+      } catch (e) {}
+      return 1000
+    }
+
     let combined: AllFeeRecord[] = []
 
     // 1. Saved fees in school_all_fees
@@ -84,7 +117,7 @@ export default function AllFeePage() {
 
             const regAmt = parseAmt(stu.regFee)
             const admAmt = parseAmt(stu.admFee)
-            const classAmt = stu.isRteStudent === 'Yes' ? 0 : parseAmt(stu.classFee)
+            const classAmt = resolveStudentClassFee(stu.classFee, stu, stu.class || stu.class_name)
             const libAmt = parseAmt(stu.libFee)
             const examAmt = parseAmt(stu.examFee)
             const hostelAmt = parseAmt(stu.hostelFee)
@@ -118,7 +151,13 @@ export default function AllFeePage() {
             }
 
             if (existsIdx >= 0) {
-              combined[existsIdx] = { ...record, ...combined[existsIdx] }
+              const existing = combined[existsIdx]
+              const mergedClassAmt = resolveStudentClassFee(existing.classFee && existing.classFee !== '0/-' ? existing.classFee : classAmt, stu, stu.class || stu.class_name)
+              combined[existsIdx] = { 
+                ...record, 
+                ...existing, 
+                classFee: fmtAmt(mergedClassAmt) 
+              }
             } else {
               combined.push(record)
             }
@@ -404,143 +443,9 @@ export default function AllFeePage() {
 
       {/* Itemized Fee Breakdown & Receipt Modal */}
       {selectedRecordForReceipt && (
-        <FeeReceiptModal record={selectedRecordForReceipt} onClose={() => setSelectedRecordForReceipt(null)} />
+        <FeeReceiptModal record={selectedRecordForReceipt as any} onClose={() => setSelectedRecordForReceipt(null)} />
       )}
       
-    </div>
-  )
-}
-
-function FeeReceiptModal({ record, onClose }: { record: AllFeeRecord, onClose: () => void }) {
-  const parseNum = (val: any): number => {
-    if (!val) return 0
-    const str = String(val).replace(/[^0-9.]/g, '')
-    return parseFloat(str) || 0
-  }
-
-  const items: { name: string, details?: string, amount: string, num: number }[] = []
-
-  if (record.reg && record.reg !== '0/-') items.push({ name: 'Registration Fee', details: record.regFeeDuration || 'Standard', amount: record.reg, num: parseNum(record.reg) })
-  if (record.adm && record.adm !== '0/-') items.push({ name: 'Admission Fee', details: record.admFeeDuration || 'Standard', amount: record.adm, num: parseNum(record.adm) })
-  if (record.classFee && record.classFee !== '0/-') items.push({ name: 'Class Fee', details: `${record.classFeeDuration || ''}${record.isRteStudent === 'Yes' ? ' (RTE Exemption)' : ''}`, amount: record.classFee, num: parseNum(record.classFee) })
-  if (record.lib && record.lib !== '0/-') items.push({ name: 'Library Fee', details: record.libFeeDuration || 'Standard', amount: record.lib, num: parseNum(record.lib) })
-  if (record.exam && record.exam !== '0/-') items.push({ name: 'Exam Fee', details: record.examFeeDuration || 'Standard', amount: record.exam, num: parseNum(record.exam) })
-  if (record.hostel && record.hostel !== '0/-') items.push({ name: 'Hostel Fee', details: [record.hostelType, record.hostelFeeDuration].filter(Boolean).join(' • '), amount: record.hostel, num: parseNum(record.hostel) })
-  if (record.extra && record.extra !== '0/-') items.push({ name: 'Extra Curricular Fee', details: record.extraActivityName || 'Standard', amount: record.extra, num: parseNum(record.extra) })
-  if (record.trans && record.trans !== '0/-') {
-    const routeInfo = [record.transRoute, record.transStoppage, record.transDistance, record.transFeeDuration].filter(Boolean).join(' • ')
-    items.push({ name: 'Transportation Fee', details: routeInfo, amount: record.trans, num: parseNum(record.trans) })
-  }
-  if (record.fine && record.fine !== '0/-') items.push({ name: 'Fine / Late Fee', details: 'Penalty', amount: record.fine, num: parseNum(record.fine) })
-
-  const totalNum = items.reduce((sum, item) => sum + item.num, 0) || parseNum(record.total)
-  const isPaid = record.status === 'Paid'
-  const paidNum = isPaid ? totalNum : 0
-  const dueNum = Math.max(0, totalNum - paidNum)
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] border border-slate-200 dark:border-slate-700">
-        
-        {/* Header */}
-        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
-          <div className="flex items-center gap-3">
-             <div className="w-10 h-10 rounded-2xl bg-teal-600/10 text-teal-600 flex items-center justify-center font-bold">
-                <Receipt className="w-5 h-5" />
-             </div>
-             <div>
-               <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">
-                 Fee Details - {record.name}
-               </h2>
-               <p className="text-xs text-slate-400 font-medium">Class: {record.class || 'N/A'} • Section: {record.section || 'A'}</p>
-             </div>
-          </div>
-          <button onClick={onClose} className="p-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500 border border-slate-200 dark:border-slate-700 shadow-sm">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Core Content */}
-        <div className="p-6 overflow-y-auto space-y-6">
-           
-           {/* Metric Summary Bar */}
-           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-2xl">
-                 <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Configured Fee</span>
-                 <span className="text-xl font-black text-slate-800 dark:text-slate-100 mt-1 block">{totalNum.toLocaleString()}/-</span>
-              </div>
-              <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 rounded-2xl">
-                 <span className="text-[10px] uppercase font-bold text-emerald-600 block">Total Paid</span>
-                 <span className="text-xl font-black text-emerald-600 mt-1 block">{paidNum.toLocaleString()}/-</span>
-              </div>
-              <div className="p-4 bg-amber-50/70 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/40 rounded-2xl">
-                 <span className="text-[10px] uppercase font-bold text-amber-600 block">Due Amount</span>
-                 <span className="text-xl font-black text-amber-600 mt-1 block">{dueNum.toLocaleString()}/-</span>
-              </div>
-              <div className="p-4 bg-purple-50/70 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900/40 rounded-2xl">
-                 <span className="text-[10px] uppercase font-bold text-purple-600 block">Fee Status</span>
-                 <span className="text-xs font-black mt-2 inline-block px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 uppercase">
-                    ● {record.status}
-                 </span>
-              </div>
-           </div>
-
-           {/* Configured Fee Breakdown Table */}
-           <div>
-              <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-3 uppercase tracking-wider">Itemized Fee Structure Breakdown</h3>
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
-                <table className="w-full text-xs text-left">
-                  <thead>
-                    <tr className="bg-slate-900 text-white font-bold uppercase tracking-wider">
-                      <th className="py-3 px-4">#</th>
-                      <th className="py-3 px-4">Fee Head Name</th>
-                      <th className="py-3 px-4">Configuration / Duration</th>
-                      <th className="py-3 px-4 text-right">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60 font-semibold text-slate-700 dark:text-slate-200">
-                    {items.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="py-8 text-center text-slate-400 font-medium">No fee items configured for this student.</td>
-                      </tr>
-                    ) : (
-                      items.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-700/30 transition-colors">
-                          <td className="py-3.5 px-4 text-slate-400">{idx + 1}.</td>
-                          <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-100">{item.name}</td>
-                          <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 font-normal">{item.details || 'Standard'}</td>
-                          <td className="py-3.5 px-4 text-right font-black text-teal-600 dark:text-teal-400">{item.amount}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                  {items.length > 0 && (
-                    <tfoot>
-                      <tr className="bg-slate-50 dark:bg-slate-900/80 font-black text-slate-800 dark:text-slate-100 border-t border-slate-200 dark:border-slate-700">
-                        <td colSpan={3} className="py-3 px-4 text-right">Total Fee Amount:</td>
-                        <td className="py-3 px-4 text-right text-teal-600 dark:text-teal-400 text-sm font-black">{totalNum.toLocaleString()}/-</td>
-                      </tr>
-                    </tfoot>
-                  )}
-                </table>
-              </div>
-           </div>
-
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700 flex justify-center gap-4 bg-slate-50/50 dark:bg-slate-900/50">
-          <button 
-            onClick={() => toast.success('Printing fee breakdown receipt...')} 
-            className="flex items-center gap-2 px-8 py-2.5 bg-teal-600 text-white text-xs font-bold rounded-xl hover:bg-teal-700 transition-all shadow-md shadow-teal-600/20"
-          >
-            <Printer className="w-4 h-4" /> Print Receipt
-          </button>
-          <button onClick={onClose} className="px-8 py-2.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-xl hover:bg-slate-50 transition-all shadow-sm">
-            Close
-          </button>
-        </div>
-      </div>
     </div>
   )
 }

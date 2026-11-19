@@ -142,6 +142,30 @@ export interface PayrollTransactionItem {
   createdAt: string
 }
 
+export interface EmployeePayrollSummary {
+  id: string
+  name: string
+  userType: 'Teacher' | 'Employee' | 'Driver'
+  role: string
+  department: string
+  employeeId: string
+  phone?: string
+  email?: string
+  joiningDate?: string
+  applicableStartDate?: string
+  basicSalary: number
+  grossSalary: number
+  formattedGrossSalary: string
+  formattedBasicSalary: string
+  latestMonthStatus: 'Paid' | 'Unpaid' | 'Partial'
+  latestMonthYear: string
+  totalMonthsLogged: number
+  totalPaidMonths: number
+  totalUnpaidMonths: number
+  totalPaidAmount: number
+  totalPendingAmount: number
+}
+
 // Fetch all staff members across Teachers, Staff Members, and Drivers
 async function loadAllStaff(instId?: string) {
   const staffList: Array<{
@@ -154,12 +178,16 @@ async function loadAllStaff(instId?: string) {
     basicSalary: number
     grossSalary: number
     allowedMonthlyPaidLeaves: number
+    phone?: string
+    email?: string
+    joiningDate?: string
+    applicableStartDate?: string
   }> = []
 
   // 1. Teachers
   try {
     const tchRes = await pool.query(`
-      SELECT id, name, basic_salary, gross_salary, details, joining_date
+      SELECT id, name, basic_salary, gross_salary, details, joining_date, contact, email, applicable_start_date
       FROM institute_teachers
       WHERE status != 'Deleted'
       ORDER BY name ASC
@@ -194,6 +222,18 @@ async function loadAllStaff(instId?: string) {
       if (!gross) gross = 45000
       if (!basic) basic = Math.round(gross * 0.7)
 
+      // Determine payroll applicable start date
+      let appDate = t.applicable_start_date ? String(t.applicable_start_date).split('T')[0] : ''
+      if (!appDate && details?.payroll?.applicableStartDate) {
+        appDate = String(details.payroll.applicableStartDate).split('T')[0]
+      }
+      if (!appDate && details?.applicableStartDate) {
+        appDate = String(details.applicableStartDate).split('T')[0]
+      }
+      if (!appDate && t.joining_date) {
+        appDate = String(t.joining_date).split('T')[0]
+      }
+
       staffList.push({
         id: String(t.id),
         name: cleanName,
@@ -203,7 +243,11 @@ async function loadAllStaff(instId?: string) {
         employeeId: `TCH-${String(idx + 1).padStart(3, '0')}`,
         basicSalary: basic,
         grossSalary: gross,
-        allowedMonthlyPaidLeaves: allowedLeaves
+        allowedMonthlyPaidLeaves: allowedLeaves,
+        phone: t.contact ? String(t.contact) : undefined,
+        email: t.email ? String(t.email) : undefined,
+        joiningDate: t.joining_date ? String(t.joining_date).split('T')[0] : undefined,
+        applicableStartDate: appDate || undefined
       })
     })
   } catch (err) {
@@ -213,7 +257,7 @@ async function loadAllStaff(instId?: string) {
   // 2. Staff Members / Employees
   try {
     const empRes = await pool.query(`
-      SELECT id, name, role, basic_salary, gross_salary, details, joining_date
+      SELECT id, name, role, basic_salary, gross_salary, details, joining_date, phone, email, applicable_start_date
       FROM institute_staff_members
       WHERE status != 'Deleted'
       ORDER BY name ASC
@@ -244,6 +288,18 @@ async function loadAllStaff(instId?: string) {
       if (!gross) gross = isDriver ? 22000 : 28000
       if (!basic) basic = Math.round(gross * 0.7)
 
+      // Determine payroll applicable start date
+      let appDate = e.applicable_start_date ? String(e.applicable_start_date).split('T')[0] : ''
+      if (!appDate && details?.payroll?.applicableStartDate) {
+        appDate = String(details.payroll.applicableStartDate).split('T')[0]
+      }
+      if (!appDate && details?.applicableStartDate) {
+        appDate = String(details.applicableStartDate).split('T')[0]
+      }
+      if (!appDate && e.joining_date) {
+        appDate = String(e.joining_date).split('T')[0]
+      }
+
       staffList.push({
         id: String(e.id),
         name: cleanName,
@@ -253,7 +309,11 @@ async function loadAllStaff(instId?: string) {
         employeeId: `${isDriver ? 'DRV' : 'EMP'}-${String(idx + 1).padStart(3, '0')}`,
         basicSalary: basic,
         grossSalary: gross,
-        allowedMonthlyPaidLeaves: allowedLeaves
+        allowedMonthlyPaidLeaves: allowedLeaves,
+        phone: e.phone ? String(e.phone) : undefined,
+        email: e.email ? String(e.email) : undefined,
+        joiningDate: e.joining_date ? String(e.joining_date).split('T')[0] : undefined,
+        applicableStartDate: appDate || undefined
       })
     })
   } catch (err) {
@@ -279,7 +339,9 @@ async function loadAllStaff(instId?: string) {
         employeeId: `DRV-${String(idx + 1).padStart(3, '0')}`,
         basicSalary: 16000,
         grossSalary: 22000,
-        allowedMonthlyPaidLeaves: 2
+        allowedMonthlyPaidLeaves: 2,
+        phone: d.driver_mobile ? String(d.driver_mobile) : undefined,
+        applicableStartDate: '2026-10-01'
       })
     })
   } catch (err) {
@@ -415,6 +477,14 @@ export async function generatePayrollForMonth(
     let insertedCount = 0
 
     for (const staff of allStaff) {
+      // Check if target month is before employee's payroll applicable start date
+      if (staff.applicableStartDate) {
+        const staffAppYM = staff.applicableStartDate.slice(0, 7)
+        if (/^\d{4}-\d{2}$/.test(staffAppYM) && ym < staffAppYM) {
+          continue // Skip staff if target month is before their payroll applicable date
+        }
+      }
+
       const sNameKey = staff.name.toLowerCase().trim()
       const att = attendanceByStaffId[staff.id] || attendanceByStaffName[sNameKey] || {
         present: 0,
@@ -756,6 +826,49 @@ export async function fetchPayrollRecordById(payrollId: string): Promise<{
   }
 }
 
+// Fetch all payroll transactions for a specific staff member
+export async function fetchStaffAllTransactions(params: {
+  staffId: string
+  staffName?: string
+}): Promise<{
+  success: boolean
+  transactions: PayrollTransactionItem[]
+  error?: string
+}> {
+  try {
+    await ensurePayrollTable()
+    const { staffId, staffName } = params
+
+    const res = await pool.query(`
+      SELECT * FROM institute_payroll_transactions
+      WHERE staff_id = $1 OR (staff_name ILIKE $2 AND $2 <> '')
+      ORDER BY created_at DESC
+    `, [staffId, staffName ? `%${staffName.trim()}%` : ''])
+
+    const transactions: PayrollTransactionItem[] = res.rows.map((tx: any) => ({
+      id: String(tx.id),
+      payrollId: String(tx.payroll_id),
+      staffId: String(tx.staff_id || ''),
+      staffName: tx.staff_name,
+      monthYear: tx.month_year,
+      amount: parseFloat(tx.amount),
+      formattedAmount: `₹${parseFloat(tx.amount).toLocaleString('en-IN')}/-`,
+      paymentMethod: tx.payment_method || 'Bank Transfer',
+      transactionId: tx.transaction_id,
+      paymentDate: tx.payment_date ? String(tx.payment_date).split('T')[0] : '',
+      accountDetails: tx.account_details,
+      screenshotUrl: tx.screenshot_url,
+      notes: tx.notes,
+      createdAt: tx.created_at ? tx.created_at.toISOString() : ''
+    }))
+
+    return { success: true, transactions }
+  } catch (err: any) {
+    console.error('fetchStaffAllTransactions error:', err)
+    return { success: false, transactions: [], error: err.message || 'Failed to fetch staff transactions' }
+  }
+}
+
 // Update payroll item days, deductions, and salary directly
 export async function updatePayrollItemDetails(params: {
   payrollId: string
@@ -924,6 +1037,126 @@ export async function recordPayrollTransaction(params: RecordTransactionParams):
   }
 }
 
+export interface MultiMonthPaymentItem {
+  payrollId: string
+  monthYear: string
+  amount: number
+}
+
+export interface RecordMultiMonthTransactionParams {
+  staffId: string
+  staffName: string
+  items: MultiMonthPaymentItem[]
+  paymentMethod: string
+  transactionId?: string
+  accountDetails?: {
+    accountNo?: string
+    ifscCode?: string
+    bankName?: string
+    holderName?: string
+    upiId?: string
+    chequeNo?: string
+  }
+  notes?: string
+}
+
+// Record payment for multiple months in one single transaction (supports full or less/partial amounts)
+export async function recordMultiMonthPayrollTransaction(params: RecordMultiMonthTransactionParams): Promise<{
+  success: boolean
+  transactionId?: string
+  totalPaid?: number
+  itemsUpdated?: number
+  error?: string
+}> {
+  try {
+    await ensurePayrollTable()
+    const { staffId, staffName, items, paymentMethod, transactionId, accountDetails, notes } = params
+
+    if (!items || items.length === 0) {
+      return { success: false, error: 'No months provided for payment' }
+    }
+
+    const validItems = items.filter(it => it.amount > 0)
+    if (validItems.length === 0) {
+      return { success: false, error: 'At least one month must have an amount greater than 0' }
+    }
+
+    const session = await getSession('institute_session')
+    const instId = session?.userId || 'default-inst'
+    const txnId = transactionId?.trim() || `TXN-MULTI-${Date.now().toString().slice(-6)}`
+
+    let totalDisbursed = 0
+    let updatedCount = 0
+
+    for (const item of validItems) {
+      const payRes = await pool.query(`SELECT * FROM institute_payroll WHERE id = $1`, [item.payrollId])
+      if (payRes.rows.length === 0) continue
+
+      const r = payRes.rows[0]
+      const netSalary = parseFloat(r.net_salary) || 0
+
+      // Compute previous paid amount from existing transactions
+      const txSumRes = await pool.query(
+        `SELECT COALESCE(SUM(amount), 0) as total_paid FROM institute_payroll_transactions WHERE payroll_id = $1`,
+        [item.payrollId]
+      )
+      const prevPaid = parseFloat(txSumRes.rows[0].total_paid) || 0
+      const newPaid = prevPaid + item.amount
+      const newPending = Math.max(0, netSalary - newPaid)
+      const newStatus: 'Paid' | 'Partial' = newPending <= 0 ? 'Paid' : 'Partial'
+
+      const itemNotes = notes
+        ? `${notes} (Multi-month batch: ${item.monthYear})`
+        : `Multi-month disbursement for ${item.monthYear}`
+
+      // Insert transaction into institute_payroll_transactions
+      await pool.query(`
+        INSERT INTO institute_payroll_transactions (
+          institution_id, payroll_id, staff_id, staff_name, month_year, amount,
+          payment_method, transaction_id, payment_date, account_details, notes
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_DATE, $9, $10)
+      `, [
+        r.institution_id || instId,
+        item.payrollId,
+        r.staff_id || staffId,
+        r.staff_name || staffName,
+        r.month_year,
+        item.amount,
+        paymentMethod || 'Bank Transfer',
+        txnId,
+        JSON.stringify(accountDetails || {}),
+        itemNotes
+      ])
+
+      // Update institute_payroll
+      await pool.query(`
+        UPDATE institute_payroll
+        SET paid_amount = $1,
+            pending_amount = $2,
+            status = $3,
+            payment_method = $4,
+            transaction_id = $5,
+            payment_date = CURRENT_DATE,
+            updated_at = NOW()
+        WHERE id = $6
+      `, [newPaid, newPending, newStatus, paymentMethod, txnId, item.payrollId])
+
+      totalDisbursed += item.amount
+      updatedCount++
+    }
+
+    return {
+      success: true,
+      transactionId: txnId,
+      totalPaid: totalDisbursed,
+      itemsUpdated: updatedCount
+    }
+  } catch (err: any) {
+    console.error('recordMultiMonthPayrollTransaction error:', err)
+    return { success: false, error: err.message || 'Failed to record multi-month transaction' }
+  }
+}
+
 // Mark a payroll record as Paid or Unpaid
 export async function updatePayrollStatus(params: {
   payrollId: string
@@ -963,5 +1196,436 @@ export async function deletePayrollRecord(payrollId: string): Promise<{ success:
   } catch (err: any) {
     console.error('deletePayrollRecord error:', err)
     return { success: false, error: err.message || 'Failed to delete payroll record' }
+  }
+}
+
+// ── NEW: Fetch Employee Directory for main Payroll page (Employee Details only) ──
+export async function fetchEmployeePayrollDirectory(): Promise<{
+  success: boolean
+  employees: EmployeePayrollSummary[]
+  stats: {
+    totalStaff: number
+    teachersCount: number
+    employeesCount: number
+    driversCount: number
+    totalGrossPayrollScale: number
+    currentMonthDisbursed: number
+    currentMonthPending: number
+    currentMonthPaidCount: number
+    currentMonthUnpaidCount: number
+    currentMonthYear: string
+  }
+  error?: string
+}> {
+  try {
+    await ensurePayrollTable()
+    const session = await getSession('institute_session')
+    let instId = session?.userId || 'default-inst'
+
+    const now = new Date()
+    const curYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
+    const staffList = await loadAllStaff(instId)
+
+    // Ensure current month records exist
+    const curCheck = await pool.query(
+      `SELECT COUNT(*) FROM institute_payroll WHERE month_year = $1`,
+      [curYM]
+    )
+    if (parseInt(curCheck.rows[0].count, 10) === 0 && staffList.length > 0) {
+      await generatePayrollForMonth(curYM)
+    }
+
+    // Aggregated stats from institute_payroll
+    const aggRes = await pool.query(`
+      SELECT staff_id, LOWER(TRIM(staff_name)) as name_key,
+             COUNT(*) as total_months,
+             COUNT(*) FILTER (WHERE status = 'Paid') as paid_months,
+             COUNT(*) FILTER (WHERE status != 'Paid') as unpaid_months,
+             COALESCE(SUM(paid_amount), 0) as total_paid,
+             COALESCE(SUM(pending_amount), 0) as total_pending
+      FROM institute_payroll
+      GROUP BY staff_id, LOWER(TRIM(staff_name))
+    `)
+
+    const aggMap: Record<string, any> = {}
+    aggRes.rows.forEach((r: any) => {
+      if (r.staff_id) aggMap[r.staff_id] = r
+      if (r.name_key) aggMap[r.name_key] = r
+    })
+
+    // Fetch latest status for current month or most recent month
+    const latestRes = await pool.query(`
+      SELECT DISTINCT ON (COALESCE(staff_id, LOWER(TRIM(staff_name))))
+             staff_id, LOWER(TRIM(staff_name)) as name_key, month_year, status, paid_amount, pending_amount
+      FROM institute_payroll
+      ORDER BY COALESCE(staff_id, LOWER(TRIM(staff_name))), month_year DESC
+    `)
+
+    const latestMap: Record<string, any> = {}
+    latestRes.rows.forEach((r: any) => {
+      if (r.staff_id) latestMap[r.staff_id] = r
+      if (r.name_key) latestMap[r.name_key] = r
+    })
+
+    const employees: EmployeePayrollSummary[] = staffList.map(s => {
+      // Clean up records prior to staff's applicable date in the background if present
+      if (s.applicableStartDate) {
+        const sAppYM = s.applicableStartDate.slice(0, 7)
+        if (/^\d{4}-\d{2}$/.test(sAppYM)) {
+          pool.query(`
+            DELETE FROM institute_payroll
+            WHERE (staff_id = $1 OR LOWER(TRIM(staff_name)) = LOWER(TRIM($2)))
+              AND month_year < $3
+          `, [s.id, s.name, sAppYM]).catch(() => {})
+        }
+      }
+
+      const sNameKey = s.name.toLowerCase().trim()
+      const agg = aggMap[s.id] || aggMap[sNameKey] || {}
+      const latest = latestMap[s.id] || latestMap[sNameKey] || {}
+
+      const totalPaid = parseFloat(agg.total_paid) || 0
+      const totalPending = parseFloat(agg.total_pending) || 0
+      const totalMonths = parseInt(agg.total_months, 10) || 0
+      const paidMonths = parseInt(agg.paid_months, 10) || 0
+      const unpaidMonths = parseInt(agg.unpaid_months, 10) || 0
+
+      let latestStatus: 'Paid' | 'Unpaid' | 'Partial' = (latest.status as any) || 'Unpaid'
+
+      return {
+        id: s.id,
+        name: s.name,
+        userType: s.userType,
+        role: s.role,
+        department: s.department,
+        employeeId: s.employeeId,
+        phone: s.phone,
+        email: s.email,
+        joiningDate: s.joiningDate,
+        applicableStartDate: s.applicableStartDate,
+        basicSalary: s.basicSalary,
+        grossSalary: s.grossSalary,
+        formattedGrossSalary: `₹${s.grossSalary.toLocaleString('en-IN')}/-`,
+        formattedBasicSalary: `₹${s.basicSalary.toLocaleString('en-IN')}/-`,
+        latestMonthStatus: latestStatus,
+        latestMonthYear: latest.month_year || curYM,
+        totalMonthsLogged: totalMonths,
+        totalPaidMonths: paidMonths,
+        totalUnpaidMonths: unpaidMonths,
+        totalPaidAmount: totalPaid,
+        totalPendingAmount: totalPending
+      }
+    })
+
+    // Compute stats
+    const totalStaff = employees.length
+    const teachersCount = employees.filter(e => e.userType === 'Teacher').length
+    const employeesCount = employees.filter(e => e.userType === 'Employee').length
+    const driversCount = employees.filter(e => e.userType === 'Driver').length
+    const totalGrossPayrollScale = employees.reduce((sum, e) => sum + e.grossSalary, 0)
+
+    // Current month query for stats
+    const curMonthRes = await pool.query(`
+      SELECT status, paid_amount, pending_amount
+      FROM institute_payroll
+      WHERE month_year = $1
+    `, [curYM])
+
+    let curDisbursed = 0
+    let curPending = 0
+    let curPaidCount = 0
+    let curUnpaidCount = 0
+
+    curMonthRes.rows.forEach((r: any) => {
+      curDisbursed += parseFloat(r.paid_amount) || 0
+      curPending += parseFloat(r.pending_amount) || 0
+      if (r.status === 'Paid') curPaidCount++
+      else curUnpaidCount++
+    })
+
+    return {
+      success: true,
+      employees,
+      stats: {
+        totalStaff,
+        teachersCount,
+        employeesCount,
+        driversCount,
+        totalGrossPayrollScale,
+        currentMonthDisbursed: curDisbursed,
+        currentMonthPending: curPending,
+        currentMonthPaidCount: curPaidCount,
+        currentMonthUnpaidCount: curUnpaidCount,
+        currentMonthYear: curYM
+      }
+    }
+  } catch (err: any) {
+    console.error('fetchEmployeePayrollDirectory error:', err)
+    return {
+      success: false,
+      employees: [],
+      stats: {
+        totalStaff: 0,
+        teachersCount: 0,
+        employeesCount: 0,
+        driversCount: 0,
+        totalGrossPayrollScale: 0,
+        currentMonthDisbursed: 0,
+        currentMonthPending: 0,
+        currentMonthPaidCount: 0,
+        currentMonthUnpaidCount: 0,
+        currentMonthYear: ''
+      },
+      error: err.message || 'Failed to fetch employee directory'
+    }
+  }
+}
+
+// ── NEW: Fetch All-Month Payroll History for a Specific Staff Member ──
+export async function fetchStaffAllMonthsPayroll(params: {
+  staffId: string
+  staffName?: string
+  year?: string
+}): Promise<{
+  success: boolean
+  employee?: {
+    id: string
+    name: string
+    userType: 'Teacher' | 'Employee' | 'Driver'
+    role: string
+    department: string
+    employeeId: string
+    basicSalary: number
+    grossSalary: number
+    formattedGrossSalary: string
+    phone?: string
+    email?: string
+    joiningDate?: string
+    applicableStartDate?: string
+    applicableMonth?: string
+  }
+  records: PayrollItem[]
+  availableYears: string[]
+  summary: {
+    totalGross: number
+    totalNet: number
+    totalPaid: number
+    totalPending: number
+    totalDeduction: number
+    totalMonths: number
+    paidMonths: number
+    unpaidMonths: number
+  }
+  error?: string
+}> {
+  try {
+    await ensurePayrollTable()
+    const { staffId, staffName, year } = params
+    const session = await getSession('institute_session')
+    const instId = session?.userId || 'default-inst'
+
+    // 1. Locate staff details
+    const allStaff = await loadAllStaff(instId)
+    const staff = allStaff.find(
+      s => s.id === staffId || (staffName && s.name.toLowerCase().trim() === staffName.toLowerCase().trim())
+    )
+
+    if (!staff) {
+      return {
+        success: false,
+        records: [],
+        availableYears: ['2026'],
+        summary: { totalGross: 0, totalNet: 0, totalPaid: 0, totalPending: 0, totalDeduction: 0, totalMonths: 0, paidMonths: 0, unpaidMonths: 0 },
+        error: 'Staff member not found'
+      }
+    }
+
+    // 2. Determine payroll applicable month from employee's profile
+    const now = new Date()
+    const curYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
+    let applicableMonth = curYM
+    if (staff.applicableStartDate) {
+      const ym = staff.applicableStartDate.slice(0, 7) // 'YYYY-MM'
+      if (/^\d{4}-\d{2}$/.test(ym)) {
+        applicableMonth = ym
+      }
+    }
+
+    // 2a. Delete any dummy/stale records before the employee's payroll applicable month
+    await pool.query(`
+      DELETE FROM institute_payroll
+      WHERE (staff_id = $1 OR LOWER(TRIM(staff_name)) = LOWER(TRIM($2)))
+        AND month_year < $3
+    `, [staff.id, staff.name, applicableMonth])
+
+    // 2b. Compute valid months list ONLY from applicableMonth up to curYM
+    const validMonths: string[] = []
+    const [fromY, fromM] = applicableMonth.split('-').map(Number)
+    const [toY, toM] = curYM.split('-').map(Number)
+
+    let y = toY
+    let m = toM
+    while (y > fromY || (y === fromY && m >= fromM)) {
+      validMonths.push(`${y}-${String(m).padStart(2, '0')}`)
+      m--
+      if (m < 1) {
+        m = 12
+        y--
+      }
+    }
+
+    // 2c. Ensure existing or generated records for each valid applicable month
+    for (const ym of validMonths) {
+      const existCheck = await pool.query(`
+        SELECT id FROM institute_payroll
+        WHERE (staff_id = $1 OR LOWER(TRIM(staff_name)) = LOWER(TRIM($2)))
+          AND month_year = $3
+      `, [staff.id, staff.name, ym])
+
+      if (existCheck.rows.length === 0) {
+        await generatePayrollForMonth(ym)
+      }
+    }
+
+    // 3. Query all records for this staff (strictly >= applicableMonth and <= curYM)
+    let query = `
+      SELECT id, staff_id, staff_name, user_type, role, department, employee_id,
+             month_year, total_month_days, present_days, paid_days, absent_days, half_days,
+             paid_leaves, non_paid_leaves, basic_salary, gross_salary, leave_deduction,
+             net_salary, paid_amount, pending_amount, status, payment_method,
+             TO_CHAR(payment_date, 'YYYY-MM-DD') as payment_date, transaction_id
+      FROM institute_payroll
+      WHERE (staff_id = $1 OR LOWER(TRIM(staff_name)) = LOWER(TRIM($2)))
+        AND month_year >= $3
+        AND month_year <= $4
+    `
+    const sqlParams: any[] = [staff.id, staff.name, applicableMonth, curYM]
+    let pIdx = 5
+
+    if (year && year !== 'All') {
+      query += ` AND month_year LIKE $${pIdx++}`
+      sqlParams.push(`${year}-%`)
+    }
+
+    query += ` ORDER BY month_year DESC`
+
+    const res = await pool.query(query, sqlParams)
+
+    const records: PayrollItem[] = res.rows.map((r: any) => {
+      const deductionNum = parseFloat(r.leave_deduction) || 0
+      const netNum = parseFloat(r.net_salary) || 0
+      const grossNum = parseFloat(r.gross_salary) || 0
+      const paidNum = parseFloat(r.paid_amount) || (r.status === 'Paid' ? netNum : 0)
+      const pendingNum = r.pending_amount !== null && r.pending_amount !== undefined
+        ? parseFloat(r.pending_amount)
+        : (r.status === 'Paid' ? 0 : Math.max(0, netNum - paidNum))
+
+      let statusVal: 'Paid' | 'Unpaid' | 'Partial' = 'Unpaid'
+      if (pendingNum <= 0 && paidNum > 0) statusVal = 'Paid'
+      else if (paidNum > 0 && pendingNum > 0) statusVal = 'Partial'
+      else statusVal = (r.status as any) || 'Unpaid'
+
+      const totalDays = parseInt(r.total_month_days, 10) || 30
+      const presentDays = parseFloat(r.present_days) || 0
+      const paidLeave = parseFloat(r.paid_leaves) || 0
+      const paidDays = r.paid_days !== null && r.paid_days !== undefined
+        ? parseFloat(r.paid_days)
+        : Math.min(totalDays, Number((presentDays + paidLeave).toFixed(1)))
+
+      return {
+        id: String(r.id),
+        staffId: String(r.staff_id || ''),
+        userType: (r.user_type as any) || 'Teacher',
+        name: r.staff_name,
+        role: r.role || 'Teacher',
+        department: r.department || 'Academics',
+        employeeId: r.employee_id || '',
+        monthYear: r.month_year,
+        totalDays,
+        presentDays,
+        paidDays,
+        absentDays: parseFloat(r.absent_days) || 0,
+        halfDays: parseFloat(r.half_days) || 0,
+        paidLeave,
+        nonPaidLeave: parseFloat(r.non_paid_leaves) || 0,
+        basicSalary: parseFloat(r.basic_salary) || 0,
+        grossSalary: grossNum,
+        leaveDeduction: deductionNum,
+        netSalary: netNum,
+        paidAmount: paidNum,
+        pendingAmount: pendingNum,
+        formattedGrossSalary: `₹${grossNum.toLocaleString('en-IN')}/-`,
+        formattedLeaveDeduction: deductionNum > 0 ? `₹${deductionNum.toLocaleString('en-IN')}/-` : '₹0',
+        formattedNetSalary: `₹${netNum.toLocaleString('en-IN')}/-`,
+        formattedPaidAmount: `₹${paidNum.toLocaleString('en-IN')}/-`,
+        formattedPendingAmount: `₹${pendingNum.toLocaleString('en-IN')}/-`,
+        status: statusVal,
+        paymentMethod: r.payment_method || undefined,
+        paymentDate: r.payment_date || undefined,
+        transactionId: r.transaction_id || undefined
+      }
+    })
+
+    // Extract available years
+    const yearSet = new Set<string>()
+    res.rows.forEach((r: any) => {
+      if (r.month_year) {
+        yearSet.add(r.month_year.split('-')[0])
+      }
+    })
+    const availableYears = Array.from(yearSet).sort().reverse()
+    if (!availableYears.includes('2026')) availableYears.unshift('2026')
+
+    // Summaries
+    const totalGross = records.reduce((s, r) => s + r.grossSalary, 0)
+    const totalNet = records.reduce((s, r) => s + r.netSalary, 0)
+    const totalPaid = records.reduce((s, r) => s + r.paidAmount, 0)
+    const totalPending = records.reduce((s, r) => s + r.pendingAmount, 0)
+    const totalDeduction = records.reduce((s, r) => s + r.leaveDeduction, 0)
+    const paidMonths = records.filter(r => r.status === 'Paid').length
+    const unpaidMonths = records.filter(r => r.status !== 'Paid').length
+
+    return {
+      success: true,
+      employee: {
+        id: staff.id,
+        name: staff.name,
+        userType: staff.userType,
+        role: staff.role,
+        department: staff.department,
+        employeeId: staff.employeeId,
+        basicSalary: staff.basicSalary,
+        grossSalary: staff.grossSalary,
+        formattedGrossSalary: `₹${staff.grossSalary.toLocaleString('en-IN')}/-`,
+        phone: staff.phone,
+        email: staff.email,
+        joiningDate: staff.joiningDate,
+        applicableStartDate: staff.applicableStartDate,
+        applicableMonth
+      },
+      records,
+      availableYears,
+      summary: {
+        totalGross,
+        totalNet,
+        totalPaid,
+        totalPending,
+        totalDeduction,
+        totalMonths: records.length,
+        paidMonths,
+        unpaidMonths
+      }
+    }
+  } catch (err: any) {
+    console.error('fetchStaffAllMonthsPayroll error:', err)
+    return {
+      success: false,
+      records: [],
+      availableYears: ['2026'],
+      summary: { totalGross: 0, totalNet: 0, totalPaid: 0, totalPending: 0, totalDeduction: 0, totalMonths: 0, paidMonths: 0, unpaidMonths: 0 },
+      error: err.message || 'Failed to fetch staff payroll history'
+    }
   }
 }

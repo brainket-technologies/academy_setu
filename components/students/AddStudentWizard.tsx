@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { createStudent } from '@/app/institute/students/actions'
+import { createStudent, updateStudent } from '@/app/institute/students/actions'
 import { X, Check, Paperclip, Plus, Camera, Percent, Search, Eye, Edit2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { 
@@ -59,6 +59,7 @@ export default function AddStudentWizard({
       return {
         ...defaultData,
         ...initialData,
+        id: initialData.id,
         firstName: initialData.first_name || initialData.firstName || '',
         lastName: initialData.last_name || initialData.lastName || '',
         mobileNo: initialData.contact || initialData.mobileNo || '',
@@ -1982,38 +1983,67 @@ function Step6({ formData, onBack, onCancel, onEditStep }: any) {
   const handleSubmit = async () => {
     setSubmitting(true)
     
-    // 1. Try DB creation/update
-    let dbId: string | null = null
-    try {
-      const res = await createStudent(formData)
-      if (res?.success && res.id) {
-        dbId = String(res.id)
-      }
-    } catch (e) {
-      console.error('Error creating student in DB:', e)
-    }
-    
-    // 2. Save to localStorage for instant local reflection
     const saved = localStorage.getItem('school_students')
     let currentList: any[] = []
     if (saved) {
       try { currentList = JSON.parse(saved) } catch (e) { console.error(e) }
     }
 
-    const existingIdx = formData.id ? currentList.findIndex((s: any) => String(s.id) === String(formData.id)) : -1
+    const targetId = String(formData.id || '').trim()
+    const targetAdm = String(formData.admissionNo || '').trim().toLowerCase()
+
+    let existingIdx = -1
+    if (targetId || targetAdm) {
+      existingIdx = currentList.findIndex((s: any) => 
+        (targetId && String(s.id).trim() === targetId) ||
+        (targetAdm && String(s.admission_no || s.admissionNo || '').trim().toLowerCase() === targetAdm)
+      )
+    }
+
+    const isEdit = existingIdx >= 0 || Boolean(formData.id)
+    const existingStudent = existingIdx >= 0 ? currentList[existingIdx] : null
+    const studentDbId = existingStudent?.id || formData.id
+
+    // 1. DB operation: update if editing, create if new
+    let dbId: string | null = null
+    if (isEdit && studentDbId) {
+      try {
+        await updateStudent(studentDbId, formData)
+        dbId = String(studentDbId)
+      } catch (e) {
+        console.error('Error updating student in DB:', e)
+      }
+    } else {
+      try {
+        const res = await createStudent(formData)
+        if (res?.success && res.id) {
+          dbId = String(res.id)
+        }
+      } catch (e) {
+        console.error('Error creating student in DB:', e)
+      }
+    }
+
+    // 2. Save to localStorage for instant local reflection
+    const finalId = studentDbId || dbId || Date.now()
+    const finalAdm = formData.admissionNo || existingStudent?.admission_no || existingStudent?.admissionNo || `ADM-${Math.floor(1000 + Math.random() * 9000)}`
+    const finalRoll = formData.rollNo || existingStudent?.roll_no || existingStudent?.rollNo || `${currentList.length + 1}`
 
     const studentRecord = {
-      id: dbId || formData.id || Date.now(),
-      admission_no: formData.admissionNo || `ADM-${Math.floor(1000 + Math.random() * 9000)}`,
-      roll_no: formData.rollNo || `${currentList.length + 1}`,
+      ...(existingStudent || {}),
+      ...formData,
+      id: finalId,
+      admission_no: finalAdm,
+      admissionNo: finalAdm,
+      roll_no: finalRoll,
+      rollNo: finalRoll,
       first_name: formData.firstName,
       last_name: formData.lastName || '',
       class_name: `${formData.class || ''}${formData.section ? ` (${formData.section})` : ''}`,
       contact: formData.mobileNo || '',
-      fees_status: formData.fees_status || 'Pending',
-      status: formData.status || 'Active',
-      avatar: formData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.firstName}`,
-      ...formData
+      fees_status: formData.fees_status || existingStudent?.fees_status || 'Pending',
+      status: formData.status || existingStudent?.status || 'Active',
+      avatar: formData.avatar || existingStudent?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.firstName}`
     }
 
     let updatedList: any[] = []
@@ -2021,7 +2051,16 @@ function Step6({ formData, onBack, onCancel, onEditStep }: any) {
       updatedList = [...currentList]
       updatedList[existingIdx] = studentRecord
     } else {
-      updatedList = [studentRecord, ...currentList]
+      // Dedup by admission number just in case
+      const dupIdx = currentList.findIndex((s: any) => 
+        String(s.admission_no || s.admissionNo || '').trim().toLowerCase() === finalAdm.toLowerCase()
+      )
+      if (dupIdx >= 0) {
+        updatedList = [...currentList]
+        updatedList[dupIdx] = studentRecord
+      } else {
+        updatedList = [studentRecord, ...currentList]
+      }
     }
 
     localStorage.setItem('school_students', JSON.stringify(updatedList))
@@ -2067,12 +2106,17 @@ function Step6({ formData, onBack, onCancel, onEditStep }: any) {
     if (savedFees) {
       try { allFeesList = JSON.parse(savedFees) } catch (e) {}
     }
-    const feeIdx = allFeesList.findIndex((f: any) => String(f.id) === String(studentRecord.id))
+    const feeIdx = allFeesList.findIndex((f: any) => 
+      (finalId && String(f.id).trim() === String(finalId).trim()) ||
+      (finalAdm && String(f.admissionNo || f.admission_no || '').trim().toLowerCase() === finalAdm.toLowerCase())
+    )
     if (feeIdx >= 0) {
       allFeesList[feeIdx] = { ...allFeesList[feeIdx], ...feeRecordItem }
     } else {
       allFeesList = [feeRecordItem, ...allFeesList]
     }
+    localStorage.setItem('school_all_fees', JSON.stringify(allFeesList))
+
     // 4. Clear from drafts list if it was saved as a draft
     try {
       const draftKey = formData.draftId || formData.id
@@ -2084,7 +2128,7 @@ function Step6({ formData, onBack, onCancel, onEditStep }: any) {
       }
     } catch (e) {}
 
-    toast.success(formData.id ? 'Student details updated successfully!' : 'Student successfully registered!')
+    toast.success(isEdit ? 'Student details updated successfully!' : 'Student successfully registered!')
     onCancel()
   }
 

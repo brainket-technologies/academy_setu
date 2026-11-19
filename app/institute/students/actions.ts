@@ -98,6 +98,56 @@ export async function createStudent(data: any) {
   }
 }
 
+export async function updateStudent(id: string | number, data: any) {
+  const session = await getSession('institute_session')
+  if (!session?.userId) return { success: false, error: 'Unauthorized' }
+
+  try {
+    const firstName = data.firstName || data.first_name || 'Unknown'
+    const lastName = data.lastName || data.last_name || ''
+    const fullName = `${firstName} ${lastName}`.trim() || data.name || 'Unknown'
+
+    await pool.query(`
+      UPDATE institute_students SET
+        name = $1,
+        first_name = $2,
+        last_name = $3,
+        admission_no = $4,
+        roll_no = $5,
+        class_name = $6,
+        section_name = $7,
+        contact = $8,
+        email = $9,
+        status = $10,
+        fees_status = $11,
+        gender = $12,
+        avatar = $13,
+        updated_at = NOW()
+      WHERE (id::text = $14::text OR admission_no = $15::text) AND institution_id = $16
+    `, [
+      fullName,
+      firstName,
+      lastName,
+      data.admissionNo || data.admission_no || '',
+      data.rollNo || data.roll_no || '',
+      data.class || data.className || data.class_name || '',
+      data.section || data.sectionName || data.section_name || '',
+      data.mobileNo || data.contact || '',
+      data.emailId || data.email || '',
+      data.status || 'Active',
+      data.fees_status || 'Unpaid',
+      data.gender || 'Male',
+      data.avatar || '',
+      String(id),
+      data.admissionNo || data.admission_no || String(id),
+      session.userId
+    ])
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
 export async function deleteStudent(id: string | number) {
   const session = await getSession('institute_session')
   if (!session?.userId) return { success: false, error: 'Unauthorized' }
@@ -108,6 +158,43 @@ export async function deleteStudent(id: string | number) {
       WHERE (id::text = $1::text OR admission_no = $1::text) AND institution_id = $2
     `, [String(id), session.userId])
     return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+export async function fetchStudentById(id: string | number) {
+  const session = await getSession('institute_session')
+  if (!session?.userId) return { success: false, error: 'Unauthorized' }
+
+  try {
+    const res = await pool.query(`
+      SELECT 
+        id,
+        institution_id,
+        COALESCE(NULLIF(name, ''), TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')))) as name,
+        COALESCE(first_name, SPLIT_PART(name, ' ', 1)) as first_name,
+        COALESCE(last_name, SUBSTRING(name FROM POSITION(' ' IN name) + 1)) as last_name,
+        admission_no,
+        roll_no,
+        class_name,
+        section_name,
+        contact,
+        email,
+        status,
+        fees_status,
+        avatar,
+        gender,
+        fee,
+        remark,
+        created_at,
+        updated_at
+      FROM institute_students 
+      WHERE institution_id = $1 AND (id::text = $2::text OR admission_no = $2::text)
+      LIMIT 1
+    `, [session.userId, String(id)])
+    if (res.rows.length === 0) return { success: false, error: 'Student not found' }
+    return { success: true, data: res.rows[0] }
   } catch (err: any) {
     return { success: false, error: err.message }
   }
